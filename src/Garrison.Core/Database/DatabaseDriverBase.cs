@@ -282,6 +282,11 @@ namespace Garrison.Core.Database
         public IReportMethods Reports { get; protected set; } = null!;
 
         /// <summary>
+        /// Messages between agents (AA6).
+        /// </summary>
+        public IAgentMessageMethods AgentMessages { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;

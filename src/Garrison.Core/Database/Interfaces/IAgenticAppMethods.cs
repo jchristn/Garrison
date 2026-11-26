@@ -113,6 +113,18 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<string>> MemberAgentIdsAsync(string tenantId, List<string> appIds, CancellationToken token = default);
 
         /// <summary>
+        /// Identifiers of apps in a tenant with an edge between two agents in either direction, ordered by app name. Used by
+        /// the message line policy (AA6.3).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="firstAgentId">One agent.</param>
+        /// <param name="secondAgentId">The other agent.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>App identifiers.</returns>
+        /// <exception cref="System.ArgumentNullException">Thrown when an argument is null or empty.</exception>
+        Task<List<string>> AppIdsWithEdgeBetweenAsync(string tenantId, string firstAgentId, string secondAgentId, CancellationToken token = default);
+
+        /// <summary>
         /// Delete an app with its children and revisions.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

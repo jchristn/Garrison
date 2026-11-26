@@ -311,8 +311,18 @@ namespace Garrison.Server.WebSockets
                 if (String.IsNullOrEmpty(mandateId) || await _Context.Database.Mandates.ReadAsync(ctx.TenantId!, mandateId, token).ConfigureAwait(false) == null) return "Mandate not found.";
                 return null;
             }
+            if (channel.StartsWith("agent-inbox:", StringComparison.Ordinal))
+            {
+                // One agent's inbox (AA6.10): message.queued, message.delivered, message.acknowledged, message.expired, and
+                // message.rejected for each change to a message addressed to the agent, in order.
+                string agentId = channel.Substring("agent-inbox:".Length);
+                AuthorizationDecision messages = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.AgentMessage, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                if (!messages.Permitted) return messages.Reason;
+                if (String.IsNullOrEmpty(agentId) || await _Context.Database.Agents.ReadAsync(ctx.TenantId, agentId, token).ConfigureAwait(false) == null) return "Agent not found.";
+                return null;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, freezes, reports, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, approvals, escalations, freezes, reports, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -336,6 +346,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key == "escalations") await PumpEscalationsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "freezes") await PumpFreezesAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "reports") await PumpReportsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("agent-inbox:", StringComparison.Ordinal)) await PumpAgentInboxAsync(session, ctx, subscription.Key.Substring("agent-inbox:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
@@ -448,6 +459,28 @@ namespace Garrison.Server.WebSockets
             {
                 state.Fingerprint = report.CreatedUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + report.Id;
                 await SendAsync(session, sendLock, new { type = "report.filed", report = report }, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task PumpAgentInboxAsync(WebSocketSession session, RequestContext ctx, string agentId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // Same cursor as the escalations channel, over messages addressed to the agent. A new subscription starts now and
+            // sends agent-inbox.subscribed with the queued count; later passes send one event per status change, in order.
+            if (state.Fingerprint == null)
+            {
+                AgentMessageFilter filter = new AgentMessageFilter { TenantId = ctx.TenantId!, RecipientAgentId = agentId, Status = MessageStatusEnum.Queued, MaxResults = 1 };
+                EnumerationResult<AgentMessage> queued = await _Context.Database.AgentMessages.EnumerateAsync(filter, token).ConfigureAwait(false);
+                state.Fingerprint = DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|";
+                await SendAsync(session, sendLock, new { type = "agent-inbox.subscribed", agentId = agentId, queued = queued.TotalRecords }, token).ConfigureAwait(false);
+                return;
+            }
+            string[] cursor = state.Fingerprint.Split('|');
+            DateTime afterUtc = new DateTime(Int64.Parse(cursor[0], System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            List<AgentMessage> changed = await _Context.Database.AgentMessages.ListChangedAfterAsync(ctx.TenantId!, agentId, afterUtc, cursor.Length > 1 ? cursor[1] : String.Empty, 100, token).ConfigureAwait(false);
+            foreach (AgentMessage message in changed)
+            {
+                state.Fingerprint = message.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + message.Id;
+                await SendAsync(session, sendLock, new { type = "message." + message.Status.ToString().ToLowerInvariant(), message = message }, token).ConfigureAwait(false);
             }
         }
 

@@ -192,6 +192,21 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<string>> AppIdsWithEdgeBetweenAsync(string tenantId, string firstAgentId, string secondAgentId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(firstAgentId)) throw new ArgumentNullException(nameof(firstAgentId));
+            if (String.IsNullOrEmpty(secondAgentId)) throw new ArgumentNullException(nameof(secondAgentId));
+            return await _Driver.QueryAsync("SELECT DISTINCT a.id AS id, a.name AS name FROM " + _Edges + " e JOIN " + _Apps + " a ON a.id = e.appid WHERE a.tenantid = @tenantid AND e.tenantid = @tenantid AND " +
+                "((e.calleragentid = @first AND e.calleeagentid = @second) OR (e.calleragentid = @second AND e.calleeagentid = @first)) ORDER BY a.name;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "first", firstAgentId);
+                AdoDatabaseDriver.Add(command, "second", secondAgentId);
+            }, reader => AdoConverters.Str(reader, "id"), token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<string>> MemberAgentIdsAsync(string tenantId, List<string> appIds, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

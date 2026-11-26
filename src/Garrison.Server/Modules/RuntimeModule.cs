@@ -72,6 +72,7 @@ namespace Garrison.Server.Modules
         private EscalationOptions? _EscalationOptions = null;
         private MemoryOptions? _MemoryOptions = null;
         private ReportOptions? _ReportOptions = null;
+        private MessagingOptions? _MessagingOptions = null;
         private EscalationService? _Escalations = null;
         private FreezeService? _Freezes = null;
 
@@ -224,6 +225,19 @@ namespace Garrison.Server.Modules
             context.Register(_ReportOptions);
             context.Register(reportVisibility);
             context.Register(reports);
+
+            // AA6: messages between agents; keeper ticks drain their inbox, urgent mail wakes the recipient, and
+            // escalations to agents arrive as urgent messages.
+            _MessagingOptions = new MessagingOptions();
+            MessageLinePolicy messageLines = new MessageLinePolicy(context.Database);
+            MessageService messages = new MessageService(context.Database, context.Audit, _MessagingOptions, messageLines, _Runs, new RunAsAuthorization(context.Database, context.Authorization), context.Logging);
+            messages.Freezes = _Freezes;
+            _Keepers.Messages = messages;
+            _Escalations.Messages = messages;
+            _Maintenance.Messages = messages;
+            context.Register(_MessagingOptions);
+            context.Register(messageLines);
+            context.Register(messages);
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -286,6 +300,7 @@ namespace Garrison.Server.Modules
             new FreezeRoutes(context, _Freezes!).Register(routes);
             new MemoryRoutes(context, context.Get<MemoryService>()).Register(routes);
             new ReportRoutes(context, context.Get<ReportService>()).Register(routes);
+            new MessageRoutes(context, context.Get<MessageService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -462,6 +477,15 @@ namespace Garrison.Server.Modules
             {
                 _ReportOptions.MaxBodyBytes = cluster.GetInt("Reports.MaxBodyBytes");
                 _ReportOptions.DigestMaxReports = cluster.GetInt("Reports.DigestMaxReports");
+            }
+            if (_MessagingOptions != null)
+            {
+                _MessagingOptions.MaxHops = cluster.GetInt("Messaging.MaxHops");
+                _MessagingOptions.LineRatePerMinute = cluster.GetInt("Messaging.LineRatePerMinute");
+                _MessagingOptions.ThreadBudget = cluster.GetInt("Messaging.ThreadBudget");
+                _MessagingOptions.UrgentWakesPerHour = cluster.GetInt("Messaging.UrgentWakesPerHour");
+                _MessagingOptions.MaxMessagesPerDelivery = cluster.GetInt("Messaging.MaxMessagesPerDelivery");
+                _MessagingOptions.MaxBodyBytes = cluster.GetInt("Messaging.MaxBodyBytes");
             }
             if (_EscalationOptions != null)
             {

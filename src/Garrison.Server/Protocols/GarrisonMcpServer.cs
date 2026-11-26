@@ -409,7 +409,7 @@ namespace Garrison.Server.Protocols
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
                 if (tool.Name.StartsWith("garrison_keeper_", StringComparison.Ordinal) && await KeeperRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
-                if (RunOnlyEscalationTool(tool.Name) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
+                if ((RunOnlyEscalationTool(tool.Name) || RunOnlyMessageTool(tool.Name)) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -879,6 +879,12 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_reports":
                     case "garrison_get_report":
                         result = await ReportToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_send_message":
+                    case "garrison_reply_message":
+                    case "garrison_read_inbox":
+                    case "garrison_ack_message":
+                        result = await MessageToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_freezes":
                     case "garrison_freeze":
@@ -1753,6 +1759,85 @@ namespace Garrison.Server.Protocols
                 ? "Recorded " + reported + ". Finish your reply; Garrison schedules your next wake when this run ends."
                 : "This tick already has an outcome (" + (current.Outcome?.ToString() ?? "finished") + "); nothing changed.";
             return result;
+        }
+
+        private static bool RunOnlyMessageTool(string name)
+        {
+            return name == "garrison_reply_message" || name == "garrison_ack_message";
+        }
+
+        private async Task<object> MessageToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // AA6.6: runs send, reply, read, and acknowledge as their own agent under the line policy and loop guards;
+            // people with AgentMessage.Create write to any agent and with AgentMessage.Read list an agent's messages.
+            MessageService messages = _Context.Get<MessageService>();
+            McpMessageArguments arguments = ManagementArguments<McpMessageArguments>(args);
+            Run? run = null;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                if (String.IsNullOrEmpty(ctx.RunId)) throw ToolError("Forbidden", tool.Name + " needs a run token.");
+                run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false)
+                    ?? throw ToolError("Forbidden", tool.Name + " needs a run token.");
+            }
+            else if (RunOnlyMessageTool(tool.Name))
+            {
+                throw ToolError("Forbidden", tool.Name + " is available only to runs.");
+            }
+            switch (tool.Name)
+            {
+                case "garrison_send_message":
+                case "garrison_reply_message":
+                {
+                    AgentMessageSendRequest request = new AgentMessageSendRequest();
+                    request.Recipient = arguments.Recipient;
+                    request.Subject = arguments.Subject;
+                    request.Body = arguments.Body;
+                    request.Urgency = String.IsNullOrWhiteSpace(arguments.Urgency) ? MessageUrgencyEnum.Normal : ParseOr(arguments.Urgency, MessageUrgencyEnum.Normal, "urgency");
+                    request.ArtifactIds = arguments.ArtifactIds ?? new List<string>();
+                    request.TtlSeconds = arguments.TtlSeconds;
+                    if (tool.Name == "garrison_reply_message")
+                    {
+                        if (String.IsNullOrWhiteSpace(arguments.MessageId)) throw ToolError("ValidationFailed", "messageId is required.");
+                        request.ParentMessageId = arguments.MessageId;
+                        return await messages.ReplyFromRunAsync(run!, request, token).ConfigureAwait(false);
+                    }
+                    if (run != null)
+                    {
+                        if (!String.IsNullOrWhiteSpace(arguments.IdempotencyKey) || !String.IsNullOrWhiteSpace(arguments.ParentMessageId))
+                            throw ToolError("ValidationFailed", "Runs answer a message with garrison_reply_message; parentMessageId and idempotencyKey are for people.");
+                        return await messages.SendFromRunAsync(run, request, token).ConfigureAwait(false);
+                    }
+                    await Require(ctx, tenantId, ResourceTypeEnum.AgentMessage, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    request.ParentMessageId = arguments.ParentMessageId;
+                    request.IdempotencyKey = arguments.IdempotencyKey;
+                    return await messages.SendFromPersonAsync(ctx, tenantId, request, token).ConfigureAwait(false);
+                }
+                case "garrison_ack_message":
+                {
+                    if (String.IsNullOrWhiteSpace(arguments.MessageId)) throw ToolError("ValidationFailed", "messageId is required.");
+                    return await messages.AcknowledgeForRunAsync(run!, arguments.MessageId, token).ConfigureAwait(false);
+                }
+                default:
+                {
+                    if (run != null)
+                    {
+                        if (!String.IsNullOrWhiteSpace(arguments.Agent)) throw ToolError("ValidationFailed", "A run reads only its own agent's inbox; agent is for people.");
+                        return await messages.ReadInboxForRunAsync(run, arguments.MaxResults, token).ConfigureAwait(false);
+                    }
+                    if (String.IsNullOrWhiteSpace(arguments.Agent)) throw ToolError("ValidationFailed", "agent is required.");
+                    string agentId = await ReportRoutes.AgentIdAsync(_Context.Database, tenantId, arguments.Agent, token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "Agent " + arguments.Agent.Trim() + " not found.");
+                    await Require(ctx, tenantId, ResourceTypeEnum.AgentMessage, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    AgentMessageFilter filter = new AgentMessageFilter { TenantId = tenantId, RecipientAgentId = agentId, FromUtc = arguments.Since, Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    if (!String.IsNullOrWhiteSpace(arguments.Status)) filter.Status = ParseOr(arguments.Status, MessageStatusEnum.Queued, "status");
+                    if (!String.IsNullOrWhiteSpace(arguments.Urgency)) filter.Urgency = ParseOr(arguments.Urgency, MessageUrgencyEnum.Normal, "urgency");
+                    Garrison.Core.Enumeration.EnumerationResult<AgentMessage> page = await _Context.Database.AgentMessages.EnumerateAsync(filter, token).ConfigureAwait(false);
+                    McpMessageList list = new McpMessageList();
+                    list.Messages = page.Objects;
+                    list.TotalCount = page.TotalRecords;
+                    return list;
+                }
+            }
         }
 
         private static bool RunOnlyEscalationTool(string name)

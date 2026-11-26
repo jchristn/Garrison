@@ -180,7 +180,7 @@ namespace Garrison.Server.Runtime
             if (Freezes != null)
             {
                 string? appId = create.AppId ?? plan?.Conversation.AppId;
-                await Freezes.RequireNotFrozenAsync(create.TenantId, create.Agent.Id, remote ? null : deployment.Id, create.MandateId, appId, create.Kind == RunKindEnum.Keeper, token).ConfigureAwait(false);
+                await Freezes.RequireNotFrozenAsync(create.TenantId, create.Agent.Id, remote ? null : deployment.Id, create.MandateId, appId, create.Kind == RunKindEnum.Keeper || create.Kind == RunKindEnum.Message, token).ConfigureAwait(false);
             }
             HarnessProfile profile = remote ? new HarnessProfile { HarnessType = HarnessTypeEnum.Generic } : await _Database.HarnessProfiles.ReadAsync(create.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Harness profile " + deployment.HarnessProfileId + " for deployment " + deployment.Name + " was not found.");

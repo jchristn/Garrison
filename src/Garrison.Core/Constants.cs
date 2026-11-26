@@ -138,6 +138,9 @@ namespace Garrison.Core
         /// <summary>Report identifier prefix (AA5).</summary>
         public const string ReportIdPrefix = "rpt_";
 
+        /// <summary>Agent message identifier prefix (AA6). Not msg_, which the fake harness uses for Codex messages.</summary>
+        public const string AgentMessageIdPrefix = "amg_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

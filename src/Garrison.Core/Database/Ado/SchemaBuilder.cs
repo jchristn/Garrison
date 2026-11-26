@@ -395,6 +395,11 @@ namespace Garrison.Core.Database.Ado
             v50.BuildVersion50();
             migrations.Add(new SchemaMigration(50, "Reports", v50._Statements, v50._Columns));
 
+            // AA6: messages between agents and the artifacts they reference.
+            SchemaBuilder v51 = new SchemaBuilder(catalog, dialect);
+            v51.BuildVersion51();
+            migrations.Add(new SchemaMigration(51, "Agent messages", v51._Statements, v51._Columns));
+
             return migrations;
         }
 
@@ -458,6 +463,61 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion51()
+        {
+            SqlDialect d = _Dialect;
+            Table("agent_messages",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "threadid " + d.TypeId + " NOT NULL",
+                "parentmessageid " + d.TypeId,
+                "hopcount " + d.TypeInt + " NOT NULL",
+                "senderagentid " + d.TypeId,
+                "senderagentname VARCHAR(256)",
+                "senderrunid " + d.TypeId,
+                "senderprincipaltype VARCHAR(32) NOT NULL",
+                "senderprincipalid " + d.TypeId,
+                "sendername VARCHAR(256)",
+                "recipientagentid " + d.TypeId + " NOT NULL",
+                "recipientagentname VARCHAR(256)",
+                "urgency VARCHAR(32) NOT NULL",
+                "subject VARCHAR(256) NOT NULL",
+                "body " + d.TypeText,
+                "status VARCHAR(32) NOT NULL",
+                "rejectionreason VARCHAR(32)",
+                "rejectiondetail VARCHAR(1024)",
+                "escalationid " + d.TypeId,
+                "wokerecipient " + d.TypeBool + " NOT NULL DEFAULT " + d.BooleanLiteral(false),
+                "deliveredrunid " + d.TypeId,
+                "deliveredutc " + d.TypeTimestamp,
+                "deliveryclaim " + d.TypeId,
+                "claimedutc " + d.TypeTimestamp,
+                "acknowledgedutc " + d.TypeTimestamp,
+                "expiresutc " + d.TypeTimestamp,
+                "sendkey VARCHAR(64)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("agent_messages", "inbox", false, "tenantid", "recipientagentid", "status", "createdutc");
+            Index("agent_messages", "thread", false, "threadid");
+            Index("agent_messages", "line", false, "tenantid", "senderagentid", "recipientagentid", "createdutc");
+            Index("agent_messages", "created", false, "tenantid", "createdutc");
+            Index("agent_messages", "expiry", false, "status", "expiresutc");
+            Index("agent_messages", "deliveredrun", false, "deliveredrunid");
+            Index("agent_messages", "claim", false, "deliveryclaim");
+            Index("agent_messages", "changes", false, "tenantid", "recipientagentid", "lastupdateutc");
+            Index("agent_messages", "send", true, "tenantid", "sendkey");
+
+            Table("agent_message_artifacts",
+                "messageid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "artifactid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(1024) NOT NULL",
+                "mediatype VARCHAR(255) NOT NULL",
+                "sizebytes " + d.TypeBigInt + " NOT NULL",
+                "PRIMARY KEY (messageid, position)");
         }
 
         private void BuildVersion50()
@@ -1035,7 +1095,7 @@ namespace Garrison.Core.Database.Ado
                 "currentversion " + d.TypeInt + " NOT NULL",
                 "sizebytes " + d.TypeBigInt + " NOT NULL",
                 "sha256 VARCHAR(64) NOT NULL",
-                "mediatype VARCHAR(256) NOT NULL",
+                "mediatype VARCHAR(255) NOT NULL",
                 "deleted " + d.TypeBool + " NOT NULL",
                 "createdutc " + d.TypeTimestamp + " NOT NULL",
                 "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
@@ -1047,7 +1107,7 @@ namespace Garrison.Core.Database.Ado
                 "number " + d.TypeInt + " NOT NULL",
                 "sizebytes " + d.TypeBigInt + " NOT NULL",
                 "sha256 VARCHAR(64) NOT NULL",
-                "mediatype VARCHAR(256) NOT NULL",
+                "mediatype VARCHAR(255) NOT NULL",
                 "runid " + d.TypeId,
                 "leaseepoch " + d.TypeBigInt,
                 "writtenby VARCHAR(256)",
@@ -1102,7 +1162,7 @@ namespace Garrison.Core.Database.Ado
                 "versionid " + d.TypeId + " NOT NULL",
                 "tenantid " + d.TypeId + " NOT NULL",
                 "path VARCHAR(512) NOT NULL",
-                "mediatype VARCHAR(256) NOT NULL",
+                "mediatype VARCHAR(255) NOT NULL",
                 "sizebytes " + d.TypeBigInt + " NOT NULL",
                 "sha256 VARCHAR(64) NOT NULL",
                 "storagekey VARCHAR(1024) NOT NULL");

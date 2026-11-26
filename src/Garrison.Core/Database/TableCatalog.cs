@@ -186,6 +186,8 @@ namespace Garrison.Core.Database
                 "report_metrics",
                 "report_issues",
                 "report_decisions",
+                "agent_messages",
+                "agent_message_artifacts",
         };
 
         private readonly SqlDialect _Dialect;

@@ -69,6 +69,13 @@ namespace Garrison.Server.Runtime
         public ReportService? Reports { get; set; } = null;
 
         /// <summary>
+        /// Messages (AA6.5). When set, a tick's input carries its agent's queued messages, oldest first, up to
+        /// Messaging.MaxMessagesPerDelivery, rendered through inbox-delivery, and those messages are marked delivered to the
+        /// tick's run. Null when messaging is not wired.
+        /// </summary>
+        public MessageService? Messages { get; set; } = null;
+
+        /// <summary>
         /// Freezes (AA3.2). When set, a due wake of a keeper under a freeze or the kill switch is recorded as Skipped and its
         /// next wake moves on by one interval. Null when freezes are not wired.
         /// </summary>
@@ -380,6 +387,7 @@ namespace Garrison.Server.Runtime
         {
             string? code = null;
             string? message = null;
+            MessageDelivery? delivery = null;
             try
             {
                 Agent agent = await _Database.Agents.ReadAsync(mandate.TenantId, mandate.AgentId, token).ConfigureAwait(false)
@@ -446,6 +454,22 @@ namespace Garrison.Server.Runtime
                     if (digest != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + digest;
                 }
 
+                MessageService? messages = Messages;
+                if (messages != null)
+                {
+                    // AA6.5: queued mail reaches the tick only through the inbox-delivery template; the claim keeps another
+                    // replica's tick or a Message run from delivering the same messages.
+                    try
+                    {
+                        delivery = await messages.ClaimDeliveryAsync(mandate.TenantId, agent.Id, token).ConfigureAwait(false);
+                    }
+                    catch (TemplateException e)
+                    {
+                        throw new ConflictException("TemplateRenderFailed", "Template inbox-delivery failed to render: " + e.Message);
+                    }
+                    if (delivery != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + delivery.Text;
+                }
+
                 RunCreateContext create = new RunCreateContext();
                 create.TenantId = mandate.TenantId;
                 create.Agent = agent;
@@ -464,6 +488,11 @@ namespace Garrison.Server.Runtime
                 tick.RunId = run.Id;
                 await _Database.MandateTicks.UpdateAsync(tick, token).ConfigureAwait(false);
                 if (answers.Count > 0) await _Database.Escalations.MarkDeliveredAsync(mandate.TenantId, answers.Select(a => a.Id).ToList(), tick.Id, token).ConfigureAwait(false);
+                if (delivery != null)
+                {
+                    await messages!.CompleteDeliveryAsync(delivery, run.Id, token).ConfigureAwait(false);
+                    delivery = null;
+                }
                 await _Database.Mandates.SetActiveRunAsync(mandate.Id, tick.Id, run.Id, token).ConfigureAwait(false);
                 _Logging.Info(_Header + "mandate " + mandate.Id + " (" + mandate.Name + ") tick " + tick.Id + " started run " + run.Id + " (" + tick.WakeSource + ") " + GarrisonTracing.LogFields("tenant", mandate.TenantId, "mandate", mandate.Name));
                 Raise(tick);
@@ -491,6 +520,7 @@ namespace Garrison.Server.Runtime
                 message = "The tick run could not be started: " + e.Message;
             }
 
+            if (delivery != null && Messages != null) await Messages.ReleaseDeliveryAsync(delivery).ConfigureAwait(false);
             await FinishAsync(mandate, tick, null, code, message, nowUtc, true, CancellationToken.None).ConfigureAwait(false);
         }
 

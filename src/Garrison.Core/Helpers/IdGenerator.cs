@@ -326,6 +326,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New agent message identifier (prefix amg_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewAgentMessageId()
+        {
+            return New(Constants.AgentMessageIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

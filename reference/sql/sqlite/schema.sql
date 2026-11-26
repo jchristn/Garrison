@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 50).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 51).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1788,7 +1788,7 @@ CREATE TABLE IF NOT EXISTS "agent_asset_version_files" (
     versionid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64) NOT NULL,
     path VARCHAR(512) NOT NULL,
-    mediatype VARCHAR(256) NOT NULL,
+    mediatype VARCHAR(255) NOT NULL,
     sizebytes BIGINT NOT NULL,
     sha256 VARCHAR(64) NOT NULL,
     storagekey VARCHAR(1024) NOT NULL
@@ -1848,7 +1848,7 @@ CREATE TABLE IF NOT EXISTS "conversation_files" (
     currentversion INTEGER NOT NULL,
     sizebytes BIGINT NOT NULL,
     sha256 VARCHAR(64) NOT NULL,
-    mediatype VARCHAR(256) NOT NULL,
+    mediatype VARCHAR(255) NOT NULL,
     deleted INTEGER NOT NULL,
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
@@ -1861,7 +1861,7 @@ CREATE TABLE IF NOT EXISTS "conversation_file_versions" (
     number INTEGER NOT NULL,
     sizebytes BIGINT NOT NULL,
     sha256 VARCHAR(64) NOT NULL,
-    mediatype VARCHAR(256) NOT NULL,
+    mediatype VARCHAR(255) NOT NULL,
     runid VARCHAR(64),
     leaseepoch BIGINT,
     writtenby VARCHAR(256),
@@ -2460,3 +2460,57 @@ CREATE TABLE IF NOT EXISTS "report_decisions" (
     PRIMARY KEY (reportid, position)
 );
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 50, 'Reports', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 50);
+
+-- Migration 51: Agent messages
+CREATE TABLE IF NOT EXISTS "agent_messages" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    threadid VARCHAR(64) NOT NULL,
+    parentmessageid VARCHAR(64),
+    hopcount INTEGER NOT NULL,
+    senderagentid VARCHAR(64),
+    senderagentname VARCHAR(256),
+    senderrunid VARCHAR(64),
+    senderprincipaltype VARCHAR(32) NOT NULL,
+    senderprincipalid VARCHAR(64),
+    sendername VARCHAR(256),
+    recipientagentid VARCHAR(64) NOT NULL,
+    recipientagentname VARCHAR(256),
+    urgency VARCHAR(32) NOT NULL,
+    subject VARCHAR(256) NOT NULL,
+    body TEXT,
+    status VARCHAR(32) NOT NULL,
+    rejectionreason VARCHAR(32),
+    rejectiondetail VARCHAR(1024),
+    escalationid VARCHAR(64),
+    wokerecipient INTEGER NOT NULL DEFAULT 0,
+    deliveredrunid VARCHAR(64),
+    deliveredutc TEXT,
+    deliveryclaim VARCHAR(64),
+    claimedutc TEXT,
+    acknowledgedutc TEXT,
+    expiresutc TEXT,
+    sendkey VARCHAR(64),
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_inbox" ON "agent_messages" ("tenantid", "recipientagentid", "status", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_thread" ON "agent_messages" ("threadid");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_line" ON "agent_messages" ("tenantid", "senderagentid", "recipientagentid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_created" ON "agent_messages" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_expiry" ON "agent_messages" ("status", "expiresutc");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_deliveredrun" ON "agent_messages" ("deliveredrunid");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_claim" ON "agent_messages" ("deliveryclaim");
+CREATE INDEX IF NOT EXISTS "idx_agent_messages_changes" ON "agent_messages" ("tenantid", "recipientagentid", "lastupdateutc");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agent_messages_send" ON "agent_messages" ("tenantid", "sendkey");
+CREATE TABLE IF NOT EXISTS "agent_message_artifacts" (
+    messageid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    artifactid VARCHAR(64) NOT NULL,
+    name VARCHAR(1024) NOT NULL,
+    mediatype VARCHAR(255) NOT NULL,
+    sizebytes BIGINT NOT NULL,
+    PRIMARY KEY (messageid, position)
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 51, 'Agent messages', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 51);

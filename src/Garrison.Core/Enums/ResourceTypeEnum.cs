@@ -254,6 +254,12 @@ namespace Garrison.Core.Enums
         /// Reports filed upward by runs and people (AA5). Read lists and reads reports and metric series; Create files a
         /// report. Runs reach reports through their own visibility rules, never through these permissions.
         /// </summary>
-        Report
+        Report,
+
+        /// <summary>
+        /// Messages between agents (AA6). Read lists messages and threads; Create lets a person write to any agent. Runs
+        /// send and read mail through the line policy of their own agent, never through these permissions.
+        /// </summary>
+        AgentMessage
     }
 }

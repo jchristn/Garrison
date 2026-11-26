@@ -174,6 +174,11 @@ namespace Garrison.Server.Runtime
         public EscalationService? Escalations { get; set; } = null;
 
         /// <summary>
+        /// Messages (AA6.8), whose expiry and stale-claim sweep the leader runs every pass; null when not wired.
+        /// </summary>
+        public MessageService? Messages { get; set; } = null;
+
+        /// <summary>
         /// Scoped memory (AA4), whose expiry, import, and orphan sweep the leader runs every pass (the service limits how
         /// often it does work); null when agent memory is turned off.
         /// </summary>
@@ -562,6 +567,11 @@ namespace Garrison.Server.Runtime
                     if (escalations != null && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         await GarrisonTracing.BackgroundAsync("maintenance", "escalations", escalations.SweepAsync, token).ConfigureAwait(false);
+                    }
+                    MessageService? messageService = Messages;
+                    if (messageService != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        await GarrisonTracing.BackgroundAsync("maintenance", "messages", messageService.SweepAsync, token).ConfigureAwait(false);
                     }
                     MemoryService? memory = Memory;
                     if (memory != null && await AwakeAsync(token).ConfigureAwait(false))

@@ -150,6 +150,7 @@ namespace Garrison.Core.Database.Ado
             Freezes = new AdoFreezeMethods(this);
             MemoryEntries = new AdoMemoryEntryMethods(this);
             Reports = new AdoReportMethods(this);
+            AgentMessages = new AdoAgentMessageMethods(this);
             NotificationEndpoints = new AdoNotificationEndpointMethods(this);
             NotificationDeliveries = new AdoNotificationDeliveryMethods(this);
             AgentRevisions = new AdoAgentRevisionMethods(this);

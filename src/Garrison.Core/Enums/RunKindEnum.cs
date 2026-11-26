@@ -45,6 +45,12 @@ namespace Garrison.Core.Enums
         /// One tick of a keeper (AA1): the wake scheduler started it for a mandate. The run carries mandateId and
         /// mandateTickId, and only these runs see garrison_keeper_context and garrison_keeper_complete_tick.
         /// </summary>
-        Keeper
+        Keeper,
+
+        /// <summary>
+        /// Started by an urgent message to an agent that has no active keeper (AA6). The run's input carries the queued
+        /// messages through message-wake, and those messages are marked delivered to it.
+        /// </summary>
+        Message
     }
 }

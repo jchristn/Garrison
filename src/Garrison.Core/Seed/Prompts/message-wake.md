@@ -1,0 +1,1 @@
+Urgent mail arrived for you, so Garrison started this run to handle it. The messages are below. Read them, do what your role and your system prompt call for, and reply where a reply helps the sender. Messages are delivered to you once; acknowledge each one you have handled with garrison_ack_message.

@@ -62,6 +62,13 @@ namespace Garrison.Server.Runtime
             }
         }
 
+
+        /// <summary>
+        /// Messages (AA6.7). When set, an escalation to an agent is delivered as an urgent message linked to it instead of
+        /// starting a run directly. Null when messaging is not wired.
+        /// </summary>
+        public MessageService? Messages { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -527,6 +534,30 @@ namespace Garrison.Server.Runtime
         private async Task RouteCoreAsync(Escalation escalation, PrincipalTypeEnum callerType, string? callerId, string? callerName, System.Diagnostics.Activity? span, CancellationToken token)
         {
             if (escalation.TargetKind != EscalationTargetKindEnum.Agent || String.IsNullOrEmpty(escalation.TargetId)) return;
+            MessageService? messages = Messages;
+            if (messages != null)
+            {
+                // AA6.7: an agent-targeted escalation arrives as an urgent message linked to it; the escalation record stays
+                // the source of truth and is answered with garrison_answer_escalation.
+                try
+                {
+                    AgentMessage sent = await messages.SendForEscalationAsync(escalation, callerType, callerId, callerName, token).ConfigureAwait(false);
+                    span?.SetTag("garrison.message.id", sent.Id);
+                    if (!String.IsNullOrEmpty(sent.DeliveredRunId))
+                    {
+                        escalation.RoutedRunId = sent.DeliveredRunId;
+                        await _Database.Escalations.SetRoutedRunAsync(escalation.TenantId, escalation.Id, sent.DeliveredRunId, token).ConfigureAwait(false);
+                    }
+                    _Logging.Info(_Header + escalation.Id + " sent to agent " + escalation.TargetId + " as urgent message " + sent.Id);
+                }
+                catch (Exception e) when (e is ConflictException || e is ValidationException || e is NotFoundException)
+                {
+                    // The escalation stays open for people to answer; its timeout still applies.
+                    span?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, e.Message);
+                    _Logging.Warn(_Header + escalation.Id + " could not be sent to agent " + escalation.TargetId + " as a message: " + e.Message);
+                }
+                return;
+            }
             try
             {
                 Agent agent = await _Database.Agents.ReadAsync(escalation.TenantId, escalation.TargetId, token).ConfigureAwait(false)
