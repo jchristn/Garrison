@@ -5986,7 +5986,8 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   "auditEventType": {
    "FreezeApplied": "Blocco applicato",
    "FreezeLifted": "Blocco rimosso",
-   "KillSwitchChanged": "Interruttore di emergenza modificato"
+   "KillSwitchChanged": "Interruttore di emergenza modificato",
+   "BoardDirectionGiven": "Direttiva del consiglio data"
   },
   "notificationEvent": {
    "FreezeApplied": "Blocco applicato",
@@ -6119,7 +6120,8 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
    "auditEventType": {
     "FreezeApplied": "Qualcuno ha bloccato un agente, una distribuzione, un custode o un'applicazione.",
     "FreezeLifted": "Qualcuno ha rimosso un blocco.",
-    "KillSwitchChanged": "Qualcuno ha attivato o disattivato l'interruttore di emergenza dell'autonomia."
+    "KillSwitchChanged": "Qualcuno ha attivato o disattivato l'interruttore di emergenza dell'autonomia.",
+    "BoardDirectionGiven": "Qualcuno ha dato una direttiva al custode CEO dal consiglio."
    },
    "notificationEvent": {
     "FreezeApplied": "Qualcuno ha bloccato un agente, una distribuzione, un custode o un'applicazione, oppure ha attivato l'interruttore di emergenza.",

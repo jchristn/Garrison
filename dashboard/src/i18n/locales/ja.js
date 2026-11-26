@@ -5928,7 +5928,8 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   "auditEventType": {
    "FreezeApplied": "凍結を適用",
    "FreezeLifted": "凍結を解除",
-   "KillSwitchChanged": "緊急停止スイッチを変更"
+   "KillSwitchChanged": "緊急停止スイッチを変更",
+   "BoardDirectionGiven": "取締役会の指示"
   },
   "notificationEvent": {
    "FreezeApplied": "凍結を適用",
@@ -6059,7 +6060,8 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
    "auditEventType": {
     "FreezeApplied": "誰かがエージェント、デプロイメント、キーパー、アプリを凍結しました。",
     "FreezeLifted": "誰かが凍結を解除しました。",
-    "KillSwitchChanged": "誰かが自律運用の緊急停止スイッチをオンまたはオフにしました。"
+    "KillSwitchChanged": "誰かが自律運用の緊急停止スイッチをオンまたはオフにしました。",
+    "BoardDirectionGiven": "誰かが取締役会から CEO キーパーに指示を出しました。"
    },
    "notificationEvent": {
     "FreezeApplied": "誰かがエージェント、デプロイメント、キーパー、アプリを凍結したか、緊急停止スイッチをオンにしました。",

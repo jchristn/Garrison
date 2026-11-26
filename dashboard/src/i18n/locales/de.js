@@ -5972,7 +5972,8 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   "auditEventType": {
    "FreezeApplied": "Sperre gesetzt",
    "FreezeLifted": "Sperre aufgehoben",
-   "KillSwitchChanged": "Notschalter geändert"
+   "KillSwitchChanged": "Notschalter geändert",
+   "BoardDirectionGiven": "Gremiumsvorgabe erteilt"
   },
   "notificationEvent": {
    "FreezeApplied": "Sperre gesetzt",
@@ -6105,7 +6106,8 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    "auditEventType": {
     "FreezeApplied": "Jemand hat einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung gesperrt.",
     "FreezeLifted": "Jemand hat eine Sperre aufgehoben.",
-    "KillSwitchChanged": "Jemand hat den Autonomie-Notschalter ein- oder ausgeschaltet."
+    "KillSwitchChanged": "Jemand hat den Autonomie-Notschalter ein- oder ausgeschaltet.",
+    "BoardDirectionGiven": "Jemand hat dem CEO-Keeper vom Gremium aus eine Vorgabe gegeben."
    },
    "notificationEvent": {
     "FreezeApplied": "Jemand hat einen Agenten, eine Bereitstellung, einen Wächter oder eine Anwendung gesperrt oder den Notschalter eingeschaltet.",

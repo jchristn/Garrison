@@ -75,6 +75,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Fixed
 
+- Dashboard: notification endpoints can subscribe to `OrgProposalApplied`, `CanaryRolledBack`, and `BoardBrief`; before, the endpoint form did not offer them and saving an endpoint dropped them. The audit log labels `BoardDirectionGiven`, and the board's direction form caps the change note at 1024 characters, the server's limit.
 - Applying a studio draft that deletes an agent or deployment failed with an internal error because the studio looked up a service that no module registers; it now deletes them (found in AA8).
 - The Grafana links on Home and Server info left out the Autonomy dashboard added in AA1.15.
 - A shadow run that ended without a worker report (cancelled in the queue, timed out, lost its lease, failed while blocked, failed to compile, or was rejected) was never counted; it now counts once as a candidate failure (AA9.7).

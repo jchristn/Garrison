@@ -5960,7 +5960,8 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   "auditEventType": {
    "FreezeApplied": "Freeze applied",
    "FreezeLifted": "Freeze lifted",
-   "KillSwitchChanged": "Kill switch changed"
+   "KillSwitchChanged": "Kill switch changed",
+   "BoardDirectionGiven": "Board direction given"
   },
   "notificationEvent": {
    "FreezeApplied": "Freeze applied",
@@ -6093,7 +6094,8 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    "auditEventType": {
     "FreezeApplied": "Someone froze an agent, deployment, keeper, or app.",
     "FreezeLifted": "Someone lifted a freeze, so runs in its scope are accepted again.",
-    "KillSwitchChanged": "Someone turned the autonomy kill switch on or off."
+    "KillSwitchChanged": "Someone turned the autonomy kill switch on or off.",
+    "BoardDirectionGiven": "Someone gave the CEO keeper direction from the board."
    },
    "notificationEvent": {
     "FreezeApplied": "Someone froze an agent, deployment, keeper, or app, or turned on the kill switch.",

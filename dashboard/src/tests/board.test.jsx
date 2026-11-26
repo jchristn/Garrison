@@ -137,7 +137,7 @@ describe('board helpers', () => {
   it('validates and builds the direction and message bodies', () => {
     expect(directionErrors({ direction: '  ' }, t).direction).toBe(en.board.direction.errors.required);
     expect(directionErrors({ direction: 'x'.repeat(4001) }, t).direction).toContain('4000');
-    expect(directionErrors({ direction: 'ok', changeNote: 'n'.repeat(2001) }, t).changeNote).toContain('2000');
+    expect(directionErrors({ direction: 'ok', changeNote: 'n'.repeat(1025) }, t).changeNote).toContain('1024');
     expect(directionErrors({ direction: 'ok' }, t)).toEqual({});
     expect(directionBody({ direction: ' Hold refunds. ', changeNote: ' ' })).toEqual({ direction: 'Hold refunds.', changeNote: null });
     expect(messageBody(' hi ', null)).toEqual({ input: 'hi' });

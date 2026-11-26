@@ -63,7 +63,7 @@ type BoardUnitHealth struct {
 }
 
 // BoardDirectionRequest is direction for the CEO: Direction is required (1 to 4000 characters); ChangeNote is at most
-// 2000 characters and defaults to "Board direction".
+// 1024 characters and defaults to "Board direction".
 type BoardDirectionRequest struct {
 	Direction  string  `json:"direction"`
 	ChangeNote *string `json:"changeNote,omitempty"`

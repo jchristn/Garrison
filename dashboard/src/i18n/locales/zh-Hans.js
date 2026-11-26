@@ -5929,7 +5929,8 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   "auditEventType": {
    "FreezeApplied": "已施加冻结",
    "FreezeLifted": "已解除冻结",
-   "KillSwitchChanged": "紧急停止开关已更改"
+   "KillSwitchChanged": "紧急停止开关已更改",
+   "BoardDirectionGiven": "已下达董事会指示"
   },
   "notificationEvent": {
    "FreezeApplied": "已施加冻结",
@@ -6060,7 +6061,8 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    "auditEventType": {
     "FreezeApplied": "有人冻结了智能体、部署、守护者或应用。",
     "FreezeLifted": "有人解除了一个冻结。",
-    "KillSwitchChanged": "有人打开或关闭了自主运行的紧急停止开关。"
+    "KillSwitchChanged": "有人打开或关闭了自主运行的紧急停止开关。",
+    "BoardDirectionGiven": "有人从董事会向 CEO 守护者下达了指示。"
    },
    "notificationEvent": {
     "FreezeApplied": "有人冻结了智能体、部署、守护者或应用，或打开了紧急停止开关。",

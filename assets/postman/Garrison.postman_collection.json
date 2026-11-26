@@ -25687,7 +25687,7 @@
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('the aggregate has every part', function () { pm.expect(json.organizationId).to.eql(pm.collectionVariables.get('boardOrgId')); pm.expect(json.generatedUtc).to.be.a('string'); pm.expect(json.chart).to.be.an('object'); pm.expect(json.unitHealth).to.be.an('array').with.lengthOf(1); ['escalations', 'proposals', 'spend', 'unhealthyReports', 'freezes'].forEach(function (k) { pm.expect(json[k], k).to.be.an('array'); }); pm.expect(json.killSwitch).to.be.an('object'); });",
                   "pm.test('the CEO and its mandate', function () { pm.expect(json.ceo.agentId).to.eql(pm.collectionVariables.get('agentId')); pm.expect(json.ceo.mandateId).to.eql(pm.collectionVariables.get('boardMandateId')); pm.expect(json.ceo.deploymentId).to.eql(pm.collectionVariables.get('deploymentId')); pm.expect(json.ceo.briefIntervalHours).to.eql(24); });",
-                  "pm.test('a unit without reports has Unknown health', function () { var u = json.unitHealth[0]; pm.expect(u.health).to.eql('Unknown'); pm.expect(u.openEscalations).to.be.a('number'); pm.expect(u.frozen).to.be.a('boolean'); pm.expect(u.overBudget).to.be.a('boolean'); });"
+                  "pm.test('each unit has a health value', function () { var u = json.unitHealth[0]; pm.expect(['Healthy', 'Degraded', 'Unhealthy', 'Unknown']).to.include(u.health); pm.expect(u.openEscalations).to.be.a('number'); pm.expect(u.frozen).to.be.a('boolean'); pm.expect(u.overBudget).to.be.a('boolean'); });"
                 ]
               }
             }

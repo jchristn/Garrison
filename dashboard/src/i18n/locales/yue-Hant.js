@@ -5928,7 +5928,8 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   "auditEventType": {
    "FreezeApplied": "已經凍結",
    "FreezeLifted": "已經解除凍結",
-   "KillSwitchChanged": "緊急停止掣有改動"
+   "KillSwitchChanged": "緊急停止掣有改動",
+   "BoardDirectionGiven": "董事會指示已發出"
   },
   "notificationEvent": {
    "FreezeApplied": "已經凍結",
@@ -6059,7 +6060,8 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    "auditEventType": {
     "FreezeApplied": "有人凍結咗代理程式、部署、守護者或者應用程式。",
     "FreezeLifted": "有人解除咗一個凍結。",
-    "KillSwitchChanged": "有人開咗或者關咗自主運作嘅緊急停止掣。"
+    "KillSwitchChanged": "有人開咗或者關咗自主運作嘅緊急停止掣。",
+    "BoardDirectionGiven": "有人由董事會向 CEO 守護者發出咗指示。"
    },
    "notificationEvent": {
     "FreezeApplied": "有人凍結咗代理程式、部署、守護者或者應用程式，或者開咗緊急停止掣。",

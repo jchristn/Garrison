@@ -65,7 +65,7 @@ Each `unitHealth` row reads the unit's newest report and a few facts about it:
 { "direction": "Hold spend flat until the outage review is done.", "changeNote": "Board meeting, 26 November" }
 ```
 
-`direction` is 1 to 4000 characters and required. `changeNote` is at most 2000 characters and defaults to "Board direction". Garrison copies the CEO mandate's current published revision, sets `direction` to the text, marks the copy with source `Board` and your name as `author`, and publishes it. The response is that revision, with 201. Objective, signals, wake settings, budgets, and the brief cadence carry over unchanged, so giving direction cannot change anything else about the keeper.
+`direction` is 1 to 4000 characters and required. `changeNote` is at most 1024 characters and defaults to "Board direction". Garrison copies the CEO mandate's current published revision, sets `direction` to the text, marks the copy with source `Board` and your name as `author`, and publishes it. The response is that revision, with 201. Objective, signals, wake settings, budgets, and the brief cadence carry over unchanged, so giving direction cannot change anything else about the keeper.
 
 The CEO's next tick sees the direction, framed by a prompt template as the board's instruction ([KEEPERS.md](KEEPERS.md) covers ticks). Each direction is written to the audit log as `BoardDirectionGiven` with your identity, and the mandate's revision history keeps every one.
 

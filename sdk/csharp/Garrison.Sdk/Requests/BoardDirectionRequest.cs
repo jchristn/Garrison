@@ -13,7 +13,7 @@ namespace Garrison.Sdk.Requests
         public string Direction { get; set; } = String.Empty;
 
         /// <summary>
-        /// Change note for the revision, at most 2000 characters, or null for "Board direction".
+        /// Change note for the revision, at most 1024 characters, or null for "Board direction".
         /// </summary>
         public string? ChangeNote { get; set; } = null;
     }

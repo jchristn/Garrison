@@ -5929,7 +5929,8 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   "auditEventType": {
    "FreezeApplied": "已套用凍結",
    "FreezeLifted": "已解除凍結",
-   "KillSwitchChanged": "緊急停止開關已變更"
+   "KillSwitchChanged": "緊急停止開關已變更",
+   "BoardDirectionGiven": "已下達董事會指示"
   },
   "notificationEvent": {
    "FreezeApplied": "已套用凍結",
@@ -6060,7 +6061,8 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    "auditEventType": {
     "FreezeApplied": "有人凍結了代理程式、部署、守護者或應用程式。",
     "FreezeLifted": "有人解除了一個凍結。",
-    "KillSwitchChanged": "有人開啟或關閉了自主運作的緊急停止開關。"
+    "KillSwitchChanged": "有人開啟或關閉了自主運作的緊急停止開關。",
+    "BoardDirectionGiven": "有人從董事會向 CEO 守護者下達了指示。"
    },
    "notificationEvent": {
     "FreezeApplied": "有人凍結了代理程式、部署、守護者或應用程式，或開啟了緊急停止開關。",

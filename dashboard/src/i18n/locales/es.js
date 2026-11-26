@@ -5990,7 +5990,8 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   "auditEventType": {
    "FreezeApplied": "Congelación aplicada",
    "FreezeLifted": "Congelación levantada",
-   "KillSwitchChanged": "Interruptor de emergencia cambiado"
+   "KillSwitchChanged": "Interruptor de emergencia cambiado",
+   "BoardDirectionGiven": "Dirección del consejo dada"
   },
   "notificationEvent": {
    "FreezeApplied": "Congelación aplicada",
@@ -6123,7 +6124,8 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    "auditEventType": {
     "FreezeApplied": "Alguien congeló un agente, despliegue, guardián o aplicación.",
     "FreezeLifted": "Alguien levantó una congelación.",
-    "KillSwitchChanged": "Alguien activó o desactivó el interruptor de emergencia de la autonomía."
+    "KillSwitchChanged": "Alguien activó o desactivó el interruptor de emergencia de la autonomía.",
+    "BoardDirectionGiven": "Alguien dio una dirección al guardián CEO desde el consejo."
    },
    "notificationEvent": {
     "FreezeApplied": "Alguien congeló un agente, despliegue, guardián o aplicación, o activó el interruptor de emergencia.",

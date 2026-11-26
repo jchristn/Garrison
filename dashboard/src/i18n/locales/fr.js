@@ -5986,7 +5986,8 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   "auditEventType": {
    "FreezeApplied": "Gel appliqué",
    "FreezeLifted": "Gel levé",
-   "KillSwitchChanged": "Arrêt d'urgence modifié"
+   "KillSwitchChanged": "Arrêt d'urgence modifié",
+   "BoardDirectionGiven": "Orientation du comité donnée"
   },
   "notificationEvent": {
    "FreezeApplied": "Gel appliqué",
@@ -6119,7 +6120,8 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
    "auditEventType": {
     "FreezeApplied": "Quelqu'un a gelé un agent, un déploiement, un gardien ou une application.",
     "FreezeLifted": "Quelqu'un a levé un gel.",
-    "KillSwitchChanged": "Quelqu'un a activé ou désactivé l'arrêt d'urgence de l'autonomie."
+    "KillSwitchChanged": "Quelqu'un a activé ou désactivé l'arrêt d'urgence de l'autonomie.",
+    "BoardDirectionGiven": "Quelqu'un a donné une orientation au gardien CEO depuis le comité."
    },
    "notificationEvent": {
     "FreezeApplied": "Quelqu'un a gelé un agent, un déploiement, un gardien ou une application, ou a activé l'arrêt d'urgence.",

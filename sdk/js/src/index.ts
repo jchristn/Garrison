@@ -3022,7 +3022,7 @@ export interface Board extends Json {
   chart: OrgChart; ceo?: BoardCeo | null; unitHealth: BoardUnitHealth[]; escalations: Escalation[]; proposals: OrgProposal[];
   spend: OrgUnitSpend[]; latestBrief?: Report | null; unhealthyReports: Report[]; freezes: Freeze[]; killSwitch: KillSwitchState;
 }
-/** Direction for the CEO: 1 to 4000 characters; changeNote at most 2000 (default "Board direction"). */
+/** Direction for the CEO: 1 to 4000 characters; changeNote at most 1024 (default "Board direction"). */
 export interface BoardDirectionRequest { direction: string; changeNote?: string | null; }
 /** A message to the CEO: 1 to 32000 characters; conversationId continues an earlier board conversation. */
 export interface BoardMessageRequest { input: string; conversationId?: string | null; }

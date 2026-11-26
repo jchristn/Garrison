@@ -5,7 +5,7 @@ export const BOARD_LIMITS = {
   /** Direction text: 1 to 4000 characters. */
   directionMax: 4000,
   /** Direction change note: at most 2000 characters. */
-  changeNoteMax: 2000,
+  changeNoteMax: 1024,
   /** A message to the CEO: 1 to 32000 characters. */
   messageMax: 32000
 };
