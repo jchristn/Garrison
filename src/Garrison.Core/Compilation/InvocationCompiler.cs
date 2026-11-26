@@ -138,7 +138,7 @@ namespace Garrison.Core.Compilation
         /// Compile a run for execution.
         /// </summary>
         /// <param name="run">Run (with parameters loaded).</param>
-        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when the run has no agent.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Compilation result.</returns>
         /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
@@ -155,7 +155,7 @@ namespace Garrison.Core.Compilation
         /// deployment's binding, else <c>builtin/conversation-fallback</c>) so the fresh session sees the earlier turns.
         /// </summary>
         /// <param name="run">Run (with parameters loaded).</param>
-        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when the run has no agent.</param>
         /// <param name="conversation">Conversation inputs, or null for runs outside a conversation or turns that resume.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Compilation result.</returns>
@@ -174,7 +174,7 @@ namespace Garrison.Core.Compilation
         /// else the deployment's PipelineStage binding, else <c>builtin/pipeline-stage</c>.
         /// </summary>
         /// <param name="run">Run (with parameters loaded).</param>
-        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when the run has no agent.</param>
         /// <param name="conversation">Conversation inputs, or null for runs outside a conversation or turns that resume.</param>
         /// <param name="pipeline">Pipeline inputs, or null for runs outside a pipeline.</param>
         /// <param name="token">Cancellation token.</param>
@@ -193,7 +193,7 @@ namespace Garrison.Core.Compilation
         /// run with no lease node is treated as not containerized. A KubernetesJob run is always containerized.
         /// </summary>
         /// <param name="run">Run (with parameters loaded).</param>
-        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when the run has no agent.</param>
         /// <param name="conversation">Conversation inputs, or null for runs outside a conversation or turns that resume.</param>
         /// <param name="pipeline">Pipeline inputs, or null for runs outside a pipeline.</param>
         /// <param name="node">Node the run is leased to, or null to read it from the lease.</param>
@@ -222,7 +222,7 @@ namespace Garrison.Core.Compilation
         /// none, and <c>run.resumeSessionId</c> is set so the harness profile's resume arguments apply.
         /// </summary>
         /// <param name="run">Run (with parameters loaded).</param>
-        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when the run has no agent.</param>
         /// <param name="repair">Repair inputs.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Compilation result.</returns>
@@ -1368,14 +1368,17 @@ namespace Garrison.Core.Compilation
             int index = 0;
 
             bool keeper = inputs.Keeper != null && !String.IsNullOrEmpty(runToken);
-            if (delegationEnabled || approvalsEnabled || keeper || (_Options.AgentMemoryEnabled && !String.IsNullOrEmpty(runToken)))
+            // AA-051: a run token always brings the Garrison server, so every run can call garrison_escalate.
+            if (!String.IsNullOrEmpty(runToken))
             {
                 McpServerEntry garrison = new McpServerEntry();
                 garrison.Name = Constants.McpServerName;
                 garrison.IsHttp = true;
                 garrison.Url = _Options.McpBaseUrl.TrimEnd('/');
                 garrison.Path = String.IsNullOrEmpty(_Options.McpPath) ? "/mcp" : _Options.McpPath;
-                garrison.Required = true;
+                // Required only when a feature the run depends on lives on it; a run that has it only for escalations
+                // skips the preflight, so an unreachable endpoint never fails it.
+                garrison.Required = delegationEnabled || approvalsEnabled || keeper || _Options.AgentMemoryEnabled;
                 if (delegationEnabled && inputs.Agent.DelegationMode != DelegationModeEnum.None) garrison.RequiredTools.Add("garrison_invoke_agent");
                 if (inputs.Deployment.ManagementAccess == ManagementAccessEnum.Drafts) garrison.RequiredTools.Add("garrison_studio_get_draft");
                 if (approvalsEnabled) garrison.RequiredTools.Add(PermissionPromptTool);

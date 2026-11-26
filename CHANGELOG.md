@@ -30,6 +30,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Changed
 
+- Every run gets a run token and the Garrison MCP server, so any run can raise an escalation with `garrison_escalate` (AA-051, replacing AA-044). The server is preflighted only when delegation, draft management, approvals, a keeper tick, or agent memory needs it, so a run that has it only for escalations starts even when the MCP endpoint is unreachable.
 - The product version is 0.3.0 in every mirror listed in `scripts/version-mirrors.txt`, including the C# SDK packages, which had moved to 0.2.1 on their own (AA0.3).
 - Run effect safety and cluster effect checks on relevant pushes only; remove the weekly, pull request, and manual triggers.
 

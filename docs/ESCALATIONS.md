@@ -33,7 +33,7 @@ A run that asks the same question twice gets the first escalation back instead o
 
 ## Who can raise one
 
-Only a run can raise an escalation, and only with its run token. A run gets a token when it needs Garrison's MCP tools for something: the run is a keeper tick, its agent delegates, or its deployment turns on approvals, suspension, draft management, artifacts, or agent memory. A plain run of an agent with none of these has no token and cannot escalate.
+Only a run can raise an escalation, and only with its run token. Every run gets a run token and the Garrison MCP server, so any run can call `garrison_escalate`, whatever its deployment turns on. When a run has the server only for escalations, the worker does not check the server before starting the harness, so a run whose harness cannot reach it still runs; it just cannot escalate.
 
 A run that has already finished is refused with 409 `RunNotActive`.
 

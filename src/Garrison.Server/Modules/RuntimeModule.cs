@@ -89,7 +89,6 @@ namespace Garrison.Server.Modules
             _Runs = new RunService(context.Database, _Signals, _Options, context.Telemetry);
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
             _StructuredOutput = new StructuredOutputService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Options, context.Telemetry);
-            _StructuredOutput.AgentMemoryEnabled = context.Settings.AgentMemory.Enabled;
             _Events.StructuredOutput = _StructuredOutput;
             _Events.CostEstimation = new RunCostEstimationService(context.Database);
             _Runs.Logging = context.Logging;
@@ -104,7 +103,6 @@ namespace Garrison.Server.Modules
             _Delegation = new DelegationPolicy(context.Database);
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation, _Options);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
-            _Scheduler.AgentMemoryEnabled = context.Settings.AgentMemory.Enabled;
             _Scheduler.ShutdownToken = context.Stopping;
             _Scheduler.Activity = context.Activity;
             _Conversations = new ConversationService(context.Database, _Options, _Signals);

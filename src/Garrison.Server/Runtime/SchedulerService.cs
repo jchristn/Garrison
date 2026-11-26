@@ -30,9 +30,6 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class SchedulerService
     {
-        /// <summary>Enable run tokens for optional agent memory independently of delegation. Default false.</summary>
-        public bool AgentMemoryEnabled { get; set; } = false;
-
         #region Public-Members
 
         /// <summary>Revocable credential provider, or null when disabled.</summary>
@@ -532,7 +529,8 @@ namespace Garrison.Server.Runtime
                 DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
                 string? runToken = null;
-                if (agent != null && (AgentMemoryEnabled || run.Kind == RunKindEnum.Keeper || agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ManagementAccess == ManagementAccessEnum.Drafts || deployment.ApprovalsEnabled || deployment.SuspensionEnabled || deployment.ArtifactGlobs.Count > 0 || (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && !String.IsNullOrEmpty(deployment.ArtifactStoreId))))))
+                // AA-051: every run gets a run token, so every run can reach the Garrison MCP server and raise an escalation.
+                if (agent != null)
                 {
                     runToken = await _Authentication.IssueForRunAsync(run, epoch, deadline, token).ConfigureAwait(false);
                 }

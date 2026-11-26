@@ -24,7 +24,7 @@ Every one of these defaults is public, so change them all:
 | User | Email and password, exchanged for a session token | Belongs to one tenant. May be a tenant administrator or a system administrator |
 | Credential | Access key and secret key, sent directly, used to sign requests, or exchanged for a token | Owned by a user. Never has more permission than its owner |
 | Administrator | `x-api-key` | No tenant and no user. Bypasses every check. Meant for bootstrapping and platform operations |
-| Run | A run token issued by Garrison | Exists for one run, for agent-to-agent delegation |
+| Run | A run token issued by Garrison | Exists for one run; every run gets one for Garrison's MCP tools (escalations, and delegation, approvals, keeper ticks, memory, and drafts where enabled) |
 | Node | A credential with the `NodeAgent` role | Can only use the node protocol. Only a role that names `Node` explicitly, or a system administrator, may use the node protocol; tenant administrators and `All` grants do not count, because a node receives every tenant's runs and their secrets |
 
 `REST_API.md` documents the headers for each scheme and the signed-request canonical string.
@@ -163,7 +163,7 @@ Each run gets its own Job and pod (`docs/KUBERNETES.md`, "Pod-per-run executor")
 
 - has its own filesystem: the work, home, config, and `/tmp` directories are emptyDir volumes that exist only for this run, so a run cannot see another run's files or the worker's;
 - has no Kubernetes credentials: `automountServiceAccountToken: false` and the `garrison-run` service account, which has no RoleBindings;
-- has no Garrison credentials besides the run token in its MCP configuration (needed for delegation, limited to its delegation tree, and revoked when the run ends) and the secrets its own deployment binds;
+- has no Garrison credentials besides the run token in its MCP configuration (every run gets one so it can escalate; it is limited to its delegation tree and revoked when the run ends) and the secrets its own deployment binds;
 - runs as UID 10001 with `runAsNonRoot`, a read-only root filesystem, every capability dropped, `allowPrivilegeEscalation: false`, the `RuntimeDefault` seccomp profile, and no service environment variables (`enableServiceLinks: false`);
 - is limited by the deployment's CPU, memory, and ephemeral storage requests and limits, so a runaway harness is OOMKilled or evicted instead of starving the node's other runs;
 - accepts no inbound traffic and may only resolve DNS, reach the Garrison MCP port (the `garrison-run` NetworkPolicy), and make HTTPS connections to any address except link-local ones such as the cloud metadata service, 169.254.0.0/16 (the `garrison-run-default-egress` NetworkPolicy, SR-23). A deployment with an egress allowlist replaces that HTTPS rule with its own CIDR and port rules ("Egress allowlists" below). Policies need a network plugin that enforces them; K3S's default one does;

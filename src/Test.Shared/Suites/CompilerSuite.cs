@@ -46,6 +46,7 @@ namespace Test.Shared.Suites
                 foreach (string profile in _Profiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-basic", "Golden: " + profile + " basic (" + provider + ")", ct => GoldenAsync(provider, profile, false, ct)));
                 foreach (string profile in _FullProfiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-full", "Golden: " + profile + " with MCP, schema, delegation, workspace (" + provider + ")", ct => GoldenAsync(provider, profile, true, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "no-hardcoded-text", "D-021: prompts contain only template text and caller input (" + provider + ")", ct => NoHardCodedTextAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(suiteId, "every-run-garrison-server", "AA-051: a run with no other Garrison feature still gets the Garrison MCP server, without a preflight (" + provider + ")", ct => EveryRunGarrisonServerAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "mux-named-endpoint", "Mux passes the configured endpoint name without a URL, model override, or generated endpoint (" + provider + ")", ct => MuxNamedEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "mux-without-credential", "Mux endpoints compile without a credential or unresolved API key placeholder (" + provider + ")", ct => MuxWithoutCredentialAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "secret-allowlist", "Secrets in environment variables outside the credential allowlist are rejected (" + provider + ")", ct => SecretAllowlistAsync(provider, ct)));
@@ -157,6 +158,20 @@ namespace Test.Shared.Suites
                 {
                     Assert.Equal("SecretNotAllowed", e.Code, "code");
                 }
+            }
+        }
+
+        private static async Task EveryRunGarrisonServerAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                Deployment deployment = await fixture.DeploymentAsync("claude-code", false, token).ConfigureAwait(false);
+                ExecutionSpec plain = (await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), null, token).ConfigureAwait(false)).Spec;
+                Assert.True(!plain.Files.Any(f => f.Content.Contains(Garrison.Core.Constants.McpServerName + "\"", StringComparison.Ordinal) && f.Path.Contains("mcp", StringComparison.OrdinalIgnoreCase)), "No run token, no Garrison server");
+                ExecutionSpec spec = (await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), "rt-every-run-token-0001", token).ConfigureAwait(false)).Spec;
+                Assert.True(spec.Files.Any(f => f.Path.Contains("mcp", StringComparison.OrdinalIgnoreCase) && f.Content.Contains(Garrison.Core.Constants.McpServerName, StringComparison.Ordinal)), "The Garrison server is configured for a plain run");
+                Assert.True(!spec.McpPreflight.Any(c => c.Name == Garrison.Core.Constants.McpServerName), "A plain run does not preflight the Garrison server");
+                Assert.True(spec.ScrubValues.Contains("rt-every-run-token-0001"), "The run token is scrubbed from output");
             }
         }
 

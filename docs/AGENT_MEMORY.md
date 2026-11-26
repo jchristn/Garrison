@@ -8,7 +8,7 @@ Agent memory is optional persistent text keyed by tenant, agent and memory key. 
 
 From `docker/`, run `docker compose -f compose.yaml -f compose.agent-memory.yaml up -d --build`. This enables memory in the server with the existing persistent `/app/data` volume. It adds no service or public port. In Kubernetes, set the same environment variables and mount an operator-owned persistent volume at `GARRISON_AGENT_MEMORY_ROOT`. Multiple control-plane replicas must share a filesystem supporting atomic replacement, or use a shared-store implementation of the interface. Do not use separate per-pod local volumes when cross-replica persistence is required.
 
-Bootstrap settings are `AgentMemory.Enabled` (false), `RootDirectory` (`data/agent-memory`) and `MaxValueBytes` (65536 UTF-8 bytes, range 1 to 1048576). Environment overrides are `GARRISON_AGENT_MEMORY_ENABLE`, `GARRISON_AGENT_MEMORY_ROOT` and `GARRISON_AGENT_MEMORY_MAX_VALUE_BYTES`. Enabling memory includes the Garrison MCP endpoint in compiled hosted Process harness configurations independently of delegation.
+Bootstrap settings are `AgentMemory.Enabled` (false), `RootDirectory` (`data/agent-memory`) and `MaxValueBytes` (65536 UTF-8 bytes, range 1 to 1048576). Environment overrides are `GARRISON_AGENT_MEMORY_ENABLE`, `GARRISON_AGENT_MEMORY_ROOT` and `GARRISON_AGENT_MEMORY_MAX_VALUE_BYTES`. Every run already carries the Garrison MCP endpoint (see `ESCALATIONS.md`); enabling memory makes it required, so the worker checks the endpoint before the harness starts.
 
 ## Tools
 

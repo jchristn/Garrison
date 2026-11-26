@@ -24,9 +24,6 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class StructuredOutputService
     {
-        /// <summary>Enable run tokens for optional agent memory independently of delegation. Default false.</summary>
-        public bool AgentMemoryEnabled { get; set; } = false;
-
         /// <summary>Called with every compiled repair spec before it is sent, for example to add asset download URLs (AD2.4); null does nothing.</summary>
         public Func<Run, ExecutionSpec, CancellationToken, Task>? DecorateSpec { get; set; } = null;
 
@@ -135,7 +132,7 @@ namespace Garrison.Server.Runtime
             DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
             string? runToken = null;
-            if (agent != null && (AgentMemoryEnabled || agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.ArtifactGlobs.Count > 0))))
+            if (agent != null)
             {
                 runToken = await _Authentication.IssueForRunAsync(run, run.LeaseEpoch, deadline, token).ConfigureAwait(false);
             }
