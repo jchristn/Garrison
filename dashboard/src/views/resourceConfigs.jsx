@@ -82,6 +82,8 @@ export { reportsConfig } from './reportConfigs';
 export { messagesConfig } from './messageConfigs';
 // AA7.14: organizations under Autonomy.
 export { organizationsConfig } from './organizationConfigs';
+// AA8.12: change rules under Autonomy.
+export { changeRulesConfig } from './changeRuleConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';
@@ -1472,6 +1474,7 @@ export const deploymentsConfig = {
     timeoutSeconds: null,
     maxAttempts: 1,
     effectPolicy: 'AtMostOnce',
+    managementAccess: 'None',
     repetitionGuard: null,
     maxAssistantChars: null,
     noProgressSeconds: null,
@@ -1697,6 +1700,9 @@ export const deploymentsConfig = {
       ...POD_RESOURCE_KEYS.map((key) =>
         field(id, t, podField(key), 'text', { step: 5, placeholder: POD_RESOURCE_EXAMPLES[key], showIf: (x) => x.executor !== 'Process' })
       ),
+      // Management access (AD-017, AA8): Drafts lets runs draft studio changes for the person who started them;
+      // OrgSubtree makes the agent that leads an organization unit an executive over the units below it.
+      field(id, t, 'managementAccess', 'select', { step: 6, required: true, options: enumOptions(t, 'managementAccess'), hint: t('resources.deployments.hints.managementAccess') }),
       // Permission approvals (P12.3): which tool calls the harness may make, which it may not, and which wait for a person.
       field(id, t, 'approvalsEnabled', 'checkbox', { step: 6 }),
       field(id, t, 'suspensionEnabled', 'checkbox', { step: 6 }),
@@ -1721,6 +1727,7 @@ export const deploymentsConfig = {
     const form = { ...deploymentToForm(r), ...approvalFormDefaults(r), egressRules: egressRulesToForm(r?.egressRules) };
     form.suspensionEnabled = !!r?.suspensionEnabled;
     form.effectPolicy = effectPolicyOf(r);
+    form.managementAccess = r?.managementAccess || 'None';
     form.fileSpaceMountPath = r?.fileSpaceMountPath || 'files';
     delete form.retryOnNodeLoss;
     return form;
@@ -1731,6 +1738,7 @@ export const deploymentsConfig = {
     // disagrees with an edited policy would be rejected (EffectPolicyConflict).
     delete body.retryOnNodeLoss;
     body.effectPolicy = d.effectPolicy || 'AtMostOnce';
+    body.managementAccess = d.managementAccess || 'None';
     body.suspensionEnabled = !!d.suspensionEnabled;
     body.approvalsEnabled = !!d.approvalsEnabled;
     body.approvalDefaultAction = d.approvalDefaultAction || 'Allow';

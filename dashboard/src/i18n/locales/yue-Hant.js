@@ -7022,3 +7022,238 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "變更規則",
+    "tip": "主管唔使問就可以喺佢下層單位做嘅例行變更"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "變更規則"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "組織提案已套用"
+  },
+  "managementAccess": {
+   "None": "冇",
+   "Drafts": "工作室草稿",
+   "OrgSubtree": "管轄下層單位嘅主管"
+  },
+  "changeClass": {
+   "PromptRetune": "重新調校提示",
+   "WakeTuning": "調校叫醒",
+   "MandateTextEdit": "編輯守護者文字",
+   "AddWorker": "加入成員",
+   "RemoveWorker": "移除成員",
+   "ModelChange": "更改模型",
+   "DeploymentWeight": "部署權重"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "只有真人先可以寫變更規則。代理程式唔可以建立、更改或者刪除規則。",
+  "ProposalNotPending": "呢個提案已經唔再等緊決定。請重新打開睇下佢而家嘅狀態。",
+  "ApproverIsAgent": "代理程式唔可以決定提案，一定要由真人決定。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "打開組織",
+   "copyId": "複製 ID"
+  },
+  "toasts": {
+   "copied": "已經複製變更規則 ID。"
+  },
+  "status": {
+   "Active": "生效中",
+   "Inactive": "已關閉",
+   "Expired": "已過期"
+  },
+  "limit": {
+   "text": "{{class}}，{{name}}：{{range}}",
+   "between": "{{min}} 至 {{max}}",
+   "atMost": "最多 {{max}}",
+   "atLeast": "最少 {{min}}",
+   "any": "冇限制"
+  },
+  "limitNames": {
+   "count": "每個提案嘅變更數",
+   "minIntervalSeconds": "最短叫醒間隔（秒）",
+   "maxIntervalSeconds": "最長叫醒間隔（秒）",
+   "backoffFactor": "退避係數",
+   "jitterPercent": "抖動（百分比）",
+   "weight": "流量權重"
+  },
+  "errors": {
+   "UnknownLimit": "呢個類別冇叫呢個名嘅限制。請喺清單度揀一個。",
+   "ClassNotInRule": "限制一定要屬於規則列出嘅類別。請加返個類別，或者改個限制。",
+   "UnitNotFound": "嗰個單位唔喺呢個組織生效中嘅組織圖入面。",
+   "Duplicate": "每個類別同每個限制都只可以出現一次。",
+   "BoundRequired": "請俾個最小值、最大值，或者兩樣都俾。",
+   "MinimumAboveMaximum": "最小值大過最大值。",
+   "NegativeBound": "限制一定要係零或以上。",
+   "ExpiryInPast": "請揀一個將來嘅到期時間，或者留空等規則永遠唔過期。",
+   "OrganizationNotFound": "呢個租用戶入面冇嗰個組織。",
+   "OrganizationNotSettable": "規則嘅組織唔可以改。如果係另一個組織，請建立一條新規則。",
+   "TooMany": "一條規則最多只可以有 {{max}} 個限制。"
+  },
+  "form": {
+   "errors": {
+    "name": "請俾規則改個 1 至 {{max}} 個字元嘅名。",
+    "description": "描述最多只可以有 {{max}} 個字元。",
+    "organization": "請揀呢條規則適用嘅組織。",
+    "unit": "請揀呢個組織嘅一個單位。",
+    "classes": "請揀最少一個變更類別。"
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "提案",
+  "note": "主管會為佢負責嘅單位提出變更。如果提案入面每一個變更都有變更規則涵蓋，提案就會即刻套用。其他嘅會喺度等真人處理。",
+  "rulesLink": "變更規則",
+  "views": {
+   "label": "顯示邊啲提案",
+   "all": "全部",
+   "needsApproval": "要批核",
+   "needsApprovalCount": "要批核（{{count}}）",
+   "applied": "已套用"
+  },
+  "emptyTitle": "呢度冇提案",
+  "emptyBody": "主管為佢下面嘅單位提出變更嗰陣，個提案就會喺度出現。",
+  "columns": {
+   "title": "提案",
+   "unit": "單位",
+   "agent": "主管",
+   "decision": "決定",
+   "updated": "最後更改"
+  },
+  "decision": {
+   "rule": "按規則套用",
+   "approved": "已批准",
+   "needsApproval": "要批核",
+   "denied": "已拒絕",
+   "lapsed": "已失效",
+   "drafting": "草擬緊"
+  },
+  "byRules": "規則：{{names}}",
+  "byPerson": "由 {{name}} 決定",
+  "decide": "審閱同決定",
+  "toasts": {
+   "approved": "已經批准 {{title}}，而家已經生效。",
+   "denied": "已經拒絕 {{title}}，佢已經退返俾主管。"
+  },
+  "review": {
+   "open": "審閱",
+   "title": "提案：{{title}}",
+   "run": "提出提案嘅執行",
+   "approve": "批准",
+   "deny": "拒絕",
+   "appliedByRule": "因為每個變更都有變更規則涵蓋，所以即刻套用咗。規則：{{names}}。",
+   "approvedBy": "由 {{name}} 批准。",
+   "deniedBy": "由 {{name}} 拒絕。",
+   "reasonGiven": "原因：{{reason}}",
+   "revision": "已經記錄做組織嘅修訂 {{number}}。要撤銷，就還原嗰個修訂。",
+   "appliedNoDiff": "呢個提案已經套用咗，所以佢嘅變更已經係生效配置嘅一部分。比較佢被記錄成嘅修訂就睇到啲變更。",
+   "covered": "下面每個變更都有變更規則涵蓋，所以呢個提案唔使真人都會套用。",
+   "notCovered": "下面最少有一個變更冇變更規則涵蓋，所以要由真人決定。",
+   "refusals": "硬性限制會拒絕呢啲變更，任何規則或者批核都解除唔到：",
+   "noChanges": "呢個提案冇任何變更。",
+   "columns": {
+    "item": "變更",
+    "change": "類型",
+    "rule": "涵蓋嘅規則"
+   },
+   "coveredBy": "規則 {{name}}",
+   "reason": "原因",
+   "reasonPlaceholder": "可選。主管會睇到。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "提案（{{count}}）"
+   },
+   "appliedProposal": "已套用嘅提案"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "管理權限"
+   },
+   "hints": {
+    "managementAccess": "大部分代理程式揀「冇」就得。「工作室草稿」俾執行為啟動佢嘅人草擬工作室變更。「管轄下層單位嘅主管」俾負責組織單位嘅代理程式為佢下面嘅單位提出變更。"
+   }
+  },
+  "changeRules": {
+   "title": "變更規則",
+   "subtitle": "主管唔使等真人就可以喺佢下層單位做嘅例行變更。規則冇涵蓋嘅嘢仍然要批核。",
+   "add": "新增規則",
+   "create": "新增變更規則",
+   "edit": "編輯變更規則",
+   "view": "變更規則",
+   "deleteTitle": "刪除變更規則",
+   "emptyTitle": "暫時未有變更規則",
+   "emptyBody": "加一條規則，等主管唔使等批核就可以套用例行變更，例如調校叫醒。",
+   "noLimits": "冇限制",
+   "noExpiry": "永不過期",
+   "chooseOrganization": "揀一個組織",
+   "chooseUnit": "揀一個單位",
+   "addLimit": "新增限制",
+   "filters": {
+    "activeOnly": "狀態",
+    "inForce": "只顯示生效中"
+   },
+   "columns": {
+    "name": "名稱",
+    "status": "狀態",
+    "organization": "組織",
+    "unit": "涵蓋範圍",
+    "classes": "類別",
+    "limits": "限制",
+    "expiresUtc": "到期",
+    "createdByName": "建立者",
+    "description": "描述",
+    "createdUtc": "建立時間",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "組織",
+    "unitId": "單位（連同佢下面嘅單位）",
+    "name": "名稱",
+    "description": "描述",
+    "classes": "變更類別",
+    "limits": "限制",
+    "limitClass": "類別",
+    "limitName": "限制",
+    "minimum": "最小值",
+    "maximum": "最大值",
+    "active": "生效中",
+    "expiresUtc": "到期"
+   },
+   "hints": {
+    "organizationId": "必填。規則嘅組織之後唔可以改。",
+    "unitId": "必填。規則涵蓋對呢個單位同佢下面每個單位嘅變更。",
+    "name": "1 至 {{max}} 個字元。",
+    "description": "可選，最多 {{max}} 個字元。",
+    "classes": "必填。只有當提案入面每個變更都屬於某條規則容許嘅類別，提案先會按規則套用。",
+    "limits": "可選，最多 {{max}} 個。「每個提案嘅變更數」限制一個提案最多可以有幾多個嗰個類別嘅變更；其他限制就界定新數值嘅範圍。",
+    "expiresUtc": "可選。規則喺呢個時間之後唔再適用。"
+   }
+  }
+ }
+});

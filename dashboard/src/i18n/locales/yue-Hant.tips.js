@@ -4231,3 +4231,150 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "變更規則：主管唔使先問真人就可以喺佢下層單位改嘅嘢。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "預先批准主管例行變更嘅變更規則。Read 可以睇；Create、Update 同 Delete 可以改。代理程式永遠唔可以寫。"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "主管嘅提案已經套用咗喺組織上面，由變更規則或者真人套用。"
+  },
+  "managementAccess": {
+   "None": "呢個部署嘅執行唔可以草擬或者提出配置變更。啱大部分代理程式。",
+   "Drafts": "執行可以為啟動佢嘅人草擬工作室變更。每份草稿始終由真人套用。",
+   "OrgSubtree": "對呢個代理程式負責嘅單位下面所有單位嘅主管權限：執行可以喺嗰度提出變更。變更規則可以即刻套用例行嘅變更，其他嘅就等真人。永遠唔包括佢自己、佢上面嘅任何嘢、密鑰、預算或者規則。"
+  },
+  "changeClass": {
+   "PromptRetune": "修改下層單位入面代理程式嘅提示同指示。",
+   "WakeTuning": "更改守護者幾耐叫醒一次：佢嘅間隔、退避同抖動。",
+   "MandateTextEdit": "修改下層單位入面守護者嘅目標文字。",
+   "AddWorker": "將一個代理程式加入單位做成員。",
+   "RemoveWorker": "將一個成員代理程式移出單位。",
+   "ModelChange": "切換下層單位入面某個部署所用嘅模型。",
+   "DeploymentWeight": "更改一個部署喺同一個代理程式嘅部署之間分到幾多流量。"
+  }
+ },
+ "filters": {
+  "organization": "只顯示呢個組織嘅變更規則。",
+  "activeOnly": "只顯示已開啟而且未過期嘅規則。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "打開規則所屬嘅組織，「提案」分頁會顯示規則套用咗啲乜。",
+   "copyId": "複製變更規則 ID（cru_...），用喺 REST API、SDK 或者 MCP 工具。"
+  },
+  "status": {
+   "Active": "規則已開啟而且未過期，所以佢涵蓋嘅提案會即刻套用。",
+   "Inactive": "有人關閉咗呢條規則。重新開啟之前，佢唔會套用喺任何嘢上面。",
+   "Expired": "已經過咗到期時間，所以規則唔會套用喺任何嘢上面。編輯佢就可以設定新嘅到期時間。"
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "你唔可以決定提案，要有 Approval 嘅 Update 權限。",
+  "rulesLink": "打開呢個組織嘅變更規則：主管唔使問就可以改嘅嘢。",
+  "decide": "打開提案睇佢嘅變更，然後批准或者拒絕。",
+  "views": {
+   "all": "呢個組織嘅所有提案，最近更改嘅排最前。",
+   "needsApproval": "等緊真人批准或者拒絕嘅提案。",
+   "applied": "已經生效嘅提案，按規則套用或者由真人批准。"
+  },
+  "columns": {
+   "title": "主管為提案改嘅名。",
+   "unit": "主管負責嘅單位。佢嘅提案只會影響佢下面嘅單位。",
+   "agent": "負責呢個單位而且提出提案嘅代理程式。",
+   "decision": "按規則套用、已批准、等緊批核、已拒絕，或者仲草擬緊。",
+   "updated": "提案最後更改嘅時間。將滑鼠移到上面就睇到準確時間。"
+  },
+  "decision": {
+   "rule": "每個變更都有變更規則涵蓋，所以唔使真人就即刻套用咗。",
+   "approved": "有人批准咗，並且套用做組織嘅一個新修訂。",
+   "needsApproval": "最少有一個變更冇規則涵蓋，所以等緊真人處理。",
+   "denied": "有人拒絕咗，已經退返俾主管再改。",
+   "lapsed": "喺有人決定之前，批核已經過期或者取消咗。",
+   "drafting": "主管仲處理緊，未要求套用。"
+  },
+  "review": {
+   "open": "打開提案，睇佢嘅變更、涵蓋啲變更嘅規則，同埋點樣決定。",
+   "run": "提出呢個提案嘅主管執行。",
+   "openRun": "打開提出呢個提案嘅執行。",
+   "approve": "即刻套用提案。佢會記錄做組織嘅一個新修訂，你可以還原。",
+   "deny": "唔套用，將提案退返俾主管。你嘅原因會一齊送過去。",
+   "coveredBy": "呢條變更規則喺佢嘅限制之內容許呢個變更。",
+   "reason": "你批准或者拒絕嘅原因。可選；主管同稽核記錄都會睇到。",
+   "columns": {
+    "item": "變更影響嘅資源，同埋會改嘅欄位。",
+    "change": "呢個變更係建立、更新定係刪除資源。",
+    "rule": "涵蓋呢個變更嘅變更規則，或者點解要真人處理。"
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "呢個部署嘅執行可以管理乜嘢。大部分代理程式揀「冇」；代理程式架構師揀「工作室草稿」；負責組織單位、應該為下面嘅單位提出變更嘅代理程式揀「管轄下層單位嘅主管」。"
+  },
+  "changeRules": {
+   "add": "新增一條規則，等主管唔使等真人就可以套用某類例行變更。",
+   "name": "規則嘅簡短名稱。按規則套用嘅提案會寫出呢個名。",
+   "status": "生效中、已關閉或者已過期。只有生效中嘅規則先會套用提案。",
+   "organization": "規則適用於邊個組織嘅主管。",
+   "unit": "規則涵蓋邊個單位嘅下層：對佢同佢下面每個單位嘅變更。",
+   "classes": "規則容許嘅變更類別。",
+   "limits": "容許變更嘅界限：每個提案最多幾多個，同埋可以設定嘅數值。",
+   "expiresUtc": "規則幾時停止適用，或者永不過期。",
+   "createdByName": "寫呢條規則嘅人。",
+   "description": "用淺白嘅說話講點解有呢條規則。將滑鼠移到上面就睇到全文。",
+   "createdUtc": "規則建立嘅時間。將滑鼠移到上面就睇到準確時間。",
+   "id": "變更規則 ID（cru_...），用喺 REST API、SDK 同 MCP 工具。",
+   "organizationId": "規則適用嘅組織，之後唔可以改。",
+   "unitId": "規則涵蓋生效中嘅組織圖入面，對呢個單位同佢下面每個單位嘅變更。",
+   "active": "關閉規則就可以停止佢套用，而唔使刪除佢。",
+   "limitClass": "呢個限制約束嘅變更類別，一定要係規則容許嘅其中一個類別。",
+   "limitName": "限制約束乜嘢：任何類別都可以限制每個提案嘅變更數，「調校叫醒」可以限制叫醒數值，「部署權重」可以限制流量權重。",
+   "minimum": "容許嘅最細數值，留空就冇下限。零或以上。",
+   "maximum": "容許嘅最大數值，留空就冇上限。零或以上。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "呢個組織嘅主管提出嘅變更，同埋每個係點樣決定。"
+   },
+   "appliedProposal": "呢個修訂記錄咗一個已套用嘅主管提案。還原佢就可以撤銷個提案。"
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "變更規則",
+  "p1": "主管係負責一個組織單位、而且佢嘅部署有主管管理權限嘅代理程式。佢可以為佢下面嘅單位提出變更，但永遠唔可以改佢自己、佢上面嘅任何嘢、密鑰、預算或者呢啲規則。",
+  "p2": "變更規則會預先批准例行變更。規則會寫明佢涵蓋邊個單位嘅下層、容許邊啲變更類別，仲有可選嘅限制，例如每個提案最多兩個變更，或者叫醒間隔最少一分鐘。如果提案入面每個變更都有規則涵蓋，就會即刻套用；其他嘅會喺組織嘅「提案」分頁等真人處理。",
+  "p3": "每個已套用嘅提案都會記錄做組織嘅一個修訂，所以你可以還原。只有真人先可以寫規則。"
+ }
+});

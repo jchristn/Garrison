@@ -54,6 +54,7 @@ const COLLECTIONS = {
   reports: 'reports',
   messages: 'messages',
   organizations: 'organizations',
+  changeRules: 'change-rules',
   audit: 'audit'
 };
 

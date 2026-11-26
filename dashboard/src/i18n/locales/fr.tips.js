@@ -4233,3 +4233,150 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "Règles de changement : ce que les agents de direction peuvent modifier dans leur sous-arbre sans demander d'abord à une personne."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Règles de changement qui approuvent à l'avance les changements courants des agents de direction. Read permet de les voir ; Create, Update et Delete de les modifier. Les agents ne peuvent jamais les écrire."
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Une proposition d'un agent de direction a été appliquée à une organisation, par une règle de changement ou par une personne."
+  },
+  "managementAccess": {
+   "None": "Les exécutions de ce déploiement ne peuvent ni préparer ni proposer de changements de configuration. Convient à la plupart des agents.",
+   "Drafts": "Les exécutions peuvent préparer des changements Studio pour la personne qui les a lancées. Une personne applique toujours chaque brouillon.",
+   "OrgSubtree": "Autorité de direction sur les unités placées sous celle que dirige cet agent : les exécutions peuvent y proposer des changements. Les règles de changement peuvent appliquer aussitôt les changements courants ; le reste attend une personne. Jamais sur lui-même, sur ce qui est au-dessus, sur les secrets, les budgets ou les règles."
+  },
+  "changeClass": {
+   "PromptRetune": "Modifications des prompts et des instructions des agents du sous-arbre.",
+   "WakeTuning": "Changements de la fréquence de réveil d'un gardien : son intervalle, son espacement et son jitter.",
+   "MandateTextEdit": "Modifications du texte d'objectif des gardiens du sous-arbre.",
+   "AddWorker": "Ajout d'un agent comme membre d'une unité.",
+   "RemoveWorker": "Retrait d'un agent membre d'une unité.",
+   "ModelChange": "Changement du modèle qu'exécute un déploiement du sous-arbre.",
+   "DeploymentWeight": "Changement de la part de trafic qu'un déploiement reçoit parmi les déploiements de son agent."
+  }
+ },
+ "filters": {
+  "organization": "Afficher uniquement les règles de changement de cette organisation.",
+  "activeOnly": "Afficher uniquement les règles activées et non expirées."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Ouvrir l'organisation de la règle, où l'onglet Propositions montre ce que les règles ont appliqué.",
+   "copyId": "Copier l'ID de la règle de changement (cru_...) pour l'API REST, les SDK ou les outils MCP."
+  },
+  "status": {
+   "Active": "La règle est activée et n'a pas expiré : les propositions qu'elle couvre s'appliquent aussitôt.",
+   "Inactive": "Une personne a désactivé la règle. Elle ne s'applique à rien tant qu'elle n'est pas réactivée.",
+   "Expired": "La date d'expiration est passée : la règle ne s'applique à rien. Modifiez-la pour fixer une nouvelle expiration."
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "Vous ne pouvez pas décider des propositions. Il faut l'opération Update sur Approval.",
+  "rulesLink": "Ouvrir les règles de changement de cette organisation : ce que les agents de direction peuvent modifier sans demander.",
+  "decide": "Ouvrir la proposition pour voir ses changements et l'approuver ou la refuser.",
+  "views": {
+   "all": "Toutes les propositions de cette organisation, la plus récemment modifiée en premier.",
+   "needsApproval": "Propositions qui attendent qu'une personne les approuve ou les refuse.",
+   "applied": "Propositions actives, appliquées par règle ou approuvées par une personne."
+  },
+  "columns": {
+   "title": "Le nom que l'agent de direction a donné à la proposition.",
+   "unit": "L'unité que dirige l'agent de direction. Ses propositions ne touchent que les unités placées sous elle.",
+   "agent": "L'agent qui dirige l'unité et a fait la proposition.",
+   "decision": "Appliquée par règle, approuvée, en attente d'approbation, refusée ou encore en cours de rédaction.",
+   "updated": "Date du dernier changement de la proposition. Survolez pour l'heure exacte."
+  },
+  "decision": {
+   "rule": "Des règles de changement couvraient chaque changement : elle s'est appliquée aussitôt, sans personne.",
+   "approved": "Une personne l'a approuvée, et elle s'est appliquée comme nouvelle révision de l'organisation.",
+   "needsApproval": "Au moins un changement n'est couvert par aucune règle : elle attend donc une personne.",
+   "denied": "Une personne l'a refusée, et elle est retournée à l'agent de direction pour être retravaillée.",
+   "lapsed": "Son approbation a expiré ou a été annulée avant que quelqu'un décide.",
+   "drafting": "L'agent de direction y travaille encore et n'a pas encore demandé à l'appliquer."
+  },
+  "review": {
+   "open": "Ouvrir la proposition pour voir ses changements, les règles qui les couvrent et la façon dont elle a été décidée.",
+   "run": "L'exécution de l'agent de direction qui a fait cette proposition.",
+   "openRun": "Ouvrir l'exécution qui a fait cette proposition.",
+   "approve": "Appliquer la proposition maintenant. Elle est enregistrée comme nouvelle révision de l'organisation, que vous pouvez annuler.",
+   "deny": "Renvoyer la proposition à l'agent de direction sans l'appliquer. Votre motif l'accompagne.",
+   "coveredBy": "Cette règle de changement autorise le changement, dans ses limites.",
+   "reason": "Pourquoi vous approuvez ou refusez. Facultatif ; l'agent de direction et le journal d'audit le voient.",
+   "columns": {
+    "item": "La ressource que touche le changement, avec les champs qui changent.",
+    "change": "Si le changement crée, met à jour ou supprime la ressource.",
+    "rule": "La règle de changement qui couvre le changement, ou la raison pour laquelle il faut une personne."
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "Ce que les exécutions de ce déploiement peuvent gérer. Aucun pour la plupart des agents ; Brouillons Studio pour l'architecte d'agents ; Direction de son sous-arbre pour un agent qui dirige une unité organisationnelle et doit proposer des changements aux unités placées sous elle."
+  },
+  "changeRules": {
+   "add": "Ajouter une règle qui permet aux agents de direction d'appliquer un type de changement courant sans attendre une personne.",
+   "name": "Un nom court pour la règle. Les propositions appliquées par règle le citent.",
+   "status": "En vigueur, désactivée ou expirée. Seules les règles en vigueur appliquent des propositions.",
+   "organization": "L'organisation dont les agents de direction sont concernés par la règle.",
+   "unit": "L'unité dont la règle couvre le sous-arbre : les changements de cette unité et de chaque unité placée sous elle.",
+   "classes": "Les classes de changement que la règle autorise.",
+   "limits": "Bornes des changements autorisés : combien par proposition, et quelles valeurs ils peuvent fixer.",
+   "expiresUtc": "Quand la règle cesse de s'appliquer, ou Jamais.",
+   "createdByName": "La personne qui a écrit la règle.",
+   "description": "Pourquoi la règle existe, en termes simples. Survolez pour le texte complet.",
+   "createdUtc": "Date de création de la règle. Survolez pour l'heure exacte.",
+   "id": "L'ID de la règle de changement (cru_...), pour l'API REST, les SDK et les outils MCP.",
+   "organizationId": "L'organisation à laquelle s'applique la règle. Elle ne peut plus changer ensuite.",
+   "unitId": "La règle couvre les changements de cette unité et de chaque unité placée sous elle dans l'organigramme actuel.",
+   "active": "Désactivez la règle pour qu'elle cesse de s'appliquer sans la supprimer.",
+   "limitClass": "La classe de changement que borne cette limite. Elle doit faire partie des classes que la règle autorise.",
+   "limitName": "Ce que borne la limite : les changements par proposition pour toute classe, les valeurs de réveil pour Réglage du réveil, ou le poids du trafic pour Poids du déploiement.",
+   "minimum": "La plus petite valeur autorisée, ou vide pour aucune borne inférieure. Zéro ou plus.",
+   "maximum": "La plus grande valeur autorisée, ou vide pour aucune borne supérieure. Zéro ou plus."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Les changements proposés par les agents de direction de cette organisation, avec la décision prise pour chacun."
+   },
+   "appliedProposal": "Cette révision enregistre une proposition d'un agent de direction qui a été appliquée. Annulez-la pour revenir sur la proposition."
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "Règles de changement",
+  "p1": "Un agent de direction est un agent qui dirige une unité organisationnelle et dont le déploiement dispose de l'accès de gestion de direction. Il peut proposer des changements aux unités placées sous lui, jamais à lui-même, à ce qui est au-dessus, aux secrets, aux budgets ni à ces règles.",
+  "p2": "Une règle de changement approuve à l'avance des changements courants. Elle désigne l'unité dont elle couvre le sous-arbre, les classes de changement qu'elle autorise et des limites facultatives, par exemple au plus deux changements par proposition ou un intervalle de réveil d'au moins une minute. Quand des règles couvrent chaque changement d'une proposition, celle-ci s'applique aussitôt ; tout le reste attend une personne dans l'onglet Propositions de l'organisation.",
+  "p3": "Chaque proposition appliquée est enregistrée comme révision de l'organisation : vous pouvez donc l'annuler. Seules des personnes écrivent les règles."
+ }
+});

@@ -4233,3 +4233,150 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "Regole di modifica: ciò che gli agenti dirigenti possono cambiare nei loro sottoalberi senza chiedere prima a una persona."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Regole di modifica che approvano in anticipo le modifiche di routine degli agenti dirigenti. Read permette di vederle; Create, Update e Delete di modificarle. Gli agenti non possono mai scriverle."
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Una proposta di un agente dirigente è stata applicata a un'organizzazione, da una regola di modifica o da una persona."
+  },
+  "managementAccess": {
+   "None": "Le esecuzioni di questa distribuzione non possono preparare né proporre modifiche alla configurazione. Adatto alla maggior parte degli agenti.",
+   "Drafts": "Le esecuzioni possono preparare modifiche in Studio per la persona che le ha avviate. Ogni bozza la applica comunque una persona.",
+   "OrgSubtree": "Autorità direttiva sulle unità sotto quella guidata da questo agente: le esecuzioni possono proporre modifiche lì. Le regole di modifica possono applicare subito quelle di routine; le altre aspettano una persona. Mai su sé stesso, su ciò che sta sopra, su segreti, budget o regole."
+  },
+  "changeClass": {
+   "PromptRetune": "Modifiche ai prompt e alle istruzioni degli agenti del sottoalbero.",
+   "WakeTuning": "Modifiche alla frequenza con cui un custode si sveglia: intervallo, dilatazione e jitter.",
+   "MandateTextEdit": "Modifiche al testo dell'obiettivo dei custodi del sottoalbero.",
+   "AddWorker": "Aggiunta di un agente a un'unità come membro.",
+   "RemoveWorker": "Rimozione di un agente membro da un'unità.",
+   "ModelChange": "Cambio del modello eseguito da una distribuzione del sottoalbero.",
+   "DeploymentWeight": "Modifica della quota di traffico che riceve una distribuzione tra le distribuzioni del suo agente."
+  }
+ },
+ "filters": {
+  "organization": "Mostra solo le regole di modifica di questa organizzazione.",
+  "activeOnly": "Mostra solo le regole attive e non scadute."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Apri l'organizzazione della regola, dove la scheda Proposte mostra cosa hanno applicato le regole.",
+   "copyId": "Copia l'ID della regola di modifica (cru_...) per l'API REST, gli SDK o gli strumenti MCP."
+  },
+  "status": {
+   "Active": "La regola è attiva e non è scaduta, quindi le proposte che copre si applicano subito.",
+   "Inactive": "Una persona ha disattivato la regola. Non si applica a nulla finché non viene riattivata.",
+   "Expired": "La scadenza è passata, quindi la regola non si applica a nulla. Modificala per impostare una nuova scadenza."
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "Non puoi decidere sulle proposte. Serve Update su Approval.",
+  "rulesLink": "Apri le regole di modifica di questa organizzazione: ciò che gli agenti dirigenti possono cambiare senza chiedere.",
+  "decide": "Apri la proposta per vederne le modifiche e approvarla o rifiutarla.",
+  "views": {
+   "all": "Tutte le proposte di questa organizzazione, a partire dalla modifica più recente.",
+   "needsApproval": "Proposte in attesa che una persona le approvi o le rifiuti.",
+   "applied": "Proposte in vigore, applicate per regola o approvate da una persona."
+  },
+  "columns": {
+   "title": "Il nome che l'agente dirigente ha dato alla proposta.",
+   "unit": "L'unità guidata dall'agente dirigente. Le sue proposte toccano solo le unità sotto di essa.",
+   "agent": "L'agente che guida l'unità e ha fatto la proposta.",
+   "decision": "Applicata per regola, approvata, in attesa di approvazione, rifiutata o ancora in preparazione.",
+   "updated": "Quando la proposta è cambiata l'ultima volta. Passa il puntatore sopra per l'ora esatta."
+  },
+  "decision": {
+   "rule": "Le regole di modifica coprivano ogni modifica, quindi è stata applicata subito senza una persona.",
+   "approved": "Una persona l'ha approvata ed è stata applicata come nuova revisione dell'organizzazione.",
+   "needsApproval": "Almeno una modifica non è coperta da una regola, quindi aspetta una persona.",
+   "denied": "Una persona l'ha rifiutata ed è tornata all'agente dirigente per essere rielaborata.",
+   "lapsed": "La sua approvazione è scaduta o è stata annullata prima che qualcuno decidesse.",
+   "drafting": "L'agente dirigente ci sta ancora lavorando e non ha ancora chiesto di applicarla."
+  },
+  "review": {
+   "open": "Apri la proposta per vederne le modifiche, le regole che le coprono e come è stata decisa.",
+   "run": "L'esecuzione dell'agente dirigente che ha fatto questa proposta.",
+   "openRun": "Apri l'esecuzione che ha fatto questa proposta.",
+   "approve": "Applica subito la proposta. Viene registrata come nuova revisione dell'organizzazione, che puoi annullare.",
+   "deny": "Rimanda la proposta all'agente dirigente senza applicarla. Il tuo motivo la accompagna.",
+   "coveredBy": "Questa regola di modifica consente la modifica, entro i suoi limiti.",
+   "reason": "Perché approvi o rifiuti. Facoltativo; lo vedono l'agente dirigente e il registro di audit.",
+   "columns": {
+    "item": "La risorsa toccata dalla modifica, con i campi che cambiano.",
+    "change": "Se la modifica crea, aggiorna o elimina la risorsa.",
+    "rule": "La regola di modifica che copre la modifica, o perché serve una persona."
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "Ciò che le esecuzioni di questa distribuzione possono gestire. Nessuno per la maggior parte degli agenti; Bozze di Studio per l'architetto di agenti; Direzione del proprio sottoalbero per un agente che guida un'unità organizzativa e deve proporre modifiche alle unità sotto di essa."
+  },
+  "changeRules": {
+   "add": "Aggiungi una regola che consente agli agenti dirigenti di applicare un tipo di modifica di routine senza aspettare una persona.",
+   "name": "Un nome breve per la regola. Le proposte applicate per regola la citano.",
+   "status": "In vigore, disattivata o scaduta. Solo le regole in vigore applicano proposte.",
+   "organization": "L'organizzazione ai cui agenti dirigenti si riferisce la regola.",
+   "unit": "L'unità di cui la regola copre il sottoalbero: le modifiche a essa e a ogni unità sotto di essa.",
+   "classes": "Le classi di modifica consentite dalla regola.",
+   "limits": "Limiti alle modifiche consentite: quante per proposta e quali valori possono impostare.",
+   "expiresUtc": "Quando la regola smette di applicarsi, oppure Mai.",
+   "createdByName": "La persona che ha scritto la regola.",
+   "description": "Perché esiste la regola, in parole semplici. Passa il puntatore sopra per il testo completo.",
+   "createdUtc": "Quando è stata creata la regola. Passa il puntatore sopra per l'ora esatta.",
+   "id": "L'ID della regola di modifica (cru_...), per l'API REST, gli SDK e gli strumenti MCP.",
+   "organizationId": "L'organizzazione a cui si riferisce la regola. Non si può cambiare in seguito.",
+   "unitId": "La regola copre le modifiche a questa unità e a ogni unità sotto di essa nell'organigramma in vigore.",
+   "active": "Disattiva la regola per fermarne l'applicazione senza eliminarla.",
+   "limitClass": "La classe di modifica delimitata da questo limite. Deve essere una delle classi consentite dalla regola.",
+   "limitName": "Cosa delimita il limite: modifiche per proposta per qualsiasi classe, valori di risveglio per Regolazione del risveglio, o peso del traffico per Peso della distribuzione.",
+   "minimum": "Il valore più piccolo consentito, o vuoto per nessun limite inferiore. Zero o più.",
+   "maximum": "Il valore più grande consentito, o vuoto per nessun limite superiore. Zero o più."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Modifiche proposte dagli agenti dirigenti di questa organizzazione, con il modo in cui è stata decisa ciascuna."
+   },
+   "appliedProposal": "Questa revisione registra una proposta applicata di un agente dirigente. Annullala per revocare la proposta."
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "Regole di modifica",
+  "p1": "Un agente dirigente è un agente che guida un'unità organizzativa e la cui distribuzione ha l'accesso di gestione direttivo. Può proporre modifiche alle unità sotto di sé, mai a sé stesso, a ciò che sta sopra, a segreti, budget o a queste regole.",
+  "p2": "Una regola di modifica approva in anticipo le modifiche di routine. Indica l'unità di cui copre il sottoalbero, le classi di modifica che consente e limiti facoltativi, come al massimo due modifiche per proposta o un intervallo di risveglio di almeno un minuto. Quando le regole coprono ogni modifica di una proposta, questa si applica subito; il resto aspetta una persona nella scheda Proposte dell'organizzazione.",
+  "p3": "Ogni proposta applicata viene registrata come revisione dell'organizzazione, quindi puoi annullarla. Solo le persone scrivono le regole."
+ }
+});

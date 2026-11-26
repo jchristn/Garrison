@@ -7023,3 +7023,238 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "变更规则",
+    "tip": "主管可以在其子树中直接进行、无需请示的例行变更"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "变更规则"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "组织提案已应用"
+  },
+  "managementAccess": {
+   "None": "无",
+   "Drafts": "工作室草稿",
+   "OrgSubtree": "主管管理其子树"
+  },
+  "changeClass": {
+   "PromptRetune": "提示词调整",
+   "WakeTuning": "唤醒调整",
+   "MandateTextEdit": "守护者文本编辑",
+   "AddWorker": "添加成员",
+   "RemoveWorker": "移除成员",
+   "ModelChange": "模型变更",
+   "DeploymentWeight": "部署权重"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "只有人员可以编写变更规则。智能体不能创建、修改或删除规则。",
+  "ProposalNotPending": "此提案已不再等待决定。请重新打开它查看当前状态。",
+  "ApproverIsAgent": "智能体不能对提案做出决定，必须由人员决定。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "打开组织",
+   "copyId": "复制 ID"
+  },
+  "toasts": {
+   "copied": "已复制变更规则 ID。"
+  },
+  "status": {
+   "Active": "生效中",
+   "Inactive": "已停用",
+   "Expired": "已过期"
+  },
+  "limit": {
+   "text": "{{class}}，{{name}}：{{range}}",
+   "between": "{{min}} 到 {{max}}",
+   "atMost": "最多 {{max}}",
+   "atLeast": "至少 {{min}}",
+   "any": "不限"
+  },
+  "limitNames": {
+   "count": "每个提案的变更数",
+   "minIntervalSeconds": "最短唤醒间隔（秒）",
+   "maxIntervalSeconds": "最长唤醒间隔（秒）",
+   "backoffFactor": "退避系数",
+   "jitterPercent": "抖动（百分比）",
+   "weight": "流量权重"
+  },
+  "errors": {
+   "UnknownLimit": "此类别没有这个名称的限制。请从列表中选择一个。",
+   "ClassNotInRule": "限制必须针对规则所列的类别。请添加该类别或修改限制。",
+   "UnitNotFound": "该单元不在此组织的现行组织图中。",
+   "Duplicate": "每个类别和每个限制只能出现一次。",
+   "BoundRequired": "请为限制设置最小值、最大值或两者。",
+   "MinimumAboveMaximum": "最小值大于最大值。",
+   "NegativeBound": "限制值必须大于或等于零。",
+   "ExpiryInPast": "请选择一个将来的过期时间，或留空让规则永不过期。",
+   "OrganizationNotFound": "此租户中不存在该组织。",
+   "OrganizationNotSettable": "规则始终属于其所在的组织。如需用于其他组织，请新建规则。",
+   "TooMany": "一条规则最多包含 {{max}} 个限制。"
+  },
+  "form": {
+   "errors": {
+    "name": "请为规则输入 1 到 {{max}} 个字符的名称。",
+    "description": "描述最多 {{max}} 个字符。",
+    "organization": "请选择规则所属的组织。",
+    "unit": "请选择此组织中的一个单元。",
+    "classes": "请至少选择一个变更类别。"
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "提案",
+  "note": "主管会对其负责的单元提出变更。如果变更规则涵盖了提案中的每项变更，提案会立即应用。其他提案会在这里等待人员处理。",
+  "rulesLink": "变更规则",
+  "views": {
+   "label": "显示哪些提案",
+   "all": "全部",
+   "needsApproval": "需要批准",
+   "needsApprovalCount": "需要批准（{{count}}）",
+   "applied": "已应用"
+  },
+  "emptyTitle": "这里没有提案",
+  "emptyBody": "当主管对其下级单元提出变更时，提案会显示在这里。",
+  "columns": {
+   "title": "提案",
+   "unit": "单元",
+   "agent": "主管",
+   "decision": "决定",
+   "updated": "最后更改"
+  },
+  "decision": {
+   "rule": "按规则应用",
+   "approved": "已批准",
+   "needsApproval": "需要批准",
+   "denied": "已拒绝",
+   "lapsed": "已失效",
+   "drafting": "起草中"
+  },
+  "byRules": "规则：{{names}}",
+  "byPerson": "由 {{name}} 决定",
+  "decide": "审阅并决定",
+  "toasts": {
+   "approved": "已批准 {{title}}，现已生效。",
+   "denied": "已拒绝 {{title}}，已退回给主管。"
+  },
+  "review": {
+   "open": "审阅",
+   "title": "提案：{{title}}",
+   "run": "提出该提案的运行",
+   "approve": "批准",
+   "deny": "拒绝",
+   "appliedByRule": "由于变更规则涵盖了每项变更，提案已立即应用。规则：{{names}}。",
+   "approvedBy": "由 {{name}} 批准。",
+   "deniedBy": "由 {{name}} 拒绝。",
+   "reasonGiven": "原因：{{reason}}",
+   "revision": "已记录为组织的修订版 {{number}}。回滚该修订版即可撤销。",
+   "appliedNoDiff": "此提案已应用，其变更已成为现行配置的一部分。比较它所记录的修订版即可查看这些变更。",
+   "covered": "变更规则涵盖了下面的每项变更，因此此提案无需人员即可应用。",
+   "notCovered": "下面至少有一项变更未被变更规则涵盖，因此需要由人员决定。",
+   "refusals": "硬性限制拒绝了以下变更，任何规则或批准都无法解除：",
+   "noChanges": "此提案不包含任何变更。",
+   "columns": {
+    "item": "变更",
+    "change": "类型",
+    "rule": "涵盖规则"
+   },
+   "coveredBy": "规则 {{name}}",
+   "reason": "原因",
+   "reasonPlaceholder": "可选。主管会看到。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "提案（{{count}}）"
+   },
+   "appliedProposal": "已应用的提案"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "管理权限"
+   },
+   "hints": {
+    "managementAccess": "大多数智能体选择“无”即可。“工作室草稿”允许运行为启动它的人员起草工作室变更。“主管管理其子树”允许负责某个组织单元的智能体对其下级单元提出变更。"
+   }
+  },
+  "changeRules": {
+   "title": "变更规则",
+   "subtitle": "主管可以在其子树中直接进行、无需等待人员的例行变更。规则未涵盖的变更仍需批准。",
+   "add": "添加规则",
+   "create": "添加变更规则",
+   "edit": "编辑变更规则",
+   "view": "变更规则",
+   "deleteTitle": "删除变更规则",
+   "emptyTitle": "暂无变更规则",
+   "emptyBody": "添加规则，让主管无需等待批准即可应用唤醒调整等例行变更。",
+   "noLimits": "无限制",
+   "noExpiry": "永不",
+   "chooseOrganization": "选择组织",
+   "chooseUnit": "选择单元",
+   "addLimit": "添加限制",
+   "filters": {
+    "activeOnly": "状态",
+    "inForce": "仅显示生效中"
+   },
+   "columns": {
+    "name": "名称",
+    "status": "状态",
+    "organization": "组织",
+    "unit": "涵盖范围",
+    "classes": "类别",
+    "limits": "限制",
+    "expiresUtc": "过期时间",
+    "createdByName": "创建者",
+    "description": "描述",
+    "createdUtc": "创建时间",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "组织",
+    "unitId": "单元（含其下级单元）",
+    "name": "名称",
+    "description": "描述",
+    "classes": "变更类别",
+    "limits": "限制",
+    "limitClass": "类别",
+    "limitName": "限制",
+    "minimum": "最小值",
+    "maximum": "最大值",
+    "active": "生效",
+    "expiresUtc": "过期时间"
+   },
+   "hints": {
+    "organizationId": "必填。规则始终属于其所在的组织。",
+    "unitId": "必填。规则涵盖对此单元及其所有下级单元的变更。",
+    "name": "1 到 {{max}} 个字符。",
+    "description": "可选，最多 {{max}} 个字符。",
+    "classes": "必填。只有当提案中的每项变更都属于某条规则允许的类别时，提案才会按规则应用。",
+    "limits": "可选，最多 {{max}} 个。“每个提案的变更数”限制一个提案中某类变更的数量；其他限制约束新值的范围。",
+    "expiresUtc": "可选。规则在此时间后不再适用。"
+   }
+  }
+ }
+});

@@ -7087,3 +7087,238 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "Règles de changement",
+    "tip": "Changements courants que les agents de direction peuvent faire dans leur sous-arbre sans demander"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Règle de changement"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Proposition d'organisation appliquée"
+  },
+  "managementAccess": {
+   "None": "Aucun",
+   "Drafts": "Brouillons Studio",
+   "OrgSubtree": "Direction de son sous-arbre"
+  },
+  "changeClass": {
+   "PromptRetune": "Réglage des prompts",
+   "WakeTuning": "Réglage du réveil",
+   "MandateTextEdit": "Modification du texte d'un gardien",
+   "AddWorker": "Ajout d'un membre",
+   "RemoveWorker": "Retrait d'un membre",
+   "ModelChange": "Changement de modèle",
+   "DeploymentWeight": "Poids du déploiement"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "Seules des personnes écrivent les règles de changement. Un agent ne peut ni en créer, ni en modifier, ni en supprimer.",
+  "ProposalNotPending": "Cette proposition n'attend plus de décision. Rouvrez-la pour voir où elle en est.",
+  "ApproverIsAgent": "Un agent ne peut pas décider d'une proposition. Une personne doit le faire."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Ouvrir l'organisation",
+   "copyId": "Copier l'ID"
+  },
+  "toasts": {
+   "copied": "ID de la règle de changement copié."
+  },
+  "status": {
+   "Active": "En vigueur",
+   "Inactive": "Désactivée",
+   "Expired": "Expirée"
+  },
+  "limit": {
+   "text": "{{class}}, {{name}} : {{range}}",
+   "between": "de {{min}} à {{max}}",
+   "atMost": "au plus {{max}}",
+   "atLeast": "au moins {{min}}",
+   "any": "sans borne"
+  },
+  "limitNames": {
+   "count": "Changements par proposition",
+   "minIntervalSeconds": "Intervalle de réveil le plus court (secondes)",
+   "maxIntervalSeconds": "Intervalle de réveil le plus long (secondes)",
+   "backoffFactor": "Facteur d'espacement",
+   "jitterPercent": "Jitter (pourcentage)",
+   "weight": "Poids du trafic"
+  },
+  "errors": {
+   "UnknownLimit": "Cette classe n'a pas de limite de ce nom. Choisissez-en une dans la liste.",
+   "ClassNotInRule": "Une limite doit porter sur une classe que la règle cite. Ajoutez la classe ou modifiez la limite.",
+   "UnitNotFound": "Cette unité ne figure pas dans l'organigramme actuel de cette organisation.",
+   "Duplicate": "Chaque classe et chaque limite ne peuvent apparaître qu'une fois.",
+   "BoundRequired": "Donnez à la limite un minimum, un maximum, ou les deux.",
+   "MinimumAboveMaximum": "Le minimum est supérieur au maximum.",
+   "NegativeBound": "Les limites valent zéro ou plus.",
+   "ExpiryInPast": "Choisissez une expiration dans le futur, ou laissez le champ vide pour que la règle n'expire jamais.",
+   "OrganizationNotFound": "Cette organisation n'existe pas dans ce tenant.",
+   "OrganizationNotSettable": "Une règle reste attachée à son organisation. Créez une nouvelle règle pour une autre organisation.",
+   "TooMany": "Une règle contient au plus {{max}} limites."
+  },
+  "form": {
+   "errors": {
+    "name": "Donnez à la règle un nom de 1 à {{max}} caractères.",
+    "description": "La description contient au plus {{max}} caractères.",
+    "organization": "Choisissez l'organisation à laquelle s'applique la règle.",
+    "unit": "Choisissez une unité de cette organisation.",
+    "classes": "Choisissez au moins une classe de changement."
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "Propositions",
+  "note": "Les agents de direction proposent des changements aux unités qu'ils dirigent. Une proposition s'applique aussitôt quand des règles de changement couvrent chacun de ses changements. Tout le reste attend ici une personne.",
+  "rulesLink": "Règles de changement",
+  "views": {
+   "label": "Quelles propositions",
+   "all": "Toutes",
+   "needsApproval": "En attente d'approbation",
+   "needsApprovalCount": "En attente d'approbation ({{count}})",
+   "applied": "Appliquées"
+  },
+  "emptyTitle": "Aucune proposition ici",
+  "emptyBody": "Quand un agent de direction propose un changement aux unités placées sous lui, la proposition apparaît ici.",
+  "columns": {
+   "title": "Proposition",
+   "unit": "Unité",
+   "agent": "Agent de direction",
+   "decision": "Décision",
+   "updated": "Dernière modification"
+  },
+  "decision": {
+   "rule": "Appliquée par règle",
+   "approved": "Approuvée",
+   "needsApproval": "En attente d'approbation",
+   "denied": "Refusée",
+   "lapsed": "Caduque",
+   "drafting": "En cours de rédaction"
+  },
+  "byRules": "Règles : {{names}}",
+  "byPerson": "Par {{name}}",
+  "decide": "Examiner et décider",
+  "toasts": {
+   "approved": "{{title}} approuvée. Elle est active maintenant.",
+   "denied": "{{title}} refusée. Elle est retournée à l'agent de direction."
+  },
+  "review": {
+   "open": "Examiner",
+   "title": "Proposition : {{title}}",
+   "run": "Proposée dans l'exécution",
+   "approve": "Approuver",
+   "deny": "Refuser",
+   "appliedByRule": "Appliquée aussitôt, car des règles de changement couvraient chaque changement. Règles : {{names}}.",
+   "approvedBy": "Approuvée par {{name}}.",
+   "deniedBy": "Refusée par {{name}}.",
+   "reasonGiven": "Motif : {{reason}}",
+   "revision": "Enregistrée comme révision {{number}} de l'organisation. Annulez cette révision pour revenir en arrière.",
+   "appliedNoDiff": "Cette proposition est appliquée : ses changements font partie de la configuration actuelle. Comparez la révision sous laquelle elle a été enregistrée pour les voir.",
+   "covered": "Des règles de changement couvrent chaque changement ci-dessous : cette proposition s'applique donc sans intervention d'une personne.",
+   "notCovered": "Au moins un changement ci-dessous n'est couvert par aucune règle de changement : une personne décide donc.",
+   "refusals": "Des limites strictes refusent ces changements. Aucune règle ni approbation ne peut les lever :",
+   "noChanges": "La proposition ne contient aucun changement.",
+   "columns": {
+    "item": "Changement",
+    "change": "Type",
+    "rule": "Couvert par"
+   },
+   "coveredBy": "Règle {{name}}",
+   "reason": "Motif",
+   "reasonPlaceholder": "Facultatif. L'agent de direction le verra."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Propositions ({{count}})"
+   },
+   "appliedProposal": "Proposition appliquée"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "Accès de gestion"
+   },
+   "hints": {
+    "managementAccess": "La plupart des agents ont besoin de Aucun. Brouillons Studio permet aux exécutions de préparer des changements Studio pour la personne qui les a lancées. Direction de son sous-arbre permet à l'agent qui dirige une unité organisationnelle de proposer des changements aux unités placées sous elle."
+   }
+  },
+  "changeRules": {
+   "title": "Règles de changement",
+   "subtitle": "Changements courants que les agents de direction peuvent faire dans leur sous-arbre sans attendre une personne. Ce qu'aucune règle ne couvre demande toujours une approbation.",
+   "add": "Ajouter une règle",
+   "create": "Ajouter une règle de changement",
+   "edit": "Modifier la règle de changement",
+   "view": "Règle de changement",
+   "deleteTitle": "Supprimer la règle de changement",
+   "emptyTitle": "Aucune règle de changement pour l'instant",
+   "emptyBody": "Ajoutez une règle pour que les agents de direction appliquent des changements courants, comme le réglage du réveil, sans attendre d'approbation.",
+   "noLimits": "Aucune limite",
+   "noExpiry": "Jamais",
+   "chooseOrganization": "Choisir une organisation",
+   "chooseUnit": "Choisir une unité",
+   "addLimit": "Ajouter une limite",
+   "filters": {
+    "activeOnly": "Statut",
+    "inForce": "En vigueur uniquement"
+   },
+   "columns": {
+    "name": "Nom",
+    "status": "Statut",
+    "organization": "Organisation",
+    "unit": "Couvre",
+    "classes": "Classes autorisées",
+    "limits": "Limites",
+    "expiresUtc": "Expire le",
+    "createdByName": "Créée par",
+    "description": "Descriptif",
+    "createdUtc": "Créée le",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "Organisation",
+    "unitId": "Unité (avec les unités placées sous elle)",
+    "name": "Nom",
+    "description": "Descriptif",
+    "classes": "Classes de changement",
+    "limits": "Limites",
+    "limitClass": "Classe",
+    "limitName": "Limite",
+    "minimum": "Valeur minimale",
+    "maximum": "Valeur maximale",
+    "active": "En vigueur",
+    "expiresUtc": "Expire le"
+   },
+   "hints": {
+    "organizationId": "Obligatoire. Une règle reste attachée à son organisation.",
+    "unitId": "Obligatoire. La règle couvre les changements de cette unité et de chaque unité placée sous elle.",
+    "name": "De 1 à {{max}} caractères.",
+    "description": "Facultatif, au plus {{max}} caractères.",
+    "classes": "Obligatoire. Une proposition s'applique par règle seulement si chacun de ses changements appartient à une classe qu'une règle autorise.",
+    "limits": "Facultatif, au plus {{max}}. Changements par proposition plafonne le nombre de changements d'une classe qu'une proposition peut contenir ; les autres limites encadrent les nouvelles valeurs.",
+    "expiresUtc": "Facultatif. La règle cesse de s'appliquer à ce moment."
+   }
+  }
+ }
+});

@@ -1932,6 +1932,247 @@ export function organizationStore() {
   return { orgs, handle };
 }
 
+// ---------------------------------------------------------------- change rules and proposals (AA8.12)
+
+// cru_0001 "routine-wake-tuning" lets the executive of Leadership retune prompts and wake schedules anywhere below it,
+// at most three changes per proposal and never waking more often than once a minute. cru_0002 "model-swaps" was
+// switched off. org_0001 has three proposals: one applied by cru_0001, one waiting for a person because a model
+// change is not covered, and one a person approved.
+const CHANGE_RULE_ROWS = [
+  {
+    name: 'routine-wake-tuning',
+    description: 'Keepers may slow down or speed up within sane bounds.',
+    unitId: 'oun_0001',
+    unitName: 'Leadership',
+    classes: ['WakeTuning', 'PromptRetune'],
+    limits: [
+      { class: 'WakeTuning', name: 'minIntervalSeconds', minimum: 60, maximum: null },
+      { class: 'WakeTuning', name: 'count', minimum: null, maximum: 3 }
+    ],
+    active: true
+  },
+  { name: 'model-swaps', description: null, unitId: 'oun_0002', unitName: 'Billing', classes: ['ModelChange'], limits: [], active: false, expiresUtc: 6000 }
+];
+
+/** One change rule by row number (1-based), shaped like GET /change-rules/{id}. */
+export function changeRule(i) {
+  const row = CHANGE_RULE_ROWS[(i - 1) % CHANGE_RULE_ROWS.length];
+  return {
+    id: `cru_${pad(i)}`,
+    tenantId: TENANT,
+    organizationId: 'org_0001',
+    organizationName: 'Refund operations',
+    unitId: row.unitId,
+    unitName: row.unitName,
+    name: row.name,
+    description: row.description,
+    active: row.active,
+    expiresUtc: row.expiresUtc ? iso(-row.expiresUtc) : null,
+    classes: row.classes.map((c) => ({ class: c })),
+    limits: row.limits.map((l) => ({ ...l })),
+    createdByType: 'User',
+    createdById: 'usr_admin',
+    createdByName: 'admin@garrison',
+    updatedByName: null,
+    createdUtc: iso(300 - i * 10),
+    lastUpdateUtc: iso(60)
+  };
+}
+
+const PROPOSAL_ROWS = [
+  { title: 'Slow the billing keeper overnight', status: 'Applied', approvalStatus: 'Approved', decisionSource: 'Rule', decidedBy: 'rule', ruleIds: ['cru_0001'], updated: 120 },
+  { title: 'Move Billing to a cheaper model', status: 'PendingApproval', approvalStatus: 'Pending', updated: 30 },
+  { title: 'Add a refund clerk to Support', status: 'Applied', approvalStatus: 'Approved', decisionSource: 'User', decidedBy: 'admin@garrison', reason: 'Support is behind.', updated: 600 }
+];
+
+/** One proposal of org_0001 by row number (1-based), shaped like GET /organizations/{id}/proposals/{draftId}. */
+export function orgProposal(i, withDiff = false) {
+  const row = PROPOSAL_ROWS[(i - 1) % PROPOSAL_ROWS.length];
+  const out = {
+    draftId: `sdr_${pad(100 + i)}`,
+    title: row.title,
+    status: row.status,
+    version: 2,
+    organizationId: 'org_0001',
+    unitId: 'oun_0001',
+    unitName: 'Leadership',
+    agentId: 'agt_0001',
+    agentName: 'echo-agent',
+    originRunId: `run_${pad(i)}`,
+    ownerName: 'admin@garrison',
+    approvalId: `apr_${pad(100 + i)}`,
+    approvalStatus: row.approvalStatus,
+    decisionSource: row.decisionSource || null,
+    decidedBy: row.decidedBy || null,
+    reason: row.reason || null,
+    ruleIds: row.ruleIds || [],
+    diff: null,
+    createdUtc: iso(row.updated + 10),
+    lastUpdateUtc: iso(row.updated)
+  };
+  if (withDiff && row.status !== 'Applied') out.diff = proposalDiff(out.draftId);
+  return out;
+}
+
+/** The diff of the waiting proposal: a covered prompt retune and an uncovered model change, with one refusal. */
+function proposalDiff(draftId) {
+  return {
+    draftId,
+    version: 2,
+    valid: true,
+    items: [
+      { kind: 'Agent', name: 'agent-2', change: 'Update', changes: [{ field: 'systemPrompt', before: 'Pay refunds.', after: 'Pay valid refunds within a day.' }], message: null, errorCode: null, stale: false },
+      { kind: 'Deployment', name: 'agent-2-default', change: 'Update', changes: [{ field: 'model', before: 'sonnet', after: 'haiku' }], message: null, errorCode: null, stale: false }
+    ],
+    refusals: [{ kind: 'Secret', name: 'billing-key', code: 'SecretsOffLimits', message: 'An executive cannot change secrets.' }],
+    ruleMatches: [
+      { kind: 'Agent', name: 'agent-2', detail: 'systemPrompt', classes: ['PromptRetune'], ruleId: 'cru_0001', ruleName: 'routine-wake-tuning', reason: null },
+      { kind: 'Deployment', name: 'agent-2-default', detail: 'model', classes: ['ModelChange'], ruleId: null, ruleName: null, reason: 'Needs a person: no change rule in force covers ModelChange.' }
+    ],
+    appliesByRule: false
+  };
+}
+
+/** Responses for the change rule routes and the organization proposal routes, or undefined for other collections. */
+function changeRuleRoutes(method, url, parts) {
+  if (parts[0] === 'change-rules') {
+    if (parts.length === 1) {
+      if (method === 'POST') return { ...changeRule(1), id: 'cru_0099', name: 'new-rule' };
+      const org = url.searchParams.get('organization');
+      // A real ID from the contract test gets the fixture rows.
+      const rows = CHANGE_RULE_ROWS.map((_, k) => changeRule(k + 1)).filter((r) => !org || !/^org_\d{4}$/.test(org) || r.organizationId === org);
+      return pageOf(rows, url);
+    }
+    // An ID the fixtures do not know (the contract test's real IDs) gets rule 1's shape.
+    return /^cru_\d+$/.test(parts[1]) ? changeRule(Number(parts[1].slice(4))) : { ...changeRule(1), id: parts[1] };
+  }
+  if (parts[0] === 'organizations' && parts[2] === 'proposals') {
+    if (parts.length === 3) return pageOf(PROPOSAL_ROWS.map((_, k) => orgProposal(k + 1)), url);
+    const i = PROPOSAL_ROWS.findIndex((_, k) => orgProposal(k + 1).draftId === parts[3]) + 1 || 2;
+    if (parts[4] === 'decide') return { ...orgProposal(i), status: 'Applied', approvalStatus: 'Approved', decisionSource: 'User', decidedBy: 'admin@garrison' };
+    return { ...orgProposal(i, true), draftId: parts[3] };
+  }
+  return undefined;
+}
+
+/**
+ * A stateful change rule and proposal API for tests that write rules and then watch an executive propose: list,
+ * create, read, replace, and delete rules (with the server's limit checks), and the proposals of one organization.
+ * propose({ title, unitId, classes, values }) plays the executive: the proposal applies by rule (decisionSource Rule)
+ * when a rule in force for an ancestor unit lists every class and its limits hold, and waits for a person otherwise.
+ * handle(method, url, body) answers { status, body } for these routes and undefined for others.
+ */
+export function changeRuleStore({ organizationId = 'org_0001', organizationName = 'Refund operations', units = orgUnits('working') } = {}) {
+  const rules = [];
+  const proposals = [orgProposal(2)];
+  let seq = 200;
+  const nextId = (prefix) => `${prefix}_${pad((seq += 1))}`;
+  const KNOWN = { WakeTuning: ['count', 'minIntervalSeconds', 'maxIntervalSeconds', 'backoffFactor', 'jitterPercent'], DeploymentWeight: ['count', 'weight'] };
+  const invalid = (field, code, message) => ({ status: 400, body: { error: 'ValidationFailed', code: 'ValidationFailed', message, fields: { [field]: message }, fieldCodes: { [field]: code } } });
+  const unitOf = (id) => units.find((u) => u.id === id || u.name === id);
+  const within = (unitId, ancestorId) => {
+    for (let u = unitOf(unitId); u; u = u.parentUnitId ? unitOf(u.parentUnitId) : null) if (u.id === ancestorId) return true;
+    return false;
+  };
+  const fill = (body, existing) => {
+    const unit = unitOf(body.unitId);
+    if (!unit) return invalid('unitId', 'UnitNotFound', `unitId names no unit of organization ${organizationName}.`);
+    const classes = (body.classes || []).map((c) => c.class);
+    if (!classes.length) return invalid('classes', 'Required', 'List at least one change class.');
+    for (const [i, l] of (body.limits || []).entries()) {
+      if (!classes.includes(l.class)) return invalid(`limits[${i}].class`, 'ClassNotInRule', `Limit ${l.name} is for ${l.class}, which the rule does not list.`);
+      if (!(KNOWN[l.class] || ['count']).includes(l.name)) return invalid(`limits[${i}].name`, 'UnknownLimit', `A ${l.class} limit is one of ${(KNOWN[l.class] || ['count']).join(', ')}.`);
+      if (l.minimum == null && l.maximum == null) return invalid(`limits[${i}]`, 'BoundRequired', 'Give a minimum, a maximum, or both.');
+    }
+    const rule = {
+      ...(existing || { id: nextId('cru'), tenantId: TENANT, organizationId, createdByType: 'User', createdById: 'usr_admin', createdByName: 'admin@garrison', createdUtc: iso(0) }),
+      organizationName,
+      unitId: unit.id,
+      unitName: unit.name,
+      name: String(body.name || '').trim(),
+      description: body.description || null,
+      active: body.active !== false,
+      expiresUtc: body.expiresUtc || null,
+      classes: classes.map((c) => ({ class: c })),
+      limits: (body.limits || []).map((l) => ({ class: l.class, name: l.name, minimum: l.minimum ?? null, maximum: l.maximum ?? null })),
+      lastUpdateUtc: iso(0)
+    };
+    return { rule };
+  };
+  const covers = (rule, unitId, classes, values) =>
+    rule.active &&
+    (!rule.expiresUtc || Date.parse(rule.expiresUtc) > Date.now()) &&
+    within(unitId, rule.unitId) &&
+    classes.every((c) => rule.classes.some((x) => x.class === c)) &&
+    rule.limits.every((l) => {
+      const v = l.name === 'count' ? classes.filter((c) => c === l.class).length : values?.[l.name];
+      if (v === undefined || !classes.includes(l.class)) return true;
+      return (l.minimum == null || v >= l.minimum) && (l.maximum == null || v <= l.maximum);
+    });
+  const propose = ({ title, unitId, classes, values }) => {
+    const rule = rules.find((r) => covers(r, unitId, classes, values));
+    const unit = unitOf(unitId);
+    const proposal = {
+      ...orgProposal(1),
+      draftId: nextId('sdr'),
+      title,
+      unitId: unit?.id || unitId,
+      unitName: unit?.name || null,
+      approvalId: nextId('apr'),
+      status: rule ? 'Applied' : 'PendingApproval',
+      approvalStatus: rule ? 'Approved' : 'Pending',
+      decisionSource: rule ? 'Rule' : null,
+      decidedBy: rule ? 'rule' : null,
+      reason: null,
+      ruleIds: rule ? [rule.id] : [],
+      createdUtc: new Date().toISOString(),
+      lastUpdateUtc: new Date().toISOString()
+    };
+    proposals.unshift(proposal);
+    return proposal;
+  };
+  const handle = (method, url, body) => {
+    const rm = /\/v1\.0\/api\/tenants\/[^/]+\/change-rules(?:\/([^/]+))?$/.exec(url.pathname);
+    if (rm) {
+      const id = rm[1] ? decodeURIComponent(rm[1]) : null;
+      if (!id) {
+        if (method === 'POST') {
+          const made = fill(body);
+          if (!made.rule) return made;
+          rules.unshift(made.rule);
+          return { status: 201, body: made.rule };
+        }
+        const org = url.searchParams.get('organization');
+        return { status: 200, body: pageOf(rules.filter((r) => !org || r.organizationId === org), url) };
+      }
+      const rule = rules.find((r) => r.id === id);
+      if (!rule) return { status: 404, body: { error: 'NotFound', code: 'NotFound', message: 'Change rule not found.' } };
+      if (method === 'DELETE') {
+        rules.splice(rules.indexOf(rule), 1);
+        return { status: 204 };
+      }
+      if (method === 'PUT') {
+        const made = fill(body, rule);
+        if (!made.rule) return made;
+        Object.assign(rule, made.rule);
+      }
+      return { status: 200, body: rule };
+    }
+    const pm = /\/v1\.0\/api\/tenants\/[^/]+\/organizations\/([^/]+)\/proposals(?:\/([^/]+)(\/decide)?)?$/.exec(url.pathname);
+    if (!pm || decodeURIComponent(pm[1]) !== organizationId) return undefined;
+    if (!pm[2]) return { status: 200, body: pageOf(proposals, url) };
+    const proposal = proposals.find((p) => p.draftId === decodeURIComponent(pm[2]));
+    if (!proposal) return { status: 404, body: { error: 'NotFound', code: 'NotFound', message: 'Proposal not found.' } };
+    if (pm[3]) {
+      if (proposal.status !== 'PendingApproval') return { status: 409, body: { error: 'ProposalNotPending', code: 'ProposalNotPending', message: `Proposal ${proposal.title} is ${proposal.status} and is not waiting for a decision.` } };
+      Object.assign(proposal, body?.allow ? { status: 'Applied', approvalStatus: 'Approved' } : { status: 'Open', approvalStatus: 'Denied' }, { decisionSource: 'User', decidedBy: 'admin@garrison', reason: body?.reason || null, lastUpdateUtc: new Date().toISOString() });
+      return { status: 200, body: proposal };
+    }
+    return { status: 200, body: proposal.status === 'Applied' ? proposal : { ...proposal, diff: proposalDiff(proposal.draftId) } };
+  };
+  return { rules, proposals, propose, handle };
+}
+
 /** Responses for the keeper (mandate) routes, or undefined for other collections. */
 function keeperRoutes(method, url, parts) {
   const collection = parts[0];
@@ -3179,6 +3420,8 @@ export function respond(method, url) {
     const reported = reportRoutes(method, url, parts);
     if (reported !== undefined) return reported;
     if (parts[0] === 'messages' || parts[0] === 'message-threads') return messageRoutes(method, url, parts);
+    const ruled = changeRuleRoutes(method, url, parts);
+    if (ruled !== undefined) return ruled;
     if (parts[0] === 'organizations') return organizationRoutes(method, url, parts);
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;

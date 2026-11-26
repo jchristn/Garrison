@@ -4230,3 +4230,150 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "变更规则：主管无需先请示人员即可在其子树中进行的变更。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "预先批准例行主管变更的变更规则。读取权限可查看；创建、更新和删除权限可修改。智能体永远不能编写它们。"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "某个主管提案已应用到组织，由变更规则或人员批准。"
+  },
+  "managementAccess": {
+   "None": "此部署的运行不能起草或提出配置变更。适合大多数智能体。",
+   "Drafts": "运行可以为启动它的人员起草工作室变更。每份草稿仍由人员应用。",
+   "OrgSubtree": "对此智能体所负责单元的下级单元拥有主管权限：运行可以对这些单元提出变更。变更规则可以立即应用例行变更，其余变更等待人员处理。永远不能涉及自身、其上级、机密、预算或规则。"
+  },
+  "changeClass": {
+   "PromptRetune": "编辑子树中智能体的提示词和指令。",
+   "WakeTuning": "更改守护者的唤醒频率：其间隔、退避和抖动。",
+   "MandateTextEdit": "编辑子树中守护者的目标文本。",
+   "AddWorker": "将智能体作为成员添加到单元。",
+   "RemoveWorker": "从单元中移除成员智能体。",
+   "ModelChange": "切换子树中某个部署所运行的模型。",
+   "DeploymentWeight": "更改某个部署在其智能体的各部署之间获得的流量比例。"
+  }
+ },
+ "filters": {
+  "organization": "仅显示此组织的变更规则。",
+  "activeOnly": "仅显示已启用且未过期的规则。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "打开规则所属的组织，在其“提案”标签页中可查看规则应用了哪些提案。",
+   "copyId": "复制变更规则 ID（cru_...），用于 REST API、SDK 或 MCP 工具。"
+  },
+  "status": {
+   "Active": "规则已启用且未过期，其涵盖的提案会立即应用。",
+   "Inactive": "有人停用了此规则。在重新启用之前，它不适用于任何提案。",
+   "Expired": "已过过期时间，规则不再适用于任何提案。编辑规则可设置新的过期时间。"
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "你无权对提案做出决定。这需要“审批”的更新权限。",
+  "rulesLink": "打开此组织的变更规则：主管无需请示即可进行的变更。",
+  "decide": "打开提案查看其变更，并批准或拒绝。",
+  "views": {
+   "all": "此组织的所有提案，最近更改的排在最前。",
+   "needsApproval": "等待人员批准或拒绝的提案。",
+   "applied": "已生效的提案，包括按规则应用的和经人员批准的。"
+  },
+  "columns": {
+   "title": "主管为提案起的名称。",
+   "unit": "主管负责的单元。其提案只涉及该单元的下级单元。",
+   "agent": "负责该单元并提出提案的智能体。",
+   "decision": "按规则应用、已批准、等待批准、已拒绝或仍在起草中。",
+   "updated": "提案最后更改的时间。悬停可查看精确时间。"
+  },
+  "decision": {
+   "rule": "变更规则涵盖了每项变更，因此提案无需人员即已立即应用。",
+   "approved": "有人批准了它，它已作为组织的新修订版应用。",
+   "needsApproval": "至少有一项变更未被规则涵盖，因此需要等待人员处理。",
+   "denied": "有人拒绝了它，已退回给主管重新修改。",
+   "lapsed": "在有人做出决定之前，其审批已过期或被取消。",
+   "drafting": "主管仍在起草，尚未申请应用。"
+  },
+  "review": {
+   "open": "打开提案，查看其变更、涵盖这些变更的规则以及决定情况。",
+   "run": "提出此提案的主管运行。",
+   "openRun": "打开提出此提案的运行。",
+   "approve": "立即应用提案。它会记录为组织的新修订版，你可以将其回滚。",
+   "deny": "不应用提案，将其退回给主管。你填写的原因会一并发送。",
+   "coveredBy": "此变更规则在其限制范围内允许该变更。",
+   "reason": "批准或拒绝的原因。可选；主管和审计日志都会看到。",
+   "columns": {
+    "item": "变更涉及的资源，以及会更改的字段。",
+    "change": "变更是创建、更新还是删除该资源。",
+    "rule": "涵盖该变更的变更规则，或需要人员处理的原因。"
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "此部署的运行可以管理的内容。大多数智能体选“无”；智能体架构师选“工作室草稿”；负责某个组织单元、需要对其下级单元提出变更的智能体选“主管管理其子树”。"
+  },
+  "changeRules": {
+   "add": "添加一条规则，让主管无需等待人员即可应用某类例行变更。",
+   "name": "规则的简短名称。按规则应用的提案会显示此名称。",
+   "status": "生效中、已停用或已过期。只有生效中的规则才会应用提案。",
+   "organization": "规则适用的主管所在的组织。",
+   "unit": "规则所涵盖子树的根单元：涵盖对该单元及其所有下级单元的变更。",
+   "classes": "规则允许的变更类别。",
+   "limits": "对允许变更的约束：每个提案的数量，以及可以设置的值。",
+   "expiresUtc": "规则停止适用的时间，或“永不”。",
+   "createdByName": "编写此规则的人员。",
+   "description": "用简明的语言说明规则存在的原因。悬停可查看全文。",
+   "createdUtc": "规则的创建时间。悬停可查看精确时间。",
+   "id": "变更规则 ID（cru_...），用于 REST API、SDK 和 MCP 工具。",
+   "organizationId": "规则所属的组织，之后不能更改。",
+   "unitId": "规则涵盖对此单元以及现行组织图中其所有下级单元的变更。",
+   "active": "停用规则可使其不再适用，而无需删除它。",
+   "limitClass": "此限制约束的变更类别，必须是规则允许的类别之一。",
+   "limitName": "限制约束的内容：任意类别的每个提案变更数、唤醒调整的唤醒值，或部署权重的流量权重。",
+   "minimum": "允许的最小值，留空表示无下限。必须大于或等于零。",
+   "maximum": "允许的最大值，留空表示无上限。必须大于或等于零。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "此组织的主管提出的变更，以及各项的决定情况。"
+   },
+   "appliedProposal": "此修订版记录了一个已应用的主管提案。回滚它即可撤销该提案。"
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "变更规则",
+  "p1": "主管是负责某个组织单元、且其部署拥有主管管理权限的智能体。它可以对其下级单元提出变更，但永远不能涉及自身、其上级、机密、预算或这些规则。",
+  "p2": "变更规则预先批准例行变更。它指定所涵盖子树的根单元、允许的变更类别以及可选的限制，例如每个提案最多两项变更，或唤醒间隔至少一分钟。当规则涵盖了提案中的每项变更时，提案会立即应用；其他提案会在组织的“提案”标签页中等待人员处理。",
+  "p3": "每个已应用的提案都会记录为组织的一个修订版，因此你可以将其回滚。只有人员可以编写规则。"
+ }
+});

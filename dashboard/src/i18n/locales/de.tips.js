@@ -4231,3 +4231,150 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "Änderungsregeln: was leitende Agenten in ihren Teilbäumen ändern dürfen, ohne vorher einen Menschen zu fragen."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Änderungsregeln, die routinemäßige Änderungen leitender Agenten im Voraus freigeben. Read zeigt sie an; Create, Update und Delete ändern sie. Agenten können sie nie schreiben."
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Ein Vorschlag eines leitenden Agenten wurde auf eine Organisation angewendet, durch eine Änderungsregel oder durch einen Menschen."
+  },
+  "managementAccess": {
+   "None": "Läufe dieser Bereitstellung können keine Konfigurationsänderungen entwerfen oder vorschlagen. Richtig für die meisten Agenten.",
+   "Drafts": "Läufe dürfen Studio-Änderungen für die Person entwerfen, die sie gestartet hat. Jeden Entwurf wendet weiterhin ein Mensch an.",
+   "OrgSubtree": "Leitungsbefugnis über die Einheiten unter der Einheit, die dieser Agent leitet: Läufe dürfen dort Änderungen vorschlagen. Änderungsregeln können Routineänderungen sofort anwenden; der Rest wartet auf einen Menschen. Nie an sich selbst, an allem darüber, an Geheimnissen, Budgets oder Regeln."
+  },
+  "changeClass": {
+   "PromptRetune": "Bearbeitungen an den Prompts und Anweisungen von Agenten im Teilbaum.",
+   "WakeTuning": "Änderungen daran, wie oft ein Wächter aufwacht: Intervall, Backoff und Jitter.",
+   "MandateTextEdit": "Bearbeitungen am Zieltext von Wächtern im Teilbaum.",
+   "AddWorker": "Einen Agenten als Mitglied zu einer Einheit hinzufügen.",
+   "RemoveWorker": "Einen Mitgliedsagenten aus einer Einheit entfernen.",
+   "ModelChange": "Das Modell wechseln, das eine Bereitstellung im Teilbaum ausführt.",
+   "DeploymentWeight": "Ändern, wie viel Verkehr eine Bereitstellung unter den Bereitstellungen ihres Agenten erhält."
+  }
+ },
+ "filters": {
+  "organization": "Nur die Änderungsregeln dieser Organisation anzeigen.",
+  "activeOnly": "Nur Regeln anzeigen, die eingeschaltet und nicht abgelaufen sind."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Die Organisation der Regel öffnen. Dort zeigt der Tab Vorschläge, was Regeln angewendet haben.",
+   "copyId": "Die ID der Änderungsregel (cru_...) für die REST API, SDKs oder MCP-Tools kopieren."
+  },
+  "status": {
+   "Active": "Die Regel ist eingeschaltet und nicht abgelaufen, daher werden Vorschläge, die sie abdeckt, sofort angewendet.",
+   "Inactive": "Ein Mensch hat die Regel ausgeschaltet. Sie gilt für nichts, bis sie wieder eingeschaltet wird.",
+   "Expired": "Das Ablaufdatum ist überschritten, daher gilt die Regel für nichts. Bearbeiten Sie sie, um ein neues Ablaufdatum zu setzen."
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "Sie dürfen nicht über Vorschläge entscheiden. Dafür ist Update auf Approval nötig.",
+  "rulesLink": "Die Änderungsregeln dieser Organisation öffnen: was leitende Agenten ohne Rückfrage ändern dürfen.",
+  "decide": "Den Vorschlag öffnen, um seine Änderungen zu sehen und ihn zu genehmigen oder abzulehnen.",
+  "views": {
+   "all": "Jeder Vorschlag dieser Organisation, die neueste Änderung zuerst.",
+   "needsApproval": "Vorschläge, die darauf warten, dass ein Mensch sie genehmigt oder ablehnt.",
+   "applied": "Vorschläge, die aktiv sind, per Regel angewendet oder von einem Menschen genehmigt."
+  },
+  "columns": {
+   "title": "Wie der leitende Agent den Vorschlag genannt hat.",
+   "unit": "Die Einheit, die der leitende Agent leitet. Seine Vorschläge betreffen nur die Einheiten darunter.",
+   "agent": "Der Agent, der die Einheit leitet und den Vorschlag gemacht hat.",
+   "decision": "Per Regel angewendet, genehmigt, wartet auf Freigabe, abgelehnt oder noch im Entwurf.",
+   "updated": "Wann sich der Vorschlag zuletzt geändert hat. Für die genaue Zeit mit der Maus darauf zeigen."
+  },
+  "decision": {
+   "rule": "Änderungsregeln haben jede Änderung abgedeckt, daher wurde er sofort ohne einen Menschen angewendet.",
+   "approved": "Ein Mensch hat ihn genehmigt, und er wurde als neue Revision der Organisation angewendet.",
+   "needsApproval": "Mindestens eine Änderung ist durch keine Regel abgedeckt, daher wartet er auf einen Menschen.",
+   "denied": "Ein Mensch hat ihn abgelehnt, und er ging zur Überarbeitung an den leitenden Agenten zurück.",
+   "lapsed": "Seine Freigabe ist abgelaufen oder wurde abgebrochen, bevor jemand entschieden hat.",
+   "drafting": "Der leitende Agent arbeitet noch daran und hat noch nicht verlangt, ihn anzuwenden."
+  },
+  "review": {
+   "open": "Den Vorschlag öffnen, um seine Änderungen, die Regeln, die sie abdecken, und die Entscheidung zu sehen.",
+   "run": "Der Lauf des leitenden Agenten, der diesen Vorschlag gemacht hat.",
+   "openRun": "Den Lauf öffnen, der diesen Vorschlag gemacht hat.",
+   "approve": "Den Vorschlag jetzt anwenden. Er wird als neue Revision der Organisation erfasst, die Sie zurücksetzen können.",
+   "deny": "Den Vorschlag an den leitenden Agenten zurückschicken, ohne ihn anzuwenden. Ihre Begründung geht mit.",
+   "coveredBy": "Diese Änderungsregel erlaubt die Änderung innerhalb ihrer Grenzen.",
+   "reason": "Warum Sie genehmigen oder ablehnen. Optional; der leitende Agent und das Audit-Protokoll sehen sie.",
+   "columns": {
+    "item": "Die Ressource, die die Änderung betrifft, mit den Feldern, die sich ändern.",
+    "change": "Ob die Änderung die Ressource anlegt, aktualisiert oder löscht.",
+    "rule": "Die Änderungsregel, die die Änderung abdeckt, oder warum sie einen Menschen braucht."
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "Was Läufe dieser Bereitstellung verwalten dürfen. Keiner für die meisten Agenten; Studio-Entwürfe für den Agenten-Architekten; Leitung über den eigenen Teilbaum für einen Agenten, der eine Organisationseinheit leitet und Änderungen an den Einheiten darunter vorschlagen soll."
+  },
+  "changeRules": {
+   "add": "Eine Regel hinzufügen, mit der leitende Agenten eine routinemäßige Art von Änderung anwenden können, ohne auf einen Menschen zu warten.",
+   "name": "Ein kurzer Name für die Regel. Vorschläge, die per Regel angewendet werden, nennen ihn.",
+   "status": "In Kraft, ausgeschaltet oder abgelaufen. Nur Regeln in Kraft wenden Vorschläge an.",
+   "organization": "Die Organisation, für deren leitende Agenten die Regel gilt.",
+   "unit": "Die Einheit, deren Teilbaum die Regel abdeckt: Änderungen an ihr und an jeder Einheit darunter.",
+   "classes": "Die Änderungsklassen, die die Regel erlaubt.",
+   "limits": "Grenzen für die erlaubten Änderungen: wie viele pro Vorschlag und welche Werte sie setzen dürfen.",
+   "expiresUtc": "Wann die Regel nicht mehr gilt, oder Nie.",
+   "createdByName": "Der Mensch, der die Regel geschrieben hat.",
+   "description": "Warum es die Regel gibt, in einfachen Worten. Für den vollständigen Text mit der Maus darauf zeigen.",
+   "createdUtc": "Wann die Regel angelegt wurde. Für die genaue Zeit mit der Maus darauf zeigen.",
+   "id": "Die ID der Änderungsregel (cru_...) für die REST API, SDKs und MCP-Tools.",
+   "organizationId": "Die Organisation, für die die Regel gilt. Sie lässt sich später nicht ändern.",
+   "unitId": "Die Regel deckt Änderungen an dieser Einheit und an jeder Einheit darunter im aktuellen Organigramm ab.",
+   "active": "Schalten Sie die Regel aus, damit sie nicht mehr gilt, ohne sie zu löschen.",
+   "limitClass": "Die Änderungsklasse, die diese Grenze beschränkt. Sie muss zu den Klassen gehören, die die Regel erlaubt.",
+   "limitName": "Was die Grenze beschränkt: Änderungen pro Vorschlag für jede Klasse, Aufwachwerte für Aufwachplan anpassen oder Verkehrsgewichtung für Gewichtung der Bereitstellung.",
+   "minimum": "Der kleinste erlaubte Wert, oder leer für keine Untergrenze. Null oder größer.",
+   "maximum": "Der größte erlaubte Wert, oder leer für keine Obergrenze. Null oder größer."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Änderungen, die die leitenden Agenten dieser Organisation vorgeschlagen haben, und wie jeweils entschieden wurde."
+   },
+   "appliedProposal": "Diese Revision erfasst einen angewendeten Vorschlag eines leitenden Agenten. Setzen Sie sie zurück, um den Vorschlag rückgängig zu machen."
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "Änderungsregeln",
+  "p1": "Ein leitender Agent ist ein Agent, der eine Organisationseinheit leitet und dessen Bereitstellung Leitungszugriff hat. Er kann Änderungen an den Einheiten unter ihm vorschlagen, nie an sich selbst, an allem darüber, an Geheimnissen, an Budgets oder an diesen Regeln.",
+  "p2": "Eine Änderungsregel gibt Routineänderungen im Voraus frei. Sie nennt die Einheit, deren Teilbaum sie abdeckt, die Änderungsklassen, die sie erlaubt, und optionale Grenzen, etwa höchstens zwei Änderungen pro Vorschlag oder ein Aufwachintervall von mindestens einer Minute. Wenn Regeln jede Änderung in einem Vorschlag abdecken, wird er sofort angewendet; alles andere wartet im Tab Vorschläge der Organisation auf einen Menschen.",
+  "p3": "Jeder angewendete Vorschlag wird als Revision der Organisation erfasst, sodass Sie ihn zurücksetzen können. Nur Menschen schreiben Regeln."
+ }
+});

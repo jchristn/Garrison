@@ -7023,3 +7023,238 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "變更規則",
+    "tip": "主管可以在其子樹中直接進行、不必請示的例行變更"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "變更規則"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "已套用組織提案"
+  },
+  "managementAccess": {
+   "None": "無",
+   "Drafts": "工作室草稿",
+   "OrgSubtree": "主管管理其子樹"
+  },
+  "changeClass": {
+   "PromptRetune": "提示詞調整",
+   "WakeTuning": "喚醒調整",
+   "MandateTextEdit": "守護者文字編輯",
+   "AddWorker": "新增成員",
+   "RemoveWorker": "移除成員",
+   "ModelChange": "模型變更",
+   "DeploymentWeight": "部署權重"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "只有人員可以撰寫變更規則。代理程式無法建立、變更或刪除規則。",
+  "ProposalNotPending": "此提案已不再等待決定。請重新開啟以查看目前狀態。",
+  "ApproverIsAgent": "代理程式無法決定提案，必須由人員決定。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "開啟組織",
+   "copyId": "複製 ID"
+  },
+  "toasts": {
+   "copied": "已複製變更規則 ID。"
+  },
+  "status": {
+   "Active": "生效中",
+   "Inactive": "已停用",
+   "Expired": "已到期"
+  },
+  "limit": {
+   "text": "{{class}}，{{name}}：{{range}}",
+   "between": "{{min}} 到 {{max}}",
+   "atMost": "最多 {{max}}",
+   "atLeast": "至少 {{min}}",
+   "any": "不限"
+  },
+  "limitNames": {
+   "count": "每個提案的變更數",
+   "minIntervalSeconds": "最短喚醒間隔（秒）",
+   "maxIntervalSeconds": "最長喚醒間隔（秒）",
+   "backoffFactor": "退避係數",
+   "jitterPercent": "抖動（百分比）",
+   "weight": "流量權重"
+  },
+  "errors": {
+   "UnknownLimit": "此類別沒有這個名稱的限制。請從清單中選擇一個。",
+   "ClassNotInRule": "限制必須針對規則所列的類別。請新增該類別或變更限制。",
+   "UnitNotFound": "該單位不在此組織目前生效的組織圖中。",
+   "Duplicate": "每個類別和每個限制只能出現一次。",
+   "BoundRequired": "請為限制設定最小值、最大值或兩者。",
+   "MinimumAboveMaximum": "最小值大於最大值。",
+   "NegativeBound": "限制值必須大於或等於零。",
+   "ExpiryInPast": "請選擇未來的到期時間，或留空讓規則永不到期。",
+   "OrganizationNotFound": "此租用戶中沒有該組織。",
+   "OrganizationNotSettable": "規則一律屬於原本的組織。若要用於其他組織，請建立新規則。",
+   "TooMany": "一條規則最多包含 {{max}} 個限制。"
+  },
+  "form": {
+   "errors": {
+    "name": "請為規則輸入 1 到 {{max}} 個字元的名稱。",
+    "description": "描述最多 {{max}} 個字元。",
+    "organization": "請選擇規則所屬的組織。",
+    "unit": "請選擇此組織中的一個單位。",
+    "classes": "請至少選擇一個變更類別。"
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "提案",
+  "note": "主管會對其負責的單位提出變更。如果變更規則涵蓋提案中的每項變更，提案會立即套用。其他提案會在這裡等待人員處理。",
+  "rulesLink": "變更規則",
+  "views": {
+   "label": "顯示哪些提案",
+   "all": "全部",
+   "needsApproval": "需要核准",
+   "needsApprovalCount": "需要核准（{{count}}）",
+   "applied": "已套用"
+  },
+  "emptyTitle": "這裡沒有提案",
+  "emptyBody": "當主管對其下層單位提出變更時，提案會顯示在這裡。",
+  "columns": {
+   "title": "提案",
+   "unit": "單位",
+   "agent": "主管",
+   "decision": "決定",
+   "updated": "最後變更"
+  },
+  "decision": {
+   "rule": "依規則套用",
+   "approved": "已核准",
+   "needsApproval": "需要核准",
+   "denied": "已拒絕",
+   "lapsed": "已失效",
+   "drafting": "草擬中"
+  },
+  "byRules": "規則：{{names}}",
+  "byPerson": "由 {{name}} 決定",
+  "decide": "審查並決定",
+  "toasts": {
+   "approved": "已核准 {{title}}，現已生效。",
+   "denied": "已拒絕 {{title}}，已退回給主管。"
+  },
+  "review": {
+   "open": "審查",
+   "title": "提案：{{title}}",
+   "run": "提出此提案的執行",
+   "approve": "核准",
+   "deny": "拒絕",
+   "appliedByRule": "由於變更規則涵蓋每項變更，提案已立即套用。規則：{{names}}。",
+   "approvedBy": "由 {{name}} 核准。",
+   "deniedBy": "由 {{name}} 拒絕。",
+   "reasonGiven": "原因：{{reason}}",
+   "revision": "已記錄為組織的修訂 {{number}}。復原該修訂即可撤銷。",
+   "appliedNoDiff": "此提案已套用，其變更已成為目前生效設定的一部分。比較它記錄成的修訂即可查看這些變更。",
+   "covered": "變更規則涵蓋下方的每項變更，因此此提案不需人員即可套用。",
+   "notCovered": "下方至少有一項變更未受變更規則涵蓋，因此需由人員決定。",
+   "refusals": "硬性限制拒絕了以下變更，任何規則或核准都無法解除：",
+   "noChanges": "此提案不包含任何變更。",
+   "columns": {
+    "item": "變更",
+    "change": "類型",
+    "rule": "涵蓋規則"
+   },
+   "coveredBy": "規則 {{name}}",
+   "reason": "原因",
+   "reasonPlaceholder": "選填。主管會看到。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "提案（{{count}}）"
+   },
+   "appliedProposal": "已套用的提案"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "管理權限"
+   },
+   "hints": {
+    "managementAccess": "大多數代理程式選擇「無」即可。「工作室草稿」可讓執行為啟動它的人員草擬工作室變更。「主管管理其子樹」可讓負責某個組織單位的代理程式對其下層單位提出變更。"
+   }
+  },
+  "changeRules": {
+   "title": "變更規則",
+   "subtitle": "主管可以在其子樹中直接進行、不必等待人員的例行變更。規則未涵蓋的變更仍需核准。",
+   "add": "新增規則",
+   "create": "新增變更規則",
+   "edit": "編輯變更規則",
+   "view": "變更規則",
+   "deleteTitle": "刪除變更規則",
+   "emptyTitle": "尚無變更規則",
+   "emptyBody": "新增規則，讓主管不必等待核准即可套用喚醒調整等例行變更。",
+   "noLimits": "無限制",
+   "noExpiry": "永不",
+   "chooseOrganization": "選擇組織",
+   "chooseUnit": "選擇單位",
+   "addLimit": "新增限制",
+   "filters": {
+    "activeOnly": "狀態",
+    "inForce": "僅顯示生效中"
+   },
+   "columns": {
+    "name": "名稱",
+    "status": "狀態",
+    "organization": "組織",
+    "unit": "涵蓋範圍",
+    "classes": "類別",
+    "limits": "限制",
+    "expiresUtc": "到期時間",
+    "createdByName": "建立者",
+    "description": "描述",
+    "createdUtc": "建立時間",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "組織",
+    "unitId": "單位（含其下層單位）",
+    "name": "名稱",
+    "description": "描述",
+    "classes": "變更類別",
+    "limits": "限制",
+    "limitClass": "類別",
+    "limitName": "限制",
+    "minimum": "最小值",
+    "maximum": "最大值",
+    "active": "生效",
+    "expiresUtc": "到期時間"
+   },
+   "hints": {
+    "organizationId": "必填。規則一律屬於原本的組織。",
+    "unitId": "必填。規則涵蓋對此單位及其所有下層單位的變更。",
+    "name": "1 到 {{max}} 個字元。",
+    "description": "選填，最多 {{max}} 個字元。",
+    "classes": "必填。只有當提案中的每項變更都屬於某條規則允許的類別時，提案才會依規則套用。",
+    "limits": "選填，最多 {{max}} 個。「每個提案的變更數」限制一個提案中某類變更的數量；其他限制約束新值的範圍。",
+    "expiresUtc": "選填。規則在此時間後不再適用。"
+   }
+  }
+ }
+});

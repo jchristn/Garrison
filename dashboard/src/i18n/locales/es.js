@@ -7091,3 +7091,238 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "Reglas de cambio",
+    "tip": "Cambios rutinarios que los agentes directivos pueden hacer en sus subárboles sin pedir permiso"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Regla de cambio"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Propuesta de organización aplicada"
+  },
+  "managementAccess": {
+   "None": "Ninguno",
+   "Drafts": "Borradores de Estudio",
+   "OrgSubtree": "Dirección de su subárbol"
+  },
+  "changeClass": {
+   "PromptRetune": "Ajuste de prompts",
+   "WakeTuning": "Ajuste del despertar",
+   "MandateTextEdit": "Edición del texto del guardián",
+   "AddWorker": "Añadir miembro",
+   "RemoveWorker": "Quitar miembro",
+   "ModelChange": "Cambio de modelo",
+   "DeploymentWeight": "Peso del despliegue"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "Solo las personas escriben reglas de cambio. Un agente no puede crearlas, modificarlas ni eliminarlas.",
+  "ProposalNotPending": "Esta propuesta ya no espera una decisión. Ábrala de nuevo para ver en qué estado está.",
+  "ApproverIsAgent": "Un agente no puede decidir sobre una propuesta. Tiene que hacerlo una persona."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Abrir organización",
+   "copyId": "Copiar ID"
+  },
+  "toasts": {
+   "copied": "Se copió el ID de la regla de cambio."
+  },
+  "status": {
+   "Active": "En vigor",
+   "Inactive": "Desactivada",
+   "Expired": "Caducada"
+  },
+  "limit": {
+   "text": "{{class}}, {{name}}: {{range}}",
+   "between": "de {{min}} a {{max}}",
+   "atMost": "como máximo {{max}}",
+   "atLeast": "como mínimo {{min}}",
+   "any": "sin límite"
+  },
+  "limitNames": {
+   "count": "Cambios por propuesta",
+   "minIntervalSeconds": "Intervalo de despertar más corto (segundos)",
+   "maxIntervalSeconds": "Intervalo de despertar más largo (segundos)",
+   "backoffFactor": "Factor de espaciado",
+   "jitterPercent": "Jitter (porcentaje)",
+   "weight": "Peso del tráfico"
+  },
+  "errors": {
+   "UnknownLimit": "Esta clase no tiene ningún límite con ese nombre. Elija uno de la lista.",
+   "ClassNotInRule": "Un límite debe ser de una clase que la regla incluya. Añada la clase o cambie el límite.",
+   "UnitNotFound": "Esa unidad no está en el organigrama en vigor de esta organización.",
+   "Duplicate": "Cada clase y cada límite pueden aparecer una sola vez.",
+   "BoundRequired": "Indique para el límite un mínimo, un máximo o ambos.",
+   "MinimumAboveMaximum": "El mínimo es mayor que el máximo.",
+   "NegativeBound": "Los límites son cero o más.",
+   "ExpiryInPast": "Elija una caducidad en el futuro, o déjela vacía para que la regla no caduque nunca.",
+   "OrganizationNotFound": "Esa organización no existe en este tenant.",
+   "OrganizationNotSettable": "Una regla se queda con su organización. Cree una regla nueva para otra.",
+   "TooMany": "Una regla admite como máximo {{max}} límites."
+  },
+  "form": {
+   "errors": {
+    "name": "Dé a la regla un nombre de 1 a {{max}} caracteres.",
+    "description": "La descripción admite como máximo {{max}} caracteres.",
+    "organization": "Elija la organización a la que se aplica la regla.",
+    "unit": "Elija una unidad de esta organización.",
+    "classes": "Elija al menos una clase de cambio."
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "Propuestas",
+  "note": "Los agentes directivos proponen cambios en las unidades que dirigen. Una propuesta se aplica en el acto cuando las reglas de cambio cubren todos sus cambios. Lo demás espera aquí a que decida una persona.",
+  "rulesLink": "Reglas de cambio",
+  "views": {
+   "label": "Qué propuestas",
+   "all": "Todas",
+   "needsApproval": "Pendientes de aprobación",
+   "needsApprovalCount": "Pendientes de aprobación ({{count}})",
+   "applied": "Aplicadas"
+  },
+  "emptyTitle": "No hay propuestas aquí",
+  "emptyBody": "Cuando un agente directivo proponga un cambio en las unidades que dependen de él, la propuesta aparecerá aquí.",
+  "columns": {
+   "title": "Propuesta",
+   "unit": "Unidad",
+   "agent": "Agente directivo",
+   "decision": "Decisión",
+   "updated": "Último cambio"
+  },
+  "decision": {
+   "rule": "Aplicada por regla",
+   "approved": "Aprobada",
+   "needsApproval": "Pendiente de aprobación",
+   "denied": "Denegada",
+   "lapsed": "Vencida",
+   "drafting": "En redacción"
+  },
+  "byRules": "Reglas: {{names}}",
+  "byPerson": "Por {{name}}",
+  "decide": "Revisar y decidir",
+  "toasts": {
+   "approved": "Se aprobó {{title}}. Ya está en vigor.",
+   "denied": "Se denegó {{title}}. Volvió al agente directivo."
+  },
+  "review": {
+   "open": "Revisar",
+   "title": "Propuesta: {{title}}",
+   "run": "Propuesta en la ejecución",
+   "approve": "Aprobar",
+   "deny": "Denegar",
+   "appliedByRule": "Se aplicó en el acto porque las reglas de cambio cubrían todos los cambios. Reglas: {{names}}.",
+   "approvedBy": "Aprobada por {{name}}.",
+   "deniedBy": "Denegada por {{name}}.",
+   "reasonGiven": "Motivo: {{reason}}",
+   "revision": "Registrada como revisión {{number}} de la organización. Revierta esa revisión para deshacerla.",
+   "appliedNoDiff": "Esta propuesta está aplicada, así que sus cambios forman parte de la configuración en vigor. Compare la revisión con la que se registró para verlos.",
+   "covered": "Las reglas de cambio cubren todos los cambios de abajo, así que esta propuesta se aplica sin una persona.",
+   "notCovered": "Al menos uno de los cambios de abajo no está cubierto por una regla de cambio, así que decide una persona.",
+   "refusals": "Los límites estrictos rechazan estos cambios. Ninguna regla ni aprobación puede levantarlos:",
+   "noChanges": "La propuesta no contiene cambios.",
+   "columns": {
+    "item": "Cambio",
+    "change": "Tipo",
+    "rule": "Cubierto por"
+   },
+   "coveredBy": "Regla {{name}}",
+   "reason": "Motivo",
+   "reasonPlaceholder": "Opcional. El agente directivo lo verá."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Propuestas ({{count}})"
+   },
+   "appliedProposal": "Propuesta aplicada"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "Acceso de gestión"
+   },
+   "hints": {
+    "managementAccess": "La mayoría de los agentes necesitan Ninguno. Borradores de Estudio permite que las ejecuciones redacten cambios de Estudio para la persona que las inició. Dirección de su subárbol permite que el agente que dirige una unidad organizativa proponga cambios en las unidades que dependen de ella."
+   }
+  },
+  "changeRules": {
+   "title": "Reglas de cambio",
+   "subtitle": "Cambios rutinarios que los agentes directivos pueden hacer en sus subárboles sin esperar a una persona. Todo lo que una regla no cubra sigue necesitando aprobación.",
+   "add": "Añadir regla",
+   "create": "Añadir regla de cambio",
+   "edit": "Editar regla de cambio",
+   "view": "Regla de cambio",
+   "deleteTitle": "Eliminar regla de cambio",
+   "emptyTitle": "Aún no hay reglas de cambio",
+   "emptyBody": "Añada una regla para que los agentes directivos apliquen cambios rutinarios, como el ajuste del despertar, sin esperar aprobación.",
+   "noLimits": "Sin límites",
+   "noExpiry": "Nunca",
+   "chooseOrganization": "Elija una organización",
+   "chooseUnit": "Elija una unidad",
+   "addLimit": "Añadir límite",
+   "filters": {
+    "activeOnly": "Estado",
+    "inForce": "Solo en vigor"
+   },
+   "columns": {
+    "name": "Nombre",
+    "status": "Estado",
+    "organization": "Organización",
+    "unit": "Cubre",
+    "classes": "Clases",
+    "limits": "Límites",
+    "expiresUtc": "Caduca",
+    "createdByName": "Creada por",
+    "description": "Descripción",
+    "createdUtc": "Creada",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "Organización",
+    "unitId": "Unidad (con las unidades que dependen de ella)",
+    "name": "Nombre",
+    "description": "Descripción",
+    "classes": "Clases de cambio",
+    "limits": "Límites",
+    "limitClass": "Clase",
+    "limitName": "Límite",
+    "minimum": "Mínimo",
+    "maximum": "Máximo",
+    "active": "En vigor",
+    "expiresUtc": "Caduca"
+   },
+   "hints": {
+    "organizationId": "Obligatorio. Una regla se queda con su organización.",
+    "unitId": "Obligatorio. La regla cubre los cambios en esta unidad y en todas las unidades que dependen de ella.",
+    "name": "De 1 a {{max}} caracteres.",
+    "description": "Opcional, como máximo {{max}} caracteres.",
+    "classes": "Obligatorio. Una propuesta se aplica por regla solo cuando cada uno de sus cambios es de una clase que alguna regla permite.",
+    "limits": "Opcional, como máximo {{max}}. Cambios por propuesta limita cuántos cambios de una clase puede contener una propuesta; los demás acotan los valores nuevos.",
+    "expiresUtc": "Opcional. La regla deja de aplicarse en ese momento."
+   }
+  }
+ }
+});

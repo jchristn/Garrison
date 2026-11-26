@@ -4233,3 +4233,150 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "Reglas de cambio: lo que los agentes directivos pueden cambiar en sus subárboles sin preguntar antes a una persona."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Reglas de cambio que aprueban de antemano los cambios rutinarios de los agentes directivos. Read permite verlas; Create, Update y Delete permiten modificarlas. Los agentes nunca pueden escribirlas."
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Se aplicó a una organización una propuesta de un agente directivo, por una regla de cambio o por una persona."
+  },
+  "managementAccess": {
+   "None": "Las ejecuciones de este despliegue no pueden redactar ni proponer cambios de configuración. Lo adecuado para la mayoría de los agentes.",
+   "Drafts": "Las ejecuciones pueden redactar cambios de Estudio para la persona que las inició. Cada borrador lo aplica siempre una persona.",
+   "OrgSubtree": "Autoridad directiva sobre las unidades que dependen de la que dirige este agente: sus ejecuciones pueden proponer cambios en ellas. Las reglas de cambio pueden aplicar en el acto los rutinarios; el resto espera a una persona. Nunca sobre sí mismo, nada por encima de él, secretos, presupuestos ni reglas."
+  },
+  "changeClass": {
+   "PromptRetune": "Ediciones de los prompts e instrucciones de los agentes del subárbol.",
+   "WakeTuning": "Cambios en la frecuencia con la que despierta un guardián: su intervalo, espaciado y jitter.",
+   "MandateTextEdit": "Ediciones del texto del objetivo de los guardianes del subárbol.",
+   "AddWorker": "Añadir un agente a una unidad como miembro.",
+   "RemoveWorker": "Quitar un agente miembro de una unidad.",
+   "ModelChange": "Cambiar el modelo que ejecuta un despliegue del subárbol.",
+   "DeploymentWeight": "Cambiar cuánto tráfico recibe un despliegue entre los despliegues de su agente."
+  }
+ },
+ "filters": {
+  "organization": "Mostrar solo las reglas de cambio de esta organización.",
+  "activeOnly": "Mostrar solo las reglas activadas que no han caducado."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Abrir la organización de la regla, donde la pestaña Propuestas muestra lo que aplicaron las reglas.",
+   "copyId": "Copiar el ID de la regla de cambio (cru_...) para la API REST, los SDK o las herramientas MCP."
+  },
+  "status": {
+   "Active": "La regla está activada y no ha caducado, así que las propuestas que cubre se aplican en el acto.",
+   "Inactive": "Una persona desactivó la regla. No se aplica a nada hasta que se vuelva a activar.",
+   "Expired": "Pasó la fecha de caducidad, así que la regla no se aplica a nada. Edítela para fijar una nueva caducidad."
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "No puede decidir sobre propuestas. Necesita Update sobre Approval.",
+  "rulesLink": "Abrir las reglas de cambio de esta organización: lo que los agentes directivos pueden cambiar sin preguntar.",
+  "decide": "Abrir la propuesta para ver sus cambios y aprobarla o denegarla.",
+  "views": {
+   "all": "Todas las propuestas de esta organización, empezando por el cambio más reciente.",
+   "needsApproval": "Propuestas que esperan a que una persona las apruebe o deniegue.",
+   "applied": "Propuestas en vigor, aplicadas por regla o aprobadas por una persona."
+  },
+  "columns": {
+   "title": "El nombre que el agente directivo dio a la propuesta.",
+   "unit": "La unidad que dirige el agente directivo. Sus propuestas solo afectan a las unidades que dependen de ella.",
+   "agent": "El agente que dirige la unidad y que hizo la propuesta.",
+   "decision": "Aplicada por regla, aprobada, pendiente de aprobación, denegada o aún en redacción.",
+   "updated": "Cuándo cambió la propuesta por última vez. Pase el puntero por encima para ver la hora exacta."
+  },
+  "decision": {
+   "rule": "Las reglas de cambio cubrían todos los cambios, así que se aplicó en el acto sin una persona.",
+   "approved": "Una persona la aprobó y se aplicó como una nueva revisión de la organización.",
+   "needsApproval": "Al menos un cambio no está cubierto por una regla, así que espera a una persona.",
+   "denied": "Una persona la denegó y volvió al agente directivo para que la rehaga.",
+   "lapsed": "Su aprobación caducó o se canceló antes de que nadie decidiera.",
+   "drafting": "El agente directivo sigue trabajando en ella y aún no ha pedido aplicarla."
+  },
+  "review": {
+   "open": "Abrir la propuesta para ver sus cambios, las reglas que los cubren y cómo se decidió.",
+   "run": "La ejecución del agente directivo que hizo esta propuesta.",
+   "openRun": "Abrir la ejecución que hizo esta propuesta.",
+   "approve": "Aplicar la propuesta ahora. Se registra como una nueva revisión de la organización, que puede revertir.",
+   "deny": "Devolver la propuesta al agente directivo sin aplicarla. Su motivo se envía con ella.",
+   "coveredBy": "Esta regla de cambio permite el cambio, dentro de sus límites.",
+   "reason": "Por qué aprueba o deniega. Opcional; lo ven el agente directivo y el registro de auditoría.",
+   "columns": {
+    "item": "El recurso al que afecta el cambio, con los campos que cambian.",
+    "change": "Si el cambio crea, actualiza o elimina el recurso.",
+    "rule": "La regla de cambio que cubre el cambio, o por qué necesita a una persona."
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "Lo que pueden gestionar las ejecuciones de este despliegue. Ninguno para la mayoría de los agentes; Borradores de Estudio para el arquitecto de agentes; Dirección de su subárbol para un agente que dirige una unidad organizativa y debe proponer cambios en las unidades que dependen de ella."
+  },
+  "changeRules": {
+   "add": "Añadir una regla que permite a los agentes directivos aplicar un tipo de cambio rutinario sin esperar a una persona.",
+   "name": "Un nombre corto para la regla. Las propuestas que se aplican por regla la nombran.",
+   "status": "En vigor, desactivada o caducada. Solo las reglas en vigor aplican propuestas.",
+   "organization": "La organización a cuyos agentes directivos se aplica la regla.",
+   "unit": "La unidad cuyo subárbol cubre la regla: los cambios en ella y en todas las unidades que dependen de ella.",
+   "classes": "Las clases de cambio que permite la regla.",
+   "limits": "Límites de los cambios permitidos: cuántos por propuesta y qué valores pueden fijar.",
+   "expiresUtc": "Cuándo deja de aplicarse la regla, o Nunca.",
+   "createdByName": "La persona que escribió la regla.",
+   "description": "Por qué existe la regla, con palabras sencillas. Pase el puntero por encima para ver el texto completo.",
+   "createdUtc": "Cuándo se creó la regla. Pase el puntero por encima para ver la hora exacta.",
+   "id": "El ID de la regla de cambio (cru_...), para la API REST, los SDK y las herramientas MCP.",
+   "organizationId": "La organización a la que se aplica la regla. No se puede cambiar después.",
+   "unitId": "La regla cubre los cambios en esta unidad y en todas las unidades que dependen de ella en el organigrama en vigor.",
+   "active": "Desactive la regla para que deje de aplicarse sin eliminarla.",
+   "limitClass": "La clase de cambio que acota este límite. Debe ser una de las clases que permite la regla.",
+   "limitName": "Lo que acota el límite: cambios por propuesta para cualquier clase, valores del despertar para Ajuste del despertar, o peso del tráfico para Peso del despliegue.",
+   "minimum": "El valor más pequeño permitido, o vacío para no fijar límite inferior. Cero o más.",
+   "maximum": "El valor más grande permitido, o vacío para no fijar límite superior. Cero o más."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Cambios que propusieron los agentes directivos de esta organización, con cómo se decidió cada uno."
+   },
+   "appliedProposal": "Esta revisión registra una propuesta aplicada de un agente directivo. Reviértala para deshacer la propuesta."
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "Reglas de cambio",
+  "p1": "Un agente directivo es un agente que dirige una unidad organizativa y cuyo despliegue tiene acceso de gestión de dirección. Puede proponer cambios en las unidades que dependen de él, nunca en sí mismo, en nada por encima de él, en secretos, en presupuestos ni en estas reglas.",
+  "p2": "Una regla de cambio aprueba de antemano los cambios rutinarios. Indica la unidad cuyo subárbol cubre, las clases de cambio que permite y límites opcionales, como un máximo de dos cambios por propuesta o un intervalo de despertar de al menos un minuto. Cuando las reglas cubren todos los cambios de una propuesta, se aplica en el acto; lo demás espera a una persona en la pestaña Propuestas de la organización.",
+  "p3": "Cada propuesta aplicada queda registrada como una revisión de la organización, así que puede revertirla. Solo las personas escriben reglas."
+ }
+});

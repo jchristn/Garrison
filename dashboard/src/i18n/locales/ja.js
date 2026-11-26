@@ -7022,3 +7022,238 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "変更ルール",
+    "tip": "エグゼクティブが確認なしで配下の組織単位に行える定型的な変更"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "変更ルール"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "組織への提案が適用済み"
+  },
+  "managementAccess": {
+   "None": "なし",
+   "Drafts": "スタジオの下書き",
+   "OrgSubtree": "配下を統括するエグゼクティブ"
+  },
+  "changeClass": {
+   "PromptRetune": "プロンプトの再調整",
+   "WakeTuning": "起動の調整",
+   "MandateTextEdit": "キーパーのテキスト編集",
+   "AddWorker": "ワーカーの追加",
+   "RemoveWorker": "ワーカーの削除",
+   "ModelChange": "モデルの変更",
+   "DeploymentWeight": "デプロイメントの重み"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "変更ルールを書けるのは人だけです。エージェントはルールを作成、変更、削除できません。",
+  "ProposalNotPending": "この提案はもう決定を待っていません。もう一度開いて現在の状態を確認してください。",
+  "ApproverIsAgent": "エージェントは提案を決定できません。決定するのは人です。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "組織を開く",
+   "copyId": "ID をコピー"
+  },
+  "toasts": {
+   "copied": "変更ルール ID をコピーしました。"
+  },
+  "status": {
+   "Active": "有効",
+   "Inactive": "オフ",
+   "Expired": "期限切れ"
+  },
+  "limit": {
+   "text": "{{class}}、{{name}}: {{range}}",
+   "between": "{{min}} から {{max}}",
+   "atMost": "最大 {{max}}",
+   "atLeast": "最小 {{min}}",
+   "any": "制限なし"
+  },
+  "limitNames": {
+   "count": "提案あたりの変更数",
+   "minIntervalSeconds": "最短の起動間隔 (秒)",
+   "maxIntervalSeconds": "最長の起動間隔 (秒)",
+   "backoffFactor": "バックオフ係数",
+   "jitterPercent": "ジッター (パーセント)",
+   "weight": "トラフィックの重み"
+  },
+  "errors": {
+   "UnknownLimit": "このクラスにその名前の制限はありません。一覧から選んでください。",
+   "ClassNotInRule": "制限はルールに含まれるクラスに対して設定する必要があります。クラスを追加するか、制限を変更してください。",
+   "UnitNotFound": "その組織単位は、この組織の公開中の組織図にありません。",
+   "Duplicate": "各クラスと各制限は 1 回しか指定できません。",
+   "BoundRequired": "制限には最小値、最大値、またはその両方を指定してください。",
+   "MinimumAboveMaximum": "最小値が最大値より大きくなっています。",
+   "NegativeBound": "制限は 0 以上です。",
+   "ExpiryInPast": "未来の有効期限を選ぶか、空欄にしてルールが期限切れにならないようにしてください。",
+   "OrganizationNotFound": "その組織はこのテナントに存在しません。",
+   "OrganizationNotSettable": "ルールの組織は変更できません。別の組織には新しいルールを作成してください。",
+   "TooMany": "1 つのルールに設定できる制限は最大 {{max}} 件です。"
+  },
+  "form": {
+   "errors": {
+    "name": "ルールには 1 から {{max}} 文字の名前を付けてください。",
+    "description": "説明は最大 {{max}} 文字です。",
+    "organization": "ルールの対象となる組織を選んでください。",
+    "unit": "この組織の組織単位を選んでください。",
+    "classes": "変更のクラスを 1 つ以上選んでください。"
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "提案",
+  "note": "エグゼクティブは、自分が率いる組織単位への変更を提案します。提案に含まれるすべての変更が変更ルールの対象であれば、提案はすぐに適用されます。それ以外は、ここで人の判断を待ちます。",
+  "rulesLink": "変更ルール",
+  "views": {
+   "label": "表示する提案",
+   "all": "すべて",
+   "needsApproval": "承認待ち",
+   "needsApprovalCount": "承認待ち ({{count}})",
+   "applied": "適用済み"
+  },
+  "emptyTitle": "ここに提案はありません",
+  "emptyBody": "エグゼクティブが配下の組織単位への変更を提案すると、その提案がここに表示されます。",
+  "columns": {
+   "title": "提案",
+   "unit": "組織単位",
+   "agent": "エグゼクティブ",
+   "decision": "決定",
+   "updated": "最終変更"
+  },
+  "decision": {
+   "rule": "ルールで適用",
+   "approved": "許可済み",
+   "needsApproval": "承認待ち",
+   "denied": "拒否済み",
+   "lapsed": "失効",
+   "drafting": "作成中"
+  },
+  "byRules": "ルール: {{names}}",
+  "byPerson": "{{name}} による決定",
+  "decide": "確認して決定",
+  "toasts": {
+   "approved": "{{title}} を許可しました。現在公開中です。",
+   "denied": "{{title}} を拒否しました。エグゼクティブに差し戻されました。"
+  },
+  "review": {
+   "open": "確認",
+   "title": "提案: {{title}}",
+   "run": "提案した実行",
+   "approve": "許可",
+   "deny": "拒否",
+   "appliedByRule": "すべての変更が変更ルールの対象だったため、すぐに適用されました。ルール: {{names}}。",
+   "approvedBy": "{{name}} が許可しました。",
+   "deniedBy": "{{name}} が拒否しました。",
+   "reasonGiven": "理由: {{reason}}",
+   "revision": "組織のリビジョン {{number}} として記録されました。元に戻すには、そのリビジョンをロールバックしてください。",
+   "appliedNoDiff": "この提案は適用済みのため、その変更は公開中の構成に含まれています。変更内容を見るには、記録されたリビジョンを比較してください。",
+   "covered": "以下のすべての変更が変更ルールの対象のため、この提案は人の判断なしで適用されます。",
+   "notCovered": "以下の変更の少なくとも 1 つが変更ルールの対象外のため、人が決定します。",
+   "refusals": "ハード制限により、以下の変更は拒否されます。ルールや承認でこれを解除することはできません:",
+   "noChanges": "この提案には変更が含まれていません。",
+   "columns": {
+    "item": "変更",
+    "change": "種類",
+    "rule": "対象とするルール"
+   },
+   "coveredBy": "ルール {{name}}",
+   "reason": "理由",
+   "reasonPlaceholder": "任意です。エグゼクティブに表示されます。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "提案 ({{count}})"
+   },
+   "appliedProposal": "適用された提案"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "管理アクセス"
+   },
+   "hints": {
+    "managementAccess": "ほとんどのエージェントは「なし」で十分です。「スタジオの下書き」を選ぶと、実行は開始した人のためにスタジオの変更を下書きできます。「配下を統括するエグゼクティブ」を選ぶと、組織単位を率いるエージェントが配下の組織単位への変更を提案できます。"
+   }
+  },
+  "changeRules": {
+   "title": "変更ルール",
+   "subtitle": "エグゼクティブが人を待たずに配下の組織単位に行える定型的な変更です。ルールの対象外の変更には、引き続き承認が必要です。",
+   "add": "ルールを追加",
+   "create": "変更ルールを追加",
+   "edit": "変更ルールを編集",
+   "view": "変更ルール",
+   "deleteTitle": "変更ルールを削除",
+   "emptyTitle": "変更ルールはまだありません",
+   "emptyBody": "ルールを追加すると、エグゼクティブは起動の調整などの定型的な変更を承認を待たずに適用できます。",
+   "noLimits": "制限なし",
+   "noExpiry": "なし",
+   "chooseOrganization": "組織を選択",
+   "chooseUnit": "組織単位を選択",
+   "addLimit": "制限を追加",
+   "filters": {
+    "activeOnly": "ステータス",
+    "inForce": "有効なもののみ"
+   },
+   "columns": {
+    "name": "名前",
+    "status": "ステータス",
+    "organization": "組織",
+    "unit": "対象範囲",
+    "classes": "クラス",
+    "limits": "制限",
+    "expiresUtc": "有効期限",
+    "createdByName": "作成者",
+    "description": "説明",
+    "createdUtc": "作成日時",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "組織",
+    "unitId": "組織単位 (配下の組織単位を含む)",
+    "name": "名前",
+    "description": "説明",
+    "classes": "変更のクラス",
+    "limits": "制限",
+    "limitClass": "クラス",
+    "limitName": "制限",
+    "minimum": "最小値",
+    "maximum": "最大値",
+    "active": "有効",
+    "expiresUtc": "有効期限"
+   },
+   "hints": {
+    "organizationId": "必須です。ルールの組織は後から変更できません。",
+    "unitId": "必須です。ルールは、この組織単位とその配下のすべての組織単位への変更を対象とします。",
+    "name": "1 から {{max}} 文字です。",
+    "description": "任意です。最大 {{max}} 文字です。",
+    "classes": "必須です。提案がルールで適用されるのは、含まれるすべての変更が、いずれかのルールで許可されたクラスに属する場合だけです。",
+    "limits": "任意です。最大 {{max}} 件です。「提案あたりの変更数」は、1 つの提案に含められるそのクラスの変更数の上限です。その他の制限は新しい値の範囲を決めます。",
+    "expiresUtc": "任意です。この時刻にルールの適用が終わります。"
+   }
+  }
+ }
+});

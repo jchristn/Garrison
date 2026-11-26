@@ -12,6 +12,7 @@ import FormFields from '../components/FormFields';
 import OrgChartTree from '../components/OrgChartTree';
 import OrgUnitModal from '../components/OrgUnitModal';
 import OrgRevisionDiff from '../components/OrgRevisionDiff';
+import OrgProposalsPanel from '../components/OrgProposalsPanel';
 import { OrganizationStatusBadge, OrgRevisionStateBadge, SpendBar } from '../components/OrganizationBadges';
 import { Badge } from '../components/StatusBadge';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
@@ -24,6 +25,7 @@ import useCallerPermissions from '../hooks/useCallerPermissions';
 import { ORGANIZATION_LIMITS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
+import { upsertProposal } from '../utils/changeRules';
 import { budgetOf, chartToUnits, diffIsEmpty, diffOrgUnits, orgDenied, orgErrorMessage, organizationFormErrors, organizationFormToBody, organizationToForm, spendOf, statusBody, treeOrder } from '../utils/organizations';
 
 const safeItems = (promise) => promise.then((r) => (Array.isArray(r) ? r : r?.items || [])).catch(() => []);
@@ -43,7 +45,8 @@ function Detail({ label, tipText, children, testId }) {
 /**
  * Live updates for one organization over the WebSocket channel organization:{id} (AA7.12): org.changed when the
  * organization or its tree changes (deleted: true when it is gone), report.filed for reports its members file, and
- * spend.updated with the unit spend rows. Returns whether the channel is subscribed.
+ * spend.updated with the unit spend rows, and proposal.changed when an executive's proposal changes (AA8.10). Returns
+ * whether the channel is subscribed.
  */
 function useOrganizationChannel(apiClient, organizationId, onEvent) {
   const [live, setLive] = useState(false);
@@ -69,7 +72,7 @@ function useOrganizationChannel(apiClient, organizationId, onEvent) {
           const message = JSON.parse(event.data);
           if (message?.type === 'subscribed' && message.channel === channel) setLive(true);
           else if (message?.type === 'error' && message.channel === channel) setLive(false);
-          else if (message?.type === 'org.changed' || message?.type === 'report.filed' || message?.type === 'spend.updated') handler.current?.(message);
+          else if (message?.type === 'org.changed' || message?.type === 'report.filed' || message?.type === 'spend.updated' || message?.type === 'proposal.changed') handler.current?.(message);
         } catch {
           /* not JSON */
         }
@@ -88,7 +91,8 @@ function useOrganizationChannel(apiClient, organizationId, onEvent) {
  * One organization (AA7.14): its summary, the chart of units (the working tree people edit, or the live revision) with
  * leads, members, titles, peer lines, health from each unit's latest report, and spend bars; the unit editor (add,
  * edit, remove); budgets with spend against them; and revisions with a diff against the live one, publish, and
- * rollback. Retire, reactivate, and delete. Updates over the organization channel.
+ * rollback. Proposals its executives made (AA8.12), with the rules that applied them or Approve and Deny for those that
+ * wait. Retire, reactivate, and delete. Updates over the organization channel.
  */
 export default function OrganizationDetailView({ recordId }) {
   const { t, i18n } = useTranslation();
@@ -104,6 +108,7 @@ export default function OrganizationDetailView({ recordId }) {
   const [liveUnits, setLiveUnits] = useState(null);
   const [revisions, setRevisions] = useState([]);
   const [spend, setSpend] = useState([]);
+  const [proposals, setProposals] = useState([]);
   const [health, setHealth] = useState({});
   const [options, setOptions] = useState({ agents: [], mandates: [], apps: [] });
   const [tab, setTab] = useState('chart');
@@ -165,7 +170,15 @@ export default function OrganizationDetailView({ recordId }) {
       .catch(() => !unmounted.current && setSpend([]));
   }, [apiClient, tenantId, recordId]);
 
-  const reloadAll = useCallback(() => Promise.all([loadOrg(), loadChart(), loadRevisions(), loadSpend()]), [loadOrg, loadChart, loadRevisions, loadSpend]);
+  const loadProposals = useCallback(() => {
+    if (!apiClient?.listOrgProposals || !recordId) return Promise.resolve();
+    return apiClient
+      .listOrgProposals(tenantId, recordId, { pageNumber: 1, pageSize: 200 })
+      .then((r) => !unmounted.current && setProposals(asList(r)))
+      .catch(() => !unmounted.current && setProposals([]));
+  }, [apiClient, tenantId, recordId]);
+
+  const reloadAll = useCallback(() => Promise.all([loadOrg(), loadChart(), loadRevisions(), loadSpend(), loadProposals()]), [loadOrg, loadChart, loadRevisions, loadSpend, loadProposals]);
 
   useEffect(() => {
     reloadAll();
@@ -243,6 +256,14 @@ export default function OrganizationDetailView({ recordId }) {
         if (report?.orgUnitId) setHealth((prev) => ({ ...prev, [report.orgUnitId]: report }));
       } else if (message.type === 'spend.updated' && Array.isArray(message.spend)) {
         setSpend(message.spend);
+      } else if (message.type === 'proposal.changed' && message.proposal) {
+        setProposals((prev) => upsertProposal(prev, message.proposal));
+        // An applied proposal is a new live revision.
+        if (message.proposal.status === 'Applied') {
+          loadOrg();
+          loadChart();
+          loadRevisions();
+        }
       }
     },
     [loadOrg, loadChart, loadRevisions, navigate]
@@ -500,7 +521,8 @@ export default function OrganizationDetailView({ recordId }) {
         tabs={[
           { id: 'chart', label: t('views.organizationDetail.tabs.chart'), tip: t('tips.views.organizationDetail.tabs.chart') },
           { id: 'budgets', label: t('views.organizationDetail.tabs.budgets'), tip: t('tips.views.organizationDetail.tabs.budgets') },
-          { id: 'revisions', label: t('views.organizationDetail.tabs.revisions', { count: revisions.length }), tip: t('tips.views.organizationDetail.tabs.revisions') }
+          { id: 'revisions', label: t('views.organizationDetail.tabs.revisions', { count: revisions.length }), tip: t('tips.views.organizationDetail.tabs.revisions') },
+          { id: 'proposals', label: t('views.organizationDetail.tabs.proposals', { count: proposals.length }), tip: t('tips.views.organizationDetail.tabs.proposals') }
         ]}
       />
 
@@ -626,6 +648,12 @@ export default function OrganizationDetailView({ recordId }) {
                         <td>
                           <OrgRevisionStateBadge state={r.state} t={t} />
                           {r.rollbackOfRevisionId ? <span className="text-muted">{` ${t('organizations.revisions.rollbackOf', { number: revisions.find((x) => x.id === r.rollbackOfRevisionId)?.number ?? '?' })}`}</span> : null}
+                          {r.draftId ? (
+                            <>
+                              {' '}
+                              <Badge tone="info" tip={t('tips.views.organizationDetail.appliedProposal')}>{t('views.organizationDetail.appliedProposal')}</Badge>
+                            </>
+                          ) : null}
                         </td>
                         <td className="org-text">{r.note || '-'}</td>
                         <td>{r.authorName || r.authorId || '-'}</td>
@@ -665,6 +693,21 @@ export default function OrganizationDetailView({ recordId }) {
             </div>
           )}
         </section>
+      )}
+
+      {tab === 'proposals' && (
+        <OrgProposalsPanel
+          organization={org}
+          proposals={proposals}
+          revisions={revisions}
+          permissions={permissions}
+          onChanged={() => {
+            loadProposals();
+            loadOrg();
+            loadChart();
+            loadRevisions();
+          }}
+        />
       )}
 
       {unitEditor && (

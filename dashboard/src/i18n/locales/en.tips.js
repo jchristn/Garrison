@@ -4231,3 +4231,150 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "Change rules: what executives may change in their subtrees without asking a person first."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Change rules that pre-approve routine executive changes. Read views them; Create, Update, and Delete change them. Agents can never write them."
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "An executive proposal was applied to an organization, by a change rule or by a person."
+  },
+  "managementAccess": {
+   "None": "Runs of this deployment cannot draft or propose configuration changes. Right for most agents.",
+   "Drafts": "Runs may draft studio changes for the person who started them. A person still applies every draft.",
+   "OrgSubtree": "Executive authority over the units below the one this agent leads: runs may propose changes there. Change rules can apply routine ones at once; the rest wait for a person. Never itself, anything above it, secrets, budgets, or rules."
+  },
+  "changeClass": {
+   "PromptRetune": "Edits to the prompts and instructions of agents in the subtree.",
+   "WakeTuning": "Changes to how often a keeper wakes: its interval, backoff, and jitter.",
+   "MandateTextEdit": "Edits to the objective text of keepers in the subtree.",
+   "AddWorker": "Adding an agent to a unit as a member.",
+   "RemoveWorker": "Removing a member agent from a unit.",
+   "ModelChange": "Switching the model a deployment in the subtree runs.",
+   "DeploymentWeight": "Changing how much traffic a deployment gets among the deployments of its agent."
+  }
+ },
+ "filters": {
+  "organization": "Show only the change rules of this organization.",
+  "activeOnly": "Show only rules that are switched on and have not expired."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Open the rule's organization, where the Proposals tab shows what rules applied.",
+   "copyId": "Copy the change rule ID (cru_...) for the REST API, SDKs, or MCP tools."
+  },
+  "status": {
+   "Active": "The rule is switched on and has not expired, so proposals it covers apply at once.",
+   "Inactive": "A person switched the rule off. It applies to nothing until it is switched on again.",
+   "Expired": "The expiry passed, so the rule applies to nothing. Edit it to set a new expiry."
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "You may not decide proposals. It needs Update on Approval.",
+  "rulesLink": "Open the change rules of this organization: what executives may change without asking.",
+  "decide": "Open the proposal to see its changes and approve or deny it.",
+  "views": {
+   "all": "Every proposal of this organization, newest change first.",
+   "needsApproval": "Proposals waiting for a person to approve or deny them.",
+   "applied": "Proposals that are live, applied by rule or approved by a person."
+  },
+  "columns": {
+   "title": "What the executive called the proposal.",
+   "unit": "The unit the executive leads. Its proposals only touch the units below it.",
+   "agent": "The agent that leads the unit and made the proposal.",
+   "decision": "Applied by rule, approved, waiting for approval, denied, or still being drafted.",
+   "updated": "When the proposal last changed. Hover for the exact time."
+  },
+  "decision": {
+   "rule": "Change rules covered every change, so it applied at once without a person.",
+   "approved": "A person approved it, and it applied as a new revision of the organization.",
+   "needsApproval": "At least one change is not covered by a rule, so it waits for a person.",
+   "denied": "A person denied it, and it went back to the executive to rework.",
+   "lapsed": "Its approval expired or was cancelled before anyone decided.",
+   "drafting": "The executive is still working on it and has not asked to apply it yet."
+  },
+  "review": {
+   "open": "Open the proposal to see its changes, the rules that cover them, and how it was decided.",
+   "run": "The executive run that made this proposal.",
+   "openRun": "Open the run that made this proposal.",
+   "approve": "Apply the proposal now. It is recorded as a new revision of the organization, which you can roll back.",
+   "deny": "Send the proposal back to the executive without applying it. Your reason goes with it.",
+   "coveredBy": "This change rule allows the change, within its limits.",
+   "reason": "Why you approve or deny. Optional; the executive and the audit log see it.",
+   "columns": {
+    "item": "The resource the change touches, with the fields that change.",
+    "change": "Whether the change creates, updates, or deletes the resource.",
+    "rule": "The change rule that covers the change, or why it needs a person."
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "What runs of this deployment may manage. None for most agents; Studio drafts for the agent architect; Executive over its subtree for an agent that leads an organization unit and should propose changes to the units below it."
+  },
+  "changeRules": {
+   "add": "Add a rule that lets executives apply a routine kind of change without waiting for a person.",
+   "name": "A short name for the rule. Proposals that apply by rule name it.",
+   "status": "In force, switched off, or expired. Only rules in force apply proposals.",
+   "organization": "The organization whose executives the rule is for.",
+   "unit": "The unit whose subtree the rule covers: changes to it and every unit below it.",
+   "classes": "The classes of change the rule allows.",
+   "limits": "Bounds on the allowed changes: how many per proposal, and the values they may set.",
+   "expiresUtc": "When the rule stops applying, or Never.",
+   "createdByName": "The person who wrote the rule.",
+   "description": "Why the rule exists, in plain words. Hover for the full text.",
+   "createdUtc": "When the rule was created. Hover for the exact time.",
+   "id": "The change rule ID (cru_...), for the REST API, SDKs, and MCP tools.",
+   "organizationId": "The organization the rule is for. It cannot change later.",
+   "unitId": "The rule covers changes to this unit and to every unit below it in the live chart.",
+   "active": "Switch the rule off to stop it applying without deleting it.",
+   "limitClass": "The class of change this limit bounds. It must be one of the classes the rule allows.",
+   "limitName": "What the limit bounds: changes per proposal for any class, wake values for Wake tuning, or traffic weight for Deployment weight.",
+   "minimum": "The smallest value allowed, or empty for no lower bound. Zero or more.",
+   "maximum": "The largest value allowed, or empty for no upper bound. Zero or more."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Changes the executives of this organization proposed, with how each was decided."
+   },
+   "appliedProposal": "This revision records an executive proposal that was applied. Roll it back to undo the proposal."
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "Change rules",
+  "p1": "An executive is an agent that leads an organization unit and whose deployment has executive management access. It can propose changes to the units below it, never to itself, to anything above it, to secrets, to budgets, or to these rules.",
+  "p2": "A change rule pre-approves routine changes. It names the unit whose subtree it covers, the classes of change it allows, and optional limits, such as at most two changes per proposal or a wake interval of at least a minute. When rules cover every change in a proposal, it applies at once; anything else waits for a person on the Proposals tab of the organization.",
+  "p3": "Every applied proposal is recorded as a revision of the organization, so you can roll it back. Only people write rules."
+ }
+});

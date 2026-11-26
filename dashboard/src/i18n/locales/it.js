@@ -7087,3 +7087,238 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "Regole di modifica",
+    "tip": "Modifiche di routine che gli agenti dirigenti possono fare nei loro sottoalberi senza chiedere"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Regola di modifica"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Proposta di organizzazione applicata"
+  },
+  "managementAccess": {
+   "None": "Nessuno",
+   "Drafts": "Bozze di Studio",
+   "OrgSubtree": "Direzione del proprio sottoalbero"
+  },
+  "changeClass": {
+   "PromptRetune": "Ritocco dei prompt",
+   "WakeTuning": "Regolazione del risveglio",
+   "MandateTextEdit": "Modifica del testo del custode",
+   "AddWorker": "Aggiungi membro",
+   "RemoveWorker": "Rimuovi membro",
+   "ModelChange": "Cambio di modello",
+   "DeploymentWeight": "Peso della distribuzione"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "Solo le persone scrivono le regole di modifica. Un agente non può crearle, modificarle o eliminarle.",
+  "ProposalNotPending": "Questa proposta non è più in attesa di una decisione. Riaprila per vedere a che punto è.",
+  "ApproverIsAgent": "Un agente non può decidere su una proposta. Deve farlo una persona."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Apri organizzazione",
+   "copyId": "Copia ID"
+  },
+  "toasts": {
+   "copied": "ID della regola di modifica copiato."
+  },
+  "status": {
+   "Active": "In vigore",
+   "Inactive": "Disattivata",
+   "Expired": "Scaduta"
+  },
+  "limit": {
+   "text": "{{class}}, {{name}}: {{range}}",
+   "between": "da {{min}} a {{max}}",
+   "atMost": "al massimo {{max}}",
+   "atLeast": "almeno {{min}}",
+   "any": "nessun limite"
+  },
+  "limitNames": {
+   "count": "Modifiche per proposta",
+   "minIntervalSeconds": "Intervallo di risveglio più breve (secondi)",
+   "maxIntervalSeconds": "Intervallo di risveglio più lungo (secondi)",
+   "backoffFactor": "Fattore di dilatazione",
+   "jitterPercent": "Jitter (percentuale)",
+   "weight": "Peso del traffico"
+  },
+  "errors": {
+   "UnknownLimit": "Questa classe non ha un limite con quel nome. Scegline uno dall'elenco.",
+   "ClassNotInRule": "Un limite deve riguardare una classe elencata nella regola. Aggiungi la classe o cambia il limite.",
+   "UnitNotFound": "Quell'unità non è nell'organigramma in vigore di questa organizzazione.",
+   "Duplicate": "Ogni classe e ogni limite possono comparire una sola volta.",
+   "BoundRequired": "Indica per il limite un minimo, un massimo o entrambi.",
+   "MinimumAboveMaximum": "Il minimo è maggiore del massimo.",
+   "NegativeBound": "I limiti sono pari a zero o superiori.",
+   "ExpiryInPast": "Scegli una scadenza nel futuro, oppure lasciala vuota perché la regola non scada mai.",
+   "OrganizationNotFound": "Quell'organizzazione non esiste in questo tenant.",
+   "OrganizationNotSettable": "Una regola resta legata alla sua organizzazione. Crea una nuova regola per un'altra.",
+   "TooMany": "Una regola contiene al massimo {{max}} limiti."
+  },
+  "form": {
+   "errors": {
+    "name": "Dai alla regola un nome da 1 a {{max}} caratteri.",
+    "description": "La descrizione contiene al massimo {{max}} caratteri.",
+    "organization": "Scegli l'organizzazione a cui si riferisce la regola.",
+    "unit": "Scegli un'unità di questa organizzazione.",
+    "classes": "Scegli almeno una classe di modifica."
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "Proposte",
+  "note": "Gli agenti dirigenti propongono modifiche alle unità che guidano. Una proposta si applica subito quando le regole di modifica coprono ogni modifica che contiene. Tutto il resto aspetta qui una persona.",
+  "rulesLink": "Regole di modifica",
+  "views": {
+   "label": "Quali proposte",
+   "all": "Tutte",
+   "needsApproval": "In attesa di approvazione",
+   "needsApprovalCount": "In attesa di approvazione ({{count}})",
+   "applied": "Applicate"
+  },
+  "emptyTitle": "Nessuna proposta qui",
+  "emptyBody": "Quando un agente dirigente propone una modifica alle unità sotto di sé, la proposta compare qui.",
+  "columns": {
+   "title": "Proposta",
+   "unit": "Unità",
+   "agent": "Agente dirigente",
+   "decision": "Decisione",
+   "updated": "Ultima modifica"
+  },
+  "decision": {
+   "rule": "Applicata per regola",
+   "approved": "Approvata",
+   "needsApproval": "In attesa di approvazione",
+   "denied": "Rifiutata",
+   "lapsed": "Decaduta",
+   "drafting": "In preparazione"
+  },
+  "byRules": "Regole: {{names}}",
+  "byPerson": "Da {{name}}",
+  "decide": "Esamina e decidi",
+  "toasts": {
+   "approved": "{{title}} approvata. Ora è in vigore.",
+   "denied": "{{title}} rifiutata. È tornata all'agente dirigente."
+  },
+  "review": {
+   "open": "Esamina",
+   "title": "Proposta: {{title}}",
+   "run": "Proposta nell'esecuzione",
+   "approve": "Approva",
+   "deny": "Rifiuta",
+   "appliedByRule": "Applicata subito perché le regole di modifica coprivano ogni modifica. Regole: {{names}}.",
+   "approvedBy": "Approvata da {{name}}.",
+   "deniedBy": "Rifiutata da {{name}}.",
+   "reasonGiven": "Motivo: {{reason}}",
+   "revision": "Registrata come revisione {{number}} dell'organizzazione. Per tornare indietro, annulla quella revisione.",
+   "appliedNoDiff": "Questa proposta è applicata, quindi le sue modifiche fanno parte della configurazione in vigore. Confronta la revisione in cui è stata registrata per vederle.",
+   "covered": "Le regole di modifica coprono ogni modifica qui sotto, quindi questa proposta si applica senza una persona.",
+   "notCovered": "Almeno una modifica qui sotto non è coperta da una regola di modifica, quindi decide una persona.",
+   "refusals": "I limiti rigidi rifiutano queste modifiche. Nessuna regola o approvazione può toglierli:",
+   "noChanges": "La proposta non contiene modifiche.",
+   "columns": {
+    "item": "Modifica",
+    "change": "Tipo",
+    "rule": "Coperta da"
+   },
+   "coveredBy": "Regola {{name}}",
+   "reason": "Motivo",
+   "reasonPlaceholder": "Facoltativo. L'agente dirigente lo vede."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Proposte ({{count}})"
+   },
+   "appliedProposal": "Proposta applicata"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "Accesso di gestione"
+   },
+   "hints": {
+    "managementAccess": "Alla maggior parte degli agenti basta Nessuno. Bozze di Studio consente alle esecuzioni di preparare modifiche in Studio per la persona che le ha avviate. Direzione del proprio sottoalbero consente all'agente che guida un'unità organizzativa di proporre modifiche alle unità sotto di essa."
+   }
+  },
+  "changeRules": {
+   "title": "Regole di modifica",
+   "subtitle": "Modifiche di routine che gli agenti dirigenti possono fare nei loro sottoalberi senza aspettare una persona. Tutto ciò che una regola non copre richiede ancora un'approvazione.",
+   "add": "Aggiungi regola",
+   "create": "Aggiungi regola di modifica",
+   "edit": "Modifica regola di modifica",
+   "view": "Regola di modifica",
+   "deleteTitle": "Elimina regola di modifica",
+   "emptyTitle": "Ancora nessuna regola di modifica",
+   "emptyBody": "Aggiungi una regola per consentire agli agenti dirigenti di applicare modifiche di routine, come la regolazione del risveglio, senza aspettare un'approvazione.",
+   "noLimits": "Nessun limite",
+   "noExpiry": "Mai",
+   "chooseOrganization": "Scegli un'organizzazione",
+   "chooseUnit": "Scegli un'unità",
+   "addLimit": "Aggiungi limite",
+   "filters": {
+    "activeOnly": "Stato",
+    "inForce": "Solo in vigore"
+   },
+   "columns": {
+    "name": "Nome",
+    "status": "Stato",
+    "organization": "Organizzazione",
+    "unit": "Copre",
+    "classes": "Classi",
+    "limits": "Limiti",
+    "expiresUtc": "Scade",
+    "createdByName": "Creata da",
+    "description": "Descrizione",
+    "createdUtc": "Creata",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "Organizzazione",
+    "unitId": "Unità (con le unità sotto di essa)",
+    "name": "Nome",
+    "description": "Descrizione",
+    "classes": "Classi di modifica",
+    "limits": "Limiti",
+    "limitClass": "Classe",
+    "limitName": "Limite",
+    "minimum": "Minimo",
+    "maximum": "Massimo",
+    "active": "In vigore",
+    "expiresUtc": "Scade"
+   },
+   "hints": {
+    "organizationId": "Obbligatoria. Una regola resta legata alla sua organizzazione.",
+    "unitId": "Obbligatoria. La regola copre le modifiche a questa unità e a ogni unità sotto di essa.",
+    "name": "Da 1 a {{max}} caratteri.",
+    "description": "Facoltativa, al massimo {{max}} caratteri.",
+    "classes": "Obbligatorie. Una proposta si applica per regola solo quando ogni sua modifica è di una classe consentita da qualche regola.",
+    "limits": "Facoltativi, al massimo {{max}}. Modifiche per proposta stabilisce quante modifiche di una classe può contenere una proposta; gli altri delimitano i nuovi valori.",
+    "expiresUtc": "Facoltativa. La regola smette di applicarsi a quest'ora."
+   }
+  }
+ }
+});

@@ -1423,6 +1423,55 @@ class ApiClient {
     return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/spend`));
   }
 
+  // ------------------------------------------------------------------ change rules and proposals (AA8)
+
+  /** Change rules, newest first. filters: organization, unit (ID or name), activeOnly, search, pageNumber, pageSize. */
+  listChangeRules(tenantId, params) {
+    return this._list(this._t(tenantId, 'change-rules'), params);
+  }
+
+  /** Read one change rule. */
+  getChangeRule(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `change-rules/${enc(id)}`));
+  }
+
+  /**
+   * Create a change rule (people only; a run token gets 403 RulesArePeopleOnly). body: { organizationId, unitId (whose
+   * subtree it covers; ID or name), name, description?, active, expiresUtc?, classes: [{ class }], limits: [{ class,
+   * name, minimum?, maximum? }] }. A refused field answers 400 with its code (UnknownLimit, ClassNotInRule, ...).
+   */
+  createChangeRule(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'change-rules'), { body });
+  }
+
+  /** Replace a change rule's unit, name, description, active flag, expiry, classes, and limits (same body as create). */
+  updateChangeRule(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `change-rules/${enc(id)}`), { body });
+  }
+
+  /** Delete a change rule. */
+  deleteChangeRule(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `change-rules/${enc(id)}`));
+  }
+
+  /** The organization's executive proposals, newest change first. filters: status, pageNumber, pageSize. */
+  listOrgProposals(tenantId, orgId, params = {}) {
+    return this._list(this._t(tenantId, `organizations/${enc(orgId)}/proposals`), params);
+  }
+
+  /** One proposal; one that is not applied carries its diff with hard-limit refusals and the rule matching each change. */
+  getOrgProposal(tenantId, orgId, draftId) {
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/proposals/${enc(draftId)}`));
+  }
+
+  /**
+   * Decide a proposal waiting for approval. body: { allow, reason? }. Allowing applies it as an org revision; denying
+   * sends it back to the executive. 409 ProposalNotPending when it is not waiting; 403 ApproverLacksPermission.
+   */
+  decideOrgProposal(tenantId, orgId, draftId, body) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/proposals/${enc(draftId)}/decide`), { body });
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

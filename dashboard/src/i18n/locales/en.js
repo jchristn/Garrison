@@ -7061,3 +7061,238 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "Change rules",
+    "tip": "Routine changes that executives may make in their subtrees without asking"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Change rule"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Org proposal applied"
+  },
+  "managementAccess": {
+   "None": "None",
+   "Drafts": "Studio drafts",
+   "OrgSubtree": "Executive over its subtree"
+  },
+  "changeClass": {
+   "PromptRetune": "Prompt retune",
+   "WakeTuning": "Wake tuning",
+   "MandateTextEdit": "Keeper text edit",
+   "AddWorker": "Add worker",
+   "RemoveWorker": "Remove worker",
+   "ModelChange": "Model change",
+   "DeploymentWeight": "Deployment weight"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "Only people write change rules. An agent cannot create, change, or delete one.",
+  "ProposalNotPending": "This proposal is no longer waiting for a decision. Open it again to see where it stands.",
+  "ApproverIsAgent": "An agent cannot decide a proposal. A person has to."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Open organization",
+   "copyId": "Copy ID"
+  },
+  "toasts": {
+   "copied": "Copied the change rule ID."
+  },
+  "status": {
+   "Active": "In force",
+   "Inactive": "Switched off",
+   "Expired": "Expired"
+  },
+  "limit": {
+   "text": "{{class}}, {{name}}: {{range}}",
+   "between": "{{min}} to {{max}}",
+   "atMost": "at most {{max}}",
+   "atLeast": "at least {{min}}",
+   "any": "no bound"
+  },
+  "limitNames": {
+   "count": "Changes per proposal",
+   "minIntervalSeconds": "Shortest wake interval (seconds)",
+   "maxIntervalSeconds": "Longest wake interval (seconds)",
+   "backoffFactor": "Backoff factor",
+   "jitterPercent": "Jitter (percent)",
+   "weight": "Traffic weight"
+  },
+  "errors": {
+   "UnknownLimit": "This class has no limit by that name. Pick one from the list.",
+   "ClassNotInRule": "A limit must be for a class the rule lists. Add the class or change the limit.",
+   "UnitNotFound": "That unit is not in the live chart of this organization.",
+   "Duplicate": "Each class and each limit can appear only once.",
+   "BoundRequired": "Give the limit a minimum, a maximum, or both.",
+   "MinimumAboveMaximum": "The minimum is larger than the maximum.",
+   "NegativeBound": "Limits are zero or more.",
+   "ExpiryInPast": "Pick an expiry in the future, or leave it empty so the rule never expires.",
+   "OrganizationNotFound": "That organization does not exist in this tenant.",
+   "OrganizationNotSettable": "A rule stays with its organization. Create a new rule for another one.",
+   "TooMany": "A rule holds at most {{max}} limits."
+  },
+  "form": {
+   "errors": {
+    "name": "Give the rule a name of 1 to {{max}} characters.",
+    "description": "The description holds at most {{max}} characters.",
+    "organization": "Pick the organization the rule is for.",
+    "unit": "Pick a unit of this organization.",
+    "classes": "Pick at least one class of change."
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "Proposals",
+  "note": "Executives propose changes to the units they lead. A proposal applies at once when change rules cover every change in it. Anything else waits here for a person.",
+  "rulesLink": "Change rules",
+  "views": {
+   "label": "Which proposals",
+   "all": "All",
+   "needsApproval": "Needs approval",
+   "needsApprovalCount": "Needs approval ({{count}})",
+   "applied": "Applied"
+  },
+  "emptyTitle": "No proposals here",
+  "emptyBody": "When an executive proposes a change to the units below it, the proposal shows up here.",
+  "columns": {
+   "title": "Proposal",
+   "unit": "Unit",
+   "agent": "Executive",
+   "decision": "Decision",
+   "updated": "Last changed"
+  },
+  "decision": {
+   "rule": "Applied by rule",
+   "approved": "Approved",
+   "needsApproval": "Needs approval",
+   "denied": "Denied",
+   "lapsed": "Lapsed",
+   "drafting": "Being drafted"
+  },
+  "byRules": "Rules: {{names}}",
+  "byPerson": "By {{name}}",
+  "decide": "Review and decide",
+  "toasts": {
+   "approved": "Approved {{title}}. It is live now.",
+   "denied": "Denied {{title}}. It went back to the executive."
+  },
+  "review": {
+   "open": "Review",
+   "title": "Proposal: {{title}}",
+   "run": "Proposed in run",
+   "approve": "Approve",
+   "deny": "Deny",
+   "appliedByRule": "Applied at once because change rules covered every change. Rules: {{names}}.",
+   "approvedBy": "Approved by {{name}}.",
+   "deniedBy": "Denied by {{name}}.",
+   "reasonGiven": "Reason: {{reason}}",
+   "revision": "Recorded as revision {{number}} of the organization. Roll back that revision to undo it.",
+   "appliedNoDiff": "This proposal is applied, so its changes are part of the live configuration. Compare the revision it was recorded as to see them.",
+   "covered": "Change rules cover every change below, so this proposal applies without a person.",
+   "notCovered": "At least one change below is not covered by a change rule, so a person decides.",
+   "refusals": "Hard limits refuse these changes. No rule or approval can lift them:",
+   "noChanges": "The proposal holds no changes.",
+   "columns": {
+    "item": "Change",
+    "change": "Kind",
+    "rule": "Covered by"
+   },
+   "coveredBy": "Rule {{name}}",
+   "reason": "Reason",
+   "reasonPlaceholder": "Optional. The executive sees it."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Proposals ({{count}})"
+   },
+   "appliedProposal": "Applied proposal"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "Management access"
+   },
+   "hints": {
+    "managementAccess": "Most agents need None. Studio drafts lets runs draft studio changes for the person who started them. Executive over its subtree lets the agent that leads an organization unit propose changes to the units below it."
+   }
+  },
+  "changeRules": {
+   "title": "Change rules",
+   "subtitle": "Routine changes that executives may make in their subtrees without waiting for a person. Anything a rule does not cover still needs approval.",
+   "add": "Add rule",
+   "create": "Add change rule",
+   "edit": "Edit change rule",
+   "view": "Change rule",
+   "deleteTitle": "Delete change rule",
+   "emptyTitle": "No change rules yet",
+   "emptyBody": "Add a rule to let executives apply routine changes, such as wake tuning, without waiting for approval.",
+   "noLimits": "No limits",
+   "noExpiry": "Never",
+   "chooseOrganization": "Choose an organization",
+   "chooseUnit": "Choose a unit",
+   "addLimit": "Add limit",
+   "filters": {
+    "activeOnly": "Status",
+    "inForce": "In force only"
+   },
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "organization": "Organization",
+    "unit": "Covers",
+    "classes": "Classes",
+    "limits": "Limits",
+    "expiresUtc": "Expires",
+    "createdByName": "Created by",
+    "description": "Description",
+    "createdUtc": "Created",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "Organization",
+    "unitId": "Unit (with the units below it)",
+    "name": "Name",
+    "description": "Description",
+    "classes": "Classes of change",
+    "limits": "Limits",
+    "limitClass": "Class",
+    "limitName": "Limit",
+    "minimum": "Minimum",
+    "maximum": "Maximum",
+    "active": "In force",
+    "expiresUtc": "Expires"
+   },
+   "hints": {
+    "organizationId": "Required. A rule stays with its organization.",
+    "unitId": "Required. The rule covers changes to this unit and every unit below it.",
+    "name": "1 to {{max}} characters.",
+    "description": "Optional, at most {{max}} characters.",
+    "classes": "Required. A proposal applies by rule only when every change in it is of a class some rule allows.",
+    "limits": "Optional, at most {{max}}. Changes per proposal caps how many changes of a class one proposal may hold; the others bound the new values.",
+    "expiresUtc": "Optional. The rule stops applying at this time."
+   }
+  }
+ }
+});

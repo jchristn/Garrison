@@ -1791,3 +1791,10 @@ td.message-subject-cell { display: table-cell; }
 .org-diff-unit + .org-diff-unit { margin-top: var(--spacing-sm); }
 .org-diff-unit-name { font-weight: 600; margin-bottom: var(--spacing-xs); overflow-wrap: anywhere; }
 .org-diff-value { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 120px; }
+
+/* Change rules and proposals (AA8.12): a rule's classes and limits in the list, and each proposal's decision with the
+   rules or person behind it. Names and reasons are data and wrap anywhere. */
+.change-rule-classes { overflow-wrap: anywhere; }
+.change-rule-limits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--font-size-sm); }
+.org-proposal-decision { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.org-proposal-rule { min-width: 12rem; }

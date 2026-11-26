@@ -4230,3 +4230,150 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   }
  }
 });
+
+// Change rules and proposals (AA8.12): tooltips of the Change rules page, the Proposals tab, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "changeRules": "變更規則：主管不必先請示人員即可在其子樹中進行的變更。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "預先核准例行主管變更的變更規則。讀取權限可檢視；建立、更新和刪除權限可變更。代理程式永遠無法撰寫它們。"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "某個主管提案已套用到組織，由變更規則或人員核准。"
+  },
+  "managementAccess": {
+   "None": "此部署的執行無法草擬或提出設定變更。適合大多數代理程式。",
+   "Drafts": "執行可以為啟動它的人員草擬工作室變更。每份草稿仍由人員套用。",
+   "OrgSubtree": "對此代理程式所負責單位的下層單位擁有主管權限：執行可以對這些單位提出變更。變更規則可以立即套用例行變更，其餘變更等待人員處理。永遠不能涉及自身、其上層、機密、預算或規則。"
+  },
+  "changeClass": {
+   "PromptRetune": "編輯子樹中代理程式的提示詞和指示。",
+   "WakeTuning": "變更守護者的喚醒頻率：其間隔、退避和抖動。",
+   "MandateTextEdit": "編輯子樹中守護者的目標文字。",
+   "AddWorker": "將代理程式以成員身分新增到單位。",
+   "RemoveWorker": "從單位中移除成員代理程式。",
+   "ModelChange": "切換子樹中某個部署所執行的模型。",
+   "DeploymentWeight": "變更某個部署在其代理程式的各部署之間取得的流量比例。"
+  }
+ },
+ "filters": {
+  "organization": "只顯示此組織的變更規則。",
+  "activeOnly": "只顯示已啟用且尚未到期的規則。"
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "開啟規則所屬的組織，可在其「提案」分頁查看規則套用了哪些提案。",
+   "copyId": "複製變更規則 ID（cru_...），供 REST API、SDK 或 MCP 工具使用。"
+  },
+  "status": {
+   "Active": "規則已啟用且尚未到期，其涵蓋的提案會立即套用。",
+   "Inactive": "有人停用了此規則。在重新啟用之前，它不適用於任何提案。",
+   "Expired": "已過到期時間，規則不再適用於任何提案。編輯規則可設定新的到期時間。"
+  }
+ },
+ "orgProposals": {
+  "deniedDecide": "你無權決定提案。這需要「核准」的更新權限。",
+  "rulesLink": "開啟此組織的變更規則：主管不必請示即可進行的變更。",
+  "decide": "開啟提案查看其變更，並核准或拒絕。",
+  "views": {
+   "all": "此組織的所有提案，最近變更的排在最前面。",
+   "needsApproval": "等待人員核准或拒絕的提案。",
+   "applied": "已生效的提案，包括依規則套用和經人員核准的提案。"
+  },
+  "columns": {
+   "title": "主管為提案取的名稱。",
+   "unit": "主管負責的單位。其提案只涉及該單位的下層單位。",
+   "agent": "負責該單位並提出提案的代理程式。",
+   "decision": "依規則套用、已核准、等待核准、已拒絕或仍在草擬中。",
+   "updated": "提案最後變更的時間。將滑鼠移到上方可查看確切時間。"
+  },
+  "decision": {
+   "rule": "變更規則涵蓋每項變更，因此提案不需人員即已立即套用。",
+   "approved": "有人核准了它，它已作為組織的新修訂套用。",
+   "needsApproval": "至少有一項變更未受規則涵蓋，因此需要等待人員處理。",
+   "denied": "有人拒絕了它，已退回給主管重新修改。",
+   "lapsed": "在有人做出決定之前，其核准已到期或遭取消。",
+   "drafting": "主管仍在草擬，尚未申請套用。"
+  },
+  "review": {
+   "open": "開啟提案，查看其變更、涵蓋這些變更的規則，以及決定情形。",
+   "run": "提出此提案的主管執行。",
+   "openRun": "開啟提出此提案的執行。",
+   "approve": "立即套用提案。它會記錄為組織的新修訂，你可以將其復原。",
+   "deny": "不套用提案，將其退回給主管。你填寫的原因會一併送出。",
+   "coveredBy": "此變更規則在其限制範圍內允許該變更。",
+   "reason": "核准或拒絕的原因。選填；主管和稽核記錄都會看到。",
+   "columns": {
+    "item": "變更涉及的資源，以及會變更的欄位。",
+    "change": "變更是建立、更新還是刪除該資源。",
+    "rule": "涵蓋該變更的變更規則，或需要人員處理的原因。"
+   }
+  }
+ },
+ "resources": {
+  "deployments": {
+   "managementAccess": "此部署的執行可以管理的內容。大多數代理程式選「無」；代理程式架構師選「工作室草稿」；負責某個組織單位、需要對其下層單位提出變更的代理程式選「主管管理其子樹」。"
+  },
+  "changeRules": {
+   "add": "新增一條規則，讓主管不必等待人員即可套用某類例行變更。",
+   "name": "規則的簡短名稱。依規則套用的提案會顯示此名稱。",
+   "status": "生效中、已停用或已到期。只有生效中的規則才會套用提案。",
+   "organization": "規則適用的主管所屬的組織。",
+   "unit": "規則所涵蓋子樹的根單位：涵蓋對該單位及其所有下層單位的變更。",
+   "classes": "規則允許的變更類別。",
+   "limits": "對允許變更的約束：每個提案的數量，以及可以設定的值。",
+   "expiresUtc": "規則停止適用的時間，或「永不」。",
+   "createdByName": "撰寫此規則的人員。",
+   "description": "以淺白的文字說明規則存在的原因。將滑鼠移到上方可查看全文。",
+   "createdUtc": "規則的建立時間。將滑鼠移到上方可查看確切時間。",
+   "id": "變更規則 ID（cru_...），供 REST API、SDK 和 MCP 工具使用。",
+   "organizationId": "規則所屬的組織，之後無法變更。",
+   "unitId": "規則涵蓋對此單位，以及目前生效組織圖中其所有下層單位的變更。",
+   "active": "停用規則可讓它不再適用，而不必刪除。",
+   "limitClass": "此限制約束的變更類別，必須是規則允許的類別之一。",
+   "limitName": "限制約束的內容：任何類別的每個提案變更數、喚醒調整的喚醒值，或部署權重的流量權重。",
+   "minimum": "允許的最小值，留空表示沒有下限。必須大於或等於零。",
+   "maximum": "允許的最大值，留空表示沒有上限。必須大於或等於零。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "此組織的主管提出的變更，以及各項的決定情形。"
+   },
+   "appliedProposal": "此修訂記錄了一個已套用的主管提案。復原它即可撤銷該提案。"
+  }
+ }
+});
+
+// Change rules and proposals (AA8.12): the explainer of the Change rules page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "changeRules": {
+  "title": "變更規則",
+  "p1": "主管是負責某個組織單位、且其部署擁有主管管理權限的代理程式。它可以對其下層單位提出變更，但永遠不能涉及自身、其上層、機密、預算或這些規則。",
+  "p2": "變更規則預先核准例行變更。它指定所涵蓋子樹的根單位、允許的變更類別，以及選用的限制，例如每個提案最多兩項變更，或喚醒間隔至少一分鐘。當規則涵蓋提案中的每項變更時，提案會立即套用；其他提案會在組織的「提案」分頁中等待人員處理。",
+  "p3": "每個已套用的提案都會記錄為組織的一個修訂，因此你可以將其復原。只有人員可以撰寫規則。"
+ }
+});

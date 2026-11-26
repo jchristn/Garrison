@@ -7073,3 +7073,238 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Change rules and proposals (AA8.12): the Change rules page, the Proposals tab of the organization page, the change
+// class and management access enums, the ChangeRule resource type, the OrgProposalApplied event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "changeRules": {
+    "label": "Änderungsregeln",
+    "tip": "Routineänderungen, die leitende Agenten in ihren Teilbäumen ohne Rückfrage vornehmen dürfen"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "ChangeRule": "Änderungsregel"
+  },
+  "notificationEvent": {
+   "OrgProposalApplied": "Organisationsvorschlag angewendet"
+  },
+  "managementAccess": {
+   "None": "Keiner",
+   "Drafts": "Studio-Entwürfe",
+   "OrgSubtree": "Leitung über den eigenen Teilbaum"
+  },
+  "changeClass": {
+   "PromptRetune": "Prompt nachjustieren",
+   "WakeTuning": "Aufwachplan anpassen",
+   "MandateTextEdit": "Wächtertext bearbeiten",
+   "AddWorker": "Mitglied hinzufügen",
+   "RemoveWorker": "Mitglied entfernen",
+   "ModelChange": "Modellwechsel",
+   "DeploymentWeight": "Gewichtung der Bereitstellung"
+  }
+ },
+ "errorCodes": {
+  "RulesArePeopleOnly": "Nur Menschen schreiben Änderungsregeln. Ein Agent kann keine anlegen, ändern oder löschen.",
+  "ProposalNotPending": "Über diesen Vorschlag wird nicht mehr entschieden. Öffnen Sie ihn erneut, um seinen Stand zu sehen.",
+  "ApproverIsAgent": "Ein Agent kann nicht über einen Vorschlag entscheiden. Das muss ein Mensch tun."
+ },
+ "changeRules": {
+  "actions": {
+   "openOrganization": "Organisation öffnen",
+   "copyId": "ID kopieren"
+  },
+  "toasts": {
+   "copied": "Die ID der Änderungsregel wurde kopiert."
+  },
+  "status": {
+   "Active": "In Kraft",
+   "Inactive": "Ausgeschaltet",
+   "Expired": "Abgelaufen"
+  },
+  "limit": {
+   "text": "{{class}}, {{name}}: {{range}}",
+   "between": "{{min}} bis {{max}}",
+   "atMost": "höchstens {{max}}",
+   "atLeast": "mindestens {{min}}",
+   "any": "ohne Grenze"
+  },
+  "limitNames": {
+   "count": "Änderungen pro Vorschlag",
+   "minIntervalSeconds": "Kürzestes Aufwachintervall (Sekunden)",
+   "maxIntervalSeconds": "Längstes Aufwachintervall (Sekunden)",
+   "backoffFactor": "Backoff-Faktor",
+   "jitterPercent": "Jitter (Prozent)",
+   "weight": "Verkehrsgewichtung"
+  },
+  "errors": {
+   "UnknownLimit": "Diese Klasse hat keine Grenze mit diesem Namen. Wählen Sie eine aus der Liste.",
+   "ClassNotInRule": "Eine Grenze muss zu einer Klasse gehören, die die Regel aufführt. Fügen Sie die Klasse hinzu oder ändern Sie die Grenze.",
+   "UnitNotFound": "Diese Einheit ist nicht im aktuellen Organigramm dieser Organisation.",
+   "Duplicate": "Jede Klasse und jede Grenze darf nur einmal vorkommen.",
+   "BoundRequired": "Geben Sie für die Grenze ein Minimum, ein Maximum oder beides an.",
+   "MinimumAboveMaximum": "Das Minimum ist größer als das Maximum.",
+   "NegativeBound": "Grenzen sind null oder größer.",
+   "ExpiryInPast": "Wählen Sie ein Ablaufdatum in der Zukunft, oder lassen Sie das Feld leer, damit die Regel nie abläuft.",
+   "OrganizationNotFound": "Diese Organisation gibt es in diesem Mandanten nicht.",
+   "OrganizationNotSettable": "Eine Regel bleibt bei ihrer Organisation. Legen Sie für eine andere Organisation eine neue Regel an.",
+   "TooMany": "Eine Regel enthält höchstens {{max}} Grenzen."
+  },
+  "form": {
+   "errors": {
+    "name": "Geben Sie der Regel einen Namen mit 1 bis {{max}} Zeichen.",
+    "description": "Die Beschreibung umfasst höchstens {{max}} Zeichen.",
+    "organization": "Wählen Sie die Organisation, für die die Regel gilt.",
+    "unit": "Wählen Sie eine Einheit dieser Organisation.",
+    "classes": "Wählen Sie mindestens eine Änderungsklasse."
+   }
+  }
+ },
+ "orgProposals": {
+  "title": "Vorschläge",
+  "note": "Leitende Agenten schlagen Änderungen an den Einheiten vor, die sie leiten. Ein Vorschlag wird sofort angewendet, wenn Änderungsregeln jede Änderung darin abdecken. Alles andere wartet hier auf einen Menschen.",
+  "rulesLink": "Änderungsregeln",
+  "views": {
+   "label": "Welche Vorschläge",
+   "all": "Alle",
+   "needsApproval": "Freigabe nötig",
+   "needsApprovalCount": "Freigabe nötig ({{count}})",
+   "applied": "Angewendet"
+  },
+  "emptyTitle": "Hier gibt es keine Vorschläge",
+  "emptyBody": "Wenn ein leitender Agent eine Änderung an den Einheiten unter ihm vorschlägt, erscheint der Vorschlag hier.",
+  "columns": {
+   "title": "Vorschlag",
+   "unit": "Einheit",
+   "agent": "Leitender Agent",
+   "decision": "Entscheidung",
+   "updated": "Zuletzt geändert"
+  },
+  "decision": {
+   "rule": "Per Regel angewendet",
+   "approved": "Genehmigt",
+   "needsApproval": "Freigabe nötig",
+   "denied": "Abgelehnt",
+   "lapsed": "Verfallen",
+   "drafting": "Im Entwurf"
+  },
+  "byRules": "Regeln: {{names}}",
+  "byPerson": "Von {{name}}",
+  "decide": "Prüfen und entscheiden",
+  "toasts": {
+   "approved": "{{title}} genehmigt. Der Vorschlag ist jetzt aktiv.",
+   "denied": "{{title}} abgelehnt. Der Vorschlag ging an den leitenden Agenten zurück."
+  },
+  "review": {
+   "open": "Prüfen",
+   "title": "Vorschlag: {{title}}",
+   "run": "Vorgeschlagen in Lauf",
+   "approve": "Genehmigen",
+   "deny": "Ablehnen",
+   "appliedByRule": "Sofort angewendet, weil Änderungsregeln jede Änderung abgedeckt haben. Regeln: {{names}}.",
+   "approvedBy": "Genehmigt von {{name}}.",
+   "deniedBy": "Abgelehnt von {{name}}.",
+   "reasonGiven": "Begründung: {{reason}}",
+   "revision": "Als Revision {{number}} der Organisation erfasst. Setzen Sie diese Revision zurück, um den Vorschlag rückgängig zu machen.",
+   "appliedNoDiff": "Dieser Vorschlag ist angewendet, seine Änderungen sind also Teil der aktuellen Konfiguration. Vergleichen Sie die Revision, als die er erfasst wurde, um sie zu sehen.",
+   "covered": "Änderungsregeln decken jede Änderung unten ab, daher wird dieser Vorschlag ohne einen Menschen angewendet.",
+   "notCovered": "Mindestens eine Änderung unten ist durch keine Änderungsregel abgedeckt, daher entscheidet ein Mensch.",
+   "refusals": "Harte Grenzen verweigern diese Änderungen. Keine Regel und keine Freigabe kann sie aufheben:",
+   "noChanges": "Der Vorschlag enthält keine Änderungen.",
+   "columns": {
+    "item": "Änderung",
+    "change": "Art",
+    "rule": "Abgedeckt durch"
+   },
+   "coveredBy": "Regel {{name}}",
+   "reason": "Begründung",
+   "reasonPlaceholder": "Optional. Der leitende Agent sieht sie."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "tabs": {
+    "proposals": "Vorschläge ({{count}})"
+   },
+   "appliedProposal": "Angewendeter Vorschlag"
+  }
+ },
+ "resources": {
+  "deployments": {
+   "fields": {
+    "managementAccess": "Verwaltungszugriff"
+   },
+   "hints": {
+    "managementAccess": "Die meisten Agenten brauchen Keiner. Mit Studio-Entwürfe dürfen Läufe Studio-Änderungen für die Person entwerfen, die sie gestartet hat. Mit Leitung über den eigenen Teilbaum darf der Agent, der eine Organisationseinheit leitet, Änderungen an den Einheiten darunter vorschlagen."
+   }
+  },
+  "changeRules": {
+   "title": "Änderungsregeln",
+   "subtitle": "Routineänderungen, die leitende Agenten in ihren Teilbäumen vornehmen dürfen, ohne auf einen Menschen zu warten. Was keine Regel abdeckt, braucht weiterhin eine Freigabe.",
+   "add": "Regel hinzufügen",
+   "create": "Änderungsregel hinzufügen",
+   "edit": "Änderungsregel bearbeiten",
+   "view": "Änderungsregel",
+   "deleteTitle": "Änderungsregel löschen",
+   "emptyTitle": "Noch keine Änderungsregeln",
+   "emptyBody": "Fügen Sie eine Regel hinzu, damit leitende Agenten Routineänderungen wie das Anpassen des Aufwachplans ohne Freigabe anwenden können.",
+   "noLimits": "Keine Grenzen",
+   "noExpiry": "Nie",
+   "chooseOrganization": "Organisation wählen",
+   "chooseUnit": "Einheit wählen",
+   "addLimit": "Grenze hinzufügen",
+   "filters": {
+    "activeOnly": "Zustand",
+    "inForce": "Nur in Kraft"
+   },
+   "columns": {
+    "name": "Bezeichnung",
+    "status": "Zustand",
+    "organization": "Organisation",
+    "unit": "Gilt für",
+    "classes": "Klassen",
+    "limits": "Grenzen",
+    "expiresUtc": "Läuft ab",
+    "createdByName": "Erstellt von",
+    "description": "Beschreibung",
+    "createdUtc": "Erstellt",
+    "id": "ID"
+   },
+   "fields": {
+    "organizationId": "Organisation",
+    "unitId": "Einheit (mit den Einheiten darunter)",
+    "name": "Bezeichnung",
+    "description": "Beschreibung",
+    "classes": "Änderungsklassen",
+    "limits": "Grenzen",
+    "limitClass": "Klasse",
+    "limitName": "Grenze",
+    "minimum": "Mindestwert",
+    "maximum": "Höchstwert",
+    "active": "In Kraft",
+    "expiresUtc": "Läuft ab"
+   },
+   "hints": {
+    "organizationId": "Pflichtfeld. Eine Regel bleibt bei ihrer Organisation.",
+    "unitId": "Pflichtfeld. Die Regel deckt Änderungen an dieser Einheit und an jeder Einheit darunter ab.",
+    "name": "1 bis {{max}} Zeichen.",
+    "description": "Optional, höchstens {{max}} Zeichen.",
+    "classes": "Pflichtfeld. Ein Vorschlag wird nur dann per Regel angewendet, wenn jede Änderung darin zu einer Klasse gehört, die eine Regel erlaubt.",
+    "limits": "Optional, höchstens {{max}}. Änderungen pro Vorschlag begrenzt, wie viele Änderungen einer Klasse ein Vorschlag enthalten darf; die übrigen Grenzen beschränken die neuen Werte.",
+    "expiresUtc": "Optional. Ab diesem Zeitpunkt gilt die Regel nicht mehr."
+   }
+  }
+ }
+});

@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage', 'Organization'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage', 'Organization', 'ChangeRule'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -196,7 +196,7 @@ export const ENUMS = {
   triggerFireSource: ['Cron', 'Webhook', 'Manual'],
   triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
-  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'Test'],
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
   runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper', 'Message'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
@@ -231,6 +231,10 @@ export const ENUMS = {
   organizationStatus: ['Draft', 'Active', 'Frozen', 'Retired'],
   budgetPeriod: ['Day', 'Month'],
   orgRevisionState: ['Draft', 'Published', 'Superseded'],
+  // Executive authority (AA8): what a deployment's run token may manage (OrgSubtree makes the agent leading a unit an
+  // executive over the units below it), and the classes of change a person's change rule can pre-approve.
+  managementAccess: ['None', 'Drafts', 'OrgSubtree'],
+  changeClass: ['PromptRetune', 'WakeTuning', 'MandateTextEdit', 'AddWorker', 'RemoveWorker', 'ModelChange', 'DeploymentWeight'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -489,6 +493,27 @@ export function orgRevisionStateTone(state) {
  * 2000. A unit budget is a positive amount in US dollars.
  */
 export const ORGANIZATION_LIMITS = { nameMax: 128, descriptionMax: 2000, missionMax: 8000, titleMax: 128, noteMax: 2000 };
+
+/**
+ * Change rule bounds, mirroring the server (AA8): a name holds 1 to 128 characters, a description at most 2000, and a
+ * rule has at most 32 limits. Limit bounds are zero or more.
+ */
+export const CHANGE_RULE_LIMITS = { nameMax: 128, descriptionMax: 2000, limitsMax: 32 };
+
+/**
+ * The limit names each change class accepts (AA8, ChangeRuleMatcher.KnownLimitNames): count (how many changes of the
+ * class one proposal may hold) for every class, the wake schedule values for WakeTuning, and weight for
+ * DeploymentWeight.
+ */
+export const CHANGE_RULE_LIMIT_NAMES = {
+  PromptRetune: ['count'],
+  WakeTuning: ['count', 'minIntervalSeconds', 'maxIntervalSeconds', 'backoffFactor', 'jitterPercent'],
+  MandateTextEdit: ['count'],
+  AddWorker: ['count'],
+  RemoveWorker: ['count'],
+  ModelChange: ['count'],
+  DeploymentWeight: ['count', 'weight']
+};
 
 /** Semantic tone for a message urgency pill. */
 export function messageUrgencyTone(urgency) {

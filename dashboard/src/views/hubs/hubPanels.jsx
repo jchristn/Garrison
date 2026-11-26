@@ -58,6 +58,7 @@ import MessagesView from '../MessagesView';
 import MessageThreadView from '../MessageThreadView';
 import OrganizationsView from '../OrganizationsView';
 import OrganizationDetailView from '../OrganizationDetailView';
+import ChangeRulesView from '../ChangeRulesView';
 import FreezesView from '../FreezesView';
 import MemoryView from '../MemoryView';
 
@@ -90,6 +91,7 @@ export const PAGE_VIEWS = {
   reports: ReportsView,
   messages: MessagesView,
   organizations: OrganizationsView,
+  changeRules: ChangeRulesView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,

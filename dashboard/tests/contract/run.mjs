@@ -400,6 +400,22 @@ async function seedOrganizations(api, ids) {
   const revision = await api.post(tp(`organizations/${org.id}/revisions`), { note: 'Contract test revision' });
   ids.orgRevision = revision.id;
   await api.post(tp(`organizations/${org.id}/revisions/${revision.id}/publish`), {});
+  // Change rules (AA8.12): a rule for the root unit's subtree with classes and both kinds of limit and an expiry, so
+  // every field the Change rules page reads exists. Proposals need an executive run, so the list is checked empty.
+  const rule = await api.post(tp('change-rules'), {
+    organizationId: org.id,
+    unitId: root.id,
+    name: 'contract-rule',
+    description: 'Contract test change rule',
+    active: true,
+    expiresUtc: new Date(Date.now() + 7 * 86400000).toISOString(),
+    classes: [{ class: 'WakeTuning' }, { class: 'PromptRetune' }],
+    limits: [
+      { class: 'WakeTuning', name: 'minIntervalSeconds', minimum: 60 },
+      { class: 'WakeTuning', name: 'count', maximum: 3 }
+    ]
+  });
+  ids.changeRule = rule.id;
 }
 
 /**
@@ -776,6 +792,11 @@ function routes(ids) {
     ['listOrgRevisions', tp(`organizations/${ids.organization}/revisions`)],
     ['getOrgRevision', tp(`organizations/${ids.organization}/revisions/${ids.orgRevision}`)],
     ['getOrgSpend', tp(`organizations/${ids.organization}/spend`)],
+    // Change rules and proposals (AA8.12): one rule of that organization, and its (empty) proposal list.
+    ['listChangeRules', tp(`change-rules?${list}`)],
+    ['listChangeRules (organization)', tp(`change-rules?${list}&organization=${ids.organization}&activeOnly=true`)],
+    ['getChangeRule', tp(`change-rules/${ids.changeRule}`)],
+    ['listOrgProposals', tp(`organizations/${ids.organization}/proposals?maxResults=200&skip=0`)],
     // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
     ['listFreezes', tp(`freezes?${list}`)],
     ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],
