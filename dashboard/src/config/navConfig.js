@@ -55,7 +55,8 @@ export const NAV_SECTIONS = [
       // AA1.16: autonomous agents. Keepers are mandates an agent keeps on a wake schedule; /dashboard/keepers/<id> is
       // one keeper's ticks and revisions. AA2.13: escalations are questions runs raise for a person, a role, or another
       // agent; the sidebar badge counts the open ones. AA3.8: freezes are brakes on agents, deployments, keepers, and
-      // apps, and the kill switch shows among them. Later phases add the other autonomy pages here.
+      // apps, and the kill switch shows among them. AA4.13: memory is what agents and people saved, by scope, with
+      // provenance and delete. Later phases add the other autonomy pages here.
       {
         key: 'autonomy',
         slug: 'autonomy',
@@ -63,7 +64,8 @@ export const NAV_SECTIONS = [
         tabs: [
           { id: 'keepers', slug: 'keepers', detail: true },
           { id: 'escalations', slug: 'escalations', detail: true },
-          { id: 'freezes', slug: 'freezes' }
+          { id: 'freezes', slug: 'freezes' },
+          { id: 'memory', slug: 'memory' }
         ]
       },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },

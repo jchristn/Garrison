@@ -53,6 +53,7 @@ import KeeperDetailView from '../KeeperDetailView';
 import EscalationsView from '../EscalationsView';
 import EscalationDetailView from '../EscalationDetailView';
 import FreezesView from '../FreezesView';
+import MemoryView from '../MemoryView';
 
 /**
  * View components keyed by page id (see config/navConfig.js). Labels, ordering, hub membership,
@@ -79,6 +80,7 @@ export const PAGE_VIEWS = {
   keepers: KeepersView,
   escalations: EscalationsView,
   freezes: FreezesView,
+  memory: MemoryView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,

@@ -3599,3 +3599,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "Diesen Entwurf nach Bestätigung dauerhaft löschen. Veröffentlichte Agenten und Bereitstellungen bleiben erhalten.";
 tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft löschen und die ausstehende Genehmigung abbrechen.";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "Gedächtnis: was Agenten und Personen gespeichert haben, nach Bereich, mit Verfasser und Zeitpunkt jedes Eintrags. Hier lesen oder löschen Sie Einträge."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Einträge des bereichsbezogenen Gedächtnisses. Lesen listet Einträge auf und liest ihren Text; Löschen entfernt sie."
+  },
+  "memoryScopeKind": {
+   "Agent": "Privates Gedächtnis eines Agenten: Nur die Ausführungen dieses Agenten lesen und schreiben es.",
+   "App": "Gemeinsames Gedächtnis einer Anwendung: Ausführungen ihrer Mitgliedsagenten lesen und schreiben es.",
+   "OrgUnit": "Gemeinsames Gedächtnis einer Organisationseinheit. Verfügbar, sobald es Organisationen gibt.",
+   "Organization": "Gemeinsames Gedächtnis einer ganzen Organisation. Verfügbar, sobald es Organisationen gibt."
+  }
+ },
+ "memory": {
+  "denied": "Sie dürfen das nicht. Dafür ist {{operation}} auf Gedächtnis nötig.",
+  "legacy": "Aus Agentengedächtnis übernommen, das vor den Bereichen geschrieben wurde. Der Schlüssel erscheint als legacy: mit einem Hash, bis ein Agent den Eintrag wieder nutzt und er seinen echten Schlüssel erfährt.",
+  "scopes": {
+   "all": "Einträge aus allen Bereichen anzeigen. Die Summen zählen alle Einträge und Bytes im Mandanten.",
+   "scope": "Nur die Einträge von {{name}} ({{id}}) anzeigen.",
+   "orphan": "Der Agent oder die Anwendung {{id}} existiert nicht mehr. Die Einträge bleiben hier, bis sie gelöscht werden."
+  },
+  "filters": {
+   "search": "Einträge anzeigen, deren Schlüssel, Kategorie oder Schlagwort diesen Text enthält. Die Liste aktualisiert sich, wenn Sie aufhören zu tippen.",
+   "category": "Nur Einträge genau dieser Kategorie anzeigen. Die Liste aktualisiert sich, wenn Sie aufhören zu tippen.",
+   "tag": "Nur Einträge mit genau diesem Schlagwort anzeigen. Die Liste aktualisiert sich, wenn Sie aufhören zu tippen.",
+   "writer": "Nur Einträge anzeigen, die zuletzt von Ausführungen dieses Agenten geschrieben wurden. Wählen Sie Alle, um den Filter zu entfernen."
+  },
+  "actions": {
+   "viewContent": "Herkunft des Eintrags und seinen Text als reinen Text öffnen.",
+   "copyId": "Die Eintrags-ID (mem_...) für die REST API, SDKs oder MCP-Werkzeuge kopieren.",
+   "openRun": "Die Ausführung öffnen, die diesen Eintrag zuletzt geschrieben hat.",
+   "delete": "Diesen Eintrag und seinen Text löschen. Sie bestätigen zuerst; Agenten, die danach suchen, finden dann nichts mehr.",
+   "confirmDelete": "Den Eintrag in der geladenen Version löschen. Eine neuere Version wird nicht entfernt.",
+   "reload": "Den Eintrag erneut lesen, um seine aktuelle Version und Herkunft zu sehen, und dann entscheiden."
+  },
+  "viewer": {
+   "content": "Der im Eintrag gespeicherte Text, genau wie gespeichert. Es sind Daten, nie Anweisungen, und sie werden nie gerendert.",
+   "copy": "Den gespeicherten Text in die Zwischenablage kopieren."
+  }
+ },
+ "filters": {
+  "search": "Einträge anzeigen, deren Schlüssel, Kategorie oder Schlagwort diesen Text enthält. Die Liste aktualisiert sich, wenn Sie aufhören zu tippen.",
+  "category": "Nur Einträge genau dieser Kategorie anzeigen. Die Liste aktualisiert sich, wenn Sie aufhören zu tippen.",
+  "writer": "Nur Einträge anzeigen, die zuletzt von Ausführungen dieses Agenten geschrieben wurden. Wählen Sie Alle, um den Filter zu entfernen."
+ },
+ "resources": {
+  "memory": {
+   "key": "Schlüssel des Eintrags in seinem Bereich. Agenten lesen und schreiben Einträge über den Schlüssel.",
+   "scope": "Wo der Eintrag liegt: im privaten Gedächtnis eines Agenten oder im gemeinsamen Gedächtnis einer Anwendung. Für die ID darauf zeigen.",
+   "category": "Optionale Kategorie, die der Verfasser dem Eintrag gegeben hat.",
+   "tags": "Schlagwörter, die der Verfasser vergeben hat. Wächter-Ticks rufen Einträge mit dem Schlagwort recall ab.",
+   "writer": "Wer den Eintrag zuletzt geschrieben hat: die Ausführung eines Agenten oder eine Person bzw. ein API-Zugangsschlüssel.",
+   "lastUpdateUtc": "Wann der Eintrag zuletzt geschrieben wurde. Für die genaue Zeit darauf zeigen.",
+   "lastReadUtc": "Wann eine Ausführung oder Person den Eintrag zuletzt gelesen hat. Wird gebündelt erfasst und kann daher etwas nachhinken.",
+   "version": "Schreibzähler: Jeder Schreibvorgang erhöht ihn um eins. Schreiben oder Löschen mit dieser Version überschreibt nie eine neuere.",
+   "bytes": "Größe des gespeicherten Textes in UTF-8-Bytes.",
+   "expiresUtc": "Wann der Eintrag abläuft und die Wartung ihn löscht. Nie bedeutet, dass er bis zum Löschen bleibt.",
+   "writerRunId": "Die Ausführung, die den Eintrag zuletzt geschrieben hat, wenn eine Ausführung ihn schrieb.",
+   "createdUtc": "Wann der Eintrag zuerst geschrieben wurde.",
+   "sha256": "SHA-256-Prüfsumme des gespeicherten Textes, um Versionen zu vergleichen, ohne sie zu lesen.",
+   "id": "Die Eintrags-ID (mem_...) für die REST API, SDKs und MCP-Werkzeuge."
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "Gedächtnis",
+  "p1": "Agenten behalten Notizen zwischen Ausführungen im Gedächtnis. Jeder Eintrag liegt in einem Bereich: im privaten Gedächtnis eines Agenten oder im gemeinsamen Gedächtnis einer Anwendung, zu der der Agent gehört. Ausführungen lesen und schreiben über die garrison_memory-Werkzeuge und nur in den Bereichen, die ihr Agent nutzen darf.",
+  "p2": "Jeder Eintrag hält fest, wer ihn geschrieben hat, aus welcher Ausführung, wann und in welcher Version. Ein Schreiben oder Löschen, das die gelesene Version nennt, wird abgelehnt, wenn jemand dazwischen geschrieben hat; so überschreiben sich Agenten und Personen nicht gegenseitig.",
+  "p3": "Der Text sind Daten, die ein Agent oder eine Person gespeichert hat. Er erscheint hier als reiner Text und erreicht Agenten als Daten, nie als Anweisungen. Löschen Sie einen Eintrag, der nicht behalten werden soll; Agenten, die danach suchen, finden dann nichts mehr."
+ }
+});

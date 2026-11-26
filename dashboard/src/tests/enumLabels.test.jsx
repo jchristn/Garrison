@@ -50,6 +50,7 @@ const COLLECTIONS = {
   pipelineReviews: 'pipeline-reviews',
   keepers: 'mandates',
   freezes: 'freezes',
+  memory: 'memory/entries',
   audit: 'audit'
 };
 

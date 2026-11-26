@@ -6202,3 +6202,121 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "Mémoire",
+    "tip": "Ce que les agents IA et les personnes ont enregistré, par portée, avec l'auteur et la date de chaque entrée"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Mémoire"
+  },
+  "memoryScopeKind": {
+   "Agent": "Agent IA",
+   "App": "Application",
+   "OrgUnit": "Unité organisationnelle",
+   "Organization": "Organisation"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "Cette entrée de mémoire a changé depuis son chargement. Rechargez-la et décidez à nouveau.",
+  "MemoryDisabled": "La mémoire des agents IA est désactivée sur ce serveur : le texte des entrées ne peut pas être lu et les entrées ne peuvent pas être supprimées."
+ },
+ "memory": {
+  "legacy": "Héritée",
+  "deletedScope": "{{id}} (supprimé)",
+  "neverRead": "Jamais",
+  "noExpiry": "Jamais",
+  "deleteTitle": "Supprimer cette entrée de mémoire ?",
+  "deleteMessage": "Supprimer {{key}} de {{scope}} ? Les agents IA qui la cherchent ne trouveront plus rien, et son texte est effacé. Cette action est irréversible.",
+  "deleteVersion": "La version {{version}}, celle que vous avez chargée, est supprimée. Si quelqu'un a écrit une version plus récente entre-temps, la suppression est refusée.",
+  "deleteReloaded": "Rechargée : l'entrée est maintenant à la version {{version}}. Supprimer efface cette version.",
+  "scopes": {
+   "label": "Portées de mémoire",
+   "all": "Toutes les portées",
+   "totals_one": "{{entries}} entrée, {{bytes}}",
+   "totals_other": "{{entries}} entrées, {{bytes}}",
+   "loadFailed": "Les portées de mémoire n'ont pas pu être chargées.",
+   "empty": {
+    "Agent": "Aucun agent IA n'a encore enregistré de mémoire.",
+    "App": "Aucune application n'a encore de mémoire partagée.",
+    "OrgUnit": "Aucune unité organisationnelle n'a encore de mémoire.",
+    "Organization": "Aucune organisation n'a encore de mémoire."
+   }
+  },
+  "filters": {
+   "search": "Rechercher",
+   "searchPlaceholder": "Clé, catégorie ou étiquette",
+   "categoryPlaceholder": "Catégorie",
+   "tag": "Étiquette",
+   "tagPlaceholder": "Étiquette",
+   "writer": "Écrite par"
+  },
+  "actions": {
+   "viewContent": "Voir le contenu",
+   "copyId": "Copier l'ID",
+   "openRun": "Ouvrir l'exécution qui l'a écrite",
+   "reload": "Recharger l'entrée"
+  },
+  "viewer": {
+   "title": "Entrée de mémoire",
+   "content": "Contenu enregistré",
+   "untrusted": "Ce sont des données enregistrées par un agent IA ou une personne. Elles s'affichent en texte brut, telles que stockées ; rien de leur contenu n'est exécuté, rendu ni suivi.",
+   "loading": "Chargement du texte enregistré...",
+   "empty": "Cette entrée ne contient aucun texte."
+  },
+  "errors": {
+   "conflict": "Quelqu'un a modifié cette entrée depuis que vous avez chargé la version {{version}} ; elle n'a donc pas été supprimée. Rechargez-la pour voir ce qu'elle contient maintenant.",
+   "gone": "Cette entrée n'existe plus. Quelqu'un d'autre l'a peut-être supprimée."
+  },
+  "toasts": {
+   "deleted": "{{key}} supprimée.",
+   "copied": "L'ID de l'entrée est copié."
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "Mémoire",
+   "subtitle": "Ce que les agents IA et les personnes ont enregistré, par portée : qui a écrit chaque entrée, quand, depuis quelle exécution et sa taille. Ouvrez une entrée pour la lire, et supprimez ce qui ne doit pas être retenu.",
+   "add": "Ajouter une entrée de mémoire",
+   "create": "Créer une entrée de mémoire",
+   "edit": "Modifier l'entrée de mémoire",
+   "view": "Entrée de mémoire",
+   "deleteTitle": "Supprimer l'entrée de mémoire",
+   "emptyTitle": "Pas encore de mémoire",
+   "emptyBody": "Les agents IA enregistrent de la mémoire avec les outils garrison_memory pendant leur exécution. Les entrées apparaissent ici par portée dès qu'une est écrite.",
+   "columns": {
+    "key": "Clé",
+    "scope": "Portée",
+    "category": "Catégorie",
+    "tags": "Étiquettes",
+    "writer": "Écrite par",
+    "lastUpdateUtc": "Dernière écriture",
+    "lastReadUtc": "Dernière lecture",
+    "version": "Version",
+    "bytes": "Taille",
+    "expiresUtc": "Expire",
+    "writerRunId": "Exécution auteur",
+    "createdUtc": "Créée",
+    "sha256": "Empreinte SHA-256",
+    "id": "ID"
+   }
+  }
+ }
+});

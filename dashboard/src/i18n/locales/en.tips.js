@@ -3599,3 +3599,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "Permanently delete this draft after confirmation. Published agents and deployments are not affected.";
 tips.views.studio.discardPending = "Permanently delete this draft after confirmation and cancel its pending apply approval.";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "Memory: what agents and people saved, by scope, with who wrote each entry and when. Read or delete entries here."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Scoped memory entries. Read lists entries and reads their text; Delete removes them."
+  },
+  "memoryScopeKind": {
+   "Agent": "Private memory of one agent: only that agent's runs read and write it.",
+   "App": "Shared memory of one app: runs of the app's member agents read and write it.",
+   "OrgUnit": "Shared memory of one organization unit. Available once organizations arrive.",
+   "Organization": "Shared memory of a whole organization. Available once organizations arrive."
+  }
+ },
+ "memory": {
+  "denied": "You may not do this. It needs {{operation}} on Memory.",
+  "legacy": "Imported from agent memory written before scopes. The key shows as legacy: and a hash until an agent uses the entry again and it learns its real key.",
+  "scopes": {
+   "all": "Show entries from every scope. The totals count every entry and byte in the tenant.",
+   "scope": "Show only the entries of {{name}} ({{id}}).",
+   "orphan": "The agent or app {{id}} no longer exists. Its entries stay here until they are deleted."
+  },
+  "filters": {
+   "search": "Show entries whose key, category, or a tag contains this text. The list updates when you stop typing.",
+   "category": "Show only entries in this exact category. The list updates when you stop typing.",
+   "tag": "Show only entries with this exact tag. The list updates when you stop typing.",
+   "writer": "Show only entries that this agent's runs last wrote. Choose All to remove the filter."
+  },
+  "actions": {
+   "viewContent": "Open the entry's provenance and the text it holds, shown as plain text.",
+   "copyId": "Copy the entry ID (mem_...) for the REST API, SDKs, or MCP tools.",
+   "openRun": "Open the run that last wrote this entry.",
+   "delete": "Delete this entry and its text. You confirm first; agents that look for it then find nothing.",
+   "confirmDelete": "Delete the entry at the version you loaded. A newer version is not removed.",
+   "reload": "Read the entry again to see its current version and provenance, then decide."
+  },
+  "viewer": {
+   "content": "The text stored in the entry, exactly as saved. It is data, never instructions, and is never rendered.",
+   "copy": "Copy the saved text to the clipboard."
+  }
+ },
+ "filters": {
+  "search": "Show entries whose key, category, or a tag contains this text. The list updates when you stop typing.",
+  "category": "Show only entries in this exact category. The list updates when you stop typing.",
+  "writer": "Show only entries that this agent's runs last wrote. Choose All to remove the filter."
+ },
+ "resources": {
+  "memory": {
+   "key": "The entry's key within its scope. Agents read and write entries by key.",
+   "scope": "Where the entry lives: an agent's private memory or an app's shared memory. Hover for the ID.",
+   "category": "Optional category the writer gave the entry.",
+   "tags": "Tags the writer gave the entry. Keeper ticks recall entries tagged recall.",
+   "writer": "Who last wrote the entry: an agent's run, or a person or API credential.",
+   "lastUpdateUtc": "When the entry was last written. Hover for the exact time.",
+   "lastReadUtc": "When a run or person last read the entry. Recorded in batches, so it can lag a little.",
+   "version": "Write count: every write adds one. Writing or deleting with this version never overwrites a newer one.",
+   "bytes": "Size of the saved text in UTF-8 bytes.",
+   "expiresUtc": "When the entry expires and the maintenance sweep deletes it. Never means it stays until deleted.",
+   "writerRunId": "The run that last wrote the entry, when a run wrote it.",
+   "createdUtc": "When the entry was first written.",
+   "sha256": "SHA-256 hash of the saved text, to compare versions without reading them.",
+   "id": "The entry ID (mem_...), for the REST API, SDKs, and MCP tools."
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "Memory",
+  "p1": "Agents keep notes between runs in memory. Each entry lives in a scope: an agent's private memory, or the shared memory of an app the agent belongs to. Runs read and write through the garrison_memory tools, and only in the scopes their agent may use.",
+  "p2": "Every entry records who wrote it, from which run, when, and its version. A write or delete that names the version it read is refused when someone wrote in between, so agents and people do not overwrite each other.",
+  "p3": "The text is data an agent or a person saved. It is shown here as plain text and reaches agents as data, never as instructions. Delete an entry that should not be remembered; agents that look for it then find nothing."
+ }
+});

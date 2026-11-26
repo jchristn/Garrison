@@ -6206,3 +6206,121 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "Memoria",
+    "tip": "Lo que agentes y personas guardaron, por ámbito, con quién escribió cada entrada y cuándo"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Memoria"
+  },
+  "memoryScopeKind": {
+   "Agent": "Agente",
+   "App": "Aplicación",
+   "OrgUnit": "Unidad organizativa",
+   "Organization": "Organización"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "Esta entrada de memoria cambió desde que la cargó. Recárguela y decida de nuevo.",
+  "MemoryDisabled": "La memoria de agentes está desactivada en este servidor, así que no se puede leer el texto de las entradas ni eliminarlas."
+ },
+ "memory": {
+  "legacy": "Heredada",
+  "deletedScope": "{{id}} (eliminado)",
+  "neverRead": "Nunca",
+  "noExpiry": "Nunca",
+  "deleteTitle": "¿Eliminar esta entrada de memoria?",
+  "deleteMessage": "¿Eliminar {{key}} de {{scope}}? Los agentes que la busquen no encontrarán nada y su texto se borrará. Esto no se puede deshacer.",
+  "deleteVersion": "Se elimina la versión {{version}}, la que cargó. Si alguien escribió una versión más reciente desde entonces, la eliminación se rechaza.",
+  "deleteReloaded": "Recargada: la entrada está ahora en la versión {{version}}. Eliminar borra esta versión.",
+  "scopes": {
+   "label": "Ámbitos de memoria",
+   "all": "Todos los ámbitos",
+   "totals_one": "{{entries}} entrada, {{bytes}}",
+   "totals_other": "{{entries}} entradas, {{bytes}}",
+   "loadFailed": "No se pudieron cargar los ámbitos de memoria.",
+   "empty": {
+    "Agent": "Ningún agente ha guardado memoria todavía.",
+    "App": "Ninguna aplicación tiene memoria compartida todavía.",
+    "OrgUnit": "Ninguna unidad organizativa tiene memoria todavía.",
+    "Organization": "Ninguna organización tiene memoria todavía."
+   }
+  },
+  "filters": {
+   "search": "Buscar",
+   "searchPlaceholder": "Clave, categoría o etiqueta",
+   "categoryPlaceholder": "Categoría",
+   "tag": "Etiqueta",
+   "tagPlaceholder": "Etiqueta",
+   "writer": "Escrita por"
+  },
+  "actions": {
+   "viewContent": "Ver contenido",
+   "copyId": "Copiar ID",
+   "openRun": "Abrir la ejecución que la escribió",
+   "reload": "Recargar entrada"
+  },
+  "viewer": {
+   "title": "Entrada de memoria",
+   "content": "Contenido guardado",
+   "untrusted": "Son datos que guardó un agente o una persona. Se muestran como texto plano tal como se almacenaron; nada de su contenido se ejecuta, se representa ni se obedece.",
+   "loading": "Cargando el texto guardado...",
+   "empty": "Esta entrada no contiene texto."
+  },
+  "errors": {
+   "conflict": "Alguien cambió esta entrada desde que cargó la versión {{version}}, así que no se eliminó. Recárguela para ver lo que contiene ahora.",
+   "gone": "Esta entrada ya no existe. Puede que otra persona la haya eliminado."
+  },
+  "toasts": {
+   "deleted": "Se eliminó {{key}}.",
+   "copied": "Se copió el ID de la entrada."
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "Memoria",
+   "subtitle": "Lo que agentes y personas guardaron, por ámbito: quién escribió cada entrada, cuándo, desde qué ejecución y cuánto ocupa. Abra una entrada para leerla y elimine lo que no deba recordarse.",
+   "add": "Añadir entrada de memoria",
+   "create": "Crear entrada de memoria",
+   "edit": "Editar entrada de memoria",
+   "view": "Entrada de memoria",
+   "deleteTitle": "Eliminar entrada de memoria",
+   "emptyTitle": "Todavía no hay memoria",
+   "emptyBody": "Los agentes guardan memoria con las herramientas garrison_memory mientras se ejecutan. Las entradas aparecen aquí por ámbito en cuanto se escribe una.",
+   "columns": {
+    "key": "Clave",
+    "scope": "Ámbito",
+    "category": "Categoría",
+    "tags": "Etiquetas",
+    "writer": "Escrita por",
+    "lastUpdateUtc": "Última escritura",
+    "lastReadUtc": "Última lectura",
+    "version": "Versión",
+    "bytes": "Tamaño",
+    "expiresUtc": "Caduca",
+    "writerRunId": "Ejecución que la escribió",
+    "createdUtc": "Creada",
+    "sha256": "Hash SHA-256",
+    "id": "ID"
+   }
+  }
+ }
+});

@@ -74,6 +74,8 @@ export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
 export { keepersConfig } from './keeperConfigs';
 export { escalationsConfig } from './escalationConfigs';
 export { freezesConfig } from './freezeConfigs';
+// AA4.13: scoped memory under Autonomy.
+export { memoryConfig } from './memoryConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

@@ -3601,3 +3601,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "Supprime définitivement ce brouillon après confirmation. Les agents et déploiements publiés ne seront pas affectés.";
 tips.views.studio.discardPending = "Supprime définitivement ce brouillon après confirmation et annule son approbation en attente.";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "Mémoire : ce que les agents IA et les personnes ont enregistré, par portée, avec l'auteur et la date de chaque entrée. Lisez ou supprimez des entrées ici."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Entrées de la mémoire par portée. Lire liste les entrées et lit leur texte ; Supprimer les efface."
+  },
+  "memoryScopeKind": {
+   "Agent": "Mémoire privée d'un agent IA : seules ses exécutions la lisent et l'écrivent.",
+   "App": "Mémoire partagée d'une application : les exécutions de ses agents IA membres la lisent et l'écrivent.",
+   "OrgUnit": "Mémoire partagée d'une unité organisationnelle. Disponible avec l'arrivée des organisations.",
+   "Organization": "Mémoire partagée de toute une organisation. Disponible avec l'arrivée des organisations."
+  }
+ },
+ "memory": {
+  "denied": "Vous n'y êtes pas autorisé. Il faut {{operation}} sur Mémoire.",
+  "legacy": "Importée de la mémoire des agents IA écrite avant les portées. La clé s'affiche sous la forme legacy: suivie d'une empreinte jusqu'à ce qu'un agent IA réutilise l'entrée et qu'elle apprenne sa vraie clé.",
+  "scopes": {
+   "all": "Afficher les entrées de toutes les portées. Les totaux comptent chaque entrée et chaque octet du locataire.",
+   "scope": "Afficher uniquement les entrées de {{name}} ({{id}}).",
+   "orphan": "L'agent IA ou l'application {{id}} n'existe plus. Ses entrées restent ici jusqu'à leur suppression."
+  },
+  "filters": {
+   "search": "Afficher les entrées dont la clé, la catégorie ou une étiquette contient ce texte. La liste se met à jour quand vous arrêtez de taper.",
+   "category": "Afficher uniquement les entrées de cette catégorie exacte. La liste se met à jour quand vous arrêtez de taper.",
+   "tag": "Afficher uniquement les entrées portant exactement cette étiquette. La liste se met à jour quand vous arrêtez de taper.",
+   "writer": "Afficher uniquement les entrées écrites en dernier par les exécutions de cet agent IA. Choisissez Tous pour retirer le filtre."
+  },
+  "actions": {
+   "viewContent": "Ouvrir la provenance de l'entrée et le texte qu'elle contient, affiché en texte brut.",
+   "copyId": "Copier l'ID de l'entrée (mem_...) pour la REST API, les SDK ou les outils MCP.",
+   "openRun": "Ouvrir l'exécution qui a écrit cette entrée en dernier.",
+   "delete": "Supprimer cette entrée et son texte. Vous confirmez d'abord ; les agents IA qui la cherchent ne trouvent ensuite plus rien.",
+   "confirmDelete": "Supprimer l'entrée dans la version chargée. Une version plus récente n'est pas effacée.",
+   "reload": "Relire l'entrée pour voir sa version et sa provenance actuelles, puis décider."
+  },
+  "viewer": {
+   "content": "Le texte stocké dans l'entrée, tel qu'enregistré. Ce sont des données, jamais des instructions, et il n'est jamais rendu.",
+   "copy": "Copier le texte enregistré dans le presse-papiers."
+  }
+ },
+ "filters": {
+  "search": "Afficher les entrées dont la clé, la catégorie ou une étiquette contient ce texte. La liste se met à jour quand vous arrêtez de taper.",
+  "category": "Afficher uniquement les entrées de cette catégorie exacte. La liste se met à jour quand vous arrêtez de taper.",
+  "writer": "Afficher uniquement les entrées écrites en dernier par les exécutions de cet agent IA. Choisissez Tous pour retirer le filtre."
+ },
+ "resources": {
+  "memory": {
+   "key": "La clé de l'entrée dans sa portée. Les agents IA lisent et écrivent les entrées par clé.",
+   "scope": "Où vit l'entrée : la mémoire privée d'un agent IA ou la mémoire partagée d'une application. Survolez pour voir l'ID.",
+   "category": "Catégorie facultative donnée par l'auteur.",
+   "tags": "Étiquettes données par l'auteur. Les cycles des gardiens rappellent les entrées étiquetées recall.",
+   "writer": "Qui a écrit l'entrée en dernier : l'exécution d'un agent IA, ou une personne ou un identifiant d'API.",
+   "lastUpdateUtc": "Quand l'entrée a été écrite pour la dernière fois. Survolez pour l'heure exacte.",
+   "lastReadUtc": "Quand une exécution ou une personne a lu l'entrée pour la dernière fois. Enregistré par lots, donc parfois un peu en retard.",
+   "version": "Compteur d'écritures : chaque écriture ajoute un. Écrire ou supprimer avec cette version n'écrase jamais une version plus récente.",
+   "bytes": "Taille du texte enregistré en octets UTF-8.",
+   "expiresUtc": "Quand l'entrée expire et que la maintenance la supprime. Jamais signifie qu'elle reste jusqu'à sa suppression.",
+   "writerRunId": "L'exécution qui a écrit l'entrée en dernier, si une exécution l'a écrite.",
+   "createdUtc": "Quand l'entrée a été écrite pour la première fois.",
+   "sha256": "Empreinte SHA-256 du texte enregistré, pour comparer des versions sans les lire.",
+   "id": "L'ID de l'entrée (mem_...), pour la REST API, les SDK et les outils MCP."
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "Mémoire",
+  "p1": "Les agents IA conservent des notes d'une exécution à l'autre dans la mémoire. Chaque entrée vit dans une portée : la mémoire privée d'un agent IA, ou la mémoire partagée d'une application dont il fait partie. Les exécutions lisent et écrivent avec les outils garrison_memory, et seulement dans les portées que leur agent IA peut utiliser.",
+  "p2": "Chaque entrée enregistre qui l'a écrite, depuis quelle exécution, quand, et sa version. Une écriture ou une suppression qui indique la version lue est refusée si quelqu'un a écrit entre-temps ; ainsi agents IA et personnes ne s'écrasent pas.",
+  "p3": "Le texte est une donnée enregistrée par un agent IA ou une personne. Il s'affiche ici en texte brut et parvient aux agents IA comme donnée, jamais comme instruction. Supprimez une entrée qui ne doit pas être retenue ; les agents IA qui la cherchent ne trouvent ensuite plus rien."
+ }
+});

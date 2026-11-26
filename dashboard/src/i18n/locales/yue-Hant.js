@@ -6142,3 +6142,120 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "記憶",
+    "tip": "代理程式同人儲存咗嘅內容，按範圍列出，仲顯示每項由邊個寫、幾時寫"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "記憶"
+  },
+  "memoryScopeKind": {
+   "Agent": "代理程式",
+   "App": "應用程式",
+   "OrgUnit": "組織單位",
+   "Organization": "組織"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "呢項記憶喺你載入之後已經改咗。請重新載入再決定。",
+  "MemoryDisabled": "呢部伺服器關咗代理程式記憶，所以讀唔到項目文字，亦刪唔到項目。"
+ },
+ "memory": {
+  "legacy": "舊版",
+  "deletedScope": "{{id}}（已刪除）",
+  "neverRead": "從未",
+  "noExpiry": "永不",
+  "deleteTitle": "刪除呢項記憶？",
+  "deleteMessage": "由 {{scope}} 刪除 {{key}}？搵佢嘅代理程式會乜都搵唔到，佢嘅文字亦會被移除。呢個操作冇得復原。",
+  "deleteVersion": "會刪除你載入嘅版本 {{version}}。如果之後有人寫咗較新嘅版本，刪除會被拒絕。",
+  "deleteReloaded": "已重新載入：呢項而家係版本 {{version}}。刪除會移除呢個版本。",
+  "scopes": {
+   "label": "記憶範圍",
+   "all": "所有範圍",
+   "totals_other": "{{entries}} 項，{{bytes}}",
+   "loadFailed": "載入唔到記憶範圍。",
+   "empty": {
+    "Agent": "未有代理程式儲存過記憶。",
+    "App": "未有應用程式有共用記憶。",
+    "OrgUnit": "未有組織單位有記憶。",
+    "Organization": "未有組織有記憶。"
+   }
+  },
+  "filters": {
+   "search": "搜尋",
+   "searchPlaceholder": "鍵、類別或者標籤",
+   "categoryPlaceholder": "類別",
+   "tag": "標籤",
+   "tagPlaceholder": "標籤",
+   "writer": "寫入者"
+  },
+  "actions": {
+   "viewContent": "睇內容",
+   "copyId": "複製 ID",
+   "openRun": "打開寫入佢嘅執行",
+   "reload": "重新載入項目"
+  },
+  "viewer": {
+   "title": "記憶項目",
+   "content": "已儲存嘅內容",
+   "untrusted": "呢啲係代理程式或者人儲存嘅資料。佢會照儲存原樣用純文字顯示，入面任何內容都唔會被執行、轉譯或者遵從。",
+   "loading": "載入緊已儲存嘅文字...",
+   "empty": "呢項冇文字。"
+  },
+  "errors": {
+   "conflict": "你載入版本 {{version}} 之後有人改咗呢項，所以冇刪除。請重新載入睇吓佢而家有乜。",
+   "gone": "呢項已經唔存在。可能已經俾其他人刪咗。"
+  },
+  "toasts": {
+   "deleted": "已刪除 {{key}}。",
+   "copied": "已複製項目 ID。"
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "記憶",
+   "subtitle": "代理程式同人儲存咗嘅內容，按範圍列出：每項由邊個、幾時、由邊次執行寫入，同埋有幾大。打開項目就可以睇，唔應該記住嘅就刪咗佢。",
+   "add": "新增記憶項目",
+   "create": "建立記憶項目",
+   "edit": "編輯記憶項目",
+   "view": "記憶項目",
+   "deleteTitle": "刪除記憶項目",
+   "emptyTitle": "仲未有記憶",
+   "emptyBody": "代理程式執行嗰陣用 garrison_memory 工具儲存記憶。寫入咗項目之後，就會按範圍喺呢度顯示。",
+   "columns": {
+    "key": "鍵",
+    "scope": "範圍",
+    "category": "類別",
+    "tags": "標籤",
+    "writer": "寫入者",
+    "lastUpdateUtc": "最近寫入",
+    "lastReadUtc": "最近讀取",
+    "version": "版本",
+    "bytes": "大小",
+    "expiresUtc": "到期時間",
+    "writerRunId": "寫入佢嘅執行",
+    "createdUtc": "建立時間",
+    "sha256": "SHA-256 雜湊",
+    "id": "ID"
+   }
+  }
+ }
+});

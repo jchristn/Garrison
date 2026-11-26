@@ -1662,3 +1662,29 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .kill-switch-help, .kill-switch-meta { margin: var(--spacing-xs) 0 0; font-size: var(--font-size-sm); }
 .kill-switch-compact { margin-bottom: var(--spacing-sm); }
 .kill-switch-on.panel { border-color: var(--color-danger, #c0392b); }
+
+/* Scoped memory (AA4.13): the scope list above the entries table, the content viewer, and the delete dialog. */
+.page-intro:has(.memory-scopes) { max-width: none; color: inherit; font-size: inherit; }
+.memory-scopes { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--spacing-sm); display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.memory-scopes .error-banner { margin: 0; }
+.memory-scopes button { background: transparent; color: inherit; border: 1px solid transparent; border-radius: var(--radius-sm); text-align: start; width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); padding: 0.35rem 0.5rem; font-size: var(--font-size-sm); cursor: pointer; min-width: 0; min-height: 0; }
+.memory-scopes button:hover { background: var(--color-surface-alt); }
+.memory-scopes button.is-selected { background: var(--color-primary-soft); border-color: var(--color-primary); }
+.memory-scopes .error-banner button { width: auto; }
+.memory-scope-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--spacing-sm); }
+.memory-scope-group { min-width: 0; border-top: 1px solid var(--color-border); padding-top: var(--spacing-xs); }
+.memory-scope-kind { font-weight: 700; }
+.memory-scope-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.memory-scope-item .memory-scope-name { font-weight: 500; }
+.memory-scope-item.is-orphan .memory-scope-name { font-style: italic; color: var(--color-text-secondary); }
+.memory-scope-meta { flex-shrink: 0; color: var(--color-text-secondary); font-size: var(--font-size-xs); white-space: nowrap; }
+.memory-scope-items { list-style: none; margin: 0; padding: 0; max-height: 196px; overflow-y: auto; }
+.memory-scope-empty { margin: var(--spacing-xs) 0.5rem; font-size: var(--font-size-sm); }
+.memory-key-cell { display: inline-flex; align-items: center; gap: var(--spacing-xs); flex-wrap: wrap; min-width: 20ch; max-width: 360px; }
+.memory-key-cell code { white-space: normal; overflow-wrap: anywhere; }
+.memory-hash { overflow-wrap: anywhere; white-space: normal; }
+.memory-untrusted { margin: 0 0 var(--spacing-xs); font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.memory-content pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; }
+.memory-delete-details { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-xs); }
+.memory-delete-version { margin: 0; font-size: var(--font-size-sm); }
+@media (max-width: 560px) { .memory-scope-meta { white-space: normal; text-align: end; } }

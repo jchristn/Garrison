@@ -6188,3 +6188,121 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "Gedächtnis",
+    "tip": "Was Agenten und Personen gespeichert haben, nach Bereich, mit Verfasser und Zeitpunkt jedes Eintrags"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Gedächtnis"
+  },
+  "memoryScopeKind": {
+   "Agent": "Agent",
+   "App": "Anwendung",
+   "OrgUnit": "Organisationseinheit",
+   "Organization": "Organisation"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "Dieser Gedächtniseintrag hat sich seit dem Laden geändert. Laden Sie ihn neu und entscheiden Sie erneut.",
+  "MemoryDisabled": "Das Agentengedächtnis ist auf diesem Server ausgeschaltet. Eintragstexte lassen sich nicht lesen und Einträge nicht löschen."
+ },
+ "memory": {
+  "legacy": "Altbestand",
+  "deletedScope": "{{id}} (gelöscht)",
+  "neverRead": "Nie",
+  "noExpiry": "Nie",
+  "deleteTitle": "Diesen Gedächtniseintrag löschen?",
+  "deleteMessage": "{{key}} aus {{scope}} löschen? Agenten, die danach suchen, finden nichts mehr, und der Text wird entfernt. Das lässt sich nicht rückgängig machen.",
+  "deleteVersion": "Gelöscht wird Version {{version}}, die Sie geladen haben. Hat seitdem jemand eine neuere Version geschrieben, wird das Löschen abgelehnt.",
+  "deleteReloaded": "Neu geladen: Der Eintrag ist jetzt bei Version {{version}}. Löschen entfernt diese Version.",
+  "scopes": {
+   "label": "Gedächtnisbereiche",
+   "all": "Alle Bereiche",
+   "totals_one": "{{entries}} Eintrag, {{bytes}}",
+   "totals_other": "{{entries}} Einträge, {{bytes}}",
+   "loadFailed": "Die Gedächtnisbereiche konnten nicht geladen werden.",
+   "empty": {
+    "Agent": "Noch kein Agent hat etwas gespeichert.",
+    "App": "Noch keine Anwendung hat ein gemeinsames Gedächtnis.",
+    "OrgUnit": "Noch keine Organisationseinheit hat ein Gedächtnis.",
+    "Organization": "Noch keine Organisation hat ein Gedächtnis."
+   }
+  },
+  "filters": {
+   "search": "Suche",
+   "searchPlaceholder": "Schlüssel, Kategorie oder Schlagwort",
+   "categoryPlaceholder": "Kategorie",
+   "tag": "Schlagwort",
+   "tagPlaceholder": "Schlagwort",
+   "writer": "Geschrieben von"
+  },
+  "actions": {
+   "viewContent": "Inhalt anzeigen",
+   "copyId": "ID kopieren",
+   "openRun": "Schreibende Ausführung öffnen",
+   "reload": "Eintrag neu laden"
+  },
+  "viewer": {
+   "title": "Gedächtniseintrag",
+   "content": "Gespeicherter Inhalt",
+   "untrusted": "Dies sind Daten, die ein Agent oder eine Person gespeichert hat. Sie werden als reiner Text genau so angezeigt, wie sie gespeichert sind; nichts darin wird ausgeführt, gerendert oder befolgt.",
+   "loading": "Der gespeicherte Text wird geladen...",
+   "empty": "Dieser Eintrag enthält keinen Text."
+  },
+  "errors": {
+   "conflict": "Jemand hat diesen Eintrag geändert, seit Sie Version {{version}} geladen haben, daher wurde er nicht gelöscht. Laden Sie ihn neu, um den aktuellen Inhalt zu sehen.",
+   "gone": "Dieser Eintrag existiert nicht mehr. Möglicherweise hat ihn jemand anderes gelöscht."
+  },
+  "toasts": {
+   "deleted": "{{key}} gelöscht.",
+   "copied": "Die Eintrags-ID wurde kopiert."
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "Gedächtnis",
+   "subtitle": "Was Agenten und Personen gespeichert haben, nach Bereich: wer jeden Eintrag geschrieben hat, wann, aus welcher Ausführung und wie groß er ist. Öffnen Sie einen Eintrag, um ihn zu lesen, und löschen Sie, was nicht behalten werden soll.",
+   "add": "Gedächtniseintrag hinzufügen",
+   "create": "Gedächtniseintrag anlegen",
+   "edit": "Gedächtniseintrag bearbeiten",
+   "view": "Gedächtniseintrag",
+   "deleteTitle": "Gedächtniseintrag löschen",
+   "emptyTitle": "Noch kein Gedächtnis",
+   "emptyBody": "Agenten speichern während ihrer Ausführung mit den garrison_memory-Werkzeugen. Sobald ein Eintrag geschrieben ist, erscheint er hier nach Bereich.",
+   "columns": {
+    "key": "Schlüssel",
+    "scope": "Bereich",
+    "category": "Kategorie",
+    "tags": "Schlagwörter",
+    "writer": "Geschrieben von",
+    "lastUpdateUtc": "Zuletzt geschrieben",
+    "lastReadUtc": "Zuletzt gelesen",
+    "version": "Version",
+    "bytes": "Größe",
+    "expiresUtc": "Läuft ab",
+    "writerRunId": "Schreibende Ausführung",
+    "createdUtc": "Erstellt",
+    "sha256": "SHA-256-Prüfsumme",
+    "id": "ID"
+   }
+  }
+ }
+});

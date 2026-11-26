@@ -679,6 +679,11 @@ function routes(ids) {
     // Escalations (AA2.13): only runs raise them, so a fresh contract server lists none; the envelope is checked.
     ['listEscalations', tp(`escalations?${list}`)],
     ['listEscalations (status)', tp(`escalations?${list}&status=Open`)],
+    // Memory (AA4.13): only runs write memory (through the MCP tools), so a fresh contract server holds none; the scope
+    // list and the entries envelope are checked, with and without filters.
+    ['listMemoryScopes', tp('memory/scopes')],
+    ['listMemoryEntries', tp(`memory/entries?${list}`)],
+    ['listMemoryEntries (filters)', tp(`memory/entries?${list}&scopeKind=Agent&scopeId=${ids.agent}&category=notes&tag=recall&search=plan&writer=${ids.agent}`)],
     // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
     ['listFreezes', tp(`freezes?${list}`)],
     ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],

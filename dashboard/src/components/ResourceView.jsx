@@ -87,7 +87,9 @@ function applyClientFilters(config, filters, rows) {
  * `loadLookups({ apiClient, tenantId, principal })` can load the caller's permissions); `fieldErrorSpecial(t)` refines
  * translated field codes (see fieldErrorMessages); `errorFields(error, t)` places a refusal that is not a validation
  * error (for example 409 AppSlugTaken) on a field; on a form with steps, saving with errors opens the first step
- * that has one (a custom field claims extra keys with `errorKeys`).
+ * that has one (a custom field claims extra keys with `errorKeys`). `view: { label(t), tip(t), open(row, ctx) }` replaces
+ * the View action and row clicks with a custom viewer (memory content, AA4.13); `intro(ctx)` also receives the
+ * lookups, `filters`, and `setFilters`, so a panel above the table can drive server filters (the memory scope list).
  */
 export default function ResourceView({ config }) {
   const { t, i18n } = useTranslation();
@@ -240,7 +242,8 @@ export default function ResourceView({ config }) {
     return () => window.removeEventListener('focus', onFocus);
   }, [editing, config.reloadOptionsOnFocus, reloadOptions]);
   const openRow = (row) => {
-    if (config.detailPath) navigate(config.detailPath(row));
+    if (config.view) config.view.open(row, extraCtx());
+    else if (config.detailPath) navigate(config.detailPath(row));
     else open(isEditable(row) && config.api.update && !deniedTip('update', row) ? 'edit' : 'view', config.toForm ? config.toForm(row) : { ...row });
   };
 
@@ -325,6 +328,11 @@ export default function ResourceView({ config }) {
     load(page.pageNumber);
   };
 
+  // What row actions, a custom view (`config.view`), and the intro receive besides ctx.
+  function extraCtx() {
+    return { ...ctx, lookups, reload: () => load(page.pageNumber), reloadLookups: loadLookups, setExtraModal, setJsonValue };
+  }
+
   const columns = [
     ...config.columns({ ...ctx, lookups }),
     {
@@ -338,7 +346,9 @@ export default function ResourceView({ config }) {
         <ActionMenu
           label={r.name || r.email || r.id}
           items={[
-            { label: t('common.actions.view'), tip: t(config.detailPath ? 'tips.actions.openDetail' : 'tips.actions.view'), onClick: () => (config.detailPath ? navigate(config.detailPath(r)) : open('view', config.toForm ? config.toForm(r) : { ...r })) },
+            config.view
+              ? { label: config.view.label(t), tip: config.view.tip(t), onClick: () => config.view.open(r, extraCtx()) }
+              : { label: t('common.actions.view'), tip: t(config.detailPath ? 'tips.actions.openDetail' : 'tips.actions.view'), onClick: () => (config.detailPath ? navigate(config.detailPath(r)) : open('view', config.toForm ? config.toForm(r) : { ...r })) },
             {
               label: t('common.actions.edit'),
               tip: blockedTip('update', r) || t('tips.actions.edit'),
@@ -352,7 +362,7 @@ export default function ResourceView({ config }) {
               hidden: !canManage || config.canDuplicate === false || !config.api.create || !!deniedTip('create', r),
               onClick: () => open('create', config.toDuplicate ? config.toDuplicate(r) : stripForDuplicate(config.toForm ? config.toForm(r) : r, config.duplicateStrip || []))
             },
-            ...((config.rowActions && config.rowActions(r, { ...ctx, lookups, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
+            ...((config.rowActions && config.rowActions(r, extraCtx())) || []),
             { label: t('common.actions.viewJson'), tip: t('tips.actions.viewJson'), onClick: () => setJsonValue(r) },
             {
               label: t('common.actions.delete'),
@@ -370,7 +380,7 @@ export default function ResourceView({ config }) {
 
   const prefix = `resources.${config.id}`;
   const recordLabel = (key) => t(config.labels?.[key] || `${prefix}.${key}`);
-  const intro = config.intro ? config.intro({ ...ctx, listInfo }) : null;
+  const intro = config.intro ? config.intro({ ...extraCtx(), listInfo, filters, setFilters }) : null;
   const allFields = editing ? config.fields(editing.data, { ...ctx, mode: editing.mode, options, reloadOptions }) : [];
   const steps = config.steps || null;
   const fields = steps ? allFields.filter((f) => (f.step || 0) === step) : allFields;

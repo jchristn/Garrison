@@ -6176,3 +6176,121 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "Memory",
+    "tip": "What agents and people saved, by scope, with who wrote each entry and when"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Memory"
+  },
+  "memoryScopeKind": {
+   "Agent": "Agent",
+   "App": "App",
+   "OrgUnit": "Organization unit",
+   "Organization": "Organization"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "This memory entry changed since you loaded it. Reload it and decide again.",
+  "MemoryDisabled": "Agent memory is turned off on this server, so entry text cannot be read and entries cannot be deleted."
+ },
+ "memory": {
+  "legacy": "Legacy",
+  "deletedScope": "{{id}} (deleted)",
+  "neverRead": "Never",
+  "noExpiry": "Never",
+  "deleteTitle": "Delete this memory entry?",
+  "deleteMessage": "Delete {{key}} from {{scope}}? Agents that look for it find nothing, and its text is removed. This cannot be undone.",
+  "deleteVersion": "This deletes version {{version}}, the one you loaded. If someone wrote a newer version since, the delete is refused.",
+  "deleteReloaded": "Reloaded: the entry is now at version {{version}}. Delete removes this version.",
+  "scopes": {
+   "label": "Memory scopes",
+   "all": "All scopes",
+   "totals_one": "{{entries}} entry, {{bytes}}",
+   "totals_other": "{{entries}} entries, {{bytes}}",
+   "loadFailed": "The memory scopes could not be loaded.",
+   "empty": {
+    "Agent": "No agent has saved memory yet.",
+    "App": "No app has shared memory yet.",
+    "OrgUnit": "No organization unit has memory yet.",
+    "Organization": "No organization has memory yet."
+   }
+  },
+  "filters": {
+   "search": "Search",
+   "searchPlaceholder": "Key, category, or tag",
+   "categoryPlaceholder": "Category",
+   "tag": "Tag",
+   "tagPlaceholder": "Tag",
+   "writer": "Written by"
+  },
+  "actions": {
+   "viewContent": "View content",
+   "copyId": "Copy ID",
+   "openRun": "Open writer run",
+   "reload": "Reload entry"
+  },
+  "viewer": {
+   "title": "Memory entry",
+   "content": "Saved content",
+   "untrusted": "This is data an agent or a person saved. It is shown as plain text exactly as stored; nothing in it is run, rendered, or followed.",
+   "loading": "Loading the saved text...",
+   "empty": "This entry holds no text."
+  },
+  "errors": {
+   "conflict": "Someone changed this entry since you loaded version {{version}}, so it was not deleted. Reload it to see what it holds now.",
+   "gone": "This entry no longer exists. Someone else may have deleted it."
+  },
+  "toasts": {
+   "deleted": "Deleted {{key}}.",
+   "copied": "Copied the entry ID."
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "Memory",
+   "subtitle": "What agents and people saved, by scope: who wrote each entry, when, from which run, and how big it is. Open an entry to read it, and delete what should not be remembered.",
+   "add": "Add memory entry",
+   "create": "Create memory entry",
+   "edit": "Edit memory entry",
+   "view": "Memory entry",
+   "deleteTitle": "Delete memory entry",
+   "emptyTitle": "No memory yet",
+   "emptyBody": "Agents save memory with the garrison_memory tools while they run. Entries show here by scope once one is written.",
+   "columns": {
+    "key": "Key",
+    "scope": "Scope",
+    "category": "Category",
+    "tags": "Tags",
+    "writer": "Written by",
+    "lastUpdateUtc": "Last written",
+    "lastReadUtc": "Last read",
+    "version": "Version",
+    "bytes": "Size",
+    "expiresUtc": "Expires",
+    "writerRunId": "Writer run",
+    "createdUtc": "Created",
+    "sha256": "SHA-256",
+    "id": "ID"
+   }
+  }
+ }
+});

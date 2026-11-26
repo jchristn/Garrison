@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -216,6 +216,8 @@ export const ENUMS = {
   // Brakes (AA3): what a freeze stops. TenantAutonomy is the kill switch; OrgUnit and Organization arrive with
   // organizations (AA7) and are refused until then.
   freezeTargetKind: ['Agent', 'Deployment', 'Mandate', 'App', 'OrgUnit', 'Organization', 'TenantAutonomy'],
+  // Scoped memory (AA4): where an entry lives. OrgUnit and Organization hold entries once organizations exist (AA7).
+  memoryScopeKind: ['Agent', 'App', 'OrgUnit', 'Organization'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };

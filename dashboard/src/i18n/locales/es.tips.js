@@ -3601,3 +3601,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "Elimina permanentemente este borrador tras confirmar. Los agentes y despliegues publicados no se verán afectados.";
 tips.views.studio.discardPending = "Elimina permanentemente este borrador tras confirmar y cancela su aprobación pendiente.";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "Memoria: lo que agentes y personas guardaron, por ámbito, con quién escribió cada entrada y cuándo. Lea o elimine entradas aquí."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Entradas de la memoria por ámbitos. Leer lista las entradas y lee su texto; Eliminar las borra."
+  },
+  "memoryScopeKind": {
+   "Agent": "Memoria privada de un agente: solo las ejecuciones de ese agente la leen y escriben.",
+   "App": "Memoria compartida de una aplicación: la leen y escriben las ejecuciones de sus agentes miembros.",
+   "OrgUnit": "Memoria compartida de una unidad organizativa. Disponible cuando lleguen las organizaciones.",
+   "Organization": "Memoria compartida de toda una organización. Disponible cuando lleguen las organizaciones."
+  }
+ },
+ "memory": {
+  "denied": "No puede hacerlo. Hace falta {{operation}} sobre Memoria.",
+  "legacy": "Importada de la memoria de agentes escrita antes de los ámbitos. La clave aparece como legacy: y un hash hasta que un agente vuelve a usar la entrada y esta aprende su clave real.",
+  "scopes": {
+   "all": "Mostrar entradas de todos los ámbitos. Los totales cuentan cada entrada y cada byte del inquilino.",
+   "scope": "Mostrar solo las entradas de {{name}} ({{id}}).",
+   "orphan": "El agente o la aplicación {{id}} ya no existe. Sus entradas siguen aquí hasta que se eliminen."
+  },
+  "filters": {
+   "search": "Mostrar entradas cuya clave, categoría o alguna etiqueta contiene este texto. La lista se actualiza cuando deja de escribir.",
+   "category": "Mostrar solo entradas de esta categoría exacta. La lista se actualiza cuando deja de escribir.",
+   "tag": "Mostrar solo entradas con esta etiqueta exacta. La lista se actualiza cuando deja de escribir.",
+   "writer": "Mostrar solo entradas escritas por última vez por las ejecuciones de este agente. Elija Todos para quitar el filtro."
+  },
+  "actions": {
+   "viewContent": "Abrir la procedencia de la entrada y el texto que contiene, mostrado como texto plano.",
+   "copyId": "Copiar el ID de la entrada (mem_...) para la REST API, los SDK o las herramientas MCP.",
+   "openRun": "Abrir la ejecución que escribió esta entrada por última vez.",
+   "delete": "Eliminar esta entrada y su texto. Primero confirma; después, los agentes que la busquen no encontrarán nada.",
+   "confirmDelete": "Eliminar la entrada en la versión que cargó. No se borra una versión más reciente.",
+   "reload": "Volver a leer la entrada para ver su versión y procedencia actuales y luego decidir."
+  },
+  "viewer": {
+   "content": "El texto almacenado en la entrada, tal como se guardó. Son datos, nunca instrucciones, y nunca se representa.",
+   "copy": "Copiar el texto guardado al portapapeles."
+  }
+ },
+ "filters": {
+  "search": "Mostrar entradas cuya clave, categoría o alguna etiqueta contiene este texto. La lista se actualiza cuando deja de escribir.",
+  "category": "Mostrar solo entradas de esta categoría exacta. La lista se actualiza cuando deja de escribir.",
+  "writer": "Mostrar solo entradas escritas por última vez por las ejecuciones de este agente. Elija Todos para quitar el filtro."
+ },
+ "resources": {
+  "memory": {
+   "key": "La clave de la entrada dentro de su ámbito. Los agentes leen y escriben entradas por clave.",
+   "scope": "Dónde vive la entrada: la memoria privada de un agente o la memoria compartida de una aplicación. Pase el cursor para ver el ID.",
+   "category": "Categoría opcional que el autor dio a la entrada.",
+   "tags": "Etiquetas que el autor dio a la entrada. Los ciclos de los guardianes recuperan las entradas etiquetadas recall.",
+   "writer": "Quién escribió la entrada por última vez: la ejecución de un agente, o una persona o credencial de API.",
+   "lastUpdateUtc": "Cuándo se escribió la entrada por última vez. Pase el cursor para ver la hora exacta.",
+   "lastReadUtc": "Cuándo una ejecución o una persona leyó la entrada por última vez. Se registra por lotes, así que puede ir un poco atrasado.",
+   "version": "Contador de escrituras: cada escritura suma uno. Escribir o eliminar con esta versión nunca sobrescribe una más reciente.",
+   "bytes": "Tamaño del texto guardado en bytes UTF-8.",
+   "expiresUtc": "Cuándo caduca la entrada y el barrido de mantenimiento la elimina. Nunca significa que permanece hasta que se elimine.",
+   "writerRunId": "La ejecución que escribió la entrada por última vez, si la escribió una ejecución.",
+   "createdUtc": "Cuándo se escribió la entrada por primera vez.",
+   "sha256": "Hash SHA-256 del texto guardado, para comparar versiones sin leerlas.",
+   "id": "El ID de la entrada (mem_...), para la REST API, los SDK y las herramientas MCP."
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "Memoria",
+  "p1": "Los agentes guardan notas entre ejecuciones en la memoria. Cada entrada vive en un ámbito: la memoria privada de un agente o la memoria compartida de una aplicación a la que pertenece el agente. Las ejecuciones leen y escriben con las herramientas garrison_memory, y solo en los ámbitos que su agente puede usar.",
+  "p2": "Cada entrada registra quién la escribió, desde qué ejecución, cuándo y su versión. Una escritura o eliminación que indica la versión leída se rechaza si alguien escribió entretanto, así agentes y personas no se sobrescriben.",
+  "p3": "El texto son datos que guardó un agente o una persona. Aquí se muestra como texto plano y llega a los agentes como datos, nunca como instrucciones. Elimine una entrada que no deba recordarse; después, los agentes que la busquen no encontrarán nada."
+ }
+});

@@ -3601,3 +3601,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "Elimina definitivamente questa bozza dopo la conferma. Gli agenti e le distribuzioni pubblicati non saranno modificati.";
 tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la conferma e annulla la sua approvazione in sospeso.";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "Memoria: ciò che agenti e persone hanno salvato, per ambito, con chi ha scritto ogni voce e quando. Qui leggi o elimini le voci."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Voci della memoria per ambito. Lettura elenca le voci e ne legge il testo; Eliminazione le rimuove."
+  },
+  "memoryScopeKind": {
+   "Agent": "Memoria privata di un agente: solo le esecuzioni di quell'agente la leggono e la scrivono.",
+   "App": "Memoria condivisa di un'applicazione: la leggono e la scrivono le esecuzioni dei suoi agenti membri.",
+   "OrgUnit": "Memoria condivisa di un'unità organizzativa. Disponibile quando arriveranno le organizzazioni.",
+   "Organization": "Memoria condivisa di un'intera organizzazione. Disponibile quando arriveranno le organizzazioni."
+  }
+ },
+ "memory": {
+  "denied": "Non puoi farlo. Serve {{operation}} su Memoria.",
+  "legacy": "Importata dalla memoria degli agenti scritta prima degli ambiti. La chiave appare come legacy: seguita da un hash finché un agente non riusa la voce e questa impara la sua vera chiave.",
+  "scopes": {
+   "all": "Mostra le voci di tutti gli ambiti. I totali contano ogni voce e ogni byte del tenant.",
+   "scope": "Mostra solo le voci di {{name}} ({{id}}).",
+   "orphan": "L'agente o l'applicazione {{id}} non esiste più. Le sue voci restano qui finché non vengono eliminate."
+  },
+  "filters": {
+   "search": "Mostra le voci la cui chiave, categoria o un'etichetta contiene questo testo. L'elenco si aggiorna quando smetti di digitare.",
+   "category": "Mostra solo le voci di questa categoria esatta. L'elenco si aggiorna quando smetti di digitare.",
+   "tag": "Mostra solo le voci con questa etichetta esatta. L'elenco si aggiorna quando smetti di digitare.",
+   "writer": "Mostra solo le voci scritte per ultime dalle esecuzioni di questo agente. Scegli Tutti per rimuovere il filtro."
+  },
+  "actions": {
+   "viewContent": "Apri la provenienza della voce e il testo che contiene, mostrato come testo semplice.",
+   "copyId": "Copia l'ID della voce (mem_...) per la REST API, gli SDK o gli strumenti MCP.",
+   "openRun": "Apri l'esecuzione che ha scritto per ultima questa voce.",
+   "delete": "Elimina questa voce e il suo testo. Prima confermi; poi gli agenti che la cercano non trovano nulla.",
+   "confirmDelete": "Elimina la voce nella versione caricata. Una versione più recente non viene rimossa.",
+   "reload": "Rileggi la voce per vedere versione e provenienza attuali, poi decidi."
+  },
+  "viewer": {
+   "content": "Il testo memorizzato nella voce, esattamente come salvato. Sono dati, mai istruzioni, e non viene mai visualizzato come pagina.",
+   "copy": "Copia il testo salvato negli appunti."
+  }
+ },
+ "filters": {
+  "search": "Mostra le voci la cui chiave, categoria o un'etichetta contiene questo testo. L'elenco si aggiorna quando smetti di digitare.",
+  "category": "Mostra solo le voci di questa categoria esatta. L'elenco si aggiorna quando smetti di digitare.",
+  "writer": "Mostra solo le voci scritte per ultime dalle esecuzioni di questo agente. Scegli Tutti per rimuovere il filtro."
+ },
+ "resources": {
+  "memory": {
+   "key": "La chiave della voce nel suo ambito. Gli agenti leggono e scrivono le voci per chiave.",
+   "scope": "Dove vive la voce: la memoria privata di un agente o la memoria condivisa di un'applicazione. Passa il mouse per l'ID.",
+   "category": "Categoria facoltativa assegnata da chi ha scritto la voce.",
+   "tags": "Etichette assegnate da chi ha scritto la voce. I cicli dei custodi richiamano le voci con l'etichetta recall.",
+   "writer": "Chi ha scritto la voce per ultimo: l'esecuzione di un agente, oppure una persona o una credenziale API.",
+   "lastUpdateUtc": "Quando la voce è stata scritta per l'ultima volta. Passa il mouse per l'ora esatta.",
+   "lastReadUtc": "Quando un'esecuzione o una persona ha letto la voce per l'ultima volta. Registrato a lotti, quindi può essere un po' in ritardo.",
+   "version": "Contatore delle scritture: ogni scrittura aggiunge uno. Scrivere o eliminare con questa versione non sovrascrive mai una più recente.",
+   "bytes": "Dimensione del testo salvato in byte UTF-8.",
+   "expiresUtc": "Quando la voce scade e la manutenzione la elimina. Mai significa che resta finché non viene eliminata.",
+   "writerRunId": "L'esecuzione che ha scritto la voce per ultima, se l'ha scritta un'esecuzione.",
+   "createdUtc": "Quando la voce è stata scritta la prima volta.",
+   "sha256": "Hash SHA-256 del testo salvato, per confrontare versioni senza leggerle.",
+   "id": "L'ID della voce (mem_...), per la REST API, gli SDK e gli strumenti MCP."
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "Memoria",
+  "p1": "Gli agenti conservano appunti tra un'esecuzione e l'altra nella memoria. Ogni voce vive in un ambito: la memoria privata di un agente o la memoria condivisa di un'applicazione a cui l'agente appartiene. Le esecuzioni leggono e scrivono con gli strumenti garrison_memory, e solo negli ambiti che il loro agente può usare.",
+  "p2": "Ogni voce registra chi l'ha scritta, da quale esecuzione, quando e la sua versione. Una scrittura o un'eliminazione che indica la versione letta viene rifiutata se nel frattempo qualcuno ha scritto, così agenti e persone non si sovrascrivono.",
+  "p3": "Il testo sono dati salvati da un agente o da una persona. Qui appare come testo semplice e arriva agli agenti come dati, mai come istruzioni. Elimina una voce che non va ricordata; poi gli agenti che la cercano non trovano nulla."
+ }
+});

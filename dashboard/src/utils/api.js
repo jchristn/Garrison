@@ -1227,6 +1227,46 @@ class ApiClient {
     return this._request('PUT', this._t(tenantId, 'autonomy/kill-switch'), { body });
   }
 
+  // ------------------------------------------------------------------ scoped memory (AA4)
+
+  /**
+   * The memory scopes that hold entries: [{ scopeKind (Agent, App, OrgUnit, Organization), scopeId, scopeName (null
+   * when the agent or app no longer exists), entryCount, bytes, lastUpdateUtc }].
+   */
+  listMemoryScopes(tenantId) {
+    return this._request('GET', this._t(tenantId, 'memory/scopes'));
+  }
+
+  /**
+   * Memory entries without their text, ordered by scope and key. filters: scopeKind, scopeId, category, tag, search
+   * (key, category, or tag contains), writer (agent ID), keyPrefix, pageNumber, pageSize.
+   */
+  listMemoryEntries(tenantId, params) {
+    return this._list(this._t(tenantId, 'memory/entries'), params);
+  }
+
+  /** Read a memory entry's metadata and provenance. */
+  getMemoryEntry(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `memory/entries/${enc(id)}`));
+  }
+
+  /**
+   * Read a memory entry's text: { found, entry, value }. The value is data an agent or a person saved; show it as plain
+   * text. Throws 409 MemoryDisabled when agent memory is turned off on the server.
+   */
+  getMemoryContent(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `memory/entries/${enc(id)}/content`));
+  }
+
+  /**
+   * Delete a memory entry and its text. With expectedVersion, the server deletes only while the entry is at that
+   * version and otherwise throws 409 MemoryVersionConflict.
+   */
+  deleteMemoryEntry(tenantId, id, expectedVersion) {
+    const query = expectedVersion !== undefined && expectedVersion !== null ? { expectedVersion } : null;
+    return this._request('DELETE', this._t(tenantId, `memory/entries/${enc(id)}`), { query });
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

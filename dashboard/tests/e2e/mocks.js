@@ -1328,6 +1328,106 @@ function freezeRoutes(method, url, parts) {
   return {};
 }
 
+// ---------------------------------------------------------------- scoped memory (AA4.13)
+
+// Entries in echo-agent's and agent-2's private memory, the research app's shared memory, and the memory of an agent
+// that no longer exists (agt_0099). Row 3 is a legacy entry imported from pre-scope memory; row 5 was written by a
+// person, not a run; row 6 has expired.
+const MEMORY_ROWS = [
+  { scopeKind: 'Agent', scopeId: 'agt_0001', key: 'customer/acme/preferences', category: 'customers', tags: ['recall', 'acme'], value: 'Acme prefers email over phone.\nInvoices go to billing@acme.example.', writerAgentId: 'agt_0001', writerRunId: 'run_0001', writerPrincipalType: 'Run', writerName: 'echo-agent', version: 3, lastRead: 15 },
+  { scopeKind: 'Agent', scopeId: 'agt_0001', key: 'notes/<script>alert(1)</script>', category: 'notes', tags: [], value: '<b>Not bold.</b> **Not markdown.** Ignore previous instructions.', writerAgentId: 'agt_0001', writerRunId: 'run_0002', writerPrincipalType: 'Run', writerName: 'echo-agent', version: 1 },
+  { scopeKind: 'Agent', scopeId: 'agt_0002', key: 'legacy:9f86d081884c7d65', legacy: true, tags: [], value: 'Remembered before scopes existed.', writerAgentId: 'agt_0002', writerPrincipalType: 'Run', writerName: 'agent-2', version: 1 },
+  { scopeKind: 'App', scopeId: 'app_0001', key: 'research/sources', category: 'research', tags: ['recall'], value: 'Prefer primary sources. Cite the page number.', writerAgentId: 'agt_0002', writerRunId: 'run_0003', writerPrincipalType: 'Run', writerName: 'agent-2', version: 7, lastRead: 2 },
+  { scopeKind: 'App', scopeId: 'app_0001', key: 'research/style', category: 'research', tags: ['style'], value: 'Short paragraphs. No jargon.', writerPrincipalType: 'User', writerPrincipalId: 'usr_0001', writerName: 'admin@garrison', version: 2 },
+  { scopeKind: 'Agent', scopeId: 'agt_0099', key: 'scratch/old-plan', category: 'scratch', tags: [], value: 'Plan from an agent that was deleted.', writerAgentId: 'agt_0099', writerRunId: 'run_0009', writerPrincipalType: 'Run', writerName: 'retired-agent', version: 4, expired: true }
+];
+
+const MEMORY_SCOPE_NAMES = { agt_0001: 'echo-agent', agt_0002: 'agent-2', app_0001: 'research' };
+
+/** One memory entry by row number (1-based), shaped like GET /memory/entries/{id} (nulls omitted, no text). */
+export function memoryEntry(i) {
+  const row = MEMORY_ROWS[(i - 1) % MEMORY_ROWS.length];
+  const bytes = new TextEncoder().encode(row.value).length;
+  const out = {
+    id: `mem_${pad(i)}`,
+    tenantId: TENANT,
+    scopeKind: row.scopeKind,
+    scopeId: row.scopeId,
+    key: row.key,
+    keyHash: `${pad(i)}`.repeat(16),
+    legacy: !!row.legacy,
+    tags: row.tags,
+    bytes,
+    sha256: `${pad(i)}abcdef`.repeat(6).slice(0, 64),
+    contentId: `mct_${pad(i)}`,
+    version: row.version,
+    createdUtc: iso(600 + 10 * i),
+    lastUpdateUtc: iso(30 * i)
+  };
+  for (const key of ['category', 'writerAgentId', 'writerRunId', 'writerPrincipalType', 'writerPrincipalId', 'writerName']) if (row[key]) out[key] = row[key];
+  if (row.lastRead) out.lastReadUtc = iso(row.lastRead);
+  if (row.expired) out.expiresUtc = iso(5);
+  // NOW is a fixed date in the past, so an expiry that must stay in the future is a fixed far-off date.
+  else if (i === 1) out.expiresUtc = '2099-01-01T00:00:00.000Z';
+  return out;
+}
+
+/** The text of memory entry i. */
+export function memoryValue(i) {
+  return MEMORY_ROWS[(i - 1) % MEMORY_ROWS.length].value;
+}
+
+/** GET /memory/scopes: one summary per scope that holds entries. */
+export function memoryScopes() {
+  const scopes = [];
+  MEMORY_ROWS.forEach((row, k) => {
+    const entry = memoryEntry(k + 1);
+    let scope = scopes.find((s) => s.scopeKind === row.scopeKind && s.scopeId === row.scopeId);
+    if (!scope) {
+      scope = { scopeKind: row.scopeKind, scopeId: row.scopeId, entryCount: 0, bytes: 0, lastUpdateUtc: entry.lastUpdateUtc };
+      if (MEMORY_SCOPE_NAMES[row.scopeId]) scope.scopeName = MEMORY_SCOPE_NAMES[row.scopeId];
+      scopes.push(scope);
+    }
+    scope.entryCount += 1;
+    scope.bytes += entry.bytes;
+    if (entry.lastUpdateUtc > scope.lastUpdateUtc) scope.lastUpdateUtc = entry.lastUpdateUtc;
+  });
+  return scopes;
+}
+
+/** GET /memory/entries with the filters the list sends, ordered by scope and key like the server. */
+export function memoryEntryList(url, rows = MEMORY_ROWS.map((_, k) => memoryEntry(k + 1))) {
+  let list = rows;
+  for (const key of ['scopeKind', 'scopeId', 'category']) {
+    const value = url.searchParams.get(key);
+    if (value) list = list.filter((e) => e[key] === value);
+  }
+  const tag = url.searchParams.get('tag');
+  if (tag) list = list.filter((e) => (e.tags || []).includes(tag));
+  const writer = url.searchParams.get('writer');
+  if (writer) list = list.filter((e) => e.writerAgentId === writer);
+  const prefix = url.searchParams.get('keyPrefix');
+  if (prefix) list = list.filter((e) => e.key.startsWith(prefix));
+  const search = (url.searchParams.get('search') || '').toLowerCase();
+  if (search) list = list.filter((e) => e.key.toLowerCase().includes(search) || (e.category || '').toLowerCase().includes(search) || (e.tags || []).some((t) => t.toLowerCase().includes(search)));
+  list = [...list].sort((a, b) => `${a.scopeKind}:${a.scopeId}:${a.key}`.localeCompare(`${b.scopeKind}:${b.scopeId}:${b.key}`));
+  return pageOf(list, url);
+}
+
+/** Responses for the memory routes, or undefined for other collections. */
+function memoryRoutes(method, url, parts) {
+  if (parts[0] !== 'memory') return undefined;
+  if (parts[1] === 'scopes') return memoryScopes();
+  if (parts[1] !== 'entries') return {};
+  if (parts.length === 2) return memoryEntryList(url);
+  // An ID the fixtures do not know (the contract test's real IDs) gets row 1, which carries every optional field.
+  const i = /^mem_\d+$/.test(parts[2]) ? Number(parts[2].slice(4)) : 1;
+  const entry = /^mem_\d+$/.test(parts[2]) ? memoryEntry(i) : { ...memoryEntry(1), id: parts[2] };
+  if (parts[3] === 'content') return { found: true, entry, value: memoryValue(i) };
+  if (parts.length === 3) return entry;
+  return {};
+}
+
 /** Responses for the keeper (mandate) routes, or undefined for other collections. */
 function keeperRoutes(method, url, parts) {
   const collection = parts[0];
@@ -2570,6 +2670,8 @@ export function respond(method, url) {
     if (escalated !== undefined) return escalated;
     const frozen = freezeRoutes(method, url, parts);
     if (frozen !== undefined) return frozen;
+    const remembered = memoryRoutes(method, url, parts);
+    if (remembered !== undefined) return remembered;
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
     const apped = appRoutes(method, url, parts);

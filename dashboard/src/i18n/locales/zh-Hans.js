@@ -6143,3 +6143,120 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "记忆",
+    "tip": "智能体和人员保存的内容，按范围列出，并显示每条记录的写入者和时间"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "记忆"
+  },
+  "memoryScopeKind": {
+   "Agent": "智能体",
+   "App": "应用",
+   "OrgUnit": "组织单元",
+   "Organization": "组织"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "这条记忆在你加载后已被更改。请重新加载后再做决定。",
+  "MemoryDisabled": "此服务器已关闭智能体记忆，因此无法读取条目文本，也无法删除条目。"
+ },
+ "memory": {
+  "legacy": "旧版",
+  "deletedScope": "{{id}}（已删除）",
+  "neverRead": "从未",
+  "noExpiry": "永不",
+  "deleteTitle": "删除这条记忆？",
+  "deleteMessage": "从 {{scope}} 中删除 {{key}}？查找它的智能体将什么也找不到，其文本也会被移除。此操作无法撤销。",
+  "deleteVersion": "将删除你加载的版本 {{version}}。如果此后有人写入了更新的版本，删除会被拒绝。",
+  "deleteReloaded": "已重新加载：该条目现在是版本 {{version}}。删除会移除此版本。",
+  "scopes": {
+   "label": "记忆范围",
+   "all": "所有范围",
+   "totals_other": "{{entries}} 条，{{bytes}}",
+   "loadFailed": "无法加载记忆范围。",
+   "empty": {
+    "Agent": "还没有智能体保存记忆。",
+    "App": "还没有应用拥有共享记忆。",
+    "OrgUnit": "还没有组织单元拥有记忆。",
+    "Organization": "还没有组织拥有记忆。"
+   }
+  },
+  "filters": {
+   "search": "搜索",
+   "searchPlaceholder": "键、类别或标签",
+   "categoryPlaceholder": "类别",
+   "tag": "标签",
+   "tagPlaceholder": "标签",
+   "writer": "写入者"
+  },
+  "actions": {
+   "viewContent": "查看内容",
+   "copyId": "复制 ID",
+   "openRun": "打开写入它的运行",
+   "reload": "重新加载条目"
+  },
+  "viewer": {
+   "title": "记忆条目",
+   "content": "已保存的内容",
+   "untrusted": "这是智能体或人员保存的数据。它按存储原样以纯文本显示，其中的任何内容都不会被执行、渲染或遵从。",
+   "loading": "正在加载已保存的文本...",
+   "empty": "此条目没有文本。"
+  },
+  "errors": {
+   "conflict": "自你加载版本 {{version}} 以来有人更改了此条目，因此未删除。请重新加载以查看其当前内容。",
+   "gone": "此条目已不存在。可能已被其他人删除。"
+  },
+  "toasts": {
+   "deleted": "已删除 {{key}}。",
+   "copied": "已复制条目 ID。"
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "记忆",
+   "subtitle": "智能体和人员保存的内容，按范围列出：每条记录由谁、何时、从哪次运行写入，以及大小。打开条目即可阅读，删除不应保留的内容。",
+   "add": "添加记忆条目",
+   "create": "创建记忆条目",
+   "edit": "编辑记忆条目",
+   "view": "记忆条目",
+   "deleteTitle": "删除记忆条目",
+   "emptyTitle": "还没有记忆",
+   "emptyBody": "智能体在运行时使用 garrison_memory 工具保存记忆。写入条目后，它会按范围显示在这里。",
+   "columns": {
+    "key": "键",
+    "scope": "范围",
+    "category": "类别",
+    "tags": "标签",
+    "writer": "写入者",
+    "lastUpdateUtc": "最近写入",
+    "lastReadUtc": "最近读取",
+    "version": "版本",
+    "bytes": "大小",
+    "expiresUtc": "过期时间",
+    "writerRunId": "写入它的运行",
+    "createdUtc": "创建时间",
+    "sha256": "SHA-256 哈希",
+    "id": "ID"
+   }
+  }
+ }
+});

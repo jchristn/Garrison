@@ -6142,3 +6142,120 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "メモリ",
+    "tip": "エージェントや人が保存した内容をスコープ別に、各エントリの書き込み者と日時とともに表示"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "メモリ"
+  },
+  "memoryScopeKind": {
+   "Agent": "エージェント",
+   "App": "アプリ",
+   "OrgUnit": "組織単位",
+   "Organization": "組織"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "このメモリエントリは読み込んだ後に変更されました。再読み込みしてから改めて判断してください。",
+  "MemoryDisabled": "このサーバーではエージェントメモリがオフのため、エントリのテキストの読み取りもエントリの削除もできません。"
+ },
+ "memory": {
+  "legacy": "旧形式",
+  "deletedScope": "{{id}} (削除済み)",
+  "neverRead": "なし",
+  "noExpiry": "なし",
+  "deleteTitle": "このメモリエントリを削除しますか?",
+  "deleteMessage": "{{scope}} から {{key}} を削除しますか? これを探すエージェントは何も見つけられなくなり、テキストも削除されます。元に戻せません。",
+  "deleteVersion": "読み込んだバージョン {{version}} を削除します。その後に誰かが新しいバージョンを書き込んでいれば、削除は拒否されます。",
+  "deleteReloaded": "再読み込みしました。エントリは現在バージョン {{version}} です。削除するとこのバージョンが消えます。",
+  "scopes": {
+   "label": "メモリのスコープ",
+   "all": "すべてのスコープ",
+   "totals_other": "{{entries}} 件、{{bytes}}",
+   "loadFailed": "メモリのスコープを読み込めませんでした。",
+   "empty": {
+    "Agent": "まだメモリを保存したエージェントはありません。",
+    "App": "まだ共有メモリを持つアプリはありません。",
+    "OrgUnit": "まだメモリを持つ組織単位はありません。",
+    "Organization": "まだメモリを持つ組織はありません。"
+   }
+  },
+  "filters": {
+   "search": "検索",
+   "searchPlaceholder": "キー、カテゴリ、タグ",
+   "categoryPlaceholder": "カテゴリ",
+   "tag": "タグ",
+   "tagPlaceholder": "タグ",
+   "writer": "書き込み者"
+  },
+  "actions": {
+   "viewContent": "内容を表示",
+   "copyId": "ID をコピー",
+   "openRun": "書き込んだ実行を開く",
+   "reload": "エントリを再読み込み"
+  },
+  "viewer": {
+   "title": "メモリエントリ",
+   "content": "保存された内容",
+   "untrusted": "これはエージェントまたは人が保存したデータです。保存されたとおりのプレーンテキストで表示され、中身が実行、描画、または指示として扱われることはありません。",
+   "loading": "保存されたテキストを読み込んでいます...",
+   "empty": "このエントリにはテキストがありません。"
+  },
+  "errors": {
+   "conflict": "バージョン {{version}} を読み込んだ後に誰かがこのエントリを変更したため、削除されませんでした。再読み込みして現在の内容を確認してください。",
+   "gone": "このエントリはもう存在しません。他の人が削除した可能性があります。"
+  },
+  "toasts": {
+   "deleted": "{{key}} を削除しました。",
+   "copied": "エントリの ID をコピーしました。"
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "メモリ",
+   "subtitle": "エージェントや人が保存した内容をスコープ別に表示します。各エントリを誰がいつ、どの実行から書き込んだか、サイズはどれくらいかがわかります。エントリを開いて読み、覚えておくべきでないものは削除します。",
+   "add": "メモリエントリを追加",
+   "create": "メモリエントリを作成",
+   "edit": "メモリエントリを編集",
+   "view": "メモリエントリ",
+   "deleteTitle": "メモリエントリを削除",
+   "emptyTitle": "メモリはまだありません",
+   "emptyBody": "エージェントは実行中に garrison_memory ツールでメモリを保存します。エントリが書き込まれると、ここにスコープ別に表示されます。",
+   "columns": {
+    "key": "キー",
+    "scope": "スコープ",
+    "category": "カテゴリ",
+    "tags": "タグ",
+    "writer": "書き込み者",
+    "lastUpdateUtc": "最終書き込み",
+    "lastReadUtc": "最終読み取り",
+    "version": "バージョン",
+    "bytes": "サイズ",
+    "expiresUtc": "有効期限",
+    "writerRunId": "書き込んだ実行",
+    "createdUtc": "作成",
+    "sha256": "SHA-256 ハッシュ",
+    "id": "ID"
+   }
+  }
+ }
+});

@@ -6202,3 +6202,121 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Scoped memory (AA4.13): the Memory page, its scope list, content viewer, and delete dialog, the scope kind enum,
+// the Memory resource type, and the memory error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "memory": {
+    "label": "Memoria",
+    "tip": "Ciò che agenti e persone hanno salvato, per ambito, con chi ha scritto ogni voce e quando"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "Memoria"
+  },
+  "memoryScopeKind": {
+   "Agent": "Agente",
+   "App": "Applicazione",
+   "OrgUnit": "Unità organizzativa",
+   "Organization": "Organizzazione"
+  }
+ },
+ "errorCodes": {
+  "MemoryVersionConflict": "Questa voce di memoria è cambiata da quando l'hai caricata. Ricaricala e decidi di nuovo.",
+  "MemoryDisabled": "La memoria degli agenti è disattivata su questo server, quindi il testo delle voci non si può leggere e le voci non si possono eliminare."
+ },
+ "memory": {
+  "legacy": "Precedente",
+  "deletedScope": "{{id}} (eliminato)",
+  "neverRead": "Mai",
+  "noExpiry": "Mai",
+  "deleteTitle": "Eliminare questa voce di memoria?",
+  "deleteMessage": "Eliminare {{key}} da {{scope}}? Gli agenti che la cercano non troveranno nulla e il suo testo viene rimosso. L'operazione non si può annullare.",
+  "deleteVersion": "Viene eliminata la versione {{version}}, quella che hai caricato. Se nel frattempo qualcuno ha scritto una versione più recente, l'eliminazione viene rifiutata.",
+  "deleteReloaded": "Ricaricata: la voce ora è alla versione {{version}}. Elimina rimuove questa versione.",
+  "scopes": {
+   "label": "Ambiti di memoria",
+   "all": "Tutti gli ambiti",
+   "totals_one": "{{entries}} voce, {{bytes}}",
+   "totals_other": "{{entries}} voci, {{bytes}}",
+   "loadFailed": "Non è stato possibile caricare gli ambiti di memoria.",
+   "empty": {
+    "Agent": "Nessun agente ha ancora salvato memoria.",
+    "App": "Nessuna applicazione ha ancora memoria condivisa.",
+    "OrgUnit": "Nessuna unità organizzativa ha ancora memoria.",
+    "Organization": "Nessuna organizzazione ha ancora memoria."
+   }
+  },
+  "filters": {
+   "search": "Cerca",
+   "searchPlaceholder": "Chiave, categoria o etichetta",
+   "categoryPlaceholder": "Categoria",
+   "tag": "Etichetta",
+   "tagPlaceholder": "Etichetta",
+   "writer": "Scritta da"
+  },
+  "actions": {
+   "viewContent": "Visualizza contenuto",
+   "copyId": "Copia ID",
+   "openRun": "Apri l'esecuzione che l'ha scritta",
+   "reload": "Ricarica voce"
+  },
+  "viewer": {
+   "title": "Voce di memoria",
+   "content": "Contenuto salvato",
+   "untrusted": "Sono dati salvati da un agente o da una persona. Vengono mostrati come testo semplice, esattamente come memorizzati; nulla al loro interno viene eseguito, visualizzato come pagina o seguito.",
+   "loading": "Caricamento del testo salvato...",
+   "empty": "Questa voce non contiene testo."
+  },
+  "errors": {
+   "conflict": "Qualcuno ha modificato questa voce da quando hai caricato la versione {{version}}, quindi non è stata eliminata. Ricaricala per vedere cosa contiene ora.",
+   "gone": "Questa voce non esiste più. Forse l'ha eliminata qualcun altro."
+  },
+  "toasts": {
+   "deleted": "{{key}} eliminata.",
+   "copied": "ID della voce copiato."
+  }
+ },
+ "resources": {
+  "memory": {
+   "title": "Memoria",
+   "subtitle": "Ciò che agenti e persone hanno salvato, per ambito: chi ha scritto ogni voce, quando, da quale esecuzione e quanto è grande. Apri una voce per leggerla ed elimina ciò che non va ricordato.",
+   "add": "Aggiungi voce di memoria",
+   "create": "Crea voce di memoria",
+   "edit": "Modifica voce di memoria",
+   "view": "Voce di memoria",
+   "deleteTitle": "Elimina voce di memoria",
+   "emptyTitle": "Ancora nessuna memoria",
+   "emptyBody": "Gli agenti salvano memoria con gli strumenti garrison_memory durante l'esecuzione. Le voci compaiono qui per ambito appena ne viene scritta una.",
+   "columns": {
+    "key": "Chiave",
+    "scope": "Ambito",
+    "category": "Categoria",
+    "tags": "Etichette",
+    "writer": "Scritta da",
+    "lastUpdateUtc": "Ultima scrittura",
+    "lastReadUtc": "Ultima lettura",
+    "version": "Versione",
+    "bytes": "Dimensione",
+    "expiresUtc": "Scade",
+    "writerRunId": "Esecuzione autrice",
+    "createdUtc": "Creata",
+    "sha256": "Hash SHA-256",
+    "id": "ID"
+   }
+  }
+ }
+});

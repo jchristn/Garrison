@@ -3598,3 +3598,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "確認後永久刪除此草稿。已發佈的智慧體和部署不受影響。";
 tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消其待處理的套用核准。";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "記憶：代理程式和人員儲存的內容，依範圍列出，並顯示每筆項目的寫入者和時間。在這裡閱讀或刪除項目。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "範圍記憶中的項目。讀取用於列出項目並讀取文字；刪除用於移除項目。"
+  },
+  "memoryScopeKind": {
+   "Agent": "某個代理程式的私有記憶：只有該代理程式的執行可以讀寫。",
+   "App": "某個應用程式的共用記憶：應用程式成員代理程式的執行可以讀寫。",
+   "OrgUnit": "組織單位的共用記憶。組織功能推出後可用。",
+   "Organization": "整個組織的共用記憶。組織功能推出後可用。"
+  }
+ },
+ "memory": {
+  "denied": "你無權執行此操作。需要對記憶擁有 {{operation}} 權限。",
+  "legacy": "從範圍功能推出前寫入的代理程式記憶匯入。在代理程式再次使用該項目並得知其真實鍵之前，鍵顯示為 legacy: 加一個雜湊。",
+  "scopes": {
+   "all": "顯示所有範圍的項目。合計統計租戶中的全部項目和位元組數。",
+   "scope": "只顯示 {{name}}（{{id}}）的項目。",
+   "orphan": "代理程式或應用程式 {{id}} 已不存在。它的項目會保留在這裡，直到被刪除。"
+  },
+  "filters": {
+   "search": "顯示鍵、類別或某個標籤包含此文字的項目。停止輸入後清單會更新。",
+   "category": "只顯示完全屬於此類別的項目。停止輸入後清單會更新。",
+   "tag": "只顯示帶有此確切標籤的項目。停止輸入後清單會更新。",
+   "writer": "只顯示最近由此代理程式的執行寫入的項目。選擇全部可移除篩選。"
+  },
+  "actions": {
+   "viewContent": "開啟項目的來源資訊及其儲存的文字，以純文字顯示。",
+   "copyId": "複製項目 ID（mem_...），用於 REST API、SDK 或 MCP 工具。",
+   "openRun": "開啟最近寫入此項目的執行。",
+   "delete": "刪除此項目及其文字。需先確認；之後尋找它的代理程式將什麼也找不到。",
+   "confirmDelete": "依你載入的版本刪除項目。較新的版本不會被移除。",
+   "reload": "重新讀取項目，查看其目前版本和來源，然後再做決定。"
+  },
+  "viewer": {
+   "content": "項目中儲存的文字，與儲存時完全一致。它是資料而不是指令，也從不被轉譯。",
+   "copy": "將已儲存的文字複製到剪貼簿。"
+  }
+ },
+ "filters": {
+  "search": "顯示鍵、類別或某個標籤包含此文字的項目。停止輸入後清單會更新。",
+  "category": "只顯示完全屬於此類別的項目。停止輸入後清單會更新。",
+  "writer": "只顯示最近由此代理程式的執行寫入的項目。選擇全部可移除篩選。"
+ },
+ "resources": {
+  "memory": {
+   "key": "項目在其範圍內的鍵。代理程式依鍵讀寫項目。",
+   "scope": "項目所在位置：某個代理程式的私有記憶或某個應用程式的共用記憶。停留游標可查看 ID。",
+   "category": "寫入者為項目指定的選用類別。",
+   "tags": "寫入者為項目指定的標籤。守護者的週期會調取帶有 recall 標籤的項目。",
+   "writer": "最近寫入項目的一方：代理程式的執行，或人員或 API 憑證。",
+   "lastUpdateUtc": "項目最近一次寫入的時間。停留游標可查看確切時間。",
+   "lastReadUtc": "執行或人員最近一次讀取項目的時間。批次記錄，因此可能略有落後。",
+   "version": "寫入計數：每次寫入加一。使用此版本寫入或刪除，永遠不會覆寫較新的版本。",
+   "bytes": "已儲存文字的大小，以 UTF-8 位元組計。",
+   "expiresUtc": "項目到期並由維護清理刪除的時間。永不表示它會一直保留到被刪除。",
+   "writerRunId": "最近寫入項目的執行（若由執行寫入）。",
+   "createdUtc": "項目首次寫入的時間。",
+   "sha256": "已儲存文字的 SHA-256 雜湊，無需讀取即可比較版本。",
+   "id": "項目 ID（mem_...），用於 REST API、SDK 和 MCP 工具。"
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "記憶",
+  "p1": "代理程式在記憶中保留跨執行的筆記。每個項目都屬於一個範圍：某個代理程式的私有記憶，或該代理程式所屬應用程式的共用記憶。執行透過 garrison_memory 工具讀寫，並且只能在其代理程式可用的範圍內操作。",
+  "p2": "每個項目都會記錄寫入者、來自哪次執行、寫入時間及版本。指明所讀版本的寫入或刪除，如果期間有人寫入就會被拒絕，因此代理程式和人員不會互相覆寫。",
+  "p3": "文字是代理程式或人員儲存的資料。它在這裡以純文字顯示，傳給代理程式時也只作為資料，絕不作為指令。刪除不應保留的項目；之後尋找它的代理程式將什麼也找不到。"
+ }
+});

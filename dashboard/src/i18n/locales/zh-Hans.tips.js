@@ -3598,3 +3598,99 @@ tips.nav.hubs.manifests = tips.nav.tabs.manifests;
 
 tips.views.studio.discard = "确认后永久删除此草稿。已发布的智能体和部署不受影响。";
 tips.views.studio.discardPending = "确认后永久删除此草稿，并取消其待处理的应用审批。";
+
+// Scoped memory (AA4.13): tooltips and the explainer of the Memory page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "memory": "记忆：智能体和人员保存的内容，按范围列出，并显示每条记录的写入者和时间。在这里阅读或删除条目。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Memory": "范围记忆中的条目。读取用于列出条目并读取文本；删除用于移除条目。"
+  },
+  "memoryScopeKind": {
+   "Agent": "某个智能体的私有记忆：只有该智能体的运行可以读写。",
+   "App": "某个应用的共享记忆：应用成员智能体的运行可以读写。",
+   "OrgUnit": "组织单元的共享记忆。组织功能推出后可用。",
+   "Organization": "整个组织的共享记忆。组织功能推出后可用。"
+  }
+ },
+ "memory": {
+  "denied": "你无权执行此操作。需要对记忆拥有 {{operation}} 权限。",
+  "legacy": "从范围功能推出前写入的智能体记忆导入。在智能体再次使用该条目并得知其真实键之前，键显示为 legacy: 加一个哈希。",
+  "scopes": {
+   "all": "显示所有范围的条目。合计统计租户中的全部条目和字节数。",
+   "scope": "只显示 {{name}}（{{id}}）的条目。",
+   "orphan": "智能体或应用 {{id}} 已不存在。它的条目会保留在这里，直到被删除。"
+  },
+  "filters": {
+   "search": "显示键、类别或某个标签包含此文本的条目。停止输入后列表会更新。",
+   "category": "只显示完全属于此类别的条目。停止输入后列表会更新。",
+   "tag": "只显示带有此确切标签的条目。停止输入后列表会更新。",
+   "writer": "只显示最近由此智能体的运行写入的条目。选择全部可移除筛选。"
+  },
+  "actions": {
+   "viewContent": "打开条目的来源信息及其保存的文本，以纯文本显示。",
+   "copyId": "复制条目 ID（mem_...），用于 REST API、SDK 或 MCP 工具。",
+   "openRun": "打开最近写入此条目的运行。",
+   "delete": "删除此条目及其文本。需先确认；之后查找它的智能体将什么也找不到。",
+   "confirmDelete": "按你加载的版本删除条目。更新的版本不会被移除。",
+   "reload": "重新读取条目，查看其当前版本和来源，然后再做决定。"
+  },
+  "viewer": {
+   "content": "条目中存储的文本，与保存时完全一致。它是数据而不是指令，也从不被渲染。",
+   "copy": "将已保存的文本复制到剪贴板。"
+  }
+ },
+ "filters": {
+  "search": "显示键、类别或某个标签包含此文本的条目。停止输入后列表会更新。",
+  "category": "只显示完全属于此类别的条目。停止输入后列表会更新。",
+  "writer": "只显示最近由此智能体的运行写入的条目。选择全部可移除筛选。"
+ },
+ "resources": {
+  "memory": {
+   "key": "条目在其范围内的键。智能体按键读写条目。",
+   "scope": "条目所在位置：某个智能体的私有记忆或某个应用的共享记忆。悬停可查看 ID。",
+   "category": "写入者为条目指定的可选类别。",
+   "tags": "写入者为条目指定的标签。守护者的周期会调取带有 recall 标签的条目。",
+   "writer": "最近写入条目的一方：智能体的运行，或人员或 API 凭据。",
+   "lastUpdateUtc": "条目最近一次写入的时间。悬停可查看确切时间。",
+   "lastReadUtc": "运行或人员最近一次读取条目的时间。批量记录，因此可能略有滞后。",
+   "version": "写入计数：每次写入加一。使用此版本写入或删除，永远不会覆盖更新的版本。",
+   "bytes": "已保存文本的大小，以 UTF-8 字节计。",
+   "expiresUtc": "条目过期并由维护清理删除的时间。永不表示它会一直保留到被删除。",
+   "writerRunId": "最近写入条目的运行（若由运行写入）。",
+   "createdUtc": "条目首次写入的时间。",
+   "sha256": "已保存文本的 SHA-256 哈希，无需读取即可比较版本。",
+   "id": "条目 ID（mem_...），用于 REST API、SDK 和 MCP 工具。"
+  }
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "memory": {
+  "title": "记忆",
+  "p1": "智能体在记忆中保留跨运行的笔记。每个条目都属于一个范围：某个智能体的私有记忆，或该智能体所属应用的共享记忆。运行通过 garrison_memory 工具读写，并且只能在其智能体可用的范围内操作。",
+  "p2": "每个条目都会记录写入者、来自哪次运行、写入时间及版本。指明所读版本的写入或删除，如果期间有人写入就会被拒绝，因此智能体和人员不会互相覆盖。",
+  "p3": "文本是智能体或人员保存的数据。它在这里以纯文本显示，传给智能体时也只作为数据，绝不作为指令。删除不应保留的条目；之后查找它的智能体将什么也找不到。"
+ }
+});
