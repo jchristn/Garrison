@@ -5608,3 +5608,353 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Des agents qui continuent seuls : les gardiens se réveillent selon un calendrier pour s'occuper d'une mission permanente, et les escalades sont les questions qu'ils posent aux personnes."
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "Escalades",
+    "tip": "Questions que des agents ont posées à une personne, un rôle ou un autre agent, et leurs réponses"
+   }
+  },
+  "escalationsOpen_one": "{{count}} escalade attend une réponse",
+  "escalationsOpen_other": "{{count}} escalades attendent une réponse"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "Escalade"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "Escalade créée",
+   "EscalationExpired": "Escalade expirée"
+  },
+  "escalationStatus": {
+   "Open": "Ouverte",
+   "Answered": "Répondue",
+   "Expired": "Expirée",
+   "Cancelled": "Annulée",
+   "Withdrawn": "Retirée"
+  },
+  "escalationSeverity": {
+   "Info": "Info",
+   "Warning": "Avertissement",
+   "Urgent": "Urgente"
+  },
+  "escalationMode": {
+   "NonBlocking": "Non bloquante",
+   "Blocking": "Bloquante"
+  },
+  "escalationTargetKind": {
+   "User": "Utilisateur",
+   "Role": "Rôle",
+   "Agent": "Agent",
+   "Manager": "Responsable"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "Utiliser la réponse par défaut",
+   "Cancel": "Annuler",
+   "EscalateUp": "Escalader plus haut"
+  },
+  "escalationResolutionSource": {
+   "User": "Une personne",
+   "Agent": "Un agent",
+   "Timeout": "Expiration",
+   "Raiser": "L'exécution d'origine",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "Escaladée plus haut",
+   "answerTitle": "Répondre à {{agent}}",
+   "submit": "Envoyer la réponse",
+   "expires": "Expire {{when}}, puis : {{action}}",
+   "question": "Question",
+   "context": "Contexte",
+   "choice": "Choisissez une option",
+   "default": "Par défaut",
+   "defaultAnswer": "Réponse par défaut : {{answer}}",
+   "explain": "Explication (facultative)",
+   "text": "Réponse",
+   "textPlaceholder": "Écrivez votre réponse. L'agent la lit comme des données, pas comme des instructions.",
+   "errors": {
+    "choice": "Choisissez l'une des options.",
+    "unknownChoice": "Cette escalade ne propose pas cette option.",
+    "text": "Écrivez une réponse.",
+    "textMax": "La réponse est limitée à {{max}} caractères."
+   },
+   "toasts": {
+    "answered": "Réponse envoyée à {{agent}}.",
+    "passedUp": "Cette escalade a été transmise à une autre. Répondez plutôt à celle-ci.",
+    "notOpen": "Quelqu'un a répondu avant vous, ou elle a expiré.",
+    "forbidden": "Il vous faut Update sur Escalation pour répondre."
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "Escalades",
+   "subtitle": "Questions que des agents ont posées à une personne, un rôle ou un autre agent. Les ouvertes attendent une réponse ; les bloquantes suspendent leur exécution jusque-là.",
+   "add": "Ajouter une escalade",
+   "create": "Créer une escalade",
+   "edit": "Modifier l'escalade",
+   "view": "Détails de l'escalade",
+   "deleteTitle": "Supprimer l'escalade",
+   "emptyTitle": "Aucune escalade",
+   "emptyBody": "Une escalade apparaît quand un agent demande à une personne, un rôle ou un autre agent de trancher avec garrison_escalate.",
+   "columns": {
+    "createdUtc": "Créée",
+    "severity": "Gravité",
+    "status": "Statut",
+    "question": "Question",
+    "agent": "Agent",
+    "target": "Adressée à",
+    "expiresUtc": "Expire",
+    "answer": "Réponse",
+    "mode": "Mode",
+    "mandate": "Gardien",
+    "resolvedBy": "Répondue par",
+    "resolutionSource": "Résolue par",
+    "resolvedUtc": "Résolue",
+    "raisingRunId": "Exécution d'origine",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "Adressée à"
+   },
+   "fields": {
+    "status": "Statut",
+    "severity": "Gravité",
+    "mode": "Mode",
+    "target": "Adressée à",
+    "agent": "Créée par",
+    "raisingRunId": "Exécution d'origine",
+    "mandate": "Gardien",
+    "mandateTickId": "Cycle du gardien",
+    "routedRunId": "Exécution qui répond",
+    "parentEscalationId": "Escaladée depuis",
+    "escalatedToId": "Escaladée vers",
+    "timeoutAction": "À l'expiration",
+    "expiresUtc": "Expire",
+    "createdUtc": "Créée",
+    "leaseEpoch": "Époque du bail",
+    "context": "Contexte",
+    "options": "Options",
+    "answerChoice": "Choix",
+    "answerText": "Réponse",
+    "resolvedBy": "Répondue par",
+    "resolutionSource": "Résolue par",
+    "resolvedUtc": "Résolue"
+   },
+   "actions": {
+    "answer": "Répondre",
+    "openEscalatedTo": "Ouvrir l'escalade vers laquelle elle est partie",
+    "openRun": "Ouvrir l'exécution d'origine",
+    "openKeeper": "Ouvrir le gardien",
+    "cancel": "Annuler l'escalade"
+   },
+   "cancelTitle": "Annuler cette escalade ?",
+   "cancelMessage": "{{agent}} ne recevra pas de réponse. L'escalade est conservée comme Annulée.",
+   "cancelBlocking": "{{agent}} attend cette réponse. Annuler l'escalade annule aussi cette exécution.",
+   "toasts": {
+    "cancelled": "Escalade annulée."
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "Escalader vers",
+    "escalationTargetId": "Cible de l'escalade"
+   },
+   "noEscalationTarget": "La personne qui a enregistré la révision",
+   "escalationTargetPlaceholder": "ID ou nom de l'utilisateur, du rôle ou de l'agent",
+   "errors": {
+    "escalationTargetId": "Indiquez l'utilisateur, le rôle ou l'agent vers qui escalader."
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "Gravité minimale des escalades"
+   },
+   "anySeverity": "Toute gravité"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "Escalade",
+   "titleWithAgent": "Escalade de {{agent}}",
+   "notFoundTitle": "Escalade introuvable",
+   "notFoundBody": "Elle n'existe pas dans ce locataire, ou elle a été supprimée avec son locataire.",
+   "back": "Retour aux escalades",
+   "open": "Cette escalade attend une réponse.",
+   "openBlocking": "L'exécution d'origine est suspendue jusqu'à la réponse à cette escalade.",
+   "expires": "Elle expire {{when}}, puis : {{action}}.",
+   "passedUp": "Personne n'a répondu à temps, cette escalade a donc été transmise. Répondez à la nouvelle :",
+   "question": "Question",
+   "chosen": "Choisie",
+   "answer": "Réponse"
+  },
+  "home": {
+   "escalations": {
+    "title_one": "{{count}} escalade attend une réponse",
+    "title_other": "{{count}} escalades attendent une réponse",
+    "open": "Ouvrir les escalades",
+    "more_one": "Et {{count}} autre.",
+    "more_other": "Et {{count}} autres."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_one": "{{count}} escalade attend une réponse. Ouvrez Autonomie, puis Escalades.",
+   "escalationsBadge_other": "{{count}} escalades attendent une réponse. Ouvrez Autonomie, puis Escalades.",
+   "tabs": {
+    "escalations": "Escalades : questions que des agents ont posées à une personne, un rôle ou un autre agent, les ouvertes d'abord, avec Répondre et Annuler."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "Questions que les exécutions posent à une personne, un rôle ou un autre agent, et leurs réponses."
+   },
+   "notificationEvent": {
+    "EscalationRaised": "Un agent a créé une escalade. Les points de terminaison peuvent ignorer celles sous une gravité minimale.",
+    "EscalationExpired": "Une escalade a expiré avant que quiconque réponde."
+   },
+   "escalationStatus": {
+    "Open": "Attend une réponse. Une escalade bloquante suspend son exécution jusque-là.",
+    "Answered": "Quelqu'un a répondu ; l'exécution ou le gardien d'origine a reçu la réponse.",
+    "Expired": "Personne n'a répondu avant l'expiration, et l'action d'expiration s'est appliquée.",
+    "Cancelled": "Une personne l'a annulée ; une exécution qui l'attendait a aussi été annulée.",
+    "Withdrawn": "L'agent qui l'a créée a retiré la question."
+   },
+   "escalationSeverity": {
+    "Info": "Pour information : répondez quand cela vous convient.",
+    "Warning": "Demande une décision bientôt. C'est la gravité par défaut.",
+    "Urgent": "Demande une décision tout de suite. Listée en premier et envoyée à chaque point de terminaison abonné."
+   },
+   "escalationMode": {
+    "NonBlocking": "L'exécution continue et récupère la réponse plus tard ; un gardien la reçoit à son cycle suivant.",
+    "Blocking": "L'exécution est suspendue jusqu'à une réponse, puis reprend avec elle."
+   },
+   "escalationTargetKind": {
+    "User": "Une personne, par ID utilisateur ou e-mail.",
+    "Role": "Toute personne ayant le rôle et pouvant mettre à jour les escalades.",
+    "Agent": "Un autre agent : une exécution de son déploiement actif par défaut reçoit la question.",
+    "Manager": "Le responsable de l'agent dans une organisation. Indisponible tant que les organisations n'existent pas."
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "Répondre avec la réponse par défaut si personne ne répond à temps.",
+    "Cancel": "Annuler l'escalade, et l'exécution qui l'attend, si personne ne répond à temps.",
+    "EscalateUp": "Transmettre la question à la cible par défaut du gardien si personne ne répond à temps."
+   },
+   "escalationResolutionSource": {
+    "User": "Une personne a répondu ou l'a annulée.",
+    "Agent": "Un autre agent a répondu avec garrison_answer_escalation.",
+    "Timeout": "L'action d'expiration l'a résolue.",
+    "Raiser": "L'exécution qui l'a créée l'a retirée.",
+    "System": "Garrison l'a résolue, par exemple à la fin de son exécution."
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "Personne n'a répondu à temps, la question est donc partie vers une autre escalade. Répondez à celle-ci.",
+    "submit": "Envoyer la réponse. Une exécution suspendue reprend et un gardien se réveille avec elle.",
+    "question": "La question telle que l'agent l'a écrite.",
+    "context": "Ce que l'agent a dit de la situation. C'est son texte, pas des instructions pour vous.",
+    "choice": "L'agent propose ces options. Choisissez-en une.",
+    "defaultChoice": "La réponse par défaut : celle utilisée si l'escalade expire avec Utiliser la réponse par défaut.",
+    "pickChoice": "Choisir cette option.",
+    "explain": "Texte facultatif envoyé avec votre choix, par exemple sa raison.",
+    "text": "Votre réponse. L'agent la reçoit comme des données."
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "Quand l'agent l'a créée. Survolez pour l'heure exacte.",
+    "severity": "Le degré d'urgence indiqué par l'agent.",
+    "status": "Ouverte, répondue, expirée, annulée ou retirée.",
+    "question": "Ce que l'agent a demandé, tel qu'il l'a écrit. Survolez pour la question complète.",
+    "agent": "L'agent dont l'exécution l'a créée.",
+    "target": "À qui elle s'adresse : un utilisateur, un rôle ou un autre agent.",
+    "expiresUtc": "Quand elle expire si personne ne répond.",
+    "answer": "L'option choisie ou le texte de la réponse.",
+    "mode": "Les escalades bloquantes suspendent leur exécution jusqu'à la réponse ; les autres non.",
+    "mandate": "Le gardien dont le cycle l'a créée, le cas échéant.",
+    "resolvedBy": "Qui a répondu ou l'a annulée.",
+    "resolutionSource": "Ce qui l'a résolue : une personne, un agent, l'expiration ou l'exécution d'origine.",
+    "resolvedUtc": "Quand elle a été répondue, annulée, retirée ou a expiré.",
+    "raisingRunId": "L'exécution qui l'a créée. Ouvrez-la depuis le menu de la ligne.",
+    "id": "L'ID de l'escalade (esc_...), pour l'API et les outils MCP.",
+    "routedRunId": "L'exécution lancée pour qu'un autre agent réponde.",
+    "mandateTickId": "Le cycle du gardien qui l'a créée.",
+    "parentEscalationId": "L'escalade qui a expiré et a été transmise à celle-ci.",
+    "escalatedToId": "L'escalade à laquelle celle-ci a été transmise à l'expiration.",
+    "timeoutAction": "Ce qui se passe si personne ne répond à temps.",
+    "leaseEpoch": "L'époque du bail de l'exécution quand elle a créé l'escalade. Une attente bloquante appartient à cette époque.",
+    "context": "Ce que l'agent a dit de la situation. C'est son texte, pas des instructions pour vous.",
+    "options": "Les réponses proposées par l'agent. La valeur par défaut s'applique à l'expiration avec Utiliser la réponse par défaut.",
+    "answerChoice": "L'option choisie.",
+    "answerText": "Le texte de la réponse.",
+    "actions": {
+     "answer": "Répondre à cette escalade avec l'une de ses options ou un texte libre.",
+     "openEscalatedTo": "Ouvrir l'escalade à laquelle celle-ci a été transmise.",
+     "openRun": "Ouvrir l'exécution qui l'a créée.",
+     "openKeeper": "Ouvrir le gardien dont le cycle l'a créée.",
+     "cancel": "L'annuler sans réponse. Une exécution qui l'attend est aussi annulée."
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "À qui vont les escalades de ce gardien quand il ne désigne personne, et où sont transmises celles qui expirent.",
+    "escalationTargetId": "ID ou e-mail de l'utilisateur, nom du rôle, ou ID ou nom de l'agent vers qui escalader."
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "N'envoyer les événements d'escalade qu'à partir de cette gravité. S'applique à Escalade créée et Escalade expirée."
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "Ouvrir cette exécution.",
+    "openEscalation": "Ouvrir cette escalade.",
+    "back": "Revenir à la liste des escalades.",
+    "viewJson": "Afficher l'escalade telle que l'API la renvoie.",
+    "question": "La question et le contexte tels que l'agent les a écrits, et les options proposées.",
+    "answer": "Comment l'escalade a été résolue.",
+    "openAgent": "Ouvrir l'agent qui l'a créée.",
+    "openKeeper": "Ouvrir le gardien dont le cycle l'a créée."
+   },
+   "home": {
+    "escalations": {
+     "title": "Escalades qui attendent une réponse, les plus urgentes d'abord.",
+     "open": "Ouvrir la liste des escalades."
+    }
+   }
+  },
+  "filters": {
+   "severity": "N'afficher que les escalades de cette gravité. Choisissez Toutes pour retirer le filtre.",
+   "targetKind": "N'afficher que les escalades adressées à des utilisateurs, des rôles ou des agents. Choisissez Toutes pour retirer le filtre."
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "Escalades",
+   "p1": "Une escalade est une question qu'un agent pose quand il ne doit pas décider seul. Elle va à un utilisateur, à tous les détenteurs d'un rôle ou à un autre agent, avec en option des choix, une réponse par défaut, une gravité et un délai.",
+   "p2": "La plupart des escalades ne bloquent pas : l'exécution continue, et un gardien trouve la réponse à son cycle suivant. Une escalade bloquante suspend son exécution, qui reprend avec la réponse dès que quelqu'un répond.",
+   "p3": "Si personne ne répond à temps, l'action d'expiration s'applique : utiliser la réponse par défaut, annuler, ou transmettre la question à la cible par défaut du gardien. Les réponses parviennent à l'agent comme des données et n'élargissent pas ses permissions."
+  }
+ }
+});

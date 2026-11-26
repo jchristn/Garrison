@@ -664,6 +664,9 @@ function routes(ids) {
     ['getMandateRevision (draft)', tp(`mandates/${ids.keeper}/revisions/${ids.keeperDraft}`)],
     ['listMandateTicks', tp(`mandates/${ids.keeper}/ticks?maxResults=25&skip=0`)],
     ...(ids.keeperTick ? [['getMandateTick', tp(`mandate-ticks/${ids.keeperTick}`)]] : []),
+    // Escalations (AA2.13): only runs raise them, so a fresh contract server lists none; the envelope is checked.
+    ['listEscalations', tp(`escalations?${list}`)],
+    ['listEscalations (status)', tp(`escalations?${list}&status=Open`)],
     ['listNotificationEndpoints', tp(`notification-endpoints?${list}`)],
     ['getNotificationEndpoint', tp(`notification-endpoints/${ids.endpoint}`)],
     ['listNotificationDeliveries', tp(`notification-endpoints/${ids.endpoint}/deliveries?maxResults=50&skip=0`)],

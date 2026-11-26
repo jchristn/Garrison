@@ -6,6 +6,7 @@ import ActivityChart from '../components/ActivityChart';
 import KpiCard from '../components/KpiCard';
 import ExternalServicesCard from '../components/ExternalServicesCard';
 import HomeAutonomyCard from '../components/HomeAutonomyCard';
+import HomeEscalationsCard from '../components/HomeEscalationsCard';
 import GrafanaLink from '../components/GrafanaLink';
 import { useGrafana } from '../hooks/useServerInfo';
 import { dashboardUrl } from '../utils/grafana';
@@ -277,6 +278,7 @@ export default function HomeView() {
         </section>
       </div>
 
+      <HomeEscalationsCard />
       <HomeAutonomyCard />
 
       <section className="panel" aria-labelledby="cta-title">

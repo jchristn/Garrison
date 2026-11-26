@@ -13,6 +13,8 @@ export const REVISION_FIELDS = [
   'healthyDefinition',
   'autonomy',
   'escalationPolicy',
+  'escalationTargetKind',
+  'escalationTargetId',
   'direction',
   'wakeMode',
   'minIntervalSeconds',
@@ -37,6 +39,8 @@ export function blankRevision() {
     healthyDefinition: '',
     autonomy: '',
     escalationPolicy: '',
+    escalationTargetKind: '',
+    escalationTargetId: '',
     direction: '',
     signals: [],
     wakeMode: 'Backoff',
@@ -64,6 +68,8 @@ export function revisionToForm(r) {
     healthyDefinition: rev.healthyDefinition ?? '',
     autonomy: rev.autonomy ?? '',
     escalationPolicy: rev.escalationPolicy ?? '',
+    escalationTargetKind: rev.escalationTargetKind ?? '',
+    escalationTargetId: rev.escalationTargetId ?? '',
     direction: rev.direction ?? '',
     signals: (rev.signals || []).map((s) => ({ name: s.name ?? '', description: s.description ?? '' })),
     wakeMode: rev.wakeMode || 'Backoff',
@@ -96,6 +102,8 @@ export function revisionToBody(d) {
     healthyDefinition: blankText(d.healthyDefinition),
     autonomy: blankText(d.autonomy),
     escalationPolicy: blankText(d.escalationPolicy),
+    escalationTargetKind: blankText(d.escalationTargetKind),
+    escalationTargetId: blankText(d.escalationTargetKind) ? blankText(d.escalationTargetId) : null,
     direction: blankText(d.direction),
     signals: (d.signals || [])
       .filter((s) => blankText(s?.name) || blankText(s?.description))
@@ -152,6 +160,8 @@ export function revisionErrors(d, t) {
   for (const key of ['healthyDefinition', 'autonomy', 'escalationPolicy', 'direction']) {
     if ((d[key] || '').length > L.textMax) errors[key] = t('resources.keepers.errors.text', { max: L.textMax });
   }
+  // The default escalation target (AA2): every kind the dashboard offers (User, Role, Agent) needs an identifier.
+  if (blankText(d.escalationTargetKind) && !blankText(d.escalationTargetId)) errors.escalationTargetId = t('resources.keepers.errors.escalationTargetId');
   if ((d.changeNote || '').length > L.changeNoteMax) errors.changeNote = t('resources.keepers.errors.text', { max: L.changeNoteMax });
   const signals = (d.signals || []).filter((s) => (s?.name || '').trim() || (s?.description || '').trim());
   if (signals.length > L.signalsMax) errors.signals = t('resources.keepers.errors.signalsMax', { max: L.signalsMax });
@@ -230,7 +240,7 @@ export function revisionText(rev, t) {
     const value = rev[key];
     if (value === undefined || value === null || value === '') continue;
     const label = t(`resources.keepers.fields.${key}`);
-    const text = key === 'wakeMode' ? enumLabel(t, 'wakeMode', value) : String(value);
+    const text = key === 'wakeMode' ? enumLabel(t, 'wakeMode', value) : key === 'escalationTargetKind' ? enumLabel(t, 'escalationTargetKind', value) : String(value);
     if (text.includes('\n')) {
       lines.push(`${label}:`);
       for (const line of text.split('\n')) lines.push(`  ${line}`);

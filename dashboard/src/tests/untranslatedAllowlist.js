@@ -28,7 +28,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     // The product name stays in English in every language (AD12.12).
     'Garrison Agent Studio', 'Agent Studio',
     // A wake source of keepers (AA1.16); the technical term is used untranslated in these languages.
-    'Webhook'
+    'Webhook',
+    // The lowest escalation severity (AA2.13), spelled the same in German, French, and Italian.
+    'Info'
   ],
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
@@ -45,12 +47,12 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
     'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset',
-    'Documentation', 'Signal', 'Source'
+    'Documentation', 'Signal', 'Source', 'Question', 'Options'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',
     'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file', 'Leader', 'Quorum', 'Logo', 'Asset',
-    'Studio'
+    'Studio', 'Escalation'
   ],
   'zh-Hans': [],
   'zh-Hant': [],

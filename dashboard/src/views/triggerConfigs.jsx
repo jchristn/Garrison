@@ -31,6 +31,7 @@ import {
   endpointToBody,
   endpointDuplicate,
   endpointErrors,
+  endpointHasEscalationEvents,
   SIGNATURE_FORMAT,
   WEBHOOK_HEADERS
 } from '../utils/triggers';
@@ -275,6 +276,7 @@ export const notificationEndpointsConfig = {
       field(id, t, 'deploymentId', 'select', { options: deployments.map((x) => ({ value: x.id, label: x.name })), noneLabel: t('resources.notifications.anyDeployment') }),
       field(id, t, 'includeResultText', 'checkbox'),
       field(id, t, 'resultTextMaxChars', 'number', { min: TRIGGER_LIMITS.resultTextMaxChars.min, max: TRIGGER_LIMITS.resultTextMaxChars.max, hintValues: TRIGGER_LIMITS.resultTextMaxChars, showIf: (x) => !!x?.includeResultText }),
+      field(id, t, 'escalationMinimumSeverity', 'select', { options: enumOpts(t, 'escalationSeverity', ENUMS.escalationSeverity), noneLabel: t('resources.notifications.anySeverity'), showIf: (x) => endpointHasEscalationEvents(x) }),
       field(id, t, 'active', 'checkbox')
     ];
   },

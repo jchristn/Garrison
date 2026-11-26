@@ -5555,3 +5555,349 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "能自行持续工作的智能体：守护者按计划唤醒，照看一项长期任务；上报是它们向人提出的问题。"
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "上报",
+    "tip": "智能体向某人、某个角色或另一个智能体提出的问题及答复"
+   }
+  },
+  "escalationsOpen_other": "有 {{count}} 条上报等待答复"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "上报"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "已提出上报",
+   "EscalationExpired": "上报已超时"
+  },
+  "escalationStatus": {
+   "Open": "待答复",
+   "Answered": "已答复",
+   "Expired": "已超时",
+   "Cancelled": "已取消",
+   "Withdrawn": "已撤回"
+  },
+  "escalationSeverity": {
+   "Info": "信息",
+   "Warning": "警告",
+   "Urgent": "紧急"
+  },
+  "escalationMode": {
+   "NonBlocking": "非阻塞",
+   "Blocking": "阻塞"
+  },
+  "escalationTargetKind": {
+   "User": "用户",
+   "Role": "角色",
+   "Agent": "智能体",
+   "Manager": "上级"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "使用默认答复",
+   "Cancel": "取消",
+   "EscalateUp": "继续向上上报"
+  },
+  "escalationResolutionSource": {
+   "User": "某人",
+   "Agent": "某个智能体",
+   "Timeout": "超时",
+   "Raiser": "提出它的运行",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "已向上转交",
+   "answerTitle": "答复 {{agent}}",
+   "submit": "发送答复",
+   "expires": "{{when}}超时，之后：{{action}}",
+   "question": "问题",
+   "context": "背景",
+   "choice": "选择一个选项",
+   "default": "默认",
+   "defaultAnswer": "默认答复：{{answer}}",
+   "explain": "说明（可选）",
+   "text": "答复",
+   "textPlaceholder": "写下你的答复。智能体会把它当作数据，而不是指令。",
+   "errors": {
+    "choice": "请选择一个选项。",
+    "unknownChoice": "这条上报没有提供该选项。",
+    "text": "请写一个答复。",
+    "textMax": "答复最多 {{max}} 个字符。"
+   },
+   "toasts": {
+    "answered": "已向 {{agent}} 发送答复。",
+    "passedUp": "这条上报已转交给另一条上报，请改为答复那一条。",
+    "notOpen": "已有其他人先答复了，或者它已超时。",
+    "forbidden": "答复需要 Escalation 的 Update 权限。"
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "上报",
+   "subtitle": "智能体向某人、某个角色或另一个智能体提出的问题。待答复的在等待答复；阻塞的会让其运行一直暂停到那时。",
+   "add": "添加上报",
+   "create": "创建上报",
+   "edit": "编辑上报",
+   "view": "上报详情",
+   "deleteTitle": "删除上报",
+   "emptyTitle": "没有上报",
+   "emptyBody": "当智能体用 garrison_escalate 请某人、某个角色或另一个智能体做决定时，上报会出现在这里。",
+   "columns": {
+    "createdUtc": "提出时间",
+    "severity": "严重程度",
+    "status": "状态",
+    "question": "问题",
+    "agent": "智能体",
+    "target": "发给",
+    "expiresUtc": "超时时间",
+    "answer": "答复",
+    "mode": "模式",
+    "mandate": "守护者",
+    "resolvedBy": "答复人",
+    "resolutionSource": "解决方式",
+    "resolvedUtc": "解决时间",
+    "raisingRunId": "提出它的运行",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "发给"
+   },
+   "fields": {
+    "status": "状态",
+    "severity": "严重程度",
+    "mode": "模式",
+    "target": "发给",
+    "agent": "提出者",
+    "raisingRunId": "提出它的运行",
+    "mandate": "守护者",
+    "mandateTickId": "守护者巡检",
+    "routedRunId": "答复的运行",
+    "parentEscalationId": "转交自",
+    "escalatedToId": "转交至",
+    "timeoutAction": "超时后",
+    "expiresUtc": "超时时间",
+    "createdUtc": "提出时间",
+    "leaseEpoch": "租约纪元",
+    "context": "背景",
+    "options": "选项",
+    "answerChoice": "所选项",
+    "answerText": "答复",
+    "resolvedBy": "答复人",
+    "resolutionSource": "解决方式",
+    "resolvedUtc": "解决时间"
+   },
+   "actions": {
+    "answer": "答复",
+    "openEscalatedTo": "打开转交后的上报",
+    "openRun": "打开提出它的运行",
+    "openKeeper": "打开守护者",
+    "cancel": "取消上报"
+   },
+   "cancelTitle": "取消这条上报？",
+   "cancelMessage": "{{agent}} 将得不到答复。这条上报会保留为已取消。",
+   "cancelBlocking": "{{agent}} 正在等待这个答复。取消上报也会取消那次运行。",
+   "toasts": {
+    "cancelled": "上报已取消。"
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "上报给",
+    "escalationTargetId": "上报对象"
+   },
+   "noEscalationTarget": "保存该修订的人",
+   "escalationTargetPlaceholder": "用户、角色或智能体的 ID 或名称",
+   "errors": {
+    "escalationTargetId": "请指定要上报给的用户、角色或智能体。"
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "上报最低严重程度"
+   },
+   "anySeverity": "任意严重程度"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "上报",
+   "titleWithAgent": "来自 {{agent}} 的上报",
+   "notFoundTitle": "找不到上报",
+   "notFoundBody": "它不在这个租户中，或已随租户一起删除。",
+   "back": "返回上报列表",
+   "open": "这条上报正在等待答复。",
+   "openBlocking": "在这条上报得到答复之前，提出它的运行处于暂停状态。",
+   "expires": "它将在{{when}}超时，之后：{{action}}。",
+   "passedUp": "没有人及时答复，所以这条上报已被转交。请答复新的那一条：",
+   "question": "问题",
+   "chosen": "已选",
+   "answer": "答复"
+  },
+  "home": {
+   "escalations": {
+    "title_other": "{{count}} 条上报等待答复",
+    "open": "打开上报",
+    "more_other": "还有 {{count}} 条。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_other": "有 {{count}} 条上报等待答复。打开“自主运行”，再打开“上报”。",
+   "tabs": {
+    "escalations": "上报：智能体向某人、某个角色或另一个智能体提出的问题，待答复的排在前面，可以答复或取消。"
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "运行向某人、某个角色或另一个智能体提出的问题及其答复。"
+   },
+   "notificationEvent": {
+    "EscalationRaised": "某个智能体提出了上报。端点可以跳过低于最低严重程度的上报。",
+    "EscalationExpired": "一条上报在有人答复之前超时了。"
+   },
+   "escalationStatus": {
+    "Open": "等待答复。阻塞的上报会让其运行一直暂停到那时。",
+    "Answered": "有人已答复；提出它的运行或守护者已收到答复。",
+    "Expired": "超时前没有人答复，已执行超时操作。",
+    "Cancelled": "有人取消了它；等待它的运行也已取消。",
+    "Withdrawn": "提出它的智能体撤回了问题。"
+   },
+   "escalationSeverity": {
+    "Info": "仅供参考：方便时再答复。",
+    "Warning": "需要尽快决定。这是默认严重程度。",
+    "Urgent": "需要立即决定。排在最前，并发送给所有订阅的端点。"
+   },
+   "escalationMode": {
+    "NonBlocking": "运行继续进行，稍后再获取答复；守护者在下一次巡检中收到。",
+    "Blocking": "运行暂停，直到有人答复，然后带着答复继续。"
+   },
+   "escalationTargetKind": {
+    "User": "某一个人，按用户 ID 或邮箱指定。",
+    "Role": "拥有该角色且可以更新上报的任何人。",
+    "Agent": "另一个智能体：它默认的活动部署会启动一次运行来接收问题。",
+    "Manager": "智能体在组织中的上级。在组织功能上线前不可用。"
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "无人及时答复时，用默认答复作答。",
+    "Cancel": "无人及时答复时，取消上报以及等待它的运行。",
+    "EscalateUp": "无人及时答复时，把问题转交给守护者的默认上报对象。"
+   },
+   "escalationResolutionSource": {
+    "User": "有人答复或取消了它。",
+    "Agent": "另一个智能体用 garrison_answer_escalation 答复了它。",
+    "Timeout": "由超时操作解决。",
+    "Raiser": "提出它的运行撤回了它。",
+    "System": "由 Garrison 解决，例如它的运行结束时。"
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "没有人及时答复，所以问题已转交给另一条上报。请答复那一条。",
+    "submit": "发送答复。暂停的运行会继续，守护者会带着答复唤醒。",
+    "question": "智能体原样写下的问题。",
+    "context": "智能体对情况的描述。这是智能体写的文字，不是给你的指令。",
+    "choice": "智能体提供了这些选项。请选择一个。",
+    "defaultChoice": "默认答复：上报以“使用默认答复”超时时会使用它。",
+    "pickChoice": "选择此选项。",
+    "explain": "随选择一起发送的可选文字，例如理由。",
+    "text": "你的答复。智能体会把它当作数据接收。"
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "智能体提出它的时间。悬停可查看确切时间。",
+    "severity": "智能体认为的紧急程度。",
+    "status": "待答复、已答复、已超时、已取消或已撤回。",
+    "question": "智能体原样写下的问题。悬停可查看完整问题。",
+    "agent": "提出它的运行所属的智能体。",
+    "target": "发给谁：某个用户、某个角色或另一个智能体。",
+    "expiresUtc": "无人答复时的超时时间。",
+    "answer": "所选的选项或答复内容。",
+    "mode": "阻塞的上报会让运行暂停到得到答复；非阻塞的不会。",
+    "mandate": "提出它的巡检所属的守护者（如有）。",
+    "resolvedBy": "答复或取消它的人。",
+    "resolutionSource": "解决它的方式：某人、某个智能体、超时，或提出它的运行。",
+    "resolvedUtc": "被答复、取消、撤回或超时的时间。",
+    "raisingRunId": "提出它的运行。可从行菜单打开。",
+    "id": "上报 ID（esc_...），用于 API 和 MCP 工具。",
+    "routedRunId": "为让另一个智能体答复而启动的运行。",
+    "mandateTickId": "提出它的守护者巡检。",
+    "parentEscalationId": "超时后转交给这条上报的上报。",
+    "escalatedToId": "这条上报超时后被转交到的上报。",
+    "timeoutAction": "无人及时答复时会发生什么。",
+    "leaseEpoch": "运行提出上报时的租约纪元。阻塞等待属于该纪元。",
+    "context": "智能体对情况的描述。这是智能体写的文字，不是给你的指令。",
+    "options": "智能体提供的答复。以“使用默认答复”超时时会使用默认项。",
+    "answerChoice": "所选的选项。",
+    "answerText": "答复内容。",
+    "actions": {
+     "answer": "用其中一个选项或自由文字答复这条上报。",
+     "openEscalatedTo": "打开这条上报被转交到的上报。",
+     "openRun": "打开提出它的运行。",
+     "openKeeper": "打开提出它的巡检所属的守护者。",
+     "cancel": "不答复直接取消。等待它的运行也会被取消。"
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "守护者没有指定对象时，它的上报发给谁；超时的上报也会转交到这里。",
+    "escalationTargetId": "要上报给的用户 ID 或邮箱、角色名称，或智能体 ID 或名称。"
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "只发送达到此严重程度及以上的上报事件。适用于“已提出上报”和“上报已超时”。"
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "打开这次运行。",
+    "openEscalation": "打开这条上报。",
+    "back": "返回上报列表。",
+    "viewJson": "按 API 返回的原样显示这条上报。",
+    "question": "智能体写下的问题和背景，以及它提供的选项。",
+    "answer": "这条上报是如何解决的。",
+    "openAgent": "打开提出它的智能体。",
+    "openKeeper": "打开提出它的巡检所属的守护者。"
+   },
+   "home": {
+    "escalations": {
+     "title": "等待答复的上报，最紧急的排在前面。",
+     "open": "打开上报列表。"
+    }
+   }
+  },
+  "filters": {
+   "severity": "只显示此严重程度的上报。选择“全部”可移除筛选。",
+   "targetKind": "只显示发给用户、角色或智能体的上报。选择“全部”可移除筛选。"
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "上报",
+   "p1": "上报是智能体在不该独自决定时提出的问题。它可以发给某个用户、拥有某个角色的所有人，或另一个智能体，并可附带选项、默认答复、严重程度和超时时间。",
+   "p2": "大多数上报是非阻塞的：运行继续进行，守护者在下一次巡检中看到答复。阻塞的上报会暂停其运行，一旦有人答复，运行就带着答复继续。",
+   "p3": "如果没有人及时答复，就执行超时操作：使用默认答复、取消，或把问题转交给守护者的默认上报对象。答复以数据形式送达智能体，不会扩大它的权限。"
+  }
+ }
+});

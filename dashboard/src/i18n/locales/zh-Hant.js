@@ -5555,3 +5555,349 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "能自行持續工作的代理程式：守護者依排程喚醒，照看一項長期任務；上報是它們向人提出的問題。"
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "上報",
+    "tip": "代理程式向某人、某個角色或另一個代理程式提出的問題及回覆"
+   }
+  },
+  "escalationsOpen_other": "有 {{count}} 則上報等待回覆"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "上報"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "已提出上報",
+   "EscalationExpired": "上報已逾時"
+  },
+  "escalationStatus": {
+   "Open": "待回覆",
+   "Answered": "已回覆",
+   "Expired": "已逾時",
+   "Cancelled": "已取消",
+   "Withdrawn": "已撤回"
+  },
+  "escalationSeverity": {
+   "Info": "資訊",
+   "Warning": "警告",
+   "Urgent": "緊急"
+  },
+  "escalationMode": {
+   "NonBlocking": "非阻塞",
+   "Blocking": "阻塞"
+  },
+  "escalationTargetKind": {
+   "User": "使用者",
+   "Role": "角色",
+   "Agent": "代理程式",
+   "Manager": "主管"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "使用預設回覆",
+   "Cancel": "取消",
+   "EscalateUp": "繼續往上上報"
+  },
+  "escalationResolutionSource": {
+   "User": "某人",
+   "Agent": "某個代理程式",
+   "Timeout": "逾時",
+   "Raiser": "提出它的執行",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "已往上轉交",
+   "answerTitle": "回覆 {{agent}}",
+   "submit": "送出回覆",
+   "expires": "{{when}}逾時，之後：{{action}}",
+   "question": "問題",
+   "context": "背景",
+   "choice": "選擇一個選項",
+   "default": "預設",
+   "defaultAnswer": "預設回覆：{{answer}}",
+   "explain": "說明（選填）",
+   "text": "回覆",
+   "textPlaceholder": "寫下你的回覆。代理程式會把它當作資料，而不是指令。",
+   "errors": {
+    "choice": "請選擇一個選項。",
+    "unknownChoice": "這則上報沒有提供該選項。",
+    "text": "請寫下回覆。",
+    "textMax": "回覆最多 {{max}} 個字元。"
+   },
+   "toasts": {
+    "answered": "已向 {{agent}} 送出回覆。",
+    "passedUp": "這則上報已轉交給另一則上報，請改為回覆那一則。",
+    "notOpen": "已有其他人先回覆，或它已逾時。",
+    "forbidden": "回覆需要 Escalation 的 Update 權限。"
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "上報",
+   "subtitle": "代理程式向某人、某個角色或另一個代理程式提出的問題。待回覆的正在等待回覆；阻塞的會讓其執行一直暫停到那時。",
+   "add": "新增上報",
+   "create": "建立上報",
+   "edit": "編輯上報",
+   "view": "上報詳細資料",
+   "deleteTitle": "刪除上報",
+   "emptyTitle": "沒有上報",
+   "emptyBody": "當代理程式用 garrison_escalate 請某人、某個角色或另一個代理程式做決定時，上報會出現在這裡。",
+   "columns": {
+    "createdUtc": "提出時間",
+    "severity": "嚴重程度",
+    "status": "狀態",
+    "question": "問題",
+    "agent": "代理程式",
+    "target": "發給",
+    "expiresUtc": "逾時時間",
+    "answer": "回覆",
+    "mode": "模式",
+    "mandate": "守護者",
+    "resolvedBy": "回覆者",
+    "resolutionSource": "解決方式",
+    "resolvedUtc": "解決時間",
+    "raisingRunId": "提出它的執行",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "發給"
+   },
+   "fields": {
+    "status": "狀態",
+    "severity": "嚴重程度",
+    "mode": "模式",
+    "target": "發給",
+    "agent": "提出者",
+    "raisingRunId": "提出它的執行",
+    "mandate": "守護者",
+    "mandateTickId": "守護者巡檢",
+    "routedRunId": "回覆的執行",
+    "parentEscalationId": "轉交自",
+    "escalatedToId": "轉交至",
+    "timeoutAction": "逾時後",
+    "expiresUtc": "逾時時間",
+    "createdUtc": "提出時間",
+    "leaseEpoch": "租約紀元",
+    "context": "背景",
+    "options": "選項",
+    "answerChoice": "所選項目",
+    "answerText": "回覆",
+    "resolvedBy": "回覆者",
+    "resolutionSource": "解決方式",
+    "resolvedUtc": "解決時間"
+   },
+   "actions": {
+    "answer": "回覆",
+    "openEscalatedTo": "開啟轉交後的上報",
+    "openRun": "開啟提出它的執行",
+    "openKeeper": "開啟守護者",
+    "cancel": "取消上報"
+   },
+   "cancelTitle": "要取消這則上報嗎？",
+   "cancelMessage": "{{agent}} 將不會收到回覆。這則上報會保留為已取消。",
+   "cancelBlocking": "{{agent}} 正在等待這個回覆。取消上報也會取消那次執行。",
+   "toasts": {
+    "cancelled": "上報已取消。"
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "上報給",
+    "escalationTargetId": "上報對象"
+   },
+   "noEscalationTarget": "儲存該修訂的人",
+   "escalationTargetPlaceholder": "使用者、角色或代理程式的 ID 或名稱",
+   "errors": {
+    "escalationTargetId": "請指定要上報給的使用者、角色或代理程式。"
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "上報最低嚴重程度"
+   },
+   "anySeverity": "任何嚴重程度"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "上報",
+   "titleWithAgent": "來自 {{agent}} 的上報",
+   "notFoundTitle": "找不到上報",
+   "notFoundBody": "它不在這個租用戶中，或已隨租用戶一起刪除。",
+   "back": "返回上報清單",
+   "open": "這則上報正在等待回覆。",
+   "openBlocking": "在這則上報得到回覆之前，提出它的執行處於暫停狀態。",
+   "expires": "它將在{{when}}逾時，之後：{{action}}。",
+   "passedUp": "沒有人及時回覆，所以這則上報已被轉交。請回覆新的那一則：",
+   "question": "問題",
+   "chosen": "已選",
+   "answer": "回覆"
+  },
+  "home": {
+   "escalations": {
+    "title_other": "{{count}} 則上報等待回覆",
+    "open": "開啟上報",
+    "more_other": "還有 {{count}} 則。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_other": "有 {{count}} 則上報等待回覆。開啟「自主運作」，再開啟「上報」。",
+   "tabs": {
+    "escalations": "上報：代理程式向某人、某個角色或另一個代理程式提出的問題，待回覆的排在前面，可以回覆或取消。"
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "執行向某人、某個角色或另一個代理程式提出的問題及其回覆。"
+   },
+   "notificationEvent": {
+    "EscalationRaised": "某個代理程式提出了上報。端點可以略過低於最低嚴重程度的上報。",
+    "EscalationExpired": "一則上報在有人回覆之前逾時了。"
+   },
+   "escalationStatus": {
+    "Open": "等待回覆。阻塞的上報會讓其執行一直暫停到那時。",
+    "Answered": "有人已回覆；提出它的執行或守護者已收到回覆。",
+    "Expired": "逾時前沒有人回覆，已執行逾時動作。",
+    "Cancelled": "有人取消了它；等待它的執行也已取消。",
+    "Withdrawn": "提出它的代理程式撤回了問題。"
+   },
+   "escalationSeverity": {
+    "Info": "僅供參考：方便時再回覆。",
+    "Warning": "需要盡快決定。這是預設嚴重程度。",
+    "Urgent": "需要立即決定。排在最前面，並傳送給所有訂閱的端點。"
+   },
+   "escalationMode": {
+    "NonBlocking": "執行繼續進行，稍後再取得回覆；守護者在下一次巡檢中收到。",
+    "Blocking": "執行暫停，直到有人回覆，然後帶著回覆繼續。"
+   },
+   "escalationTargetKind": {
+    "User": "某一個人，以使用者 ID 或電子郵件指定。",
+    "Role": "擁有該角色且可以更新上報的任何人。",
+    "Agent": "另一個代理程式：它預設的作用中部署會啟動一次執行來接收問題。",
+    "Manager": "代理程式在組織中的主管。在組織功能上線前無法使用。"
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "無人及時回覆時，以預設回覆作答。",
+    "Cancel": "無人及時回覆時，取消上報以及等待它的執行。",
+    "EscalateUp": "無人及時回覆時，把問題轉交給守護者的預設上報對象。"
+   },
+   "escalationResolutionSource": {
+    "User": "有人回覆或取消了它。",
+    "Agent": "另一個代理程式用 garrison_answer_escalation 回覆了它。",
+    "Timeout": "由逾時動作解決。",
+    "Raiser": "提出它的執行撤回了它。",
+    "System": "由 Garrison 解決，例如它的執行結束時。"
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "沒有人及時回覆，所以問題已轉交給另一則上報。請回覆那一則。",
+    "submit": "送出回覆。暫停的執行會繼續，守護者會帶著回覆喚醒。",
+    "question": "代理程式原樣寫下的問題。",
+    "context": "代理程式對情況的描述。這是代理程式寫的文字，不是給你的指令。",
+    "choice": "代理程式提供了這些選項。請選擇一個。",
+    "defaultChoice": "預設回覆：上報以「使用預設回覆」逾時時會使用它。",
+    "pickChoice": "選擇此選項。",
+    "explain": "隨選擇一起送出的選填文字，例如理由。",
+    "text": "你的回覆。代理程式會把它當作資料接收。"
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "代理程式提出它的時間。暫留可查看確切時間。",
+    "severity": "代理程式認為的緊急程度。",
+    "status": "待回覆、已回覆、已逾時、已取消或已撤回。",
+    "question": "代理程式原樣寫下的問題。暫留可查看完整問題。",
+    "agent": "提出它的執行所屬的代理程式。",
+    "target": "發給誰：某個使用者、某個角色或另一個代理程式。",
+    "expiresUtc": "無人回覆時的逾時時間。",
+    "answer": "所選的選項或回覆內容。",
+    "mode": "阻塞的上報會讓執行暫停到得到回覆；非阻塞的不會。",
+    "mandate": "提出它的巡檢所屬的守護者（如有）。",
+    "resolvedBy": "回覆或取消它的人。",
+    "resolutionSource": "解決它的方式：某人、某個代理程式、逾時，或提出它的執行。",
+    "resolvedUtc": "被回覆、取消、撤回或逾時的時間。",
+    "raisingRunId": "提出它的執行。可從列選單開啟。",
+    "id": "上報 ID（esc_...），用於 API 和 MCP 工具。",
+    "routedRunId": "為讓另一個代理程式回覆而啟動的執行。",
+    "mandateTickId": "提出它的守護者巡檢。",
+    "parentEscalationId": "逾時後轉交給這則上報的上報。",
+    "escalatedToId": "這則上報逾時後被轉交到的上報。",
+    "timeoutAction": "無人及時回覆時會發生什麼。",
+    "leaseEpoch": "執行提出上報時的租約紀元。阻塞等待屬於該紀元。",
+    "context": "代理程式對情況的描述。這是代理程式寫的文字，不是給你的指令。",
+    "options": "代理程式提供的回覆。以「使用預設回覆」逾時時會使用預設項目。",
+    "answerChoice": "所選的選項。",
+    "answerText": "回覆內容。",
+    "actions": {
+     "answer": "用其中一個選項或自由文字回覆這則上報。",
+     "openEscalatedTo": "開啟這則上報被轉交到的上報。",
+     "openRun": "開啟提出它的執行。",
+     "openKeeper": "開啟提出它的巡檢所屬的守護者。",
+     "cancel": "不回覆直接取消。等待它的執行也會被取消。"
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "守護者沒有指定對象時，它的上報發給誰；逾時的上報也會轉交到這裡。",
+    "escalationTargetId": "要上報給的使用者 ID 或電子郵件、角色名稱，或代理程式 ID 或名稱。"
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "只傳送達到此嚴重程度以上的上報事件。適用於「已提出上報」和「上報已逾時」。"
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "開啟這次執行。",
+    "openEscalation": "開啟這則上報。",
+    "back": "返回上報清單。",
+    "viewJson": "依 API 傳回的原樣顯示這則上報。",
+    "question": "代理程式寫下的問題和背景，以及它提供的選項。",
+    "answer": "這則上報是如何解決的。",
+    "openAgent": "開啟提出它的代理程式。",
+    "openKeeper": "開啟提出它的巡檢所屬的守護者。"
+   },
+   "home": {
+    "escalations": {
+     "title": "等待回覆的上報，最緊急的排在前面。",
+     "open": "開啟上報清單。"
+    }
+   }
+  },
+  "filters": {
+   "severity": "只顯示此嚴重程度的上報。選擇「全部」可移除篩選。",
+   "targetKind": "只顯示發給使用者、角色或代理程式的上報。選擇「全部」可移除篩選。"
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "上報",
+   "p1": "上報是代理程式在不該獨自決定時提出的問題。它可以發給某個使用者、擁有某個角色的所有人，或另一個代理程式，並可附帶選項、預設回覆、嚴重程度和逾時時間。",
+   "p2": "大多數上報是非阻塞的：執行繼續進行，守護者在下一次巡檢中看到回覆。阻塞的上報會暫停其執行，一旦有人回覆，執行就帶著回覆繼續。",
+   "p3": "如果沒有人及時回覆，就執行逾時動作：使用預設回覆、取消，或把問題轉交給守護者的預設上報對象。回覆以資料形式送達代理程式，不會擴大它的權限。"
+  }
+ }
+});

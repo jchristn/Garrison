@@ -6,6 +6,7 @@ import { findHub, hubBySlug, detailPageBySlug, pageBySlug, DASHBOARD_BASE } from
 import { allowed } from '../utils/principal';
 import { ARCHITECT_AGENT_NAME, STORAGE_KEYS, APPROVAL_POLL_MS } from '../utils/constants';
 import { ApprovalsProvider } from '../context/ApprovalsContext';
+import { EscalationsProvider } from '../context/EscalationsContext';
 import { combinedPending } from '../utils/approvals';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
@@ -51,8 +52,10 @@ export default function Dashboard() {
   const [live, setLive] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(null);
   const [pendingReviews, setPendingReviews] = useState(null);
+  const [openEscalations, setOpenEscalations] = useState(null);
   const approvalsReadable = useRef(true);
   const reviewsReadable = useRef(true);
+  const escalationsReadable = useRef(true);
   const route = resolveRoute(section, id, routeParams.get('tab'));
 
   // Pending approvals (P12.3) and pipeline stage reviews (P12.9) for the one sidebar badge: polled, and pushed over the
@@ -88,6 +91,28 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [refreshApprovals]);
 
+  // Open escalations (AA2.13) for the Autonomy badge: polled with the approvals, and pushed over the escalations
+  // channel (every message carries the open count). A 403 or 404 hides the badge for good.
+  const refreshEscalations = useCallback(() => {
+    if (!apiClient || !tenantId || !escalationsReadable.current || typeof apiClient.countOpenEscalations !== 'function') return;
+    apiClient
+      .countOpenEscalations(tenantId)
+      .then((count) => setOpenEscalations(count))
+      .catch((e) => {
+        if (e?.status === 403 || e?.status === 404) escalationsReadable.current = false;
+        setOpenEscalations(null);
+      });
+  }, [apiClient, tenantId]);
+
+  useEffect(() => {
+    escalationsReadable.current = true;
+    refreshEscalations();
+    const timer = setInterval(refreshEscalations, APPROVAL_POLL_MS);
+    return () => clearInterval(timer);
+  }, [refreshEscalations]);
+
+  const escalations = useMemo(() => ({ open: openEscalations, refresh: refreshEscalations }), [openEscalations, refreshEscalations]);
+
   const approvals = useMemo(
     () => ({ pending: combinedPending(pendingApprovals, pendingReviews), approvalsPending: pendingApprovals, reviewsPending: pendingReviews, refresh: refreshApprovals }),
     [pendingApprovals, pendingReviews, refreshApprovals]
@@ -121,6 +146,7 @@ export default function Dashboard() {
           ws.send(JSON.stringify({ type: 'subscribe', topics: ['runs', 'nodes'] }));
           // One channel per subscribe message; the server pushes approvals.changed whenever the pending set changes.
           ws.send(JSON.stringify({ type: 'subscribe', channel: 'approvals' }));
+          ws.send(JSON.stringify({ type: 'subscribe', channel: 'escalations' }));
         } catch {
           /* ignore */
         }
@@ -132,6 +158,7 @@ export default function Dashboard() {
             if (typeof message.pending === 'number') setPendingApprovals(message.pending);
             if (typeof message.reviewsPending === 'number' && reviewsReadable.current) setPendingReviews(message.reviewsPending);
           }
+          if (typeof message?.type === 'string' && message.type.startsWith('escalation') && typeof message.open === 'number' && escalationsReadable.current) setOpenEscalations(message.open);
         } catch {
           /* not JSON */
         }
@@ -175,26 +202,28 @@ export default function Dashboard() {
 
   return (
     <ApprovalsProvider value={approvals}>
-      <div className={cls.join(' ')}>
-        <a className="skip-link" href="#main-content" {...tip(t('tips.nav.skipToContent'))}>
-          {t('nav.skipToContent')}
-        </a>
-        <Sidebar onNavigateMobile={() => setMobileNavOpen(false)} />
-        {mobileNavOpen && <div className="mobile-nav-scrim" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />}
-        <Topbar
-          onToggleSidebar={() => {
-            if (window.innerWidth <= 900) setMobileNavOpen((m) => !m);
-            else toggleSidebar();
-          }}
-          health={health}
-          live={live}
-        />
-        <main className="dashboard-content" id="main-content">
-          {content}
-        </main>
-        <SetupWizard />
-        <Tour />
-      </div>
+      <EscalationsProvider value={escalations}>
+        <div className={cls.join(' ')}>
+          <a className="skip-link" href="#main-content" {...tip(t('tips.nav.skipToContent'))}>
+            {t('nav.skipToContent')}
+          </a>
+          <Sidebar onNavigateMobile={() => setMobileNavOpen(false)} />
+          {mobileNavOpen && <div className="mobile-nav-scrim" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />}
+          <Topbar
+            onToggleSidebar={() => {
+              if (window.innerWidth <= 900) setMobileNavOpen((m) => !m);
+              else toggleSidebar();
+            }}
+            health={health}
+            live={live}
+          />
+          <main className="dashboard-content" id="main-content">
+            {content}
+          </main>
+          <SetupWizard />
+          <Tour />
+        </div>
+      </EscalationsProvider>
     </ApprovalsProvider>
   );
 }

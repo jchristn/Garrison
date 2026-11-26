@@ -5594,3 +5594,353 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agenten, die selbstständig weiterarbeiten: Wächter wachen nach Zeitplan auf und kümmern sich um eine dauerhafte Aufgabe, und Eskalationen sind die Fragen, die sie Menschen stellen."
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "Eskalationen",
+    "tip": "Fragen, die Agenten einer Person, einer Rolle oder einem anderen Agenten gestellt haben, und die Antworten"
+   }
+  },
+  "escalationsOpen_one": "{{count}} Eskalation wartet auf eine Antwort",
+  "escalationsOpen_other": "{{count}} Eskalationen warten auf eine Antwort"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "Eskalation"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "Eskalation gestellt",
+   "EscalationExpired": "Eskalation abgelaufen"
+  },
+  "escalationStatus": {
+   "Open": "Offen",
+   "Answered": "Beantwortet",
+   "Expired": "Abgelaufen",
+   "Cancelled": "Abgebrochen",
+   "Withdrawn": "Zurückgezogen"
+  },
+  "escalationSeverity": {
+   "Info": "Info",
+   "Warning": "Warnung",
+   "Urgent": "Dringend"
+  },
+  "escalationMode": {
+   "NonBlocking": "Nicht blockierend",
+   "Blocking": "Blockierend"
+  },
+  "escalationTargetKind": {
+   "User": "Benutzer",
+   "Role": "Rolle",
+   "Agent": "Agent",
+   "Manager": "Vorgesetzter"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "Standardantwort verwenden",
+   "Cancel": "Abbrechen",
+   "EscalateUp": "Weiter eskalieren"
+  },
+  "escalationResolutionSource": {
+   "User": "Eine Person",
+   "Agent": "Ein Agent",
+   "Timeout": "Zeitüberschreitung",
+   "Raiser": "Der auslösende Lauf",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "Weiter eskaliert",
+   "answerTitle": "{{agent}} antworten",
+   "submit": "Antwort senden",
+   "expires": "Läuft {{when}} ab, dann: {{action}}",
+   "question": "Frage",
+   "context": "Kontext",
+   "choice": "Option wählen",
+   "default": "Standard",
+   "defaultAnswer": "Standardantwort: {{answer}}",
+   "explain": "Erläuterung (optional)",
+   "text": "Antwort",
+   "textPlaceholder": "Schreiben Sie Ihre Antwort. Der Agent liest sie als Daten, nicht als Anweisungen.",
+   "errors": {
+    "choice": "Wählen Sie eine der Optionen.",
+    "unknownChoice": "Diese Option bietet die Eskalation nicht an.",
+    "text": "Schreiben Sie eine Antwort.",
+    "textMax": "Die Antwort ist auf {{max}} Zeichen begrenzt."
+   },
+   "toasts": {
+    "answered": "Antwort an {{agent}} gesendet.",
+    "passedUp": "Diese Eskalation wurde an eine andere weitergegeben. Beantworten Sie stattdessen diese.",
+    "notOpen": "Jemand anderes hat zuerst geantwortet, oder sie ist abgelaufen.",
+    "forbidden": "Zum Antworten benötigen Sie Update auf Escalation."
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "Eskalationen",
+   "subtitle": "Fragen, die Agenten einer Person, einer Rolle oder einem anderen Agenten gestellt haben. Offene warten auf eine Antwort; blockierende halten ihren Lauf bis dahin an.",
+   "add": "Eskalation hinzufügen",
+   "create": "Eskalation erstellen",
+   "edit": "Eskalation bearbeiten",
+   "view": "Eskalationsdetails",
+   "deleteTitle": "Eskalation löschen",
+   "emptyTitle": "Keine Eskalationen",
+   "emptyBody": "Eine Eskalation erscheint, wenn ein Agent mit garrison_escalate eine Person, eine Rolle oder einen anderen Agenten um eine Entscheidung bittet.",
+   "columns": {
+    "createdUtc": "Gestellt",
+    "severity": "Schweregrad",
+    "status": "Status",
+    "question": "Frage",
+    "agent": "Agent",
+    "target": "Adressiert an",
+    "expiresUtc": "Läuft ab",
+    "answer": "Antwort",
+    "mode": "Modus",
+    "mandate": "Wächter",
+    "resolvedBy": "Beantwortet von",
+    "resolutionSource": "Erledigt durch",
+    "resolvedUtc": "Erledigt",
+    "raisingRunId": "Auslösender Lauf",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "Adressiert an"
+   },
+   "fields": {
+    "status": "Status",
+    "severity": "Schweregrad",
+    "mode": "Modus",
+    "target": "Adressiert an",
+    "agent": "Gestellt von",
+    "raisingRunId": "Auslösender Lauf",
+    "mandate": "Wächter",
+    "mandateTickId": "Wächter-Tick",
+    "routedRunId": "Antwortender Lauf",
+    "parentEscalationId": "Eskaliert von",
+    "escalatedToId": "Eskaliert an",
+    "timeoutAction": "Bei Ablauf",
+    "expiresUtc": "Läuft ab",
+    "createdUtc": "Gestellt",
+    "leaseEpoch": "Lease-Epoche",
+    "context": "Kontext",
+    "options": "Optionen",
+    "answerChoice": "Auswahl",
+    "answerText": "Antwort",
+    "resolvedBy": "Beantwortet von",
+    "resolutionSource": "Erledigt durch",
+    "resolvedUtc": "Erledigt"
+   },
+   "actions": {
+    "answer": "Antworten",
+    "openEscalatedTo": "Weitergegebene Eskalation öffnen",
+    "openRun": "Auslösenden Lauf öffnen",
+    "openKeeper": "Wächter öffnen",
+    "cancel": "Eskalation abbrechen"
+   },
+   "cancelTitle": "Diese Eskalation abbrechen?",
+   "cancelMessage": "{{agent}} erhält keine Antwort. Die Eskalation bleibt als Abgebrochen erhalten.",
+   "cancelBlocking": "{{agent}} wartet auf diese Antwort. Wenn Sie die Eskalation abbrechen, wird auch dieser Lauf abgebrochen.",
+   "toasts": {
+    "cancelled": "Eskalation abgebrochen."
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "Eskalieren an",
+    "escalationTargetId": "Eskalationsziel"
+   },
+   "noEscalationTarget": "Die Person, die die Revision gespeichert hat",
+   "escalationTargetPlaceholder": "ID oder Name des Benutzers, der Rolle oder des Agenten",
+   "errors": {
+    "escalationTargetId": "Nennen Sie den Benutzer, die Rolle oder den Agenten, an den eskaliert wird."
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "Mindestschweregrad für Eskalationen"
+   },
+   "anySeverity": "Jeder Schweregrad"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "Eskalation",
+   "titleWithAgent": "Eskalation von {{agent}}",
+   "notFoundTitle": "Eskalation nicht gefunden",
+   "notFoundBody": "Sie existiert in diesem Mandanten nicht oder wurde mit ihrem Mandanten gelöscht.",
+   "back": "Zurück zu den Eskalationen",
+   "open": "Diese Eskalation wartet auf eine Antwort.",
+   "openBlocking": "Der auslösende Lauf ist angehalten, bis diese Eskalation beantwortet ist.",
+   "expires": "Sie läuft {{when}} ab, dann: {{action}}.",
+   "passedUp": "Niemand hat rechtzeitig geantwortet, daher wurde diese Eskalation weitergegeben. Beantworten Sie die neue:",
+   "question": "Frage",
+   "chosen": "Gewählt",
+   "answer": "Antwort"
+  },
+  "home": {
+   "escalations": {
+    "title_one": "{{count}} Eskalation wartet auf eine Antwort",
+    "title_other": "{{count}} Eskalationen warten auf eine Antwort",
+    "open": "Eskalationen öffnen",
+    "more_one": "Und {{count}} weitere.",
+    "more_other": "Und {{count}} weitere."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_one": "{{count}} Eskalation wartet auf eine Antwort. Öffnen Sie Autonomie und dann Eskalationen.",
+   "escalationsBadge_other": "{{count}} Eskalationen warten auf eine Antwort. Öffnen Sie Autonomie und dann Eskalationen.",
+   "tabs": {
+    "escalations": "Eskalationen: Fragen, die Agenten einer Person, einer Rolle oder einem anderen Agenten gestellt haben, offene zuerst, mit Antworten und Abbrechen."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "Fragen, die Läufe einer Person, einer Rolle oder einem anderen Agenten stellen, und ihre Antworten."
+   },
+   "notificationEvent": {
+    "EscalationRaised": "Ein Agent hat eine Eskalation gestellt. Endpunkte können solche unter einem Mindestschweregrad auslassen.",
+    "EscalationExpired": "Eine Eskalation ist abgelaufen, bevor jemand geantwortet hat."
+   },
+   "escalationStatus": {
+    "Open": "Wartet auf eine Antwort. Eine blockierende Eskalation hält ihren Lauf bis dahin an.",
+    "Answered": "Jemand hat geantwortet; der auslösende Lauf oder Wächter hat die Antwort erhalten.",
+    "Expired": "Niemand hat vor dem Ablauf geantwortet, und die Ablaufaktion wurde ausgeführt.",
+    "Cancelled": "Eine Person hat sie abgebrochen; ein darauf wartender Lauf wurde ebenfalls abgebrochen.",
+    "Withdrawn": "Der Agent, der sie gestellt hat, hat die Frage zurückgezogen."
+   },
+   "escalationSeverity": {
+    "Info": "Zur Information: antworten, wenn es passt.",
+    "Warning": "Braucht bald eine Entscheidung. Das ist der Standardschweregrad.",
+    "Urgent": "Braucht sofort eine Entscheidung. Steht zuerst und geht an jeden abonnierten Endpunkt."
+   },
+   "escalationMode": {
+    "NonBlocking": "Der Lauf arbeitet weiter und holt die Antwort später ab; ein Wächter erhält sie im nächsten Tick.",
+    "Blocking": "Der Lauf wird angehalten, bis jemand antwortet, und setzt dann mit der Antwort fort."
+   },
+   "escalationTargetKind": {
+    "User": "Eine Person, per Benutzer-ID oder E-Mail.",
+    "Role": "Jeder mit dieser Rolle, der Eskalationen aktualisieren darf.",
+    "Agent": "Ein anderer Agent: Ein Lauf seiner aktiven Standardbereitstellung erhält die Frage.",
+    "Manager": "Der Vorgesetzte des Agenten in einer Organisation. Erst mit Organisationen verfügbar."
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "Mit der Standardantwort antworten, wenn niemand rechtzeitig antwortet.",
+    "Cancel": "Die Eskalation und einen darauf wartenden Lauf abbrechen, wenn niemand rechtzeitig antwortet.",
+    "EscalateUp": "Die Frage an das Standardziel des Wächters weitergeben, wenn niemand rechtzeitig antwortet."
+   },
+   "escalationResolutionSource": {
+    "User": "Eine Person hat geantwortet oder abgebrochen.",
+    "Agent": "Ein anderer Agent hat mit garrison_answer_escalation geantwortet.",
+    "Timeout": "Die Ablaufaktion hat sie erledigt.",
+    "Raiser": "Der Lauf, der sie gestellt hat, hat sie zurückgezogen.",
+    "System": "Garrison hat sie erledigt, zum Beispiel als ihr Lauf endete."
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "Niemand hat rechtzeitig geantwortet, daher ging die Frage an eine andere Eskalation. Beantworten Sie diese.",
+    "submit": "Antwort senden. Ein angehaltener Lauf setzt fort, und ein Wächter wacht damit auf.",
+    "question": "Die Frage genau so, wie der Agent sie geschrieben hat.",
+    "context": "Was der Agent zur Lage gesagt hat. Es ist Text des Agenten, keine Anweisung an Sie.",
+    "choice": "Der Agent bietet diese Optionen an. Wählen Sie eine.",
+    "defaultChoice": "Die Standardantwort: Sie gilt, wenn die Eskalation mit Standardantwort verwenden abläuft.",
+    "pickChoice": "Diese Option wählen.",
+    "explain": "Optionaler Text zu Ihrer Wahl, zum Beispiel warum Sie so entschieden haben.",
+    "text": "Ihre Antwort. Der Agent erhält sie als Daten."
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "Wann der Agent sie gestellt hat. Für die genaue Zeit darauf zeigen.",
+    "severity": "Wie dringend der Agent sie einstuft.",
+    "status": "Offen, beantwortet, abgelaufen, abgebrochen oder zurückgezogen.",
+    "question": "Was der Agent gefragt hat, wie er es geschrieben hat. Für die ganze Frage darauf zeigen.",
+    "agent": "Der Agent, dessen Lauf sie gestellt hat.",
+    "target": "An wen sie gerichtet ist: einen Benutzer, eine Rolle oder einen anderen Agenten.",
+    "expiresUtc": "Wann sie abläuft, wenn niemand antwortet.",
+    "answer": "Die gewählte Option oder der Antworttext.",
+    "mode": "Blockierende Eskalationen halten ihren Lauf bis zur Antwort an; nicht blockierende nicht.",
+    "mandate": "Der Wächter, dessen Tick sie gestellt hat, falls vorhanden.",
+    "resolvedBy": "Wer geantwortet oder abgebrochen hat.",
+    "resolutionSource": "Was sie erledigt hat: eine Person, ein Agent, der Ablauf oder der auslösende Lauf.",
+    "resolvedUtc": "Wann sie beantwortet, abgebrochen, zurückgezogen wurde oder abgelaufen ist.",
+    "raisingRunId": "Der Lauf, der sie gestellt hat. Über das Zeilenmenü öffnen.",
+    "id": "Die Eskalations-ID (esc_...), für die API und die MCP-Tools.",
+    "routedRunId": "Der Lauf, der gestartet wurde, damit ein anderer Agent antworten kann.",
+    "mandateTickId": "Der Wächter-Tick, der sie gestellt hat.",
+    "parentEscalationId": "Die Eskalation, die abgelaufen ist und an diese weitergegeben wurde.",
+    "escalatedToId": "Die Eskalation, an die diese bei Ablauf weitergegeben wurde.",
+    "timeoutAction": "Was passiert, wenn niemand rechtzeitig antwortet.",
+    "leaseEpoch": "Die Lease-Epoche des Laufs beim Stellen der Eskalation. Ein blockierendes Warten gehört zu dieser Epoche.",
+    "context": "Was der Agent zur Lage gesagt hat. Es ist Text des Agenten, keine Anweisung an Sie.",
+    "options": "Die Antworten, die der Agent anbietet. Die Standardantwort gilt bei Ablauf mit Standardantwort verwenden.",
+    "answerChoice": "Die gewählte Option.",
+    "answerText": "Der Text der Antwort.",
+    "actions": {
+     "answer": "Diese Eskalation mit einer ihrer Optionen oder freiem Text beantworten.",
+     "openEscalatedTo": "Die Eskalation öffnen, an die diese weitergegeben wurde.",
+     "openRun": "Den Lauf öffnen, der sie gestellt hat.",
+     "openKeeper": "Den Wächter öffnen, dessen Tick sie gestellt hat.",
+     "cancel": "Ohne Antwort abbrechen. Ein darauf wartender Lauf wird ebenfalls abgebrochen."
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "An wen die Eskalationen dieses Wächters gehen, wenn er niemanden nennt, und wohin abgelaufene weitergegeben werden.",
+    "escalationTargetId": "Benutzer-ID oder E-Mail, Rollenname oder Agenten-ID bzw. -Name, an den eskaliert wird."
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "Eskalationsereignisse nur ab diesem Schweregrad senden. Gilt für Eskalation gestellt und Eskalation abgelaufen."
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "Diesen Lauf öffnen.",
+    "openEscalation": "Diese Eskalation öffnen.",
+    "back": "Zurück zur Liste der Eskalationen.",
+    "viewJson": "Die Eskalation so anzeigen, wie die API sie liefert.",
+    "question": "Frage und Kontext, wie der Agent sie geschrieben hat, und die angebotenen Optionen.",
+    "answer": "Wie die Eskalation erledigt wurde.",
+    "openAgent": "Den Agenten öffnen, der sie gestellt hat.",
+    "openKeeper": "Den Wächter öffnen, dessen Tick sie gestellt hat."
+   },
+   "home": {
+    "escalations": {
+     "title": "Eskalationen, die auf eine Antwort warten, die dringendsten zuerst.",
+     "open": "Die Eskalationsliste öffnen."
+    }
+   }
+  },
+  "filters": {
+   "severity": "Nur Eskalationen dieses Schweregrads anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+   "targetKind": "Nur Eskalationen an Benutzer, Rollen oder Agenten anzeigen. Wählen Sie Alle, um den Filter zu entfernen."
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "Eskalationen",
+   "p1": "Eine Eskalation ist eine Frage, die ein Agent stellt, wenn er nicht allein entscheiden soll. Sie geht an einen Benutzer, an alle mit einer Rolle oder an einen anderen Agenten, optional mit Auswahlmöglichkeiten, Standardantwort, Schweregrad und Zeitlimit.",
+   "p2": "Die meisten Eskalationen blockieren nicht: Der Lauf arbeitet weiter, und ein Wächter findet die Antwort im nächsten Tick. Eine blockierende Eskalation hält ihren Lauf an, der mit der Antwort fortsetzt, sobald jemand antwortet.",
+   "p3": "Antwortet niemand rechtzeitig, läuft die Ablaufaktion: Standardantwort verwenden, abbrechen oder die Frage an das Standardziel des Wächters weitergeben. Antworten erreichen den Agenten als Daten und können seine Berechtigungen nicht erweitern."
+  }
+ }
+});

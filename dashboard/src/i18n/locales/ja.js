@@ -5554,3 +5554,349 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "自分で動き続けるエージェント。キーパーはスケジュールどおりに起動して継続的な任務を見守り、エスカレーションは人に向けた質問です。"
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "エスカレーション",
+    "tip": "エージェントが人、ロール、または別のエージェントに尋ねた質問と回答"
+   }
+  },
+  "escalationsOpen_other": "回答待ちのエスカレーションが {{count}} 件あります"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "エスカレーション"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "エスカレーション作成",
+   "EscalationExpired": "エスカレーション期限切れ"
+  },
+  "escalationStatus": {
+   "Open": "未回答",
+   "Answered": "回答済み",
+   "Expired": "期限切れ",
+   "Cancelled": "キャンセル済み",
+   "Withdrawn": "取り下げ"
+  },
+  "escalationSeverity": {
+   "Info": "情報",
+   "Warning": "警告",
+   "Urgent": "緊急"
+  },
+  "escalationMode": {
+   "NonBlocking": "非ブロッキング",
+   "Blocking": "ブロッキング"
+  },
+  "escalationTargetKind": {
+   "User": "ユーザー",
+   "Role": "ロール",
+   "Agent": "エージェント",
+   "Manager": "マネージャー"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "既定の回答を使う",
+   "Cancel": "キャンセル",
+   "EscalateUp": "上位へエスカレーション"
+  },
+  "escalationResolutionSource": {
+   "User": "人",
+   "Agent": "エージェント",
+   "Timeout": "期限切れ",
+   "Raiser": "作成した実行",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "上位へエスカレーション済み",
+   "answerTitle": "{{agent}} に回答",
+   "submit": "回答を送信",
+   "expires": "{{when}}に期限切れ。その後: {{action}}",
+   "question": "質問",
+   "context": "状況",
+   "choice": "選択肢を選ぶ",
+   "default": "既定",
+   "defaultAnswer": "既定の回答: {{answer}}",
+   "explain": "説明 (任意)",
+   "text": "回答",
+   "textPlaceholder": "回答を書いてください。エージェントは指示ではなくデータとして読みます。",
+   "errors": {
+    "choice": "選択肢を 1 つ選んでください。",
+    "unknownChoice": "このエスカレーションにその選択肢はありません。",
+    "text": "回答を書いてください。",
+    "textMax": "回答は {{max}} 文字までです。"
+   },
+   "toasts": {
+    "answered": "{{agent}} に回答を送信しました。",
+    "passedUp": "このエスカレーションは別のエスカレーションに引き継がれました。そちらに回答してください。",
+    "notOpen": "先に別の人が回答したか、期限が切れました。",
+    "forbidden": "回答するには Escalation の Update 権限が必要です。"
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "エスカレーション",
+   "subtitle": "エージェントが人、ロール、または別のエージェントに尋ねた質問です。未回答のものは回答を待ち、ブロッキングのものはそれまで実行を止めます。",
+   "add": "エスカレーションを追加",
+   "create": "エスカレーションを作成",
+   "edit": "エスカレーションを編集",
+   "view": "エスカレーションの詳細",
+   "deleteTitle": "エスカレーションを削除",
+   "emptyTitle": "エスカレーションはありません",
+   "emptyBody": "エージェントが garrison_escalate で人、ロール、または別のエージェントに判断を求めると、ここに表示されます。",
+   "columns": {
+    "createdUtc": "作成",
+    "severity": "重要度",
+    "status": "状態",
+    "question": "質問",
+    "agent": "エージェント",
+    "target": "宛先",
+    "expiresUtc": "期限",
+    "answer": "回答",
+    "mode": "モード",
+    "mandate": "キーパー",
+    "resolvedBy": "回答者",
+    "resolutionSource": "解決元",
+    "resolvedUtc": "解決",
+    "raisingRunId": "作成した実行",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "宛先"
+   },
+   "fields": {
+    "status": "状態",
+    "severity": "重要度",
+    "mode": "モード",
+    "target": "宛先",
+    "agent": "作成者",
+    "raisingRunId": "作成した実行",
+    "mandate": "キーパー",
+    "mandateTickId": "キーパーのティック",
+    "routedRunId": "回答する実行",
+    "parentEscalationId": "引き継ぎ元",
+    "escalatedToId": "引き継ぎ先",
+    "timeoutAction": "期限切れ時",
+    "expiresUtc": "期限",
+    "createdUtc": "作成",
+    "leaseEpoch": "リースエポック",
+    "context": "状況",
+    "options": "選択肢",
+    "answerChoice": "選択",
+    "answerText": "回答",
+    "resolvedBy": "回答者",
+    "resolutionSource": "解決元",
+    "resolvedUtc": "解決"
+   },
+   "actions": {
+    "answer": "回答",
+    "openEscalatedTo": "引き継ぎ先のエスカレーションを開く",
+    "openRun": "作成した実行を開く",
+    "openKeeper": "キーパーを開く",
+    "cancel": "エスカレーションをキャンセル"
+   },
+   "cancelTitle": "このエスカレーションをキャンセルしますか?",
+   "cancelMessage": "{{agent}} は回答を受け取りません。エスカレーションはキャンセル済みとして残ります。",
+   "cancelBlocking": "{{agent}} はこの回答を待っています。エスカレーションをキャンセルすると、その実行もキャンセルされます。",
+   "toasts": {
+    "cancelled": "エスカレーションをキャンセルしました。"
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "エスカレーション先",
+    "escalationTargetId": "エスカレーション先の ID"
+   },
+   "noEscalationTarget": "リビジョンを保存した人",
+   "escalationTargetPlaceholder": "ユーザー、ロール、またはエージェントの ID か名前",
+   "errors": {
+    "escalationTargetId": "エスカレーション先のユーザー、ロール、またはエージェントを指定してください。"
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "エスカレーションの最低重要度"
+   },
+   "anySeverity": "すべての重要度"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "エスカレーション",
+   "titleWithAgent": "{{agent}} からのエスカレーション",
+   "notFoundTitle": "エスカレーションが見つかりません",
+   "notFoundBody": "このテナントに存在しないか、テナントと一緒に削除されました。",
+   "back": "エスカレーション一覧に戻る",
+   "open": "このエスカレーションは回答を待っています。",
+   "openBlocking": "このエスカレーションに回答があるまで、作成した実行は一時停止しています。",
+   "expires": "{{when}}に期限切れになり、その後: {{action}}。",
+   "passedUp": "期限内に回答がなかったため、このエスカレーションは引き継がれました。新しい方に回答してください:",
+   "question": "質問",
+   "chosen": "選択済み",
+   "answer": "回答"
+  },
+  "home": {
+   "escalations": {
+    "title_other": "回答待ちのエスカレーション {{count}} 件",
+    "open": "エスカレーションを開く",
+    "more_other": "ほか {{count}} 件。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_other": "回答待ちのエスカレーションが {{count}} 件あります。自律運用からエスカレーションを開いてください。",
+   "tabs": {
+    "escalations": "エスカレーション: エージェントが人、ロール、または別のエージェントに尋ねた質問。未回答のものが先頭で、回答とキャンセルができます。"
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "実行が人、ロール、または別のエージェントに尋ねる質問と、その回答。"
+   },
+   "notificationEvent": {
+    "EscalationRaised": "エージェントがエスカレーションを作成しました。エンドポイントは最低重要度未満のものを除外できます。",
+    "EscalationExpired": "誰も回答しないまま、エスカレーションの期限が切れました。"
+   },
+   "escalationStatus": {
+    "Open": "回答を待っています。ブロッキングのエスカレーションはそれまで実行を止めます。",
+    "Answered": "誰かが回答し、作成した実行またはキーパーが回答を受け取りました。",
+    "Expired": "期限までに回答がなく、期限切れ時の動作が実行されました。",
+    "Cancelled": "人がキャンセルしました。待機していた実行もキャンセルされました。",
+    "Withdrawn": "作成したエージェントが質問を取り下げました。"
+   },
+   "escalationSeverity": {
+    "Info": "情報提供です。都合のよいときに回答してください。",
+    "Warning": "近いうちに判断が必要です。既定の重要度です。",
+    "Urgent": "すぐに判断が必要です。一覧の先頭に表示され、購読しているすべてのエンドポイントに送られます。"
+   },
+   "escalationMode": {
+    "NonBlocking": "実行は続行し、後で回答を受け取ります。キーパーは次のティックで受け取ります。",
+    "Blocking": "誰かが回答するまで実行が一時停止し、その後回答を持って再開します。"
+   },
+   "escalationTargetKind": {
+    "User": "1 人のユーザー。ユーザー ID またはメールで指定します。",
+    "Role": "そのロールを持ち、エスカレーションを更新できる人。",
+    "Agent": "別のエージェント。既定のアクティブなデプロイメントの実行が質問を受け取ります。",
+    "Manager": "組織内でのエージェントのマネージャー。組織機能が入るまで使えません。"
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "期限内に回答がなければ、既定の回答で答えます。",
+    "Cancel": "期限内に回答がなければ、エスカレーションと待機中の実行をキャンセルします。",
+    "EscalateUp": "期限内に回答がなければ、キーパーの既定のエスカレーション先に質問を回します。"
+   },
+   "escalationResolutionSource": {
+    "User": "人が回答またはキャンセルしました。",
+    "Agent": "別のエージェントが garrison_answer_escalation で回答しました。",
+    "Timeout": "期限切れ時の動作で解決しました。",
+    "Raiser": "作成した実行が取り下げました。",
+    "System": "Garrison が解決しました。たとえば実行が終了したときです。"
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "期限内に回答がなかったため、質問は別のエスカレーションに回されました。そちらに回答してください。",
+    "submit": "回答を送信します。一時停止中の実行は再開し、キーパーは回答とともに起動します。",
+    "question": "エージェントが書いたとおりの質問です。",
+    "context": "エージェントが状況について述べた内容です。エージェントの文章であり、あなたへの指示ではありません。",
+    "choice": "エージェントが提示した選択肢です。1 つ選んでください。",
+    "defaultChoice": "既定の回答です。期限切れ時の動作が「既定の回答を使う」の場合に使われます。",
+    "pickChoice": "この選択肢を選びます。",
+    "explain": "選択に添える任意の文章です。たとえば理由など。",
+    "text": "あなたの回答です。エージェントはデータとして受け取ります。"
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "エージェントが作成した日時。ポインターを合わせると正確な時刻が表示されます。",
+    "severity": "エージェントが示した緊急度。",
+    "status": "未回答、回答済み、期限切れ、キャンセル済み、または取り下げ。",
+    "question": "エージェントが書いたとおりの質問。ポインターを合わせると全文を表示します。",
+    "agent": "このエスカレーションを作成した実行のエージェント。",
+    "target": "宛先: ユーザー、ロール、または別のエージェント。",
+    "expiresUtc": "回答がない場合に期限が切れる日時。",
+    "answer": "選ばれた選択肢または回答の文章。",
+    "mode": "ブロッキングのエスカレーションは回答まで実行を止めます。非ブロッキングは止めません。",
+    "mandate": "このエスカレーションを作成したティックのキーパー (ある場合)。",
+    "resolvedBy": "回答またはキャンセルした人。",
+    "resolutionSource": "解決したもの: 人、エージェント、期限切れ、または作成した実行。",
+    "resolvedUtc": "回答、キャンセル、取り下げ、または期限切れになった日時。",
+    "raisingRunId": "このエスカレーションを作成した実行。行のメニューから開けます。",
+    "id": "エスカレーション ID (esc_...)。API と MCP ツールで使います。",
+    "routedRunId": "別のエージェントが回答できるように開始された実行。",
+    "mandateTickId": "このエスカレーションを作成したキーパーのティック。",
+    "parentEscalationId": "期限が切れてこのエスカレーションに回されたエスカレーション。",
+    "escalatedToId": "期限切れ時にこのエスカレーションが回された先。",
+    "timeoutAction": "期限内に回答がない場合の動作。",
+    "leaseEpoch": "エスカレーション作成時の実行のリースエポック。ブロッキングの待機はそのエポックに属します。",
+    "context": "エージェントが状況について述べた内容です。エージェントの文章であり、あなたへの指示ではありません。",
+    "options": "エージェントが提示した回答。期限切れ時の動作が「既定の回答を使う」の場合は既定の回答が使われます。",
+    "answerChoice": "選ばれた選択肢。",
+    "answerText": "回答の文章。",
+    "actions": {
+     "answer": "選択肢または自由記述でこのエスカレーションに回答します。",
+     "openEscalatedTo": "このエスカレーションが回された先を開きます。",
+     "openRun": "このエスカレーションを作成した実行を開きます。",
+     "openKeeper": "このエスカレーションを作成したティックのキーパーを開きます。",
+     "cancel": "回答せずにキャンセルします。待機中の実行もキャンセルされます。"
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "キーパーが宛先を指定しないときのエスカレーション先。期限切れのエスカレーションもここに回されます。",
+    "escalationTargetId": "エスカレーション先のユーザー ID またはメール、ロール名、またはエージェントの ID か名前。"
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "この重要度以上のエスカレーションイベントだけを送信します。エスカレーション作成とエスカレーション期限切れに適用されます。"
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "この実行を開きます。",
+    "openEscalation": "このエスカレーションを開きます。",
+    "back": "エスカレーション一覧に戻ります。",
+    "viewJson": "API が返すとおりのエスカレーションを表示します。",
+    "question": "エージェントが書いた質問と状況、提示された選択肢。",
+    "answer": "エスカレーションがどのように解決されたか。",
+    "openAgent": "このエスカレーションを作成したエージェントを開きます。",
+    "openKeeper": "このエスカレーションを作成したティックのキーパーを開きます。"
+   },
+   "home": {
+    "escalations": {
+     "title": "回答待ちのエスカレーション。緊急度の高いものから表示します。",
+     "open": "エスカレーション一覧を開きます。"
+    }
+   }
+  },
+  "filters": {
+   "severity": "この重要度のエスカレーションだけを表示します。すべてを選ぶとフィルターを外します。",
+   "targetKind": "ユーザー、ロール、またはエージェント宛てのエスカレーションだけを表示します。すべてを選ぶとフィルターを外します。"
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "エスカレーション",
+   "p1": "エスカレーションは、エージェントが単独で決めるべきでないときに尋ねる質問です。ユーザー、ロールを持つ全員、または別のエージェントに送られ、選択肢、既定の回答、重要度、期限を任意で付けられます。",
+   "p2": "ほとんどのエスカレーションは非ブロッキングです。実行は続行し、キーパーは次のティックで回答を見つけます。ブロッキングのエスカレーションは実行を一時停止し、誰かが回答すると回答を持って再開します。",
+   "p3": "期限内に回答がなければ、期限切れ時の動作が実行されます。既定の回答を使う、キャンセルする、またはキーパーの既定のエスカレーション先に質問を回す、のいずれかです。回答はデータとしてエージェントに届き、権限を広げることはありません。"
+  }
+ }
+});

@@ -69,6 +69,7 @@ export { pipelinesConfig } from './pipelineConfigs';
 export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
 // AA1.16: keepers (mandates) under Autonomy.
 export { keepersConfig } from './keeperConfigs';
+export { escalationsConfig } from './escalationConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

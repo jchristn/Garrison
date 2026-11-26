@@ -1150,6 +1150,45 @@ class ApiClient {
     return page.totalCount ?? 0;
   }
 
+  // ------------------------------------------------------------------ escalations (AA2)
+
+  /**
+   * Escalations, open first and then newest first. filters: status, severity, targetKind, targetId, agentId, mandateId,
+   * raisingRunId, search, pageNumber, pageSize.
+   */
+  listEscalations(tenantId, params) {
+    return this._list(this._t(tenantId, 'escalations'), params);
+  }
+
+  /** Read an escalation with its options and answer. */
+  getEscalation(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `escalations/${enc(id)}`));
+  }
+
+  /**
+   * Answer an open escalation. body: { choice?, text? }: choice is one of its option keys when it has options,
+   * otherwise text is required. Throws 409 EscalationNotOpen when it was already resolved and EscalatedUp when it was
+   * passed up to another escalation.
+   */
+  answerEscalation(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `escalations/${enc(id)}/answer`), { body });
+  }
+
+  /** Cancel an open escalation (a run blocked on it is cancelled too). body: { reason? }. */
+  cancelEscalation(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `escalations/${enc(id)}/cancel`), { body: body || {} });
+  }
+
+  /**
+   * Number of escalations waiting for an answer: open ones that were not passed up to another escalation (the child
+   * is the one counted). Reads the first 100 open escalations; beyond that the total is an upper bound.
+   */
+  async countOpenEscalations(tenantId) {
+    const page = await this.listEscalations(tenantId, { status: 'Open', pageNumber: 1, pageSize: 100 });
+    const passedUp = (page.items || []).filter((e) => e?.escalatedToId).length;
+    return Math.max(0, (page.totalCount ?? 0) - passedUp);
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

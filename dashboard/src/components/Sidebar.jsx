@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { usePendingApprovals } from '../context/ApprovalsContext';
+import { useOpenEscalations } from '../context/EscalationsContext';
 import { formatNumber } from '../i18n/formatters';
 import { NAV_SECTIONS, DASHBOARD_BASE, hubIsActive } from '../config/navConfig';
 import { allowed } from '../utils/principal';
@@ -25,6 +26,7 @@ export default function Sidebar({ onNavigateMobile }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { pending, approvalsPending, reviewsPending } = usePendingApprovals();
+  const { open: openEscalations } = useOpenEscalations();
   const { pathname } = useLocation();
   const { principal } = useAuth();
   const { setWizardOpen, setTourOpen } = useApp();
@@ -79,6 +81,16 @@ export default function Sidebar({ onNavigateMobile }) {
                         {...tip(reviewsPending ? t('tips.nav.approvalsBadgeCombined', { count: pending, approvals: approvalsPending ?? 0, reviews: reviewsPending }) : t('tips.nav.approvalsBadge', { count: pending }))}
                       >
                         {pending > 99 ? '99+' : formatNumber(pending, {}, i18n.language)}
+                      </span>
+                    )}
+                    {hub.key === 'autonomy' && openEscalations > 0 && (
+                      <span
+                        className="sidebar-badge"
+                        data-testid="escalations-badge"
+                        aria-label={t('nav.escalationsOpen', { count: openEscalations })}
+                        {...tip(t('tips.nav.escalationsBadge', { count: openEscalations }))}
+                      >
+                        {openEscalations > 99 ? '99+' : formatNumber(openEscalations, {}, i18n.language)}
                       </span>
                     )}
                   </a>

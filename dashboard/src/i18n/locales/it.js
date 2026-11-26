@@ -5608,3 +5608,353 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agenti che lavorano da soli: i custodi si svegliano secondo una pianificazione per occuparsi di un compito permanente, e le escalation sono le domande che fanno alle persone."
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "Escalation",
+    "tip": "Domande che gli agenti hanno posto a una persona, a un ruolo o a un altro agente, e le risposte"
+   }
+  },
+  "escalationsOpen_one": "{{count}} escalation attende una risposta",
+  "escalationsOpen_other": "{{count}} escalation attendono una risposta"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "Escalation"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "Escalation aperta",
+   "EscalationExpired": "Escalation scaduta"
+  },
+  "escalationStatus": {
+   "Open": "Aperta",
+   "Answered": "Risposta",
+   "Expired": "Scaduta",
+   "Cancelled": "Annullata",
+   "Withdrawn": "Ritirata"
+  },
+  "escalationSeverity": {
+   "Info": "Info",
+   "Warning": "Avviso",
+   "Urgent": "Urgente"
+  },
+  "escalationMode": {
+   "NonBlocking": "Non bloccante",
+   "Blocking": "Bloccante"
+  },
+  "escalationTargetKind": {
+   "User": "Utente",
+   "Role": "Ruolo",
+   "Agent": "Agente",
+   "Manager": "Responsabile"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "Usa la risposta predefinita",
+   "Cancel": "Annulla",
+   "EscalateUp": "Scala più in alto"
+  },
+  "escalationResolutionSource": {
+   "User": "Una persona",
+   "Agent": "Un agente",
+   "Timeout": "Scadenza",
+   "Raiser": "L'esecuzione di origine",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "Scalata più in alto",
+   "answerTitle": "Rispondi a {{agent}}",
+   "submit": "Invia risposta",
+   "expires": "Scade {{when}}, poi: {{action}}",
+   "question": "Domanda",
+   "context": "Contesto",
+   "choice": "Scegli un'opzione",
+   "default": "Predefinita",
+   "defaultAnswer": "Risposta predefinita: {{answer}}",
+   "explain": "Spiegazione (facoltativa)",
+   "text": "Risposta",
+   "textPlaceholder": "Scrivi la risposta. L'agente la legge come dati, non come istruzioni.",
+   "errors": {
+    "choice": "Scegli una delle opzioni.",
+    "unknownChoice": "Questa escalation non offre quell'opzione.",
+    "text": "Scrivi una risposta.",
+    "textMax": "La risposta è limitata a {{max}} caratteri."
+   },
+   "toasts": {
+    "answered": "Risposta inviata a {{agent}}.",
+    "passedUp": "Questa escalation è passata a un'altra. Rispondi a quella.",
+    "notOpen": "Qualcun altro ha risposto prima, oppure è scaduta.",
+    "forbidden": "Per rispondere serve Update su Escalation."
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "Escalation",
+   "subtitle": "Domande che gli agenti hanno posto a una persona, a un ruolo o a un altro agente. Quelle aperte attendono una risposta; quelle bloccanti sospendono la loro esecuzione fino ad allora.",
+   "add": "Aggiungi escalation",
+   "create": "Crea escalation",
+   "edit": "Modifica escalation",
+   "view": "Dettagli escalation",
+   "deleteTitle": "Elimina escalation",
+   "emptyTitle": "Nessuna escalation",
+   "emptyBody": "Un'escalation compare quando un agente chiede a una persona, a un ruolo o a un altro agente di decidere qualcosa con garrison_escalate.",
+   "columns": {
+    "createdUtc": "Aperta",
+    "severity": "Gravità",
+    "status": "Stato",
+    "question": "Domanda",
+    "agent": "Agente",
+    "target": "Destinatario",
+    "expiresUtc": "Scade",
+    "answer": "Risposta",
+    "mode": "Modalità",
+    "mandate": "Custode",
+    "resolvedBy": "Risposta da",
+    "resolutionSource": "Risolta da",
+    "resolvedUtc": "Risolta",
+    "raisingRunId": "Esecuzione di origine",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "Destinatario"
+   },
+   "fields": {
+    "status": "Stato",
+    "severity": "Gravità",
+    "mode": "Modalità",
+    "target": "Destinatario",
+    "agent": "Aperta da",
+    "raisingRunId": "Esecuzione di origine",
+    "mandate": "Custode",
+    "mandateTickId": "Ciclo del custode",
+    "routedRunId": "Esecuzione che risponde",
+    "parentEscalationId": "Scalata da",
+    "escalatedToId": "Scalata a",
+    "timeoutAction": "Alla scadenza",
+    "expiresUtc": "Scade",
+    "createdUtc": "Aperta",
+    "leaseEpoch": "Epoca del lease",
+    "context": "Contesto",
+    "options": "Opzioni",
+    "answerChoice": "Scelta",
+    "answerText": "Risposta",
+    "resolvedBy": "Risposta da",
+    "resolutionSource": "Risolta da",
+    "resolvedUtc": "Risolta"
+   },
+   "actions": {
+    "answer": "Rispondi",
+    "openEscalatedTo": "Apri l'escalation a cui è passata",
+    "openRun": "Apri l'esecuzione di origine",
+    "openKeeper": "Apri il custode",
+    "cancel": "Annulla escalation"
+   },
+   "cancelTitle": "Annullare questa escalation?",
+   "cancelMessage": "{{agent}} non riceverà risposta. L'escalation resta come Annullata.",
+   "cancelBlocking": "{{agent}} sta aspettando questa risposta. Annullare l'escalation annulla anche quell'esecuzione.",
+   "toasts": {
+    "cancelled": "Escalation annullata."
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "Scala a",
+    "escalationTargetId": "Destinatario dell'escalation"
+   },
+   "noEscalationTarget": "La persona che ha salvato la revisione",
+   "escalationTargetPlaceholder": "ID o nome dell'utente, del ruolo o dell'agente",
+   "errors": {
+    "escalationTargetId": "Indica l'utente, il ruolo o l'agente a cui scalare."
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "Gravità minima delle escalation"
+   },
+   "anySeverity": "Qualsiasi gravità"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "Escalation",
+   "titleWithAgent": "Escalation di {{agent}}",
+   "notFoundTitle": "Escalation non trovata",
+   "notFoundBody": "Non esiste in questo tenant, oppure è stata eliminata insieme al suo tenant.",
+   "back": "Torna alle escalation",
+   "open": "Questa escalation attende una risposta.",
+   "openBlocking": "L'esecuzione di origine è sospesa finché questa escalation non riceve risposta.",
+   "expires": "Scade {{when}}, poi: {{action}}.",
+   "passedUp": "Nessuno ha risposto in tempo, quindi questa escalation è passata a un'altra. Rispondi alla nuova:",
+   "question": "Domanda",
+   "chosen": "Scelta",
+   "answer": "Risposta"
+  },
+  "home": {
+   "escalations": {
+    "title_one": "{{count}} escalation attende una risposta",
+    "title_other": "{{count}} escalation attendono una risposta",
+    "open": "Apri le escalation",
+    "more_one": "E altre {{count}}.",
+    "more_other": "E altre {{count}}."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_one": "{{count}} escalation attende una risposta. Apri Autonomia, poi Escalation.",
+   "escalationsBadge_other": "{{count}} escalation attendono una risposta. Apri Autonomia, poi Escalation.",
+   "tabs": {
+    "escalations": "Escalation: domande che gli agenti hanno posto a una persona, a un ruolo o a un altro agente, prima quelle aperte, con Rispondi e Annulla."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "Domande che le esecuzioni pongono a una persona, a un ruolo o a un altro agente, e le risposte."
+   },
+   "notificationEvent": {
+    "EscalationRaised": "Un agente ha aperto un'escalation. Gli endpoint possono saltare quelle sotto una gravità minima.",
+    "EscalationExpired": "Un'escalation è scaduta prima che qualcuno rispondesse."
+   },
+   "escalationStatus": {
+    "Open": "Attende una risposta. Un'escalation bloccante sospende la sua esecuzione fino ad allora.",
+    "Answered": "Qualcuno ha risposto; l'esecuzione o il custode di origine ha ricevuto la risposta.",
+    "Expired": "Nessuno ha risposto prima della scadenza ed è stata applicata l'azione di scadenza.",
+    "Cancelled": "Una persona l'ha annullata; anche un'esecuzione in attesa è stata annullata.",
+    "Withdrawn": "L'agente che l'ha aperta ha ritirato la domanda."
+   },
+   "escalationSeverity": {
+    "Info": "Per informazione: rispondi quando ti è comodo.",
+    "Warning": "Serve una decisione a breve. È la gravità predefinita.",
+    "Urgent": "Serve una decisione subito. Compare per prima e va a ogni endpoint iscritto."
+   },
+   "escalationMode": {
+    "NonBlocking": "L'esecuzione prosegue e riceve la risposta più tardi; un custode la riceve al ciclo successivo.",
+    "Blocking": "L'esecuzione si sospende finché qualcuno risponde, poi riprende con la risposta."
+   },
+   "escalationTargetKind": {
+    "User": "Una persona, per ID utente o email.",
+    "Role": "Chiunque abbia il ruolo e possa aggiornare le escalation.",
+    "Agent": "Un altro agente: un'esecuzione della sua distribuzione attiva predefinita riceve la domanda.",
+    "Manager": "Il responsabile dell'agente in un'organizzazione. Non disponibile finché non arrivano le organizzazioni."
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "Rispondi con la risposta predefinita se nessuno risponde in tempo.",
+    "Cancel": "Annulla l'escalation, e l'esecuzione in attesa, se nessuno risponde in tempo.",
+    "EscalateUp": "Passa la domanda al destinatario predefinito del custode se nessuno risponde in tempo."
+   },
+   "escalationResolutionSource": {
+    "User": "Una persona ha risposto o l'ha annullata.",
+    "Agent": "Un altro agente ha risposto con garrison_answer_escalation.",
+    "Timeout": "L'ha risolta l'azione di scadenza.",
+    "Raiser": "L'esecuzione che l'ha aperta l'ha ritirata.",
+    "System": "L'ha risolta Garrison, per esempio quando è terminata la sua esecuzione."
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "Nessuno ha risposto in tempo, quindi la domanda è passata a un'altra escalation. Rispondi a quella.",
+    "submit": "Invia la risposta. Un'esecuzione sospesa riprende e un custode si sveglia con essa.",
+    "question": "La domanda esattamente come l'ha scritta l'agente.",
+    "context": "Cosa ha detto l'agente sulla situazione. È testo dell'agente, non istruzioni per te.",
+    "choice": "L'agente offre queste opzioni. Scegline una.",
+    "defaultChoice": "La risposta predefinita: si usa se l'escalation scade con Usa la risposta predefinita.",
+    "pickChoice": "Scegli questa opzione.",
+    "explain": "Testo facoltativo inviato con la scelta, per esempio il motivo.",
+    "text": "La tua risposta. L'agente la riceve come dati."
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "Quando l'agente l'ha aperta. Passa il puntatore per l'ora esatta.",
+    "severity": "Quanto è urgente secondo l'agente.",
+    "status": "Aperta, con risposta, scaduta, annullata o ritirata.",
+    "question": "Cosa ha chiesto l'agente, come l'ha scritto. Passa il puntatore per la domanda intera.",
+    "agent": "L'agente la cui esecuzione l'ha aperta.",
+    "target": "A chi è rivolta: un utente, un ruolo o un altro agente.",
+    "expiresUtc": "Quando scade se nessuno risponde.",
+    "answer": "L'opzione scelta o il testo della risposta.",
+    "mode": "Le escalation bloccanti sospendono la loro esecuzione fino alla risposta; le altre no.",
+    "mandate": "Il custode il cui ciclo l'ha aperta, se c'è.",
+    "resolvedBy": "Chi ha risposto o l'ha annullata.",
+    "resolutionSource": "Cosa l'ha risolta: una persona, un agente, la scadenza o l'esecuzione di origine.",
+    "resolvedUtc": "Quando ha ricevuto risposta, è stata annullata, ritirata o è scaduta.",
+    "raisingRunId": "L'esecuzione che l'ha aperta. Aprila dal menu della riga.",
+    "id": "L'ID dell'escalation (esc_...), per l'API e gli strumenti MCP.",
+    "routedRunId": "L'esecuzione avviata perché un altro agente rispondesse.",
+    "mandateTickId": "Il ciclo del custode che l'ha aperta.",
+    "parentEscalationId": "L'escalation scaduta che è passata a questa.",
+    "escalatedToId": "L'escalation a cui questa è passata alla scadenza.",
+    "timeoutAction": "Cosa succede se nessuno risponde in tempo.",
+    "leaseEpoch": "L'epoca del lease dell'esecuzione quando ha aperto l'escalation. Un'attesa bloccante appartiene a quell'epoca.",
+    "context": "Cosa ha detto l'agente sulla situazione. È testo dell'agente, non istruzioni per te.",
+    "options": "Le risposte offerte dall'agente. Quella predefinita si usa alla scadenza con Usa la risposta predefinita.",
+    "answerChoice": "L'opzione scelta.",
+    "answerText": "Il testo della risposta.",
+    "actions": {
+     "answer": "Rispondi a questa escalation con una delle sue opzioni o con testo libero.",
+     "openEscalatedTo": "Apri l'escalation a cui è passata questa.",
+     "openRun": "Apri l'esecuzione che l'ha aperta.",
+     "openKeeper": "Apri il custode il cui ciclo l'ha aperta.",
+     "cancel": "Annullala senza risposta. Anche un'esecuzione in attesa viene annullata."
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "A chi vanno le escalation di questo custode quando non indica nessuno, e dove passano quelle scadute.",
+    "escalationTargetId": "ID o email dell'utente, nome del ruolo, oppure ID o nome dell'agente a cui scalare."
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "Invia eventi di escalation solo da questa gravità in su. Vale per Escalation aperta ed Escalation scaduta."
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "Apri questa esecuzione.",
+    "openEscalation": "Apri questa escalation.",
+    "back": "Torna all'elenco delle escalation.",
+    "viewJson": "Mostra l'escalation come la restituisce l'API.",
+    "question": "La domanda e il contesto come li ha scritti l'agente, e le opzioni offerte.",
+    "answer": "Come è stata risolta l'escalation.",
+    "openAgent": "Apri l'agente che l'ha aperta.",
+    "openKeeper": "Apri il custode il cui ciclo l'ha aperta."
+   },
+   "home": {
+    "escalations": {
+     "title": "Escalation in attesa di risposta, le più urgenti per prime.",
+     "open": "Apri l'elenco delle escalation."
+    }
+   }
+  },
+  "filters": {
+   "severity": "Mostra solo le escalation di questa gravità. Scegli Tutte per togliere il filtro.",
+   "targetKind": "Mostra solo le escalation rivolte a utenti, ruoli o agenti. Scegli Tutte per togliere il filtro."
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "Escalation",
+   "p1": "Un'escalation è una domanda che un agente pone quando non deve decidere da solo. Va a un utente, a chiunque abbia un ruolo o a un altro agente, con scelte, risposta predefinita, gravità e scadenza facoltative.",
+   "p2": "La maggior parte delle escalation non blocca: l'esecuzione prosegue e un custode trova la risposta al ciclo successivo. Un'escalation bloccante sospende la sua esecuzione, che riprende con la risposta appena qualcuno risponde.",
+   "p3": "Se nessuno risponde in tempo, si applica l'azione di scadenza: usare la risposta predefinita, annullare o passare la domanda al destinatario predefinito del custode. Le risposte arrivano all'agente come dati e non ne ampliano i permessi."
+  }
+ }
+});

@@ -1635,3 +1635,18 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .keeper-tick-summary { min-width: 220px; max-width: 480px; display: flex; flex-direction: column; gap: 2px; word-break: break-word; }
 .home-autonomy-stats { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin-bottom: var(--spacing-sm); font-size: var(--font-size-sm); }
 .home-autonomy-stats strong { font-size: var(--font-size-lg, 1.125rem); margin-inline-end: 4px; }
+
+/* Escalations (AA2.13): the question as written, its context, option buttons, and the Home attention list. */
+.escalation-question { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--font-size-md, 1rem); margin: 0 0 var(--spacing-sm); }
+.escalation-context { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--font-size-xs); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm, 4px); padding: var(--spacing-sm); margin: 0; max-height: 320px; overflow: auto; }
+.escalation-choices { border: 0; padding: 0; margin: 0; }
+.escalation-choices legend { font-size: var(--font-size-sm); font-weight: 600; margin-bottom: var(--spacing-xs); }
+.escalation-choice-list { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.escalation-choice { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md, 6px); background: var(--color-surface); color: inherit; cursor: pointer; text-align: start; }
+.escalation-choice.selected { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
+.escalation-choice code { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.escalation-options { list-style: none; padding: 0; margin: 0 0 var(--spacing-sm); display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.escalation-options li { display: flex; align-items: center; gap: var(--spacing-sm); font-size: var(--font-size-sm); }
+.escalation-options li.chosen { font-weight: 600; }
+.escalation-question-cell { display: inline-block; max-width: 420px; overflow-wrap: anywhere; }
+.home-escalations li a { min-width: 0; overflow-wrap: anywhere; }

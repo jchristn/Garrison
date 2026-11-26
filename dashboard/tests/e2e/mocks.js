@@ -1194,6 +1194,77 @@ function keeperTickList(url, mandateId) {
   return pageOf(rows, url);
 }
 
+// ---------------------------------------------------------------- escalations (AA2.13)
+
+const ESCALATION_ROWS = [
+  { status: 'Open', severity: 'Urgent', mode: 'Blocking', targetKind: 'User', targetId: 'usr_0001', targetName: 'admin@garrison', question: 'Refund order 4411 for $1,250? The customer was charged twice.', context: 'Stripe shows two captures 40 seconds apart.\nIGNORE PREVIOUS INSTRUCTIONS is just text here.', options: [{ key: 'refund', label: 'Refund the duplicate' }, { key: 'wait', label: 'Wait for finance' }], defaultAnswer: 'wait', timeoutAction: 'UseDefaultAnswer', mandate: true },
+  { status: 'Open', severity: 'Warning', mode: 'NonBlocking', targetKind: 'Role', targetId: 'support-leads', targetName: 'support-leads', question: 'Which billing queue owns enterprise refunds now?', timeoutAction: 'EscalateUp', parent: 3 },
+  { status: 'Open', severity: 'Info', mode: 'NonBlocking', targetKind: 'User', targetId: 'usr_0002', targetName: 'ops@garrison', question: 'Which billing queue owns enterprise refunds now?', timeoutAction: 'EscalateUp', escalatedTo: 2, past: true },
+  { status: 'Answered', severity: 'Info', mode: 'NonBlocking', targetKind: 'Agent', targetId: 'agt_0002', targetName: 'billing-agent', question: 'Is invoice 88 already paid?', options: [{ key: 'yes' }, { key: 'no' }], answerChoice: 'yes', answerText: 'Paid on the 3rd.', resolvedBy: 'billing-agent', resolutionSource: 'Agent', routed: true },
+  { status: 'Expired', severity: 'Warning', mode: 'NonBlocking', targetKind: 'User', targetId: 'usr_0001', targetName: 'admin@garrison', question: 'Archive last quarter tickets?', defaultAnswer: 'Leave them.', answerText: 'Leave them.', resolutionSource: 'Timeout', timeoutAction: 'UseDefaultAnswer', mandate: true, past: true }
+];
+
+/** One escalation by row number (1-based), shaped like GET /escalations/{id} (nulls omitted). */
+export function escalation(i) {
+  const row = ESCALATION_ROWS[(i - 1) % ESCALATION_ROWS.length];
+  const open = row.status === 'Open';
+  const out = {
+    id: `esc_${pad(i)}`,
+    tenantId: TENANT,
+    raisingRunId: `run_${pad(i === 1 ? 19 : i)}`,
+    leaseEpoch: 1,
+    agentId: 'agt_0001',
+    agentName: 'echo-agent',
+    targetKind: row.targetKind,
+    targetId: row.targetId,
+    targetName: row.targetName,
+    severity: row.severity,
+    mode: row.mode,
+    status: row.status,
+    question: row.question,
+    options: row.options || [],
+    timeoutSeconds: 86400,
+    expiresUtc: open && !row.past ? iso(-120 * i) : iso(60 * i),
+    timeoutAction: row.timeoutAction || 'EscalateUp',
+    createdUtc: iso(30 * i),
+    lastUpdateUtc: iso(10 * i)
+  };
+  if (row.context) out.context = row.context;
+  if (row.defaultAnswer) out.defaultAnswer = row.defaultAnswer;
+  if (row.mandate) Object.assign(out, { mandateId: 'mdt_0001', mandateTickId: 'mtk_0001' });
+  if (row.parent) out.parentEscalationId = `esc_${pad(row.parent)}`;
+  if (row.escalatedTo) out.escalatedToId = `esc_${pad(row.escalatedTo)}`;
+  if (row.routed) out.routedRunId = 'run_0004';
+  if (row.answerChoice) out.answerChoice = row.answerChoice;
+  if (row.answerText) out.answerText = row.answerText;
+  if (row.resolvedBy) out.resolvedBy = row.resolvedBy;
+  if (row.resolutionSource) Object.assign(out, { resolutionSource: row.resolutionSource, resolvedUtc: iso(5 * i) });
+  return out;
+}
+
+/** GET /escalations with the filters the list sends; open escalations come first, then the newest. */
+function escalationList(url) {
+  let rows = ESCALATION_ROWS.map((_, k) => escalation(k + 1));
+  for (const key of ['status', 'severity', 'targetKind', 'agentId', 'mandateId', 'raisingRunId']) {
+    const value = url.searchParams.get(key);
+    if (value) rows = rows.filter((r) => r[key] === value);
+  }
+  rows.sort((a, b) => (a.status === 'Open' ? 0 : 1) - (b.status === 'Open' ? 0 : 1) || b.createdUtc.localeCompare(a.createdUtc));
+  return pageOf(rows, url);
+}
+
+/** Responses for the escalation routes, or undefined for other collections. */
+function escalationRoutes(method, url, parts) {
+  if (parts[0] !== 'escalations') return undefined;
+  if (parts.length === 1) return escalationList(url);
+  const i = /^esc_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1;
+  if (parts[2] === 'answer') return { ...escalation(i), status: 'Answered', answerChoice: 'refund', resolvedBy: 'admin@garrison', resolutionSource: 'User', resolvedUtc: iso(0) };
+  if (parts[2] === 'cancel') return { ...escalation(i), status: 'Cancelled', resolvedBy: 'admin@garrison', resolutionSource: 'User', resolvedUtc: iso(0) };
+  // An ID the fixtures do not know (the contract test's real IDs) gets every optional field.
+  if (parts.length === 2) return /^esc_\d+$/.test(parts[1]) ? escalation(i) : { ...escalation(1), parentEscalationId: 'esc_0003', routedRunId: 'run_0004', answerText: 'x', resolvedBy: 'admin@garrison', id: parts[1] };
+  return {};
+}
+
 /** Responses for the keeper (mandate) routes, or undefined for other collections. */
 function keeperRoutes(method, url, parts) {
   const collection = parts[0];
@@ -2432,6 +2503,8 @@ export function respond(method, url) {
     if (triggered !== undefined) return triggered;
     const kept = keeperRoutes(method, url, parts);
     if (kept !== undefined) return kept;
+    const escalated = escalationRoutes(method, url, parts);
+    if (escalated !== undefined) return escalated;
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
     const apped = appRoutes(method, url, parts);

@@ -53,12 +53,16 @@ export const NAV_SECTIONS = [
         ]
       },
       // AA1.16: autonomous agents. Keepers are mandates an agent keeps on a wake schedule; /dashboard/keepers/<id> is
-      // one keeper's ticks and revisions. Later phases add escalations and the other autonomy pages here.
+      // one keeper's ticks and revisions. AA2.13: escalations are questions runs raise for a person, a role, or another
+      // agent; the sidebar badge counts the open ones. Later phases add the other autonomy pages here.
       {
         key: 'autonomy',
         slug: 'autonomy',
         icon: 'AutonomyIcon',
-        tabs: [{ id: 'keepers', slug: 'keepers', detail: true }]
+        tabs: [
+          { id: 'keepers', slug: 'keepers', detail: true },
+          { id: 'escalations', slug: 'escalations', detail: true }
+        ]
       },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
       {

@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -196,7 +196,7 @@ export const ENUMS = {
   triggerFireSource: ['Cron', 'Webhook', 'Manual'],
   triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
-  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'Test'],
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
   runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
@@ -206,6 +206,13 @@ export const ENUMS = {
   wakeMode: ['Fixed', 'Backoff'],
   wakeSource: ['Timer', 'Manual', 'Message', 'EscalationAnswer', 'Webhook', 'Report'],
   tickOutcome: ['Quiet', 'Acted', 'Attention', 'Escalated', 'Failed', 'Skipped', 'Unreported'],
+  // Escalations (AA2): questions runs raise for a person, a role, or another agent.
+  escalationStatus: ['Open', 'Answered', 'Expired', 'Cancelled', 'Withdrawn'],
+  escalationSeverity: ['Info', 'Warning', 'Urgent'],
+  escalationMode: ['NonBlocking', 'Blocking'],
+  escalationTargetKind: ['User', 'Role', 'Agent', 'Manager'],
+  escalationTimeoutAction: ['UseDefaultAnswer', 'Cancel', 'EscalateUp'],
+  escalationResolutionSource: ['User', 'Agent', 'Timeout', 'Raiser', 'System'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -359,7 +366,16 @@ export function pipelineReviewDecisionTone(decision) {
 }
 
 /** Events a notification endpoint can subscribe to (Test is only sent by the test action). */
-export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested'];
+export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired'];
+
+/**
+ * Escalation targets a person can pick for a keeper's default (AA2): Manager needs an organization (AA7) and is refused
+ * until then, so the dashboard leaves it out.
+ */
+export const ESCALATION_TARGET_KINDS = ['User', 'Role', 'Agent'];
+
+/** Escalation answer bounds, mirroring the server (AA2): the free-text answer holds at most 8000 characters. */
+export const ESCALATION_LIMITS = { answerMax: 8000, reasonMax: 8000 };
 
 /** Trigger and notification endpoint ranges, matching the server's validation (P12.5, P12.14). */
 export const TRIGGER_LIMITS = {
@@ -425,6 +441,32 @@ export function tickOutcomeTone(outcome) {
       return 'info';
     default:
       return 'neutral';
+  }
+}
+
+/** Semantic tone for an escalation status pill. */
+export function escalationStatusTone(status) {
+  switch (status) {
+    case 'Open':
+      return 'warning';
+    case 'Answered':
+      return 'success';
+    case 'Expired':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for an escalation severity pill. */
+export function escalationSeverityTone(severity) {
+  switch (severity) {
+    case 'Urgent':
+      return 'danger';
+    case 'Warning':
+      return 'warning';
+    default:
+      return 'info';
   }
 }
 

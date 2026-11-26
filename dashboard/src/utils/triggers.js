@@ -116,6 +116,7 @@ export function blankEndpoint() {
     deploymentId: '',
     includeResultText: false,
     resultTextMaxChars: TRIGGER_LIMITS.resultTextMaxChars.default,
+    escalationMinimumSeverity: '',
     active: true
   };
 }
@@ -130,6 +131,7 @@ export function endpointToForm(r) {
     deploymentId: r.deploymentId ?? '',
     includeResultText: !!r.includeResultText,
     resultTextMaxChars: r.resultTextMaxChars ?? TRIGGER_LIMITS.resultTextMaxChars.default,
+    escalationMinimumSeverity: r.escalationMinimumSeverity ?? '',
     active: r.active !== false
   };
 }
@@ -146,6 +148,7 @@ export function endpointToBody(d) {
     deploymentId: blank(d.deploymentId),
     includeResultText: !!d.includeResultText,
     resultTextMaxChars: Number(d.resultTextMaxChars) || TRIGGER_LIMITS.resultTextMaxChars.default,
+    escalationMinimumSeverity: blank(d.escalationMinimumSeverity),
     active: d.active !== false
   };
 }
@@ -156,6 +159,11 @@ export function endpointDuplicate(r) {
   for (const k of ['id', 'tenantId', 'createdUtc', 'lastUpdateUtc', 'signingSecretLast4', 'signingSecretRotatedUtc']) delete form[k];
   form.name = `${r.name}-copy`.slice(0, 64);
   return form;
+}
+
+/** True when an endpoint's events include an escalation event, so the minimum severity applies (AA2.10). */
+export function endpointHasEscalationEvents(d) {
+  return (d?.events || []).some((e) => e === 'EscalationRaised' || e === 'EscalationExpired');
 }
 
 /** True for an absolute http or https URL with a host and no user information. The server also checks addresses. */

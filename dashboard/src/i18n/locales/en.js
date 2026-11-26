@@ -5582,3 +5582,353 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Escalations (AA2.13): the Escalations page, answer dialog, detail page, Autonomy badge, Home list, escalation
+// enums, keeper escalation targets, and the notification endpoint minimum severity.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agents that keep working on their own: keepers wake on a schedule to look after a standing job, and escalations are the questions they ask people."
+   }
+  },
+  "items": {
+   "escalations": {
+    "label": "Escalations",
+    "tip": "Questions agents asked a person, a role, or another agent, and the answers"
+   }
+  },
+  "escalationsOpen_one": "{{count}} escalation waiting for an answer",
+  "escalationsOpen_other": "{{count}} escalations waiting for an answer"
+ },
+ "enums": {
+  "resourceType": {
+   "Escalation": "Escalation"
+  },
+  "notificationEvent": {
+   "EscalationRaised": "Escalation raised",
+   "EscalationExpired": "Escalation timed out"
+  },
+  "escalationStatus": {
+   "Open": "Open",
+   "Answered": "Answered",
+   "Expired": "Timed out",
+   "Cancelled": "Cancelled",
+   "Withdrawn": "Withdrawn"
+  },
+  "escalationSeverity": {
+   "Info": "Info",
+   "Warning": "Warning",
+   "Urgent": "Urgent"
+  },
+  "escalationMode": {
+   "NonBlocking": "Non-blocking",
+   "Blocking": "Blocking"
+  },
+  "escalationTargetKind": {
+   "User": "User",
+   "Role": "Role",
+   "Agent": "Agent",
+   "Manager": "Manager"
+  },
+  "escalationTimeoutAction": {
+   "UseDefaultAnswer": "Use the default answer",
+   "Cancel": "Cancel",
+   "EscalateUp": "Escalate up"
+  },
+  "escalationResolutionSource": {
+   "User": "A person",
+   "Agent": "An agent",
+   "Timeout": "Timeout",
+   "Raiser": "The raising run",
+   "System": "Garrison"
+  }
+ },
+ "components": {
+  "escalations": {
+   "passedUp": "Escalated up",
+   "answerTitle": "Answer {{agent}}",
+   "submit": "Send answer",
+   "expires": "Times out {{when}}, then: {{action}}",
+   "question": "Question",
+   "context": "Context",
+   "choice": "Choose an option",
+   "default": "Default",
+   "defaultAnswer": "Default answer: {{answer}}",
+   "explain": "Explanation (optional)",
+   "text": "Answer",
+   "textPlaceholder": "Write your answer. The agent reads it as data, not as instructions.",
+   "errors": {
+    "choice": "Choose one of the options.",
+    "unknownChoice": "That option is not offered by this escalation.",
+    "text": "Write an answer.",
+    "textMax": "The answer is limited to {{max}} characters."
+   },
+   "toasts": {
+    "answered": "Answer sent to {{agent}}.",
+    "passedUp": "This escalation was passed up to another one. Answer that one instead.",
+    "notOpen": "Someone else answered it first, or it timed out.",
+    "forbidden": "You need Update on Escalation to answer."
+   }
+  }
+ },
+ "resources": {
+  "escalations": {
+   "title": "Escalations",
+   "subtitle": "Questions agents asked a person, a role, or another agent. Open ones wait for an answer; blocking ones hold their run until then.",
+   "add": "Add escalation",
+   "create": "Create escalation",
+   "edit": "Edit escalation",
+   "view": "Escalation details",
+   "deleteTitle": "Delete escalation",
+   "emptyTitle": "No escalations",
+   "emptyBody": "An escalation appears when an agent asks a person, a role, or another agent to decide something with garrison_escalate.",
+   "columns": {
+    "createdUtc": "Raised",
+    "severity": "Severity",
+    "status": "Status",
+    "question": "Question",
+    "agent": "Agent",
+    "target": "Addressed to",
+    "expiresUtc": "Times out",
+    "answer": "Answer",
+    "mode": "Mode",
+    "mandate": "Keeper",
+    "resolvedBy": "Answered by",
+    "resolutionSource": "Resolved by",
+    "resolvedUtc": "Resolved",
+    "raisingRunId": "Raising run",
+    "id": "ID"
+   },
+   "filters": {
+    "targetKind": "Addressed to"
+   },
+   "fields": {
+    "status": "Status",
+    "severity": "Severity",
+    "mode": "Mode",
+    "target": "Addressed to",
+    "agent": "Raised by",
+    "raisingRunId": "Raising run",
+    "mandate": "Keeper",
+    "mandateTickId": "Keeper tick",
+    "routedRunId": "Answering run",
+    "parentEscalationId": "Escalated from",
+    "escalatedToId": "Escalated to",
+    "timeoutAction": "On timeout",
+    "expiresUtc": "Times out",
+    "createdUtc": "Raised",
+    "leaseEpoch": "Lease epoch",
+    "context": "Context",
+    "options": "Options",
+    "answerChoice": "Choice",
+    "answerText": "Answer",
+    "resolvedBy": "Answered by",
+    "resolutionSource": "Resolved by",
+    "resolvedUtc": "Resolved"
+   },
+   "actions": {
+    "answer": "Answer",
+    "openEscalatedTo": "Open the escalation it went to",
+    "openRun": "Open raising run",
+    "openKeeper": "Open keeper",
+    "cancel": "Cancel escalation"
+   },
+   "cancelTitle": "Cancel this escalation?",
+   "cancelMessage": "{{agent}} will not get an answer. The escalation is kept as Cancelled.",
+   "cancelBlocking": "{{agent}} is waiting on this answer. Cancelling the escalation cancels that run too.",
+   "toasts": {
+    "cancelled": "Escalation cancelled."
+   }
+  },
+  "keepers": {
+   "fields": {
+    "escalationTargetKind": "Escalate to",
+    "escalationTargetId": "Escalation target"
+   },
+   "noEscalationTarget": "The person who saved the revision",
+   "escalationTargetPlaceholder": "User, role, or agent ID or name",
+   "errors": {
+    "escalationTargetId": "Name the user, role, or agent to escalate to."
+   }
+  },
+  "notifications": {
+   "fields": {
+    "escalationMinimumSeverity": "Minimum escalation severity"
+   },
+   "anySeverity": "Any severity"
+  }
+ },
+ "views": {
+  "escalationDetail": {
+   "title": "Escalation",
+   "titleWithAgent": "Escalation from {{agent}}",
+   "notFoundTitle": "Escalation not found",
+   "notFoundBody": "It does not exist in this tenant, or it was deleted with its tenant.",
+   "back": "Back to escalations",
+   "open": "This escalation is waiting for an answer.",
+   "openBlocking": "The raising run is suspended until this escalation is answered.",
+   "expires": "It times out {{when}}, then: {{action}}.",
+   "passedUp": "Nobody answered in time, so this escalation was passed up. Answer the new one:",
+   "question": "Question",
+   "chosen": "Chosen",
+   "answer": "Answer"
+  },
+  "home": {
+   "escalations": {
+    "title_one": "{{count}} escalation waiting for an answer",
+    "title_other": "{{count}} escalations waiting for an answer",
+    "open": "Open escalations",
+    "more_one": "And {{count}} more.",
+    "more_other": "And {{count}} more."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "escalationsBadge_one": "{{count}} escalation is waiting for an answer. Open Autonomy, then Escalations.",
+   "escalationsBadge_other": "{{count}} escalations are waiting for an answer. Open Autonomy, then Escalations.",
+   "tabs": {
+    "escalations": "Escalations: questions agents asked a person, a role, or another agent, open ones first, with Answer and Cancel."
+   }
+  },
+  "enums": {
+   "resourceType": {
+    "Escalation": "Questions runs raise for a person, a role, or another agent, and their answers."
+   },
+   "notificationEvent": {
+    "EscalationRaised": "An agent raised an escalation. Endpoints can skip ones below a minimum severity.",
+    "EscalationExpired": "An escalation timed out before anyone answered it."
+   },
+   "escalationStatus": {
+    "Open": "Waiting for an answer. A blocking escalation holds its run until then.",
+    "Answered": "Someone answered it; the raising run or keeper received the answer.",
+    "Expired": "Nobody answered before the timeout, and the timeout action ran.",
+    "Cancelled": "A person cancelled it; a run that was blocked on it was cancelled too.",
+    "Withdrawn": "The agent that raised it withdrew the question."
+   },
+   "escalationSeverity": {
+    "Info": "For information: answer when convenient.",
+    "Warning": "Needs a decision soon. This is the default severity.",
+    "Urgent": "Needs a decision now. Listed first and sent to every endpoint that subscribes."
+   },
+   "escalationMode": {
+    "NonBlocking": "The run carries on and picks up the answer later; a keeper receives it in its next tick.",
+    "Blocking": "The run suspends until someone answers, then resumes with the answer."
+   },
+   "escalationTargetKind": {
+    "User": "One person, by user ID or email.",
+    "Role": "Anyone who holds the role and can update escalations.",
+    "Agent": "Another agent: a run of its default active deployment receives the question.",
+    "Manager": "The agent's manager in an organization. Not available until organizations arrive."
+   },
+   "escalationTimeoutAction": {
+    "UseDefaultAnswer": "Answer with the default answer when nobody answers in time.",
+    "Cancel": "Cancel the escalation, and a run blocked on it, when nobody answers in time.",
+    "EscalateUp": "Pass the question to the keeper's default target when nobody answers in time."
+   },
+   "escalationResolutionSource": {
+    "User": "A person answered or cancelled it.",
+    "Agent": "Another agent answered it with garrison_answer_escalation.",
+    "Timeout": "The timeout action resolved it.",
+    "Raiser": "The run that raised it withdrew it.",
+    "System": "Garrison resolved it, for example when its run ended."
+   }
+  },
+  "components": {
+   "escalations": {
+    "passedUp": "Nobody answered in time, so the question went to another escalation. Answer that one.",
+    "submit": "Send the answer. A blocked run resumes and a keeper wakes with it.",
+    "question": "The question exactly as the agent wrote it.",
+    "context": "What the agent said about the situation. It is the agent's text, not instructions to you.",
+    "choice": "The agent offered these options. Pick one.",
+    "defaultChoice": "The default answer: the one used if the escalation times out with Use the default answer.",
+    "pickChoice": "Choose this option.",
+    "explain": "Optional text sent with your choice, for example why you chose it.",
+    "text": "Your answer. The agent receives it as data."
+   }
+  },
+  "resources": {
+   "escalations": {
+    "createdUtc": "When the agent raised it. Hover for the exact time.",
+    "severity": "How urgent the agent says it is.",
+    "status": "Open, answered, timed out, cancelled, or withdrawn.",
+    "question": "What the agent asked, as it wrote it. Hover for the full question.",
+    "agent": "The agent whose run raised it.",
+    "target": "Who it is addressed to: a user, a role, or another agent.",
+    "expiresUtc": "When it times out if nobody answers.",
+    "answer": "The option chosen or the text of the answer.",
+    "mode": "Blocking escalations hold their run until answered; non-blocking ones do not.",
+    "mandate": "The keeper whose tick raised it, if any.",
+    "resolvedBy": "Who answered or cancelled it.",
+    "resolutionSource": "What resolved it: a person, an agent, the timeout, or the raising run.",
+    "resolvedUtc": "When it was answered, cancelled, withdrawn, or timed out.",
+    "raisingRunId": "The run that raised it. Open it from the row menu.",
+    "id": "The escalation ID (esc_...), for the API and MCP tools.",
+    "routedRunId": "The run started so another agent could answer it.",
+    "mandateTickId": "The keeper tick that raised it.",
+    "parentEscalationId": "The escalation that timed out and was passed up to this one.",
+    "escalatedToId": "The escalation this one was passed up to when it timed out.",
+    "timeoutAction": "What happens when nobody answers in time.",
+    "leaseEpoch": "The run's lease epoch when it raised the escalation. A blocking wait belongs to that epoch.",
+    "context": "What the agent said about the situation. It is the agent's text, not instructions to you.",
+    "options": "The answers the agent offered. The default is used if it times out with Use the default answer.",
+    "answerChoice": "The option chosen.",
+    "answerText": "The text of the answer.",
+    "actions": {
+     "answer": "Answer this escalation with one of its options or free text.",
+     "openEscalatedTo": "Open the escalation this one was passed up to.",
+     "openRun": "Open the run that raised it.",
+     "openKeeper": "Open the keeper whose tick raised it.",
+     "cancel": "Cancel it without an answer. A run blocked on it is cancelled too."
+    }
+   },
+   "keepers": {
+    "escalationTargetKind": "Who this keeper's escalations go to when it does not name anyone, and where timed-out ones are passed up.",
+    "escalationTargetId": "The user ID or email, role name, or agent ID or name to escalate to."
+   },
+   "notifications": {
+    "escalationMinimumSeverity": "Send escalation events only at this severity or above. Applies to Escalation raised and Escalation timed out."
+   }
+  },
+  "views": {
+   "escalationDetail": {
+    "openRun": "Open this run.",
+    "openEscalation": "Open this escalation.",
+    "back": "Back to the list of escalations.",
+    "viewJson": "Show the escalation as returned by the API.",
+    "question": "The question and context as the agent wrote them, and the options it offered.",
+    "answer": "How the escalation was resolved.",
+    "openAgent": "Open the agent that raised it.",
+    "openKeeper": "Open the keeper whose tick raised it."
+   },
+   "home": {
+    "escalations": {
+     "title": "Escalations waiting for an answer, most urgent first.",
+     "open": "Open the escalations list."
+    }
+   }
+  },
+  "filters": {
+   "severity": "Show only escalations of this severity. Choose All to remove the filter.",
+   "targetKind": "Show only escalations addressed to users, roles, or agents. Choose All to remove the filter."
+  }
+ },
+ "explainers": {
+  "escalations": {
+   "title": "Escalations",
+   "p1": "An escalation is a question an agent asks when it should not decide alone. It goes to a user, to everyone with a role, or to another agent, with optional choices, a default answer, a severity, and a timeout.",
+   "p2": "Most escalations are non-blocking: the run carries on, and a keeper finds the answer in its next tick. A blocking escalation suspends its run, which resumes with the answer once someone replies.",
+   "p3": "If nobody answers in time, the timeout action runs: use the default answer, cancel, or pass the question up to the keeper's default target. Answers reach the agent as data and cannot widen its permissions."
+  }
+ }
+});

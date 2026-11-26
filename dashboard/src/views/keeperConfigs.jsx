@@ -6,7 +6,7 @@ import CopyableId from '../components/CopyableId';
 import { MandateStatusBadge, TickOutcomeBadge } from '../components/KeeperBadges';
 import { Badge } from '../components/StatusBadge';
 import { tip } from '../components/Tooltip';
-import { ENUMS, MANDATE_LIMITS } from '../utils/constants';
+import { ENUMS, MANDATE_LIMITS, ESCALATION_TARGET_KINDS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
@@ -65,6 +65,9 @@ export function keeperRevisionFields(t, visible = true, withNote = false) {
     field(t, 'healthyDefinition', 'textarea', { rows: 3, ...show }),
     field(t, 'autonomy', 'textarea', { rows: 3, ...show }),
     field(t, 'escalationPolicy', 'textarea', { rows: 2, ...show }),
+    // AA2: who the keeper's escalations go to when it names no target, and where a timed-out escalation goes up to.
+    field(t, 'escalationTargetKind', 'select', { options: enumOpts(t, 'escalationTargetKind', ESCALATION_TARGET_KINDS), noneLabel: t(`resources.${ID}.noEscalationTarget`), ...show }),
+    field(t, 'escalationTargetId', 'text', { placeholder: t(`resources.${ID}.escalationTargetPlaceholder`), showIf: (x) => visible && !!x?.escalationTargetKind }),
     field(t, 'direction', 'textarea', { rows: 2, ...show }),
     field(t, 'signals', 'objectList', {
       ...show,
