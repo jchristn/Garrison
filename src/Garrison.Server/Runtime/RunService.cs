@@ -92,6 +92,12 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public ToolProbeCatalog? ToolProbes { get; set; } = null;
 
+        /// <summary>
+        /// Freezes (AA3.2). When set, a new run whose agent, deployment, mandate, or app is frozen, or a keeper tick while
+        /// the autonomy kill switch is on, is refused with 409 Frozen. Null (the default) admits every run.
+        /// </summary>
+        public FreezeService? Freezes { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -139,6 +145,7 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown when delegation depth is exceeded, or with NoActiveDeployment when the agent has no active deployment with a weight above zero.</exception>
         /// <exception cref="IdempotencyConflictException">Thrown when the idempotency key belongs to a run with different content.</exception>
         /// <exception cref="ConflictException">Thrown with ConversationBusy when the requested conversation's previous turn is unfinished, or with ConversationAgentMismatch, ConversationDeploymentMismatch, or ConversationDeploymentUnavailable.</exception>
+        /// <exception cref="FrozenException">Thrown with Frozen when an active freeze covers the run (AA3.2).</exception>
         public async Task<Run> CreateAsync(RunCreateContext create, CancellationToken token = default)
         {
             return await RunDatabaseTelemetry.MeasureCreatedAsync(_Database, create?.TenantId ?? string.Empty, ct => CreateMeasuredCoreAsync(create!, token), token).ConfigureAwait(false);
@@ -170,6 +177,11 @@ namespace Garrison.Server.Runtime
             if (remote && (!String.IsNullOrEmpty(create.DeploymentId) || plan != null))
                 throw new ConflictException("RemoteDeploymentUnsupported", "Remote registrations define their own endpoint and do not use hosted deployments or harness conversations.");
             Deployment deployment = remote ? new Deployment { Id = create.Agent.Id, TenantId = create.TenantId, AgentId = create.Agent.Id, Name = create.Agent.Name, MaxAttempts = 1 } : await SelectDeploymentAsync(create, token).ConfigureAwait(false);
+            if (Freezes != null)
+            {
+                string? appId = create.AppId ?? plan?.Conversation.AppId;
+                await Freezes.RequireNotFrozenAsync(create.TenantId, create.Agent.Id, remote ? null : deployment.Id, create.MandateId, appId, create.Kind == RunKindEnum.Keeper, token).ConfigureAwait(false);
+            }
             HarnessProfile profile = remote ? new HarnessProfile { HarnessType = HarnessTypeEnum.Generic } : await _Database.HarnessProfiles.ReadAsync(create.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Harness profile " + deployment.HarnessProfileId + " for deployment " + deployment.Name + " was not found.");
 

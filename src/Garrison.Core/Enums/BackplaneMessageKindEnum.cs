@@ -53,6 +53,12 @@ namespace Garrison.Core.Enums
         /// An authentication session was revoked (P10.24); the subject is the session identifier. Replicas drop it from
         /// their authentication cache.
         /// </summary>
-        SessionRevoked
+        SessionRevoked,
+
+        /// <summary>
+        /// A freeze was applied or lifted, or the autonomy kill switch changed (AA3); the subject is the tenant identifier.
+        /// Replicas drop their cached freezes for that tenant.
+        /// </summary>
+        FreezesChanged
     }
 }

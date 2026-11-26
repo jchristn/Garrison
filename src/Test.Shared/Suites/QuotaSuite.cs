@@ -40,9 +40,20 @@ namespace Test.Shared.Suites
             return suites;
         }
 
-        private static Run Fixture(string tenantId, string agentId = "agt_quota", string deploymentId = "dep_quota")
+        private static Run Fixture(string tenantId, string agentId = "agt_quota", string deploymentId = "dep_quota", string mandateId = "mdt_quota")
         {
-            return new Run { TenantId = tenantId, AgentId = agentId, AgentName = "quota", DeploymentId = deploymentId, Status = RunStatusEnum.Queued, QueuedUtc = DateTime.UtcNow, HarnessType = HarnessTypeEnum.Generic };
+            return new Run { TenantId = tenantId, AgentId = agentId, AgentName = "quota", DeploymentId = deploymentId, MandateId = mandateId, Status = RunStatusEnum.Queued, QueuedUtc = DateTime.UtcNow, HarnessType = HarnessTypeEnum.Generic };
+        }
+
+        private static string Target(UsageQuotaScopeEnum scope)
+        {
+            switch (scope)
+            {
+                case UsageQuotaScopeEnum.Tenant: return "ten_quota";
+                case UsageQuotaScopeEnum.Agent: return "agt_quota";
+                case UsageQuotaScopeEnum.Mandate: return "mdt_quota";
+                default: return "dep_quota";
+            }
         }
 
         private static UsageQuota Quota(string tenantId, UsageQuotaScopeEnum scope, string resourceId)
@@ -137,7 +148,7 @@ namespace Test.Shared.Suites
                 using (DatabaseDriverBase db = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
                 using (DatabaseDriverBase replica = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
                 {
-                    string target = scope == UsageQuotaScopeEnum.Tenant ? "ten_quota" : scope == UsageQuotaScopeEnum.Agent ? "agt_quota" : "dep_quota";
+                    string target = Target(scope);
                     UsageQuota quota = Quota("ten_quota", scope, target);
                     quota.DailyRunLimit = 5;
                     quota = await db.UsageQuotas.CreateAsync(quota, token).ConfigureAwait(false);
@@ -148,7 +159,7 @@ namespace Test.Shared.Suites
                     Assert.Equal(5L, usage.RunsUsed, "Distinct admissions counted");
                     foreach (Run? run in runs.Where(r => r != null)) await db.Runs.DeleteAsync(run!.Id, token).ConfigureAwait(false);
                     Assert.True(await AdmitAsync(db, Fixture("ten_quota"), token).ConfigureAwait(false) == null, "Deleting runs does not reset quota");
-                    Run outside = Fixture(scope == UsageQuotaScopeEnum.Tenant ? "ten_other" : "ten_quota", "agt_other", "dep_other");
+                    Run outside = Fixture(scope == UsageQuotaScopeEnum.Tenant ? "ten_other" : "ten_quota", "agt_other", "dep_other", "mdt_other");
                     Assert.NotNull(await AdmitAsync(db, outside, token).ConfigureAwait(false), "Other scope admitted");
                     // A request queued before midnight but admitted after the tenant lock counts in the admission day.
                     quota.DailyRunLimit = 6;
@@ -189,7 +200,7 @@ namespace Test.Shared.Suites
                 {
                     List<Run> runs = new List<Run>();
                     for (int i = 0; i < 12; i++) runs.Add(await db.Runs.CreateAsync(Fixture("ten_quota"), token).ConfigureAwait(false));
-                    string target = scope == UsageQuotaScopeEnum.Tenant ? "ten_quota" : scope == UsageQuotaScopeEnum.Agent ? "agt_quota" : "dep_quota";
+                    string target = Target(scope);
                     UsageQuota quota = Quota("ten_quota", scope, target);
                     quota.MaxConcurrentRuns = 2;
                     quota = await db.UsageQuotas.CreateAsync(quota, token).ConfigureAwait(false);

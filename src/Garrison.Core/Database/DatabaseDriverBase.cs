@@ -267,6 +267,11 @@ namespace Garrison.Core.Database
         public IEscalationMethods Escalations { get; protected set; } = null!;
 
         /// <summary>
+        /// Freezes and the autonomy kill switch (AA3).
+        /// </summary>
+        public IFreezeMethods Freezes { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;

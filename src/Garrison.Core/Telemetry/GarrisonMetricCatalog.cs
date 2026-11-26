@@ -183,6 +183,12 @@ namespace Garrison.Core.Telemetry
         /// <summary>Time from raising an escalation to its answer (AA2).</summary>
         public static readonly MetricDescriptor EscalationAnswerDuration = new MetricDescriptor("garrison.escalation.answer.duration", MetricKindEnum.Histogram, "s", "target_kind", "Time from raising an escalation to its answer, by target kind", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
 
+        /// <summary>Freezes applied and lifted, including the autonomy kill switch (AA3).</summary>
+        public static readonly MetricDescriptor Freezes = new MetricDescriptor("garrison.freezes", MetricKindEnum.Counter, "{freeze}", "target_kind, action", "Freezes by target kind (agent, deployment, mandate, app, tenantautonomy) and action (applied, lifted, refused, skipped, cancelled): refused counts runs a freeze turned away, skipped counts keeper wakes it skipped, cancelled counts runs applying it cancelled", "server", "Autonomy", "garrison-autonomy");
+
+        /// <summary>Keeper spend caps reached (AA3).</summary>
+        public static readonly MetricDescriptor SpendCapHits = new MetricDescriptor("garrison.spend.cap.hits", MetricKindEnum.Counter, "{hit}", "scope", "Spend caps reached, by scope (mandate_tick for a tick over its per-tick budget, mandate_day for a keeper over its daily budget)", "server", "Autonomy", "garrison-autonomy");
+
         /// <summary>Keeper intervals applied after ticks (AA1).</summary>
         public static readonly MetricDescriptor KeeperInterval = new MetricDescriptor("garrison.keeper.interval", MetricKindEnum.Histogram, "s", "mode", "Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
 
@@ -468,7 +474,7 @@ namespace Garrison.Core.Telemetry
             SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

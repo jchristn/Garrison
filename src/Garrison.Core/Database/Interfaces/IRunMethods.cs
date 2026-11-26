@@ -487,6 +487,20 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Run>> ListQueuedAsync(string? tenantId, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Unfinished runs (Pending, Queued, Leased, Running, Suspended) in a freeze's scope, oldest first (AA3.2): an
+        /// agent's, a deployment's, a mandate's tick runs, the runs of an app's conversations, or every keeper run of the
+        /// tenant for TenantAutonomy. Runs already Cancelling are left out. OrgUnit and Organization return nothing.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="targetKind">Freeze target kind.</param>
+        /// <param name="targetId">Target identifier.</param>
+        /// <param name="limit">Most runs, 1 to 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs without requirements or parameters.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or targetId is null or empty.</exception>
+        Task<List<Run>> ListActiveInScopeAsync(string tenantId, FreezeTargetKindEnum targetKind, string targetId, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Replace the placement requirements of each given run with the stored ones, in one query per 500 runs.
         /// </summary>
         /// <param name="runs">Runs.</param>

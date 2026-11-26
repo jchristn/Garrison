@@ -136,6 +136,15 @@ namespace Garrison.Core.Enums
         SigningSecretRotated,
 
         /// <summary>A queued-run depth limit refused admission.</summary>
-        QueueFull
+        QueueFull,
+
+        /// <summary>A person applied a freeze (AA3).</summary>
+        FreezeApplied,
+
+        /// <summary>A person lifted a freeze (AA3).</summary>
+        FreezeLifted,
+
+        /// <summary>A person turned the autonomy kill switch on or off (AA3).</summary>
+        KillSwitchChanged
     }
 }

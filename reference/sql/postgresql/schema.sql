@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 46).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 48).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2278,3 +2278,86 @@ CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_mandate" ON "mandate_ticks" ("tena
 CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_run" ON "mandate_ticks" ("runid");
 CREATE INDEX IF NOT EXISTS "idx_mandate_ticks_created" ON "mandate_ticks" ("createdutc");
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 46, 'Mandates, mandate revisions, and keeper ticks', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 46);
+
+-- Migration 47: Escalations
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS escalationid VARCHAR(64);
+ALTER TABLE "mandate_revisions" ADD COLUMN IF NOT EXISTS escalationtargetkind VARCHAR(32);
+ALTER TABLE "mandate_revisions" ADD COLUMN IF NOT EXISTS escalationtargetid VARCHAR(64);
+ALTER TABLE "notification_endpoints" ADD COLUMN IF NOT EXISTS escalationminseverity VARCHAR(32);
+CREATE TABLE IF NOT EXISTS "escalations" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    raisingrunid VARCHAR(64),
+    leaseepoch BIGINT NOT NULL,
+    agentid VARCHAR(64),
+    agentname VARCHAR(256),
+    mandateid VARCHAR(64),
+    mandatetickid VARCHAR(64),
+    targetkind VARCHAR(32) NOT NULL,
+    targetid VARCHAR(64),
+    targetname VARCHAR(256),
+    severity VARCHAR(32) NOT NULL,
+    mode VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    question TEXT NOT NULL,
+    context TEXT,
+    defaultanswer TEXT,
+    timeoutseconds INTEGER NOT NULL,
+    expiresutc TIMESTAMPTZ,
+    timeoutaction VARCHAR(32) NOT NULL,
+    parentescalationid VARCHAR(64),
+    escalatedtoid VARCHAR(64),
+    routedrunid VARCHAR(64),
+    answerchoice VARCHAR(64),
+    answertext TEXT,
+    resolvedby VARCHAR(256),
+    resolutionsource VARCHAR(32),
+    resolvedutc TIMESTAMPTZ,
+    deliveredtickid VARCHAR(64),
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_escalations_tenantstatus" ON "escalations" ("tenantid", "status", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_escalations_run" ON "escalations" ("tenantid", "raisingrunid");
+CREATE INDEX IF NOT EXISTS "idx_escalations_mandate" ON "escalations" ("tenantid", "mandateid");
+CREATE INDEX IF NOT EXISTS "idx_escalations_target" ON "escalations" ("tenantid", "targetkind", "targetid");
+CREATE INDEX IF NOT EXISTS "idx_escalations_expiry" ON "escalations" ("status", "expiresutc");
+CREATE TABLE IF NOT EXISTS "escalation_options" (
+    escalationid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    optionkey VARCHAR(64) NOT NULL,
+    label VARCHAR(512),
+    PRIMARY KEY (escalationid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_escalation_options_tenant" ON "escalation_options" ("tenantid", "escalationid");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 47, 'Escalations', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 47);
+
+-- Migration 48: Freezes and mandate spend caps
+ALTER TABLE "run_usage" ADD COLUMN IF NOT EXISTS mandateid VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "freezes" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    targetkind VARCHAR(32) NOT NULL,
+    targetid VARCHAR(64) NOT NULL,
+    targetname VARCHAR(256),
+    reason TEXT,
+    cancelactiveruns BOOLEAN NOT NULL,
+    cancelledruncount INTEGER NOT NULL,
+    createdbyid VARCHAR(64),
+    createdbyname VARCHAR(256),
+    liftedbyid VARCHAR(64),
+    liftedbyname VARCHAR(256),
+    liftreason TEXT,
+    liftedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_freezes_target" ON "freezes" ("tenantid", "targetkind", "targetid", "liftedutc");
+CREATE INDEX IF NOT EXISTS "idx_freezes_created" ON "freezes" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_freezes_changed" ON "freezes" ("tenantid", "lastupdateutc");
+UPDATE "run_usage" SET mandateid = (SELECT r.mandateid FROM "runs" r WHERE r.id = runid) WHERE mandateid IS NULL;
+CREATE INDEX IF NOT EXISTS "idx_run_usage_mandate" ON "run_usage" ("tenantid", "mandateid");
+DROP VIEW "quota_usage_source";
+CREATE VIEW "quota_usage_source" AS SELECT runid, tenantid, agentid, deploymentid, mandateid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "run_usage" UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.mandateid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM "runs" r WHERE NOT EXISTS (SELECT 1 FROM "run_usage" u WHERE u.runid = r.id);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 48, 'Freezes and mandate spend caps', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 48);

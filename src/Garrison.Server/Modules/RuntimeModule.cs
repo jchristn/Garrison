@@ -70,6 +70,7 @@ namespace Garrison.Server.Modules
         private KeeperScheduler? _Keepers = null;
         private EscalationOptions? _EscalationOptions = null;
         private EscalationService? _Escalations = null;
+        private FreezeService? _Freezes = null;
 
         #endregion
 
@@ -194,6 +195,16 @@ namespace Garrison.Server.Modules
             continuations.Escalations = _Escalations;
             _Keepers.Escalations = _Escalations;
             _Maintenance.Escalations = _Escalations;
+            _Freezes = new FreezeService(context.Database, context.Audit, context.Logging);
+            _Freezes.Backplane = _Backplane;
+            Func<Run, CancellationToken, Task> cancelRun = async (target, ct) =>
+            {
+                if (!RunService.IsTerminal(target.Status)) await runs.CancelAsync(target, ct).ConfigureAwait(false);
+            };
+            _Freezes.CancelRunAsync = cancelRun;
+            _Runs.Freezes = _Freezes;
+            _Keepers.Freezes = _Freezes;
+            _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
                 _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
@@ -224,6 +235,7 @@ namespace Garrison.Server.Modules
             context.Register(_Keepers);
             context.Register(_EscalationOptions);
             context.Register(_Escalations);
+            context.Register(_Freezes);
             context.Register(_Notifications);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
@@ -251,10 +263,11 @@ namespace Garrison.Server.Modules
             new TriggerRoutes(context, _Triggers!).Register(routes);
             new MandateRoutes(context, _Mandates!).Register(routes);
             new EscalationRoutes(context, _Escalations!).Register(routes);
+            new FreezeRoutes(context, _Freezes!).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, nodes)", "Live updates");
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, freezes, nodes)", "Live updates");
         }
 
         /// <inheritdoc />
@@ -354,11 +367,13 @@ namespace Garrison.Server.Modules
 
         private void OnBackplaneMessage(object? sender, BackplaneMessage message)
         {
+            if (message.Kind == BackplaneMessageKindEnum.FreezesChanged) _Freezes?.Invalidate(message.Subject);
             _Signals?.ApplyRemote(message);
         }
 
         private void OnBackplaneResynchronized(object? sender, EventArgs e)
         {
+            _Freezes?.InvalidateAll();
             _Signals?.SignalAll();
         }
 

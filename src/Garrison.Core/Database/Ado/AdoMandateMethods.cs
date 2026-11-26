@@ -199,6 +199,37 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<bool> TrySetStatusAsync(string tenantId, string id, MandateStatusEnum expected, MandateStatusEnum status, DateTime? nextWakeUtc, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            int affected = await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET status = @status, nextwakeutc = @next, pendingwakesource = NULL, lastupdateutc = @now WHERE id = @id AND tenantid = @tenantid AND status = @expected;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", id);
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "status", status.ToString());
+                    AdoDatabaseDriver.Add(command, "expected", expected.ToString());
+                    AdoDatabaseDriver.Add(command, "next", nextWakeUtc);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                }, token).ConfigureAwait(false);
+            return affected > 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<int> ReactivateCapsAsync(DateTime nowUtc, CancellationToken token = default)
+        {
+            return await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET status = 'Active', lastupdateutc = @now WHERE status = 'CapReached' AND nextwakeutc IS NOT NULL AND nextwakeutc <= @due;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "due", nowUtc);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                }, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> TryDeferAsync(string id, DateTime expectedNextWakeUtc, DateTime nextWakeUtc, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));

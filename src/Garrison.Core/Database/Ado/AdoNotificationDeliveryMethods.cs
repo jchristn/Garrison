@@ -208,6 +208,20 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Freeze>> ListAppliedFreezesAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<Freeze>();
+            return await KeysetAsync(_Driver.Table("freezes"), "createdutc", null, tenantIds, afterUtc, afterId, untilUtc, limit, AdoFreezeMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<MandateTick>> ListCapReachedTicksAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<MandateTick>();
+            return await KeysetAsync(_Driver.Table("mandate_ticks"), "startedutc", "errorcode = 'CapReached'", tenantIds, afterUtc, afterId, untilUtc, limit, AdoMandateTickMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<Escalation>> ListExpiredEscalationsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
         {
             if (tenantIds == null || tenantIds.Count == 0) return new List<Escalation>();

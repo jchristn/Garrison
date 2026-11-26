@@ -1279,6 +1279,45 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Run>> ListActiveInScopeAsync(string tenantId, FreezeTargetKindEnum targetKind, string targetId, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(targetId)) throw new ArgumentNullException(nameof(targetId));
+            string scope;
+            switch (targetKind)
+            {
+                case FreezeTargetKindEnum.Agent:
+                    scope = "agentid = @target";
+                    break;
+                case FreezeTargetKindEnum.Deployment:
+                    scope = "deploymentid = @target";
+                    break;
+                case FreezeTargetKindEnum.Mandate:
+                    scope = "mandateid = @target";
+                    break;
+                case FreezeTargetKindEnum.App:
+                    scope = "conversationid IN (SELECT c.id FROM " + _Driver.Table("conversations") + " c WHERE c.tenantid = @tenantid AND c.appid = @target)";
+                    break;
+                case FreezeTargetKindEnum.TenantAutonomy:
+                    scope = "kind = 'Keeper'";
+                    break;
+                default:
+                    return new List<Run>();
+            }
+            return await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND status IN ('Pending', 'Queued', 'Leased', 'Running', 'Suspended') AND " + scope + " ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "target", targetId);
+                    AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 100000));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                },
+                Map,
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<Run>> ListQueuedAsync(string? tenantId, int limit, CancellationToken token = default)
         {
             bool scoped = !String.IsNullOrEmpty(tenantId);

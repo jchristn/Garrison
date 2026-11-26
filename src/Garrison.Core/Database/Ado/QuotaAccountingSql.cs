@@ -36,7 +36,7 @@ namespace Garrison.Core.Database.Ado
         internal static string MatchingQuery(AdoDatabaseDriver driver)
         {
             return "SELECT * FROM " + driver.Table("usage_quotas") + " WHERE tenantid = @tenantid AND enforcementenabled = " + driver.Dialect.BooleanLiteral(true) + " AND active = " + driver.Dialect.BooleanLiteral(true)
-                + " AND ((scope = 'Tenant' AND resourceid = @tenantid) OR (scope = 'Agent' AND resourceid = @agentid) OR (scope = 'Deployment' AND resourceid = @deploymentid));";
+                + " AND ((scope = 'Tenant' AND resourceid = @tenantid) OR (scope = 'Agent' AND resourceid = @agentid) OR (scope = 'Deployment' AND resourceid = @deploymentid) OR (scope = 'Mandate' AND resourceid = @mandateid));";
         }
 
         internal static void BindMatching(DbCommand command, Run run)
@@ -44,6 +44,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "tenantid", run.TenantId);
             AdoDatabaseDriver.Add(command, "agentid", run.AgentId);
             AdoDatabaseDriver.Add(command, "deploymentid", run.DeploymentId);
+            AdoDatabaseDriver.Add(command, "mandateid", String.IsNullOrEmpty(run.MandateId) ? String.Empty : run.MandateId);
         }
 
         internal static string UsageQuery(AdoDatabaseDriver driver, UsageQuota quota)
@@ -53,6 +54,7 @@ namespace Garrison.Core.Database.Ado
                 UsageQuotaScopeEnum.Tenant => "tenantid",
                 UsageQuotaScopeEnum.Agent => "agentid",
                 UsageQuotaScopeEnum.Deployment => "deploymentid",
+                UsageQuotaScopeEnum.Mandate => "mandateid",
                 _ => throw new ArgumentOutOfRangeException(nameof(quota), "Unsupported quota scope.")
             };
             string completed = Live("completedutc");
@@ -110,8 +112,8 @@ namespace Garrison.Core.Database.Ado
 
         internal static async Task InsertLedgerAsync(AdoDatabaseDriver driver, DbConnection connection, DbTransaction transaction, string runId, CancellationToken token, bool deduplicate = false, DateTime? admittedUtc = null)
         {
-            string sql = "INSERT INTO " + driver.Table("run_usage") + " (runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd) "
-                + "SELECT id, tenantid, agentid, deploymentid, harnesstype, " + (admittedUtc.HasValue ? "@admittedutc" : "COALESCE(queuedutc, createdutc)") + ", completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM " + driver.Table("runs") + " WHERE id = @id" + (deduplicate ? " ON CONFLICT (runid) DO NOTHING" : String.Empty) + ";";
+            string sql = "INSERT INTO " + driver.Table("run_usage") + " (runid, tenantid, agentid, deploymentid, mandateid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd) "
+                + "SELECT id, tenantid, agentid, deploymentid, mandateid, harnesstype, " + (admittedUtc.HasValue ? "@admittedutc" : "COALESCE(queuedutc, createdutc)") + ", completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM " + driver.Table("runs") + " WHERE id = @id" + (deduplicate ? " ON CONFLICT (runid) DO NOTHING" : String.Empty) + ";";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, c =>
             {
                 AdoDatabaseDriver.Add(c, "id", runId);

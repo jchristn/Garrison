@@ -56,6 +56,29 @@ namespace Garrison.Server.Runtime
         public EscalationService? Escalations { get; set; } = null;
 
         /// <summary>
+        /// Freezes (AA3.2). When set, a due wake of a keeper under a freeze or the kill switch is recorded as Skipped and its
+        /// next wake moves on by one interval. Null when freezes are not wired.
+        /// </summary>
+        public FreezeService? Freezes { get; set; } = null;
+
+        /// <summary>
+        /// When a keeper reaches its daily cap, its first wake after the window resets is spread over up to this many
+        /// seconds (never more than its current interval), so keepers capped on the same day do not all wake at midnight
+        /// UTC together. Minimum 0, maximum 3600, default 300.
+        /// </summary>
+        public int CapResetSpreadSeconds
+        {
+            get
+            {
+                return _CapResetSpreadSeconds;
+            }
+            set
+            {
+                _CapResetSpreadSeconds = Math.Clamp(value, 0, 3600);
+            }
+        }
+
+        /// <summary>
         /// Seconds a claimed tick may go without a run before the sweep fails it (the replica that claimed it died before
         /// starting the run). Minimum 30, maximum 3600, default 120.
         /// </summary>
@@ -86,6 +109,8 @@ namespace Garrison.Server.Runtime
         private DateTime _LastSweepUtc = DateTime.MinValue;
         private DateTime _LastPruneUtc = DateTime.MinValue;
         private int _OrphanedClaimSeconds = 120;
+        private int _CapResetSpreadSeconds = 300;
+        private readonly MandateBudgetReader _Budgets;
 
         #endregion
 
@@ -124,6 +149,7 @@ namespace Garrison.Server.Runtime
             _Logging = logging ?? throw new ArgumentNullException(nameof(logging));
             _Intervals = intervals ?? throw new ArgumentNullException(nameof(intervals));
             _Templates = new KeeperTemplateResolver(database);
+            _Budgets = new MandateBudgetReader(database);
         }
 
         #endregion
@@ -153,6 +179,14 @@ namespace Garrison.Server.Runtime
         {
             _Intervals.DefaultJitterPercent = _Options.DefaultJitterPercent;
             bool changed = false;
+
+            // A keeper that reached its daily cap ticks again once its window has reset (AA3.3).
+            int reactivated = await _Database.Mandates.ReactivateCapsAsync(nowUtc, token).ConfigureAwait(false);
+            if (reactivated > 0)
+            {
+                _Logging.Info(_Header + reactivated + " keeper(s) past their daily cap reset are active again");
+                changed = true;
+            }
 
             List<Mandate> active = await _Database.Mandates.ListWithActiveTickAsync(_Options.MaxDueClaimsPerSweep, token).ConfigureAwait(false);
             foreach (Mandate mandate in active)
@@ -235,21 +269,36 @@ namespace Garrison.Server.Runtime
             DateTime expected = mandate.NextWakeUtc.Value;
             WakeSourceEnum source = mandate.PendingWakeSource ?? WakeSourceEnum.Timer;
 
+            // A freeze on the mandate, its agent, or its deployment, or the kill switch, skips the wake (AA3.2); the
+            // schedule moves on by one interval, so lifting it later does not release a burst of overdue ticks.
+            Freeze? freeze = Freezes != null ? await Freezes.FindForMandateAsync(mandate, token).ConfigureAwait(false) : null;
+            if (freeze != null)
+            {
+                bool killSwitch = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy;
+                string why = killSwitch
+                    ? "The autonomy kill switch is on (" + freeze.Id + "), so this wake was skipped."
+                    : FreezeService.Describe(freeze) + " is frozen by " + freeze.Id + ", so this wake was skipped.";
+                bool skippedFrozen = await SkipAsync(mandate, source, expected, nowUtc, killSwitch ? "KillSwitch" : "Frozen", why, token).ConfigureAwait(false);
+                if (skippedFrozen) Freezes!.Skipped(freeze);
+                return skippedFrozen;
+            }
+
             if (!String.IsNullOrEmpty(mandate.ActiveTickId))
             {
                 // Single-flight: a non-timer wake waits for the running tick; a timer wake is recorded as Skipped and the
                 // schedule moves on by one interval.
                 if (source != WakeSourceEnum.Timer) return false;
-                int interval = Math.Max(1, mandate.CurrentIntervalSeconds);
-                if (!await _Database.Mandates.TryDeferAsync(mandate.Id, expected, nowUtc.AddSeconds(interval), token).ConfigureAwait(false)) return false;
-                MandateTick skipped = NewTick(mandate, source, expected, nowUtc);
-                skipped.Outcome = TickOutcomeEnum.Skipped;
-                skipped.FinishedUtc = nowUtc;
-                skipped.ErrorCode = "PreviousTickRunning";
-                skipped.ErrorMessage = "The previous tick (" + mandate.ActiveTickId + (mandate.ActiveRunId != null ? ", run " + mandate.ActiveRunId : String.Empty) + ") was still running, so this wake was skipped.";
-                await _Database.MandateTicks.CreateAsync(skipped, token).ConfigureAwait(false);
-                Finished(mandate, skipped);
-                return true;
+                return await SkipAsync(mandate, source, expected, nowUtc, "PreviousTickRunning",
+                    "The previous tick (" + mandate.ActiveTickId + (mandate.ActiveRunId != null ? ", run " + mandate.ActiveRunId : String.Empty) + ") was still running, so this wake was skipped.", token).ConfigureAwait(false);
+            }
+
+            // Daily spend cap (AA3.3): a keeper that has spent its daily budget stops until the UTC day ends.
+            MandateRevision? revision = String.IsNullOrEmpty(mandate.CurrentRevisionId) ? null
+                : await _Database.MandateRevisions.ReadAsync(mandate.TenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false);
+            if (revision != null && revision.BudgetPerDayUsd.HasValue)
+            {
+                MandateBudgetStatus budget = await _Budgets.ReadAsync(mandate.TenantId, mandate.Id, revision, nowUtc, token).ConfigureAwait(false);
+                if (budget.DayRemainingUsd.HasValue && budget.DayRemainingUsd.Value <= 0) return await CapAsync(mandate, revision, budget, source, expected, nowUtc, token).ConfigureAwait(false);
             }
 
             MandateTick tick = NewTick(mandate, source, expected, nowUtc);
@@ -258,6 +307,59 @@ namespace Garrison.Server.Runtime
             GarrisonMetrics.Observe(GarrisonMetricCatalog.KeeperTickLag, Math.Max(0, (nowUtc - expected).TotalSeconds), "source", Label(source));
             mandate.ActiveTickId = tick.Id;
             await StartAsync(mandate, tick, nowUtc, token).ConfigureAwait(false);
+            return true;
+        }
+
+        private async Task<bool> SkipAsync(Mandate mandate, WakeSourceEnum source, DateTime expected, DateTime nowUtc, string code, string message, CancellationToken token)
+        {
+            int interval = Math.Max(1, mandate.CurrentIntervalSeconds);
+            if (!await _Database.Mandates.TryDeferAsync(mandate.Id, expected, nowUtc.AddSeconds(interval), token).ConfigureAwait(false)) return false;
+            MandateTick skipped = NewTick(mandate, source, expected, nowUtc);
+            skipped.Outcome = TickOutcomeEnum.Skipped;
+            skipped.FinishedUtc = nowUtc;
+            skipped.ErrorCode = code;
+            skipped.ErrorMessage = message;
+            await _Database.MandateTicks.CreateAsync(skipped, token).ConfigureAwait(false);
+            Finished(mandate, skipped);
+            return true;
+        }
+
+        private async Task<bool> CapAsync(Mandate mandate, MandateRevision revision, MandateBudgetStatus budget, WakeSourceEnum source, DateTime expected, DateTime nowUtc, CancellationToken token)
+        {
+            int spread = Math.Min(_CapResetSpreadSeconds, Math.Max(0, mandate.CurrentIntervalSeconds));
+            DateTime resume = budget.WindowResetUtc.AddSeconds(spread > 0 ? Random.Shared.Next(0, spread + 1) : 0);
+            if (!await _Database.Mandates.TrySetStatusAsync(mandate.TenantId, mandate.Id, MandateStatusEnum.Active, MandateStatusEnum.CapReached, resume, token).ConfigureAwait(false)) return false;
+
+            string spent = budget.DaySpentUsd.ToString("0.####", CultureInfo.InvariantCulture);
+            string limit = revision.BudgetPerDayUsd!.Value.ToString("0.####", CultureInfo.InvariantCulture);
+            MandateTick capped = NewTick(mandate, source, expected, nowUtc);
+            capped.Outcome = TickOutcomeEnum.Skipped;
+            capped.FinishedUtc = nowUtc;
+            capped.ErrorCode = "CapReached";
+            capped.ErrorMessage = "The keeper spent " + spent + " USD today, reaching its daily budget of " + limit + " USD. It ticks again after " + Iso(resume) + ".";
+            await _Database.MandateTicks.CreateAsync(capped, token).ConfigureAwait(false);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.SpendCapHits, "scope", "mandate_day");
+            mandate.Status = MandateStatusEnum.CapReached;
+            Finished(mandate, capped);
+
+            if (Escalations != null)
+            {
+                try
+                {
+                    Escalation notice = new Escalation();
+                    notice.Question = "Keeper " + mandate.Name + " reached its daily budget: it spent " + spent + " USD of " + limit + " USD today and stopped ticking. It resumes after " + Iso(resume) + ". To let it continue sooner, publish a revision with a larger budgetPerDayUsd and resume it.";
+                    notice.Severity = EscalationSeverityEnum.Urgent;
+                    notice.Options.Add(new EscalationOption { Key = "acknowledged", Label = "Leave it stopped until the window resets" });
+                    notice.DefaultAnswer = "acknowledged";
+                    notice.TimeoutAction = EscalationTimeoutActionEnum.UseDefaultAnswer;
+                    notice.TimeoutSeconds = (int)Math.Clamp(Math.Ceiling((resume - nowUtc).TotalSeconds), 60, 2592000);
+                    await Escalations.RaiseForMandateAsync(mandate, revision, capped.Id, notice, token).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    _Logging.Warn(_Header + "mandate " + mandate.Id + " (" + mandate.Name + ") reached its cap but the escalation could not be raised: " + e.Message);
+                }
+            }
             return true;
         }
 

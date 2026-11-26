@@ -129,6 +129,29 @@ namespace Garrison.Core.Database.Interfaces
         Task<bool> TryDeferAsync(string id, DateTime expectedNextWakeUtc, DateTime nextWakeUtc, CancellationToken token = default);
 
         /// <summary>
+        /// Change a mandate's status when it still has the expected status (AA3 brakes): set the status and next wake and
+        /// clear the pending wake source. Exactly one caller wins.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="id">Mandate identifier.</param>
+        /// <param name="expected">Status the caller read.</param>
+        /// <param name="status">New status.</param>
+        /// <param name="nextWakeUtc">New next wake, or null for none.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when changed.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or id is null or empty.</exception>
+        Task<bool> TrySetStatusAsync(string tenantId, string id, MandateStatusEnum expected, MandateStatusEnum status, DateTime? nextWakeUtc, CancellationToken token = default);
+
+        /// <summary>
+        /// Return every CapReached mandate whose next wake (the daily window reset) has passed to Active (AA3.3), so the
+        /// sweep's due list picks it up.
+        /// </summary>
+        /// <param name="nowUtc">Current time (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Mandates reactivated.</returns>
+        Task<int> ReactivateCapsAsync(DateTime nowUtc, CancellationToken token = default);
+
+        /// <summary>
         /// Record the run of the active tick.
         /// </summary>
         /// <param name="id">Mandate identifier.</param>

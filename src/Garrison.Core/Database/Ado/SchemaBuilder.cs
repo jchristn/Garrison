@@ -380,6 +380,11 @@ namespace Garrison.Core.Database.Ado
             v47.BuildVersion47();
             migrations.Add(new SchemaMigration(47, "Escalations", v47._Statements, v47._Columns));
 
+            // AA3: freezes and the kill switch; the mandate a usage ledger row belongs to, for mandate spend caps.
+            SchemaBuilder v48 = new SchemaBuilder(catalog, dialect);
+            v48.BuildVersion48();
+            migrations.Add(new SchemaMigration(48, "Freezes and mandate spend caps", v48._Statements, v48._Columns));
+
             return migrations;
         }
 
@@ -443,6 +448,41 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion48()
+        {
+            SqlDialect d = _Dialect;
+            Column("run_usage", "mandateid", d.TypeId);
+
+            Table("freezes",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "targetkind VARCHAR(32) NOT NULL",
+                "targetid " + d.TypeId + " NOT NULL",
+                "targetname VARCHAR(256)",
+                "reason " + d.TypeText,
+                "cancelactiveruns " + d.TypeBool + " NOT NULL",
+                "cancelledruncount " + d.TypeInt + " NOT NULL",
+                "createdbyid " + d.TypeId,
+                "createdbyname VARCHAR(256)",
+                "liftedbyid " + d.TypeId,
+                "liftedbyname VARCHAR(256)",
+                "liftreason " + d.TypeText,
+                "liftedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("freezes", "target", false, "tenantid", "targetkind", "targetid", "liftedutc");
+            Index("freezes", "created", false, "tenantid", "createdutc");
+            Index("freezes", "changed", false, "tenantid", "lastupdateutc");
+
+            // The ledger and the usage view carry the run's mandate so a Mandate quota scope can count a keeper's spend
+            // after run retention removes its runs.
+            _Statements.Add("UPDATE " + _Catalog.Reference("run_usage") + " SET mandateid = (SELECT r.mandateid FROM " + _Catalog.Reference("runs") + " r WHERE r.id = runid) WHERE mandateid IS NULL;");
+            Index("run_usage", "mandate", false, "tenantid", "mandateid");
+            _Statements.Add("DROP VIEW " + _Catalog.Reference("quota_usage_source") + ";");
+            _Statements.Add("CREATE VIEW " + _Catalog.Reference("quota_usage_source") + " AS SELECT runid, tenantid, agentid, deploymentid, mandateid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM " + _Catalog.Reference("run_usage")
+                + " UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.mandateid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM " + _Catalog.Reference("runs") + " r WHERE NOT EXISTS (SELECT 1 FROM " + _Catalog.Reference("run_usage") + " u WHERE u.runid = r.id);");
         }
 
         private void BuildVersion47()

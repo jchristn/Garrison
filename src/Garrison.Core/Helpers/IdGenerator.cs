@@ -299,6 +299,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New freeze identifier (prefix mfz_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewFreezeId()
+        {
+            return New(Constants.FreezeIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

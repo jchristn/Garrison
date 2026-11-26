@@ -64,6 +64,16 @@ namespace Garrison.Core.Notifications
         /// </summary>
         public NotificationEscalationSummary? Escalation { get; set; } = null;
 
+        /// <summary>
+        /// The freeze, for FreezeApplied (AA3.6).
+        /// </summary>
+        public NotificationFreezeSummary? Freeze { get; set; } = null;
+
+        /// <summary>
+        /// The keeper that reached its daily cap, for MandateCapReached (AA3.6).
+        /// </summary>
+        public NotificationMandateCapSummary? MandateCap { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories

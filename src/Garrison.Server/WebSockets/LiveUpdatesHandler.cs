@@ -240,6 +240,12 @@ namespace Garrison.Server.WebSockets
                 AuthorizationDecision escalations = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
                 return escalations.Permitted ? null : escalations.Reason;
             }
+            if (channel == "freezes")
+            {
+                // Freezes and the kill switch of the tenant (AA3.5): applied, lifted, and kill switch changes.
+                AuthorizationDecision freezes = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                return freezes.Permitted ? null : freezes.Reason;
+            }
             if (channel == "approvals")
             {
                 AuthorizationDecision approvals = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
@@ -299,7 +305,7 @@ namespace Garrison.Server.WebSockets
                 return null;
             }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, freezes, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -321,6 +327,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key == "nodes") await PumpNodesAsync(session, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "approvals") await PumpApprovalsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "escalations") await PumpEscalationsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key == "freezes") await PumpFreezesAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
@@ -388,6 +395,31 @@ namespace Garrison.Server.WebSockets
             {
                 state.Fingerprint = escalation.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + escalation.Id;
                 await SendAsync(session, sendLock, new { type = EscalationChangeType(escalation), open = open, escalation = escalation }, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task PumpFreezesAsync(WebSocketSession session, RequestContext ctx, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // Same cursor as the escalations channel. A new subscription sends the active count and the kill switch; later
+            // passes send freeze.applied, freeze.lifted, or killswitch.changed for each change, in order.
+            if (state.Fingerprint == null)
+            {
+                List<Freeze> active = await _Context.Database.Freezes.ListActiveAsync(ctx.TenantId!, token).ConfigureAwait(false);
+                state.Fingerprint = DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|";
+                await SendAsync(session, sendLock, new { type = "freezes.active", active = active.Count, killSwitch = active.Any(f => f.TargetKind == FreezeTargetKindEnum.TenantAutonomy) }, token).ConfigureAwait(false);
+                return;
+            }
+            string[] cursor = state.Fingerprint.Split('|');
+            DateTime afterUtc = new DateTime(Int64.Parse(cursor[0], System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            List<Freeze> changed = await _Context.Database.Freezes.ListChangedAsync(ctx.TenantId!, afterUtc, cursor.Length > 1 ? cursor[1] : String.Empty, 100, token).ConfigureAwait(false);
+            if (changed.Count == 0) return;
+            List<Freeze> current = await _Context.Database.Freezes.ListActiveAsync(ctx.TenantId!, token).ConfigureAwait(false);
+            bool killSwitch = current.Any(f => f.TargetKind == FreezeTargetKindEnum.TenantAutonomy);
+            foreach (Freeze freeze in changed)
+            {
+                state.Fingerprint = freeze.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + freeze.Id;
+                string type = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy ? "killswitch.changed" : (freeze.Active ? "freeze.applied" : "freeze.lifted");
+                await SendAsync(session, sendLock, new { type = type, active = current.Count, killSwitch = killSwitch, freeze = freeze }, token).ConfigureAwait(false);
             }
         }
 

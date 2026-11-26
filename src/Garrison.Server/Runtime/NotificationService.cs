@@ -52,7 +52,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// Event sources the leader sweeps, in order: runs, pipeline_runs, approvals, pipeline_reviews.
         /// </summary>
-        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries" };
+        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps" };
 
         /// <summary>
         /// Resolves a destination host name to addresses when a delivery connects. Default: the system resolver
@@ -588,6 +588,24 @@ namespace Garrison.Server.Runtime
                                 Advance(expiries ? escalation.LastUpdateUtc : escalation.CreatedUtc, escalation.Id, ref lastUtc, ref lastId);
                             }
                             break;
+                        case "freezes":
+                            List<Freeze> freezes = await _Database.NotificationDeliveries.ListAppliedFreezesAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = freezes.Count;
+                            foreach (Freeze freeze in freezes)
+                            {
+                                queued += await QueueFreezeAsync(freeze, interested, token).ConfigureAwait(false);
+                                Advance(freeze.CreatedUtc, freeze.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
+                        case "mandate_caps":
+                            List<MandateTick> caps = await _Database.NotificationDeliveries.ListCapReachedTicksAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = caps.Count;
+                            foreach (MandateTick tick in caps)
+                            {
+                                queued += await QueueMandateCapAsync(tick, interested, token).ConfigureAwait(false);
+                                Advance(tick.StartedUtc, tick.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
                         default:
                             List<PipelineReview> reviews = await _Database.NotificationDeliveries.ListRequestedReviewsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
                             read = reviews.Count;
@@ -632,6 +650,10 @@ namespace Garrison.Server.Runtime
                     return source == "escalations";
                 case NotificationEventEnum.EscalationExpired:
                     return source == "escalation_expiries";
+                case NotificationEventEnum.FreezeApplied:
+                    return source == "freezes";
+                case NotificationEventEnum.MandateCapReached:
+                    return source == "mandate_caps";
                 default:
                     return false;
             }
@@ -776,6 +798,65 @@ namespace Garrison.Server.Runtime
                 payload.Escalation = summary;
                 string key = (expired ? "escalation-expired:" : "escalation:") + escalation.Id;
                 if (await QueueAsync(endpoint, value, key, "Escalation", escalation.Id, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        private async Task<int> QueueFreezeAsync(Freeze freeze, List<NotificationEndpoint> endpoints, CancellationToken token)
+        {
+            // An endpoint filtered to an agent or deployment receives freezes of that agent or deployment only.
+            string? agentId = freeze.TargetKind == FreezeTargetKindEnum.Agent ? freeze.TargetId : null;
+            string? deploymentId = freeze.TargetKind == FreezeTargetKindEnum.Deployment ? freeze.TargetId : null;
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                if (!Subscribed(endpoint, freeze.TenantId, NotificationEventEnum.FreezeApplied, freeze.CreatedUtc)) continue;
+                if (!String.IsNullOrEmpty(endpoint.AgentId) && !String.Equals(endpoint.AgentId, agentId, StringComparison.Ordinal)) continue;
+                if (!String.IsNullOrEmpty(endpoint.DeploymentId) && !String.Equals(endpoint.DeploymentId, deploymentId, StringComparison.Ordinal)) continue;
+                NotificationFreezeSummary summary = new NotificationFreezeSummary();
+                summary.Id = freeze.Id;
+                summary.TargetKind = freeze.TargetKind;
+                summary.TargetId = freeze.TargetId;
+                summary.TargetName = freeze.TargetName;
+                summary.Reason = freeze.Reason != null && freeze.Reason.Length > 2000 ? freeze.Reason.Substring(0, 2000) : freeze.Reason;
+                summary.CancelActiveRuns = freeze.CancelActiveRuns;
+                summary.CreatedByName = freeze.CreatedByName;
+                summary.CreatedUtc = freeze.CreatedUtc;
+                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.FreezeApplied, freeze.CreatedUtc, "/freezes/" + freeze.Id);
+                payload.Freeze = summary;
+                if (await QueueAsync(endpoint, NotificationEventEnum.FreezeApplied, "freeze:" + freeze.Id, "Freeze", freeze.Id, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        private async Task<int> QueueMandateCapAsync(MandateTick tick, List<NotificationEndpoint> endpoints, CancellationToken token)
+        {
+            Mandate? mandate = null;
+            MandateRevision? revision = null;
+            bool loaded = false;
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                if (!Subscribed(endpoint, tick.TenantId, NotificationEventEnum.MandateCapReached, tick.StartedUtc)) continue;
+                if (!loaded)
+                {
+                    mandate = await _Database.Mandates.ReadAsync(tick.TenantId, tick.MandateId, token).ConfigureAwait(false);
+                    if (!String.IsNullOrEmpty(tick.RevisionId)) revision = await _Database.MandateRevisions.ReadAsync(tick.TenantId, tick.RevisionId, token).ConfigureAwait(false);
+                    loaded = true;
+                }
+                if (!Matches(endpoint, mandate?.AgentId, mandate?.DeploymentId)) continue;
+                NotificationMandateCapSummary summary = new NotificationMandateCapSummary();
+                summary.MandateId = tick.MandateId;
+                summary.MandateName = mandate?.Name;
+                summary.AgentId = mandate?.AgentId;
+                summary.DeploymentId = mandate?.DeploymentId;
+                summary.TickId = tick.Id;
+                summary.BudgetPerDayUsd = revision?.BudgetPerDayUsd;
+                summary.ReachedUtc = tick.StartedUtc;
+                summary.ResetsUtc = DateTime.SpecifyKind(tick.StartedUtc.Date.AddDays(1), DateTimeKind.Utc);
+                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.MandateCapReached, tick.StartedUtc, "/mandates/" + tick.MandateId);
+                payload.MandateCap = summary;
+                if (await QueueAsync(endpoint, NotificationEventEnum.MandateCapReached, "mandate-cap:" + tick.Id, "Mandate", tick.MandateId, payload, token).ConfigureAwait(false)) queued++;
             }
             return queued;
         }

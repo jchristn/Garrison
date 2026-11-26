@@ -874,6 +874,11 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_escalations":
                         result = await EscalationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_list_freezes":
+                    case "garrison_freeze":
+                    case "garrison_lift_freeze":
+                        result = await FreezeToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_memory_read":
                     case "garrison_memory_write":
                     case "garrison_memory_delete":
@@ -1645,6 +1650,49 @@ namespace Garrison.Server.Protocols
         private static bool RunOnlyEscalationTool(string name)
         {
             return name == "garrison_escalate" || name == "garrison_list_my_escalations" || name == "garrison_withdraw_escalation";
+        }
+
+        private async Task<object> FreezeToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // Run tokens never see these tools; the check stays here in case a caller names one anyway (AA-022).
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw ToolError("Forbidden", tool.Name + " is available only to people and API credentials.");
+            FreezeService freezes = _Context.Get<FreezeService>();
+            McpFreezeArguments arguments = ManagementArguments<McpFreezeArguments>(args);
+            switch (tool.Name)
+            {
+                case "garrison_freeze":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    if (String.IsNullOrWhiteSpace(arguments.TargetKind)) throw ToolError("ValidationFailed", "targetKind is required.");
+                    Freeze request = new Freeze();
+                    request.TargetKind = ParseOr(arguments.TargetKind, FreezeTargetKindEnum.Agent, "targetKind");
+                    request.TargetId = arguments.Target ?? String.Empty;
+                    request.Reason = arguments.Reason;
+                    request.CancelActiveRuns = arguments.CancelActiveRuns ?? false;
+                    return await freezes.ApplyAsync(ctx, tenantId, request, token).ConfigureAwait(false);
+                }
+                case "garrison_lift_freeze":
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Update, arguments.FreezeId, token).ConfigureAwait(false);
+                    if (String.IsNullOrWhiteSpace(arguments.FreezeId)) throw ToolError("ValidationFailed", "freezeId is required.");
+                    Freeze freeze = await _Context.Database.Freezes.ReadAsync(tenantId, arguments.FreezeId.Trim(), token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "Freeze not found.");
+                    return await freezes.LiftAsync(ctx, freeze, arguments.Reason, token).ConfigureAwait(false);
+                }
+                default:
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    FreezeFilter filter = new FreezeFilter { TenantId = tenantId, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100), Active = arguments.Active };
+                    if (!String.IsNullOrWhiteSpace(arguments.TargetKind)) filter.TargetKind = ParseOr(arguments.TargetKind, FreezeTargetKindEnum.Agent, "targetKind");
+                    filter.TargetId = String.IsNullOrWhiteSpace(arguments.Target) ? null : arguments.Target.Trim();
+                    Garrison.Core.Enumeration.EnumerationResult<Freeze> page = await _Context.Database.Freezes.EnumerateAsync(filter, token).ConfigureAwait(false);
+                    McpFreezeList list = new McpFreezeList();
+                    list.Freezes = page.Objects;
+                    list.TotalCount = page.TotalRecords;
+                    list.KillSwitchEnabled = (await freezes.ReadKillSwitchAsync(tenantId, token).ConfigureAwait(false)).Enabled;
+                    return list;
+                }
+            }
         }
 
         private async Task<object> EscalationToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

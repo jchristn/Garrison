@@ -129,6 +129,9 @@ namespace Garrison.Core
         /// <summary>Escalation identifier prefix (AA2).</summary>
         public const string EscalationIdPrefix = "esc_";
 
+        /// <summary>Freeze identifier prefix (AA3).</summary>
+        public const string FreezeIdPrefix = "mfz_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

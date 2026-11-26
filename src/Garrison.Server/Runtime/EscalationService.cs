@@ -166,6 +166,79 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Raise an escalation on behalf of a keeper that has no run, such as the notice that it reached its daily spend
+        /// cap (AA3.3). It goes to the human default: the revision's default target when that is a user or role, otherwise
+        /// the user the mandate runs as. It is marked delivered to the given tick, so its text never reaches the keeper's
+        /// input; it is for people.
+        /// </summary>
+        /// <param name="mandate">Mandate.</param>
+        /// <param name="revision">The revision in force, for its default target.</param>
+        /// <param name="tickId">The tick that recorded the event.</param>
+        /// <param name="request">Question, options, default answer, severity, timeout, and timeout action.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The escalation, or null when the keeper has no human to ask.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the request is invalid.</exception>
+        public async Task<Escalation?> RaiseForMandateAsync(Mandate mandate, MandateRevision? revision, string tickId, Escalation request, CancellationToken token = default)
+        {
+            if (mandate == null) throw new ArgumentNullException(nameof(mandate));
+            if (String.IsNullOrEmpty(tickId)) throw new ArgumentNullException(nameof(tickId));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            Escalation escalation = request;
+            escalation.Id = String.Empty;
+            escalation.TenantId = mandate.TenantId;
+            escalation.RaisingRunId = null;
+            escalation.LeaseEpoch = 0;
+            escalation.AgentId = mandate.AgentId;
+            Agent? agent = await _Database.Agents.ReadAsync(mandate.TenantId, mandate.AgentId, token).ConfigureAwait(false);
+            escalation.AgentName = agent?.Name;
+            escalation.MandateId = mandate.Id;
+            escalation.MandateTickId = tickId;
+            escalation.Mode = EscalationModeEnum.NonBlocking;
+            escalation.Status = EscalationStatusEnum.Open;
+            escalation.ParentEscalationId = null;
+            escalation.EscalatedToId = null;
+            escalation.RoutedRunId = null;
+            ClearResolution(escalation);
+
+            if (revision?.EscalationTargetKind == EscalationTargetKindEnum.User || revision?.EscalationTargetKind == EscalationTargetKindEnum.Role)
+            {
+                escalation.TargetKind = revision.EscalationTargetKind.Value;
+                escalation.TargetId = revision.EscalationTargetId;
+            }
+            else if (mandate.RunAsType == PrincipalTypeEnum.User && !String.IsNullOrEmpty(mandate.RunAsId))
+            {
+                escalation.TargetKind = EscalationTargetKindEnum.User;
+                escalation.TargetId = mandate.RunAsId;
+            }
+            else
+            {
+                _Logging.Warn(_Header + "mandate " + mandate.Id + " (" + mandate.Name + ") has no user or role to ask: " + escalation.Question);
+                return null;
+            }
+
+            ApplyTimeout(escalation);
+            EscalationValidator.ValidateRaise(escalation, _Options.MaxQuestionBytes);
+            try
+            {
+                await ResolveTargetAsync(escalation, token).ConfigureAwait(false);
+            }
+            catch (ValidationException e)
+            {
+                _Logging.Warn(_Header + "mandate " + mandate.Id + " (" + mandate.Name + ") default target is unusable: " + e.Message);
+                return null;
+            }
+            escalation.ExpiresUtc = _Now().AddSeconds(escalation.TimeoutSeconds);
+            escalation.DeliveredTickId = tickId;
+            await _Database.Escalations.CreateAsync(escalation, token).ConfigureAwait(false);
+            RequestContext system = new RequestContext { TenantId = mandate.TenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = "keeper:" + mandate.Name };
+            await AuditAsync(system, escalation, "Raised escalation " + escalation.Id + " (" + escalation.Severity + ") for mandate " + mandate.Name + " to " + Describe(escalation) + ".", token).ConfigureAwait(false);
+            _Logging.Info(_Header + escalation.Id + " raised for mandate " + mandate.Id + " (" + mandate.Name + ") to " + Describe(escalation) + ", " + escalation.Severity);
+            Raise(escalation, "escalation.raised");
+            return escalation;
+        }
+
+        /// <summary>
         /// Answer an Open escalation (AA-038, AA-039). An escalated-up escalation is answered through the one it was
         /// escalated to, so answering it directly is refused.
         /// </summary>

@@ -236,6 +236,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Escalations (AA2): questions a run raises to a person or an agent. Update answers or cancels one.
         /// </summary>
-        Escalation
+        Escalation,
+
+        /// <summary>
+        /// Freezes and the autonomy kill switch (AA3). Create applies a freeze; Update lifts one or changes the kill switch.
+        /// Run tokens never hold these permissions.
+        /// </summary>
+        Freeze
     }
 }

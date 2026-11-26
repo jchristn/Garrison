@@ -153,6 +153,31 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Escalation>> ListRaisedEscalationsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Freezes applied in the given tenants, ordered by (createdutc, id), after a position (AA3.6).
+        /// </summary>
+        /// <param name="tenantIds">Tenants; empty returns nothing.</param>
+        /// <param name="afterUtc">Position timestamp (UTC).</param>
+        /// <param name="afterId">Position identifier; empty starts at the timestamp.</param>
+        /// <param name="untilUtc">Upper bound (UTC), inclusive.</param>
+        /// <param name="limit">Most records. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Freezes.</returns>
+        Task<List<Freeze>> ListAppliedFreezesAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Keeper ticks that recorded a daily cap (error code CapReached) in the given tenants, ordered by (startedutc, id),
+        /// after a position (AA3.6).
+        /// </summary>
+        /// <param name="tenantIds">Tenants; empty returns nothing.</param>
+        /// <param name="afterUtc">Position timestamp (UTC).</param>
+        /// <param name="afterId">Position identifier; empty starts at the timestamp.</param>
+        /// <param name="untilUtc">Upper bound (UTC), inclusive.</param>
+        /// <param name="limit">Most records. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Ticks.</returns>
+        Task<List<MandateTick>> ListCapReachedTicksAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Escalations that expired in the given tenants, ordered by (lastupdateutc, id), after a position (AA2.10). Only state
         /// changes move lastupdateutc, so an expired escalation's is the time it expired.
         /// </summary>

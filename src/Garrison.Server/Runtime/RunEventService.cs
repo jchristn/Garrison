@@ -88,6 +88,12 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public KeeperScheduler? Keepers { get; set; } = null;
 
+        /// <summary>
+        /// Cancels a keeper tick run whose known cost reached its per-tick or daily budget when it suspended (AA3.3), through
+        /// the normal cancellation path. Null (the default) leaves the budget to the next compilation, which refuses it.
+        /// </summary>
+        public Func<Run, CancellationToken, Task>? CancelOverBudgetAsync { get; set; } = null;
+
         #endregion
 
         /// <summary>Optional model-price estimator, configured by the runtime module.</summary>
@@ -232,7 +238,10 @@ namespace Garrison.Server.Runtime
                 await CostEstimation.ApplyAsync(run, request, token).ConfigureAwait(false);
 
             if (Continuations != null && await Continuations.AcceptAsync(run, request, token).ConfigureAwait(false))
+            {
+                if (run.Kind == RunKindEnum.Keeper) await CheckTickBudgetAsync(run.Id, token).ConfigureAwait(false);
                 return new RunCompleteResponse { Message = "Suspended with durable checkpoint." };
+            }
 
             if (request.RepairAttempt < run.RepairAttempts && _StructuredOutput != null && !String.IsNullOrEmpty(run.SessionId))
             {
@@ -336,6 +345,28 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private async Task CheckTickBudgetAsync(string runId, CancellationToken token)
+        {
+            Func<Run, CancellationToken, Task>? cancel = CancelOverBudgetAsync;
+            if (cancel == null) return;
+            try
+            {
+                Run? suspended = await _Database.Runs.ReadAsync(runId, token).ConfigureAwait(false);
+                if (suspended == null || RunService.IsTerminal(suspended.Status)) return;
+                Garrison.Core.Keepers.MandateBudgetStatus? budget = await new Garrison.Core.Keepers.MandateBudgetReader(_Database).ReadForRunAsync(suspended, DateTime.UtcNow, token).ConfigureAwait(false);
+                string? exhausted = budget?.ExhaustedBudget;
+                if (exhausted == null) return;
+                GarrisonMetrics.Count(GarrisonMetricCatalog.SpendCapHits, "scope", exhausted == "budgetPerTickUsd" ? "mandate_tick" : "mandate_day");
+                _Logging?.Info("[Runs] run " + suspended.Id + " of mandate " + suspended.MandateId + " spent its " + exhausted + " (tick " + budget!.TickSpentUsd.ToString(System.Globalization.CultureInfo.InvariantCulture) + " USD); cancelling " + RunTracing.LogFields(suspended.Id, suspended.TraceId));
+                await cancel(suspended, token).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // The next compilation refuses an over-budget tick, so a failure here only delays the stop.
+                _Logging?.Warn("[Runs] could not check the tick budget of run " + runId + ": " + e.Message);
+            }
+        }
 
         private static void Apply(Run run, RunCompleteRequest request, bool accumulate)
         {

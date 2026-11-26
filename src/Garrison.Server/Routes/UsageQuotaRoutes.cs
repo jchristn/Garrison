@@ -123,7 +123,7 @@ namespace Garrison.Server.Routes
         {
             System.Collections.Generic.Dictionary<string, string> errors = new System.Collections.Generic.Dictionary<string, string>();
             ConfigurationValidator.Name(store.Name, errors);
-            if (!Enum.IsDefined(store.Scope)) errors["scope"] = "Use Tenant, Agent, or Deployment.";
+            if (!Enum.IsDefined(store.Scope)) errors["scope"] = "Use Tenant, Agent, Deployment, or Mandate.";
             if (store.Scope == UsageQuotaScopeEnum.Tenant && String.IsNullOrEmpty(store.ResourceId)) store.ResourceId = tenantId;
             if (String.IsNullOrEmpty(store.ResourceId)) errors["resourceId"] = "A target resource ID is required.";
             if (errors.Count > 0) throw new ValidationException("The usage quota is invalid.", errors);
@@ -134,6 +134,7 @@ namespace Garrison.Server.Routes
                 UsageQuotaScopeEnum.Tenant => store.ResourceId == tenantId,
                 UsageQuotaScopeEnum.Agent => await _Server.Database.Agents.ReadAsync(tenantId, store.ResourceId, http.Token).ConfigureAwait(false) != null,
                 UsageQuotaScopeEnum.Deployment => await _Server.Database.Deployments.ReadAsync(tenantId, store.ResourceId, http.Token).ConfigureAwait(false) != null,
+                UsageQuotaScopeEnum.Mandate => await _Server.Database.Mandates.ReadAsync(tenantId, store.ResourceId, http.Token).ConfigureAwait(false) != null,
                 _ => false
             };
             if (!targetExists) throw new NotFoundException("Quota target not found in this tenant.");
