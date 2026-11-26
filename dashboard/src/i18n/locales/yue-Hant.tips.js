@@ -3695,3 +3695,156 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   "p3": "文字係代理程式或者人儲存嘅資料。佢喺呢度用純文字顯示，傳俾代理程式嗰陣都只係資料，永遠唔係指令。唔應該記住嘅項目就刪咗佢；之後搵佢嘅代理程式會乜都搵唔到。"
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "報告：代理程式同人向上提交嘅嘢，最新嘅排先，連埋健康狀況、類型、作者同時間範圍。打開一份就睇到佢嘅指標同圖表。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "由執行同人提交嘅報告。讀取可以列出同睇報告同指標歷史；建立可以提交報告。"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "有個執行或者人提交咗健康狀況係異常嘅報告。"
+  },
+  "reportKind": {
+   "Status": "定期講下一項長期任務做成點。",
+   "Incident": "出咗事，讀者應該即刻知道。",
+   "Decision": "記錄作者做咗咩選擇同點解。",
+   "Handoff": "將工作交俾第二個人，連埋佢繼續做落去需要嘅資料。",
+   "Brief": "為上司或者董事會呢類讀者準備嘅簡短摘要。"
+  },
+  "reportHealth": {
+   "Healthy": "作者負責嘅嘢全部都照預期運作。",
+   "Degraded": "仍然運作緊，但係差過預期，值得留意。",
+   "Unhealthy": "有嘢壞咗或者有風險。會通知訂閱咗異常報告嘅端點。",
+   "Unknown": "作者冇講，或者判斷唔到而家嘅情況。"
+  },
+  "reportAudience": {
+   "Manager": "寫俾作者嘅直屬上司。",
+   "Chain": "寫俾作者匯報線上面每一位上司。",
+   "Board": "寫俾監督組織嘅董事會。"
+  },
+  "reportIssueSeverity": {
+   "Low": "小問題，可以等到下次例行檢查先處理。",
+   "Medium": "要盡快留意嘅問題，但係唔算急。",
+   "High": "要即刻處理嘅嚴重問題。"
+  }
+ },
+ "reports": {
+  "denied": "你冇權做呢個操作。需要報告嘅{{operation}}權限。",
+  "filters": {
+   "kind": "淨係顯示呢個類型嘅報告。揀「全部」就可以移除篩選。"
+  },
+  "actions": {
+   "file": "用你自己或者某個代理程式嘅名義提交報告。報告提交咗之後就改唔到亦刪唔到。",
+   "copyId": "複製報告 ID (rpt_...)，用喺 REST API、SDK 或者 MCP 工具。",
+   "openRun": "打開提交呢份報告嘅執行。",
+   "openKeeper": "打開喺巡檢入面提交呢份報告嘅守護者。",
+   "openAuthor": "打開寫呢份報告嘅代理程式。"
+  },
+  "file": {
+   "submit": "提交報告。提交咗之後就改唔到。",
+   "fields": {
+    "title": "1 至 256 個字元嘅簡短標題。",
+    "kind": "報告嘅類型：狀態更新、事件、決定、交接或者簡報。",
+    "health": "而家嘅情況。揀異常會通知訂閱咗異常報告嘅端點。",
+    "audience": "報告寫俾邊個：直屬上司、成條管理鏈或者董事會。",
+    "agent": "用呢個代理程式嘅名義提交，等佢計入呢個代理程式嘅報告同指標歷史。留空就用你自己嘅名義提交。",
+    "body": "報告本身，用純文字寫。會照原樣顯示。"
+   }
+  },
+  "chart": {
+   "metric": "揀呢份報告入面一個指標，喺同一個作者嘅所有報告入面畫出嚟。",
+   "chart": "作者為呢個指標報過嘅每個值，由舊到新排，最多嚟自 500 份報告。將游標停喺圖表上面就睇到數值。"
+  }
+ },
+ "filters": {
+  "author": "淨係顯示呢個代理程式寫嘅報告。揀「全部」就可以移除篩選。",
+  "health": "淨係顯示呢個健康狀況嘅報告。揀「全部」就可以移除篩選。",
+  "app": "淨係顯示針對呢個應用程式提交嘅報告。揀「全部」就可以移除篩選。",
+  "from": "淨係顯示喺呢個時間或者之後提交嘅報告。",
+  "to": "淨係顯示喺呢個時間或者之前提交嘅報告。"
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "報告嘅提交時間。停喺上面就睇到準確時間。",
+   "title": "作者幫報告改嘅標題。停喺上面就睇到全文。",
+   "author": "寫報告嘅代理程式，或者用自己名義提交報告嘅人。",
+   "kind": "報告嘅類型：狀態、事件、決定、交接或者簡報。",
+   "health": "作者講嘅而家情況。",
+   "app": "報告講緊嘅應用程式（如果有）。",
+   "period": "報告涵蓋嘅時間範圍（如果作者有俾）。",
+   "issues": "報告提出嘅問題，按嚴重程度計數。",
+   "audience": "報告寫俾邊個：直屬上司、管理鏈或者董事會。",
+   "filedBy": "邊個提交咗報告：某個執行，或者某個人或 API 存取金鑰。",
+   "runId": "提交報告嘅執行（如果係執行提交嘅）。",
+   "id": "報告 ID (rpt_...)，用喺 REST API、SDK 同 MCP 工具。"
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "返去報告清單。",
+   "viewJson": "照 API 傳返嚟嘅原樣顯示報告。",
+   "body": "作者寫嘅報告內文，用純文字顯示。",
+   "metrics": "作者報嘅數字，每個都有名稱同可選嘅單位。",
+   "chart": "同一個作者所有報告入面嘅一個指標，由舊到新排。",
+   "issues": "報告提出嘅問題，每個都有嚴重程度。",
+   "decisions": "作者喺呢份報告記錄嘅決定。",
+   "openAgent": "打開寫呢份報告嘅代理程式。",
+   "openRun": "打開提交呢份報告嘅執行。",
+   "openKeeper": "打開喺巡檢入面提交呢份報告嘅守護者。",
+   "openApp": "打開呢份報告講緊嘅應用程式。",
+   "columns": {
+    "name": "作者用嘅指標名稱。名稱一樣嘅指標會畫埋一齊。",
+    "value": "作者報嘅值。",
+    "unit": "作者俾嘅單位，例如 ms 或者百分比。"
+   },
+   "fields": {
+    "health": "作者講嘅而家情況。",
+    "kind": "呢份報告嘅類型。",
+    "audience": "呢份報告寫俾邊個。",
+    "author": "寫報告嘅代理程式，或者用自己名義提交報告嘅人。",
+    "period": "報告涵蓋嘅時間範圍（如果作者有俾）。",
+    "createdUtc": "報告嘅提交時間。停喺上面就睇到幾耐之前。",
+    "filedBy": "邊個提交咗報告：某個執行，或者某個人或 API 存取金鑰。",
+    "runId": "提交報告嘅執行。",
+    "mandateId": "喺巡檢入面提交報告嘅守護者。",
+    "mandateTickId": "提交報告嘅守護者巡檢。",
+    "app": "報告講緊嘅應用程式。",
+    "orgUnitId": "報告講緊嘅組織單位。組織功能會喺之後嘅版本推出。"
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "報告",
+  "p1": "代理程式用報告話俾人同彼此知而家嘅情況。執行用 garrison_file_report 工具提交報告，人就可以喺度或者透過 API 提交。每份報告都有類型、健康狀況同讀者，仲可以包含指標、問題同決定。",
+  "p2": "報告提交咗之後就改唔到亦刪唔到，所以報告會變成一份紀錄。喺守護者巡檢期間提交嘅報告會連去嗰個守護者同巡檢，健康狀況係異常嘅報告會通知訂閱咗呢個事件嘅端點。",
+  "p3": "報告入面所有嘢都係作者寫低嘅資料。佢哋會用純文字顯示，永遠唔會當成指示遵從。打開一份報告，就可以喺同一個作者嘅所有報告入面畫出佢其中一個指標。"
+ }
+});

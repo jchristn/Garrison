@@ -6260,3 +6260,168 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "报告",
+    "tip": "智能体和人员提交的状态报告、事件、决策和交接，附带健康状况和指标"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "报告"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "提交了异常报告"
+  },
+  "reportKind": {
+   "Status": "状态",
+   "Incident": "事件",
+   "Decision": "决策",
+   "Handoff": "交接",
+   "Brief": "简报"
+  },
+  "reportHealth": {
+   "Healthy": "正常",
+   "Degraded": "降级",
+   "Unhealthy": "异常",
+   "Unknown": "未知"
+  },
+  "reportAudience": {
+   "Manager": "直属上级",
+   "Chain": "整条管理链",
+   "Board": "董事会"
+  },
+  "reportIssueSeverity": {
+   "Low": "低",
+   "Medium": "中",
+   "High": "高"
+  }
+ },
+ "reports": {
+  "untrusted": "这份报告由智能体或人员撰写。其标题、正文、指标、问题和决策都按提交时的原样以纯文本显示；其中的内容不会被执行、渲染或当作指令遵循。",
+  "period": "{{from}} 至 {{to}}",
+  "periodFrom": "自 {{from}} 起",
+  "periodTo": "截至 {{to}}",
+  "filters": {
+   "author": "作者",
+   "app": "应用",
+   "from": "提交时间晚于",
+   "to": "提交时间早于"
+  },
+  "actions": {
+   "file": "提交报告",
+   "copyId": "复制 ID",
+   "openRun": "打开运行",
+   "openKeeper": "打开守护者",
+   "openAuthor": "打开作者"
+  },
+  "toasts": {
+   "filed": "已提交 {{title}}。",
+   "copied": "已复制报告 ID。"
+  },
+  "file": {
+   "title": "提交报告",
+   "intro": "记下当前的情况。所有能阅读报告的人都会在这里看到它，健康状况为异常的报告会通知订阅了该事件的端点。报告提交后无法修改。",
+   "noAgent": "不指定智能体（以我本人的名义）",
+   "fields": {
+    "title": "标题",
+    "kind": "类型",
+    "health": "健康状况",
+    "audience": "读者",
+    "agent": "代表智能体提交",
+    "body": "正文"
+   },
+   "errors": {
+    "title": "请为报告填写 1 到 {{max}} 个字符的标题。",
+    "body": "正文最多 {{max}} 字节。"
+   }
+  },
+  "chart": {
+   "metric": "指标",
+   "title": "{{metric}} 随时间变化",
+   "help_other": "{{agent}} 报告的 {{count}} 个值，按时间从早到晚排列。",
+   "noMetrics": "这份报告没有指标，因此没有可绘制的内容。",
+   "noAuthor": "这份报告不是由智能体撰写的，因此没有作者的历史可绘制。",
+   "empty": "这个指标还没有任何值。",
+   "failed": "无法加载指标历史。"
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "报告",
+   "notFoundTitle": "未找到报告",
+   "notFoundBody": "它不在这个租户中，或已随租户一起删除。",
+   "back": "返回报告列表",
+   "body": "正文",
+   "metrics": "指标",
+   "chart": "指标历史",
+   "issues": "问题",
+   "decisions": "决策",
+   "noBody": "这份报告没有正文。",
+   "noMetrics": "这份报告没有指标。",
+   "noIssues": "没有报告任何问题。",
+   "noDecisions": "没有记录任何决策。",
+   "columns": {
+    "name": "名称",
+    "value": "值",
+    "unit": "单位"
+   },
+   "fields": {
+    "health": "健康状况",
+    "kind": "类型",
+    "audience": "读者",
+    "author": "作者",
+    "period": "时间段",
+    "createdUtc": "提交时间",
+    "filedBy": "提交者",
+    "runId": "运行",
+    "mandateId": "守护者",
+    "mandateTickId": "守护者巡检",
+    "app": "应用",
+    "orgUnitId": "组织单元"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "报告",
+   "subtitle": "智能体和人员向上提交的内容：当前情况、事件、决策和交接，附带健康状况和指标。打开一份报告即可阅读，并查看某个指标随时间的变化。",
+   "add": "提交报告",
+   "create": "提交报告",
+   "edit": "报告",
+   "view": "报告详情",
+   "deleteTitle": "删除报告",
+   "emptyTitle": "还没有报告",
+   "emptyBody": "智能体在运行时使用 garrison_file_report 工具提交报告，人员可以在这里或通过 API 提交。提交后会显示在这里。",
+   "columns": {
+    "createdUtc": "提交时间",
+    "title": "标题",
+    "author": "作者",
+    "kind": "类型",
+    "health": "健康状况",
+    "app": "应用",
+    "period": "时间段",
+    "issues": "问题",
+    "audience": "读者",
+    "filedBy": "提交者",
+    "runId": "运行",
+    "id": "ID"
+   }
+  }
+ }
+});

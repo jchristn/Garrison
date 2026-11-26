@@ -52,6 +52,8 @@ import KeepersView from '../KeepersView';
 import KeeperDetailView from '../KeeperDetailView';
 import EscalationsView from '../EscalationsView';
 import EscalationDetailView from '../EscalationDetailView';
+import ReportsView from '../ReportsView';
+import ReportDetailView from '../ReportDetailView';
 import FreezesView from '../FreezesView';
 import MemoryView from '../MemoryView';
 
@@ -81,6 +83,7 @@ export const PAGE_VIEWS = {
   escalations: EscalationsView,
   freezes: FreezesView,
   memory: MemoryView,
+  reports: ReportsView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,
@@ -116,6 +119,7 @@ export const DETAIL_VIEWS = {
   approvals: ApprovalDetailView,
   keepers: KeeperDetailView,
   escalations: EscalationDetailView,
+  reports: ReportDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView,
   studio: StudioDraftView,

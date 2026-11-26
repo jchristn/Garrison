@@ -6324,3 +6324,169 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "Informes",
+    "tip": "Informes de estado, incidentes, decisiones y traspasos que presentaron agentes y personas, con su salud y sus métricas"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Informe"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Informe en mal estado presentado"
+  },
+  "reportKind": {
+   "Status": "Estado",
+   "Incident": "Incidente",
+   "Decision": "Decisión",
+   "Handoff": "Traspaso",
+   "Brief": "Resumen"
+  },
+  "reportHealth": {
+   "Healthy": "Saludable",
+   "Degraded": "Degradado",
+   "Unhealthy": "En mal estado",
+   "Unknown": "Desconocida"
+  },
+  "reportAudience": {
+   "Manager": "Responsable",
+   "Chain": "Cadena de mando",
+   "Board": "Consejo"
+  },
+  "reportIssueSeverity": {
+   "Low": "Baja",
+   "Medium": "Media",
+   "High": "Alta"
+  }
+ },
+ "reports": {
+  "untrusted": "Un agente o una persona escribió este informe. Su título, cuerpo, métricas, problemas y decisiones se muestran como texto sin formato, tal como se presentaron; nada de ello se ejecuta, se interpreta ni se sigue.",
+  "period": "Del {{from}} al {{to}}",
+  "periodFrom": "Desde {{from}}",
+  "periodTo": "Hasta {{to}}",
+  "filters": {
+   "author": "Autor",
+   "app": "Aplicación",
+   "from": "Presentado después de",
+   "to": "Presentado antes de"
+  },
+  "actions": {
+   "file": "Presentar informe",
+   "copyId": "Copiar ID",
+   "openRun": "Abrir ejecución",
+   "openKeeper": "Abrir guardián",
+   "openAuthor": "Abrir autor"
+  },
+  "toasts": {
+   "filed": "Se presentó {{title}}.",
+   "copied": "Se copió el ID del informe."
+  },
+  "file": {
+   "title": "Presentar un informe",
+   "intro": "Deje constancia de cómo están las cosas. Todos los que pueden leer informes lo verán aquí, y un informe en mal estado avisa a los endpoints suscritos a ese evento. Un informe presentado no se puede modificar.",
+   "noAgent": "Ningún agente (en mi nombre)",
+   "fields": {
+    "title": "Título",
+    "kind": "Tipo",
+    "health": "Salud",
+    "audience": "Destinatarios",
+    "agent": "Presentar por el agente",
+    "body": "Contenido"
+   },
+   "errors": {
+    "title": "Dé al informe un título de 1 a {{max}} caracteres.",
+    "body": "El contenido admite como máximo {{max}} bytes."
+   }
+  },
+  "chart": {
+   "metric": "Métrica",
+   "title": "{{metric}} a lo largo del tiempo",
+   "help_one": "{{count}} valor que informó {{agent}}, del más antiguo al más reciente.",
+   "help_other": "{{count}} valores que informó {{agent}}, del más antiguo al más reciente.",
+   "noMetrics": "Este informe no incluye métricas, así que no hay nada que representar.",
+   "noAuthor": "Ningún agente escribió este informe, así que no hay historial de autor que representar.",
+   "empty": "Todavía no hay valores para esta métrica.",
+   "failed": "No se pudo cargar el historial de la métrica."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "Informe",
+   "notFoundTitle": "Informe no encontrado",
+   "notFoundBody": "No existe en este inquilino o se eliminó junto con su inquilino.",
+   "back": "Volver a los informes",
+   "body": "Contenido",
+   "metrics": "Métricas",
+   "chart": "Historial de la métrica",
+   "issues": "Problemas",
+   "decisions": "Decisiones",
+   "noBody": "Este informe no tiene contenido.",
+   "noMetrics": "Este informe no tiene métricas.",
+   "noIssues": "No se informaron problemas.",
+   "noDecisions": "No se registraron decisiones.",
+   "columns": {
+    "name": "Nombre",
+    "value": "Valor",
+    "unit": "Unidad"
+   },
+   "fields": {
+    "health": "Salud",
+    "kind": "Tipo",
+    "audience": "Destinatarios",
+    "author": "Autor",
+    "period": "Periodo",
+    "createdUtc": "Presentado",
+    "filedBy": "Presentado por",
+    "runId": "Ejecución",
+    "mandateId": "Guardián",
+    "mandateTickId": "Ciclo del guardián",
+    "app": "Aplicación",
+    "orgUnitId": "Unidad organizativa"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "Informes",
+   "subtitle": "Lo que agentes y personas informaron hacia arriba: cómo están las cosas, incidentes, decisiones y traspasos, con su salud y sus métricas. Abra uno para leerlo y ver una métrica a lo largo del tiempo.",
+   "add": "Presentar informe",
+   "create": "Presentar informe",
+   "edit": "Informe",
+   "view": "Detalles del informe",
+   "deleteTitle": "Eliminar informe",
+   "emptyTitle": "Todavía no hay informes",
+   "emptyBody": "Los agentes presentan informes con la herramienta garrison_file_report mientras se ejecutan, y las personas los presentan aquí o mediante la API. Aparecen aquí en cuanto se presenta uno.",
+   "columns": {
+    "createdUtc": "Presentado",
+    "title": "Título",
+    "author": "Autor",
+    "kind": "Tipo",
+    "health": "Salud",
+    "app": "Aplicación",
+    "period": "Periodo",
+    "issues": "Problemas",
+    "audience": "Destinatarios",
+    "filedBy": "Presentado por",
+    "runId": "Ejecución",
+    "id": "ID"
+   }
+  }
+ }
+});

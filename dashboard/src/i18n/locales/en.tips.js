@@ -3695,3 +3695,156 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "p3": "The text is data an agent or a person saved. It is shown here as plain text and reaches agents as data, never as instructions. Delete an entry that should not be remembered; agents that look for it then find nothing."
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "Reports: what agents and people filed upward, newest first, with health, kind, author, and period. Open one for its metrics and a chart."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Reports filed by runs and people. Read lists and reads reports and metric history; Create files one."
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "A run or a person filed a report whose health is Unhealthy."
+  },
+  "reportKind": {
+   "Status": "A regular update on how a standing job is going.",
+   "Incident": "Something went wrong and the reader should know now.",
+   "Decision": "A record of a choice the author made, and why.",
+   "Handoff": "Work passed on to someone else, with what they need to carry on.",
+   "Brief": "A short summary prepared for a reader such as a manager or a board."
+  },
+  "reportHealth": {
+   "Healthy": "Everything the author looks after works as expected.",
+   "Degraded": "Still working, but worse than expected. Worth watching.",
+   "Unhealthy": "Something is broken or at risk. Notifies the endpoints that subscribe to unhealthy reports.",
+   "Unknown": "The author did not say, or could not tell, how things stand."
+  },
+  "reportAudience": {
+   "Manager": "For the author's direct manager.",
+   "Chain": "For every manager up the author's reporting line.",
+   "Board": "For the board that oversees the organization."
+  },
+  "reportIssueSeverity": {
+   "Low": "A minor issue that can wait for a regular review.",
+   "Medium": "An issue that needs attention soon but is not urgent.",
+   "High": "A serious issue that needs attention now."
+  }
+ },
+ "reports": {
+  "denied": "You may not do this. It needs {{operation}} on Report.",
+  "filters": {
+   "kind": "Show only reports of this kind. Choose All to remove the filter."
+  },
+  "actions": {
+   "file": "File a report in your own name or an agent's. A filed report cannot be changed or deleted.",
+   "copyId": "Copy the report ID (rpt_...) for the REST API, SDKs, or MCP tools.",
+   "openRun": "Open the run that filed this report.",
+   "openKeeper": "Open the keeper whose tick filed this report.",
+   "openAuthor": "Open the agent that wrote this report."
+  },
+  "file": {
+   "submit": "File the report. It cannot be changed afterwards.",
+   "fields": {
+    "title": "A short title of 1 to 256 characters.",
+    "kind": "What sort of report this is: a status update, an incident, a decision, a handoff, or a brief.",
+    "health": "How things stand. Unhealthy notifies the endpoints that subscribe to unhealthy reports.",
+    "audience": "Who the report is for: the manager, the whole management chain, or the board.",
+    "agent": "File the report as this agent's, so it joins the agent's reports and metric history. Leave it empty to file in your own name.",
+    "body": "The report itself, as plain text. It is shown exactly as written."
+   }
+  },
+  "chart": {
+   "metric": "Pick one of this report's metrics to chart across every report of the same author.",
+   "chart": "Every value the author reported for this metric, oldest first, from up to 500 reports. Hover over the chart to read a value."
+  }
+ },
+ "filters": {
+  "author": "Show only reports written by this agent. Choose All to remove the filter.",
+  "health": "Show only reports with this health. Choose All to remove the filter.",
+  "app": "Show only reports filed for this app. Choose All to remove the filter.",
+  "from": "Show only reports filed at or after this time.",
+  "to": "Show only reports filed at or before this time."
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "When the report was filed. Hover for the exact time.",
+   "title": "The title the author gave the report. Hover for the full text.",
+   "author": "The agent that wrote the report, or the person who filed it in their own name.",
+   "kind": "What sort of report it is: status, incident, decision, handoff, or brief.",
+   "health": "How the author says things stand.",
+   "app": "The app the report is about, when it names one.",
+   "period": "The time span the report covers, when the author gave one.",
+   "issues": "The issues the report raises, counted by severity.",
+   "audience": "Who the report is for: the manager, the management chain, or the board.",
+   "filedBy": "Who filed the report: a run, or a person or API credential.",
+   "runId": "The run that filed the report, when a run filed it.",
+   "id": "The report ID (rpt_...), for the REST API, SDKs, and MCP tools."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "Return to the list of reports.",
+   "viewJson": "Show the report as the API returns it.",
+   "body": "The report text as the author wrote it, shown as plain text.",
+   "metrics": "Numbers the author reported, each with a name and an optional unit.",
+   "chart": "One metric across every report of the same author, oldest first.",
+   "issues": "Problems the report raises, each with a severity.",
+   "decisions": "Decisions the author recorded in this report.",
+   "openAgent": "Open the agent that wrote this report.",
+   "openRun": "Open the run that filed this report.",
+   "openKeeper": "Open the keeper whose tick filed this report.",
+   "openApp": "Open the app this report is about.",
+   "columns": {
+    "name": "The metric name the author used. Metrics with the same name chart together.",
+    "value": "The value the author reported.",
+    "unit": "The unit the author gave, such as ms or percent."
+   },
+   "fields": {
+    "health": "How the author says things stand.",
+    "kind": "What sort of report this is.",
+    "audience": "Who the report is for.",
+    "author": "The agent that wrote the report, or the person who filed it in their own name.",
+    "period": "The time span the report covers, when the author gave one.",
+    "createdUtc": "When the report was filed. Hover for how long ago.",
+    "filedBy": "Who filed the report: a run, or a person or API credential.",
+    "runId": "The run that filed the report.",
+    "mandateId": "The keeper whose tick filed the report.",
+    "mandateTickId": "The keeper tick that filed the report.",
+    "app": "The app the report is about.",
+    "orgUnitId": "The organization unit the report is about. Organizations arrive in a later release."
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "Reports",
+  "p1": "Reports are how agents tell people, and each other, how things stand. A run files one with the garrison_file_report tool, and people file them here or through the API. Each report has a kind, a health, and an audience, and may carry metrics, issues, and decisions.",
+  "p2": "A filed report cannot be changed or deleted, so reports form a record. A report filed during a keeper tick links to the keeper and the tick, and an Unhealthy report notifies the endpoints that subscribe to it.",
+  "p3": "Everything in a report is data its author wrote. It is shown as plain text and never followed as instructions. Open a report to chart one of its metrics across every report of the same author."
+ }
+});

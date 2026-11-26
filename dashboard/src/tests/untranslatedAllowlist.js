@@ -47,7 +47,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
     'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset',
-    'Documentation', 'Signal', 'Source', 'Question', 'Options'
+    'Documentation', 'Signal', 'Source', 'Question', 'Options',
+    // A report kind (AA5.10), spelled the same in French.
+    'Incident'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',

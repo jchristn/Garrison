@@ -6259,3 +6259,168 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "報告",
+    "tip": "代理程式同人提交嘅狀態報告、事件、決定同交接，連埋健康狀況同指標"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "報告"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "有人提交咗異常報告"
+  },
+  "reportKind": {
+   "Status": "狀態",
+   "Incident": "事件",
+   "Decision": "決定",
+   "Handoff": "交接",
+   "Brief": "簡報"
+  },
+  "reportHealth": {
+   "Healthy": "正常",
+   "Degraded": "轉差",
+   "Unhealthy": "異常",
+   "Unknown": "唔知"
+  },
+  "reportAudience": {
+   "Manager": "直屬上司",
+   "Chain": "成條管理鏈",
+   "Board": "董事會"
+  },
+  "reportIssueSeverity": {
+   "Low": "低",
+   "Medium": "中",
+   "High": "高"
+  }
+ },
+ "reports": {
+  "untrusted": "呢份報告係代理程式或者人寫嘅。佢嘅標題、內文、指標、問題同決定都會照提交時嘅原樣用純文字顯示；入面任何內容都唔會被執行、轉譯或者當成指示遵從。",
+  "period": "{{from}} 至 {{to}}",
+  "periodFrom": "由 {{from}} 起",
+  "periodTo": "到 {{to}} 為止",
+  "filters": {
+   "author": "作者",
+   "app": "應用程式",
+   "from": "提交時間遲過",
+   "to": "提交時間早過"
+  },
+  "actions": {
+   "file": "提交報告",
+   "copyId": "複製 ID",
+   "openRun": "打開執行",
+   "openKeeper": "打開守護者",
+   "openAuthor": "打開作者"
+  },
+  "toasts": {
+   "filed": "已經提交咗 {{title}}。",
+   "copied": "已經複製咗報告 ID。"
+  },
+  "file": {
+   "title": "提交報告",
+   "intro": "記低而家嘅情況。所有睇得報告嘅人都會喺度見到，健康狀況係異常嘅報告會通知訂閱咗呢個事件嘅端點。報告提交咗之後就改唔到。",
+   "noAgent": "唔指定代理程式（用我自己個名）",
+   "fields": {
+    "title": "標題",
+    "kind": "類型",
+    "health": "健康狀況",
+    "audience": "讀者",
+    "agent": "代代理程式提交",
+    "body": "內文"
+   },
+   "errors": {
+    "title": "請幫報告寫個 1 至 {{max}} 個字元嘅標題。",
+    "body": "內文最多 {{max}} 位元組。"
+   }
+  },
+  "chart": {
+   "metric": "指標",
+   "title": "{{metric}} 隨時間嘅變化",
+   "help_other": "{{agent}} 報咗嘅 {{count}} 個值，由舊到新排。",
+   "noMetrics": "呢份報告冇指標，所以冇嘢可以畫。",
+   "noAuthor": "呢份報告唔係代理程式寫嘅，所以冇作者嘅歷史可以畫。",
+   "empty": "呢個指標暫時未有任何值。",
+   "failed": "載入唔到指標歷史。"
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "報告",
+   "notFoundTitle": "搵唔到報告",
+   "notFoundBody": "佢唔喺呢個租戶入面，或者已經同租戶一齊刪除咗。",
+   "back": "返去報告清單",
+   "body": "內文",
+   "metrics": "指標",
+   "chart": "指標歷史",
+   "issues": "問題",
+   "decisions": "決定",
+   "noBody": "呢份報告冇內文。",
+   "noMetrics": "呢份報告冇指標。",
+   "noIssues": "冇報告任何問題。",
+   "noDecisions": "冇記錄任何決定。",
+   "columns": {
+    "name": "名稱",
+    "value": "值",
+    "unit": "單位"
+   },
+   "fields": {
+    "health": "健康狀況",
+    "kind": "類型",
+    "audience": "讀者",
+    "author": "作者",
+    "period": "時間範圍",
+    "createdUtc": "提交時間",
+    "filedBy": "提交者",
+    "runId": "執行",
+    "mandateId": "守護者",
+    "mandateTickId": "守護者巡檢",
+    "app": "應用程式",
+    "orgUnitId": "組織單位"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "報告",
+   "subtitle": "代理程式同人向上提交嘅嘢：而家嘅情況、事件、決定同交接，連埋健康狀況同指標。打開一份就可以閱讀，仲可以睇某個指標隨時間嘅變化。",
+   "add": "提交報告",
+   "create": "提交報告",
+   "edit": "報告",
+   "view": "報告詳情",
+   "deleteTitle": "刪除報告",
+   "emptyTitle": "暫時未有報告",
+   "emptyBody": "代理程式喺執行嗰陣用 garrison_file_report 工具提交報告，人就可以喺度或者透過 API 提交。提交咗之後會喺度顯示。",
+   "columns": {
+    "createdUtc": "提交時間",
+    "title": "標題",
+    "author": "作者",
+    "kind": "類型",
+    "health": "健康狀況",
+    "app": "應用程式",
+    "period": "時間範圍",
+    "issues": "問題",
+    "audience": "讀者",
+    "filedBy": "提交者",
+    "runId": "執行",
+    "id": "ID"
+   }
+  }
+ }
+});

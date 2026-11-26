@@ -3697,3 +3697,156 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "p3": "El texto son datos que guardó un agente o una persona. Aquí se muestra como texto plano y llega a los agentes como datos, nunca como instrucciones. Elimine una entrada que no deba recordarse; después, los agentes que la busquen no encontrarán nada."
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "Informes: lo que agentes y personas informaron hacia arriba, los más recientes primero, con salud, tipo, autor y periodo. Abra uno para ver sus métricas y un gráfico."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Informes presentados por ejecuciones y personas. Leer lista los informes y el historial de métricas; Crear presenta uno."
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Una ejecución o una persona presentó un informe cuya salud es En mal estado."
+  },
+  "reportKind": {
+   "Status": "Una actualización periódica sobre cómo va una tarea permanente.",
+   "Incident": "Algo salió mal y el lector debería saberlo ya.",
+   "Decision": "Constancia de una decisión que tomó el autor y de sus motivos.",
+   "Handoff": "Trabajo que pasa a otra persona, con lo que necesita para continuar.",
+   "Brief": "Un resumen breve preparado para un lector, como un responsable o el consejo."
+  },
+  "reportHealth": {
+   "Healthy": "Todo lo que el autor supervisa funciona como se espera.",
+   "Degraded": "Sigue funcionando, pero peor de lo esperado. Conviene vigilarlo.",
+   "Unhealthy": "Algo está roto o en riesgo. Avisa a los endpoints suscritos a los informes en mal estado.",
+   "Unknown": "El autor no indicó cómo están las cosas o no pudo saberlo."
+  },
+  "reportAudience": {
+   "Manager": "Para el responsable directo del autor.",
+   "Chain": "Para todos los responsables de la línea jerárquica del autor.",
+   "Board": "Para el consejo que supervisa la organización."
+  },
+  "reportIssueSeverity": {
+   "Low": "Un problema menor que puede esperar a la próxima revisión habitual.",
+   "Medium": "Un problema que requiere atención pronto, pero no es urgente.",
+   "High": "Un problema grave que requiere atención inmediata."
+  }
+ },
+ "reports": {
+  "denied": "No puede hacer esto. Necesita {{operation}} sobre Informe.",
+  "filters": {
+   "kind": "Mostrar solo informes de este tipo. Elija Todos para quitar el filtro."
+  },
+  "actions": {
+   "file": "Presentar un informe en su nombre o en el de un agente. Un informe presentado no se puede modificar ni eliminar.",
+   "copyId": "Copiar el ID del informe (rpt_...) para la REST API, los SDK o las herramientas MCP.",
+   "openRun": "Abrir la ejecución que presentó este informe.",
+   "openKeeper": "Abrir el guardián cuyo ciclo presentó este informe.",
+   "openAuthor": "Abrir el agente que escribió este informe."
+  },
+  "file": {
+   "submit": "Presentar el informe. Después no se puede modificar.",
+   "fields": {
+    "title": "Un título breve de 1 a 256 caracteres.",
+    "kind": "Qué tipo de informe es: una actualización de estado, un incidente, una decisión, un traspaso o un resumen.",
+    "health": "Cómo están las cosas. En mal estado avisa a los endpoints suscritos a los informes en mal estado.",
+    "audience": "Para quién es el informe: el responsable, toda la cadena de mando o el consejo.",
+    "agent": "Presentar el informe como del agente, para que se sume a sus informes y a su historial de métricas. Déjelo vacío para presentarlo en su nombre.",
+    "body": "El informe en sí, como texto sin formato. Se muestra exactamente como se escribió."
+   }
+  },
+  "chart": {
+   "metric": "Elija una de las métricas de este informe para verla en todos los informes del mismo autor.",
+   "chart": "Todos los valores que el autor informó para esta métrica, del más antiguo al más reciente, de hasta 500 informes. Pase el puntero por el gráfico para leer un valor."
+  }
+ },
+ "filters": {
+  "author": "Mostrar solo los informes que escribió este agente. Elija Todos para quitar el filtro.",
+  "health": "Mostrar solo los informes con esta salud. Elija Todos para quitar el filtro.",
+  "app": "Mostrar solo los informes presentados para esta aplicación. Elija Todos para quitar el filtro.",
+  "from": "Mostrar solo los informes presentados en este momento o después.",
+  "to": "Mostrar solo los informes presentados en este momento o antes."
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "Cuándo se presentó el informe. Pase el puntero para ver la hora exacta.",
+   "title": "El título que el autor dio al informe. Pase el puntero para ver el texto completo.",
+   "author": "El agente que escribió el informe, o la persona que lo presentó en su propio nombre.",
+   "kind": "Qué tipo de informe es: estado, incidente, decisión, traspaso o resumen.",
+   "health": "Cómo dice el autor que están las cosas.",
+   "app": "La aplicación de la que trata el informe, si nombra una.",
+   "period": "El intervalo de tiempo que cubre el informe, si el autor indicó uno.",
+   "issues": "Los problemas que plantea el informe, contados por gravedad.",
+   "audience": "Para quién es el informe: el responsable, la cadena de mando o el consejo.",
+   "filedBy": "Quién presentó el informe: una ejecución, o una persona o credencial de API.",
+   "runId": "La ejecución que presentó el informe, si lo presentó una ejecución.",
+   "id": "El ID del informe (rpt_...), para la REST API, los SDK y las herramientas MCP."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "Volver a la lista de informes.",
+   "viewJson": "Mostrar el informe tal como lo devuelve la API.",
+   "body": "El texto del informe tal como lo escribió el autor, mostrado como texto sin formato.",
+   "metrics": "Cifras que informó el autor, cada una con un nombre y una unidad opcional.",
+   "chart": "Una métrica en todos los informes del mismo autor, del más antiguo al más reciente.",
+   "issues": "Problemas que plantea el informe, cada uno con una gravedad.",
+   "decisions": "Decisiones que el autor registró en este informe.",
+   "openAgent": "Abrir el agente que escribió este informe.",
+   "openRun": "Abrir la ejecución que presentó este informe.",
+   "openKeeper": "Abrir el guardián cuyo ciclo presentó este informe.",
+   "openApp": "Abrir la aplicación de la que trata este informe.",
+   "columns": {
+    "name": "El nombre de métrica que usó el autor. Las métricas con el mismo nombre se representan juntas.",
+    "value": "El valor que informó el autor.",
+    "unit": "La unidad que indicó el autor, como ms o porcentaje."
+   },
+   "fields": {
+    "health": "Cómo dice el autor que están las cosas.",
+    "kind": "Qué tipo de informe es.",
+    "audience": "Para quién es el informe.",
+    "author": "El agente que escribió el informe, o la persona que lo presentó en su propio nombre.",
+    "period": "El intervalo de tiempo que cubre el informe, si el autor indicó uno.",
+    "createdUtc": "Cuándo se presentó el informe. Pase el puntero para ver hace cuánto.",
+    "filedBy": "Quién presentó el informe: una ejecución, o una persona o credencial de API.",
+    "runId": "La ejecución que presentó el informe.",
+    "mandateId": "El guardián cuyo ciclo presentó el informe.",
+    "mandateTickId": "El ciclo del guardián que presentó el informe.",
+    "app": "La aplicación de la que trata el informe.",
+    "orgUnitId": "La unidad organizativa de la que trata el informe. Las organizaciones llegarán en una versión posterior."
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "Informes",
+  "p1": "Con los informes, los agentes cuentan a las personas, y entre sí, cómo están las cosas. Una ejecución presenta uno con la herramienta garrison_file_report, y las personas los presentan aquí o mediante la API. Cada informe tiene un tipo, una salud y unos destinatarios, y puede incluir métricas, problemas y decisiones.",
+  "p2": "Un informe presentado no se puede modificar ni eliminar, así que los informes forman un registro. Un informe presentado durante un ciclo de un guardián enlaza con el guardián y el ciclo, y un informe en mal estado avisa a los endpoints suscritos a ese evento.",
+  "p3": "Todo lo que contiene un informe son datos que escribió su autor. Se muestran como texto sin formato y nunca se siguen como instrucciones. Abra un informe para ver una de sus métricas en todos los informes del mismo autor."
+ }
+});

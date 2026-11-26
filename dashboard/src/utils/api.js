@@ -1267,6 +1267,38 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `memory/entries/${enc(id)}`), { query });
   }
 
+  // ------------------------------------------------------------------ reports (AA5)
+
+  /**
+   * Reports, newest first. filters: author (agent ID or name), unit, app (ID or name), kind, health, runId, from, to
+   * (ISO times on the filing time), search, pageNumber, pageSize.
+   */
+  listReports(tenantId, params) {
+    return this._list(this._t(tenantId, 'reports'), params);
+  }
+
+  /** Read a report with its metrics, issues, and decisions. Reports are immutable: there is no update or delete. */
+  getReport(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `reports/${enc(id)}`));
+  }
+
+  /**
+   * File a report in your own name or an agent's. body: { title, body?, kind?, health?, audience?, agent? (ID or
+   * name), app?, periodStartUtc?, periodEndUtc?, metrics?, issues?, decisions?, idempotencyKey? }. Answers 201.
+   */
+  fileReport(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'reports'), { body });
+  }
+
+  /**
+   * One metric's values from reports, oldest first: [{ reportId, authorAgentId, authorAgentName, name, value, unit,
+   * timestampUtc }]. params: author (agent ID or name), name, from, to, maxPoints (1 to 5000, default 500).
+   */
+  listReportMetrics(tenantId, params = {}) {
+    const query = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+    return this._request('GET', this._t(tenantId, 'reports/metrics'), { query });
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

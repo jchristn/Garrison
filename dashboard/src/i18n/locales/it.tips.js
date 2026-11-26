@@ -3697,3 +3697,156 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "p3": "Il testo sono dati salvati da un agente o da una persona. Qui appare come testo semplice e arriva agli agenti come dati, mai come istruzioni. Elimina una voce che non va ricordata; poi gli agenti che la cercano non trovano nulla."
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "Rapporti: ciò che agenti e persone hanno riferito verso l'alto, i più recenti per primi, con salute, tipo, autore e periodo. Aprine uno per le metriche e un grafico."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Rapporti presentati da esecuzioni e persone. Lettura elenca i rapporti e la cronologia delle metriche; Creazione ne presenta uno."
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Un'esecuzione o una persona ha presentato un rapporto con salute Critico."
+  },
+  "reportKind": {
+   "Status": "Un aggiornamento periodico su come procede un incarico permanente.",
+   "Incident": "Qualcosa è andato storto e chi legge dovrebbe saperlo subito.",
+   "Decision": "La traccia di una scelta fatta dall'autore, e del perché.",
+   "Handoff": "Lavoro passato a qualcun altro, con ciò che serve per continuare.",
+   "Brief": "Un breve riepilogo preparato per un lettore, come un responsabile o il consiglio."
+  },
+  "reportHealth": {
+   "Healthy": "Tutto ciò di cui l'autore si occupa funziona come previsto.",
+   "Degraded": "Funziona ancora, ma peggio del previsto. Da tenere d'occhio.",
+   "Unhealthy": "Qualcosa è guasto o a rischio. Avvisa gli endpoint iscritti ai rapporti critici.",
+   "Unknown": "L'autore non ha detto, o non ha potuto stabilire, come stanno le cose."
+  },
+  "reportAudience": {
+   "Manager": "Per il responsabile diretto dell'autore.",
+   "Chain": "Per ogni responsabile lungo la linea gerarchica dell'autore.",
+   "Board": "Per il consiglio che supervisiona l'organizzazione."
+  },
+  "reportIssueSeverity": {
+   "Low": "Un problema minore che può attendere la prossima revisione ordinaria.",
+   "Medium": "Un problema che richiede attenzione a breve, ma non è urgente.",
+   "High": "Un problema grave che richiede attenzione subito."
+  }
+ },
+ "reports": {
+  "denied": "Non puoi farlo. Serve {{operation}} su Rapporto.",
+  "filters": {
+   "kind": "Mostra solo i rapporti di questo tipo. Scegli Tutti per togliere il filtro."
+  },
+  "actions": {
+   "file": "Presenta un rapporto a tuo nome o a nome di un agente. Un rapporto presentato non si può modificare né eliminare.",
+   "copyId": "Copia l'ID del rapporto (rpt_...) per la REST API, gli SDK o gli strumenti MCP.",
+   "openRun": "Apri l'esecuzione che ha presentato questo rapporto.",
+   "openKeeper": "Apri il custode il cui ciclo ha presentato questo rapporto.",
+   "openAuthor": "Apri l'agente che ha scritto questo rapporto."
+  },
+  "file": {
+   "submit": "Presenta il rapporto. Dopo non si potrà più modificare.",
+   "fields": {
+    "title": "Un titolo breve da 1 a 256 caratteri.",
+    "kind": "Che tipo di rapporto è: un aggiornamento di stato, un incidente, una decisione, un passaggio di consegne o una sintesi.",
+    "health": "Come stanno le cose. Critico avvisa gli endpoint iscritti ai rapporti critici.",
+    "audience": "A chi è destinato il rapporto: il responsabile, l'intera catena gerarchica o il consiglio.",
+    "agent": "Presenta il rapporto come rapporto di questo agente, così entra nei suoi rapporti e nella cronologia delle metriche. Lascia vuoto per presentarlo a tuo nome.",
+    "body": "Il rapporto vero e proprio, come testo semplice. Viene mostrato esattamente come è scritto."
+   }
+  },
+  "chart": {
+   "metric": "Scegli una delle metriche di questo rapporto da rappresentare su tutti i rapporti dello stesso autore.",
+   "chart": "Ogni valore riportato dall'autore per questa metrica, dal più vecchio al più recente, da un massimo di 500 rapporti. Passa sopra il grafico per leggere un valore."
+  }
+ },
+ "filters": {
+  "author": "Mostra solo i rapporti scritti da questo agente. Scegli Tutti per togliere il filtro.",
+  "health": "Mostra solo i rapporti con questa salute. Scegli Tutti per togliere il filtro.",
+  "app": "Mostra solo i rapporti presentati per questa applicazione. Scegli Tutti per togliere il filtro.",
+  "from": "Mostra solo i rapporti presentati in questo momento o dopo.",
+  "to": "Mostra solo i rapporti presentati in questo momento o prima."
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "Quando è stato presentato il rapporto. Passa sopra per l'ora esatta.",
+   "title": "Il titolo che l'autore ha dato al rapporto. Passa sopra per il testo completo.",
+   "author": "L'agente che ha scritto il rapporto, o la persona che lo ha presentato a proprio nome.",
+   "kind": "Che tipo di rapporto è: stato, incidente, decisione, passaggio di consegne o sintesi.",
+   "health": "Come stanno le cose secondo l'autore.",
+   "app": "L'applicazione di cui parla il rapporto, se ne nomina una.",
+   "period": "L'intervallo di tempo coperto dal rapporto, se l'autore ne ha indicato uno.",
+   "issues": "I problemi sollevati dal rapporto, contati per gravità.",
+   "audience": "A chi è destinato il rapporto: il responsabile, la catena gerarchica o il consiglio.",
+   "filedBy": "Chi ha presentato il rapporto: un'esecuzione, oppure una persona o una credenziale API.",
+   "runId": "L'esecuzione che ha presentato il rapporto, se è stata un'esecuzione.",
+   "id": "L'ID del rapporto (rpt_...), per la REST API, gli SDK e gli strumenti MCP."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "Torna all'elenco dei rapporti.",
+   "viewJson": "Mostra il rapporto come lo restituisce l'API.",
+   "body": "Il testo del rapporto come l'ha scritto l'autore, mostrato come testo semplice.",
+   "metrics": "Numeri riportati dall'autore, ciascuno con un nome e un'unità facoltativa.",
+   "chart": "Una metrica su tutti i rapporti dello stesso autore, dal più vecchio al più recente.",
+   "issues": "Problemi sollevati dal rapporto, ciascuno con una gravità.",
+   "decisions": "Decisioni che l'autore ha registrato in questo rapporto.",
+   "openAgent": "Apri l'agente che ha scritto questo rapporto.",
+   "openRun": "Apri l'esecuzione che ha presentato questo rapporto.",
+   "openKeeper": "Apri il custode il cui ciclo ha presentato questo rapporto.",
+   "openApp": "Apri l'applicazione di cui parla questo rapporto.",
+   "columns": {
+    "name": "Il nome della metrica usato dall'autore. Le metriche con lo stesso nome sono rappresentate insieme.",
+    "value": "Il valore riportato dall'autore.",
+    "unit": "L'unità indicata dall'autore, per esempio ms o percentuale."
+   },
+   "fields": {
+    "health": "Come stanno le cose secondo l'autore.",
+    "kind": "Che tipo di rapporto è.",
+    "audience": "A chi è destinato il rapporto.",
+    "author": "L'agente che ha scritto il rapporto, o la persona che lo ha presentato a proprio nome.",
+    "period": "L'intervallo di tempo coperto dal rapporto, se l'autore ne ha indicato uno.",
+    "createdUtc": "Quando è stato presentato il rapporto. Passa sopra per vedere quanto tempo fa.",
+    "filedBy": "Chi ha presentato il rapporto: un'esecuzione, oppure una persona o una credenziale API.",
+    "runId": "L'esecuzione che ha presentato il rapporto.",
+    "mandateId": "Il custode il cui ciclo ha presentato il rapporto.",
+    "mandateTickId": "Il ciclo del custode che ha presentato il rapporto.",
+    "app": "L'applicazione di cui parla il rapporto.",
+    "orgUnitId": "L'unità organizzativa di cui parla il rapporto. Le organizzazioni arrivano in una versione successiva."
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "Rapporti",
+  "p1": "Con i rapporti gli agenti dicono alle persone, e tra loro, come stanno le cose. Un'esecuzione ne presenta uno con lo strumento garrison_file_report, e le persone li presentano qui o tramite l'API. Ogni rapporto ha un tipo, una salute e dei destinatari, e può contenere metriche, problemi e decisioni.",
+  "p2": "Un rapporto presentato non si può modificare né eliminare, quindi i rapporti formano una traccia. Un rapporto presentato durante un ciclo di un custode rimanda al custode e al ciclo, e un rapporto critico avvisa gli endpoint iscritti a questo evento.",
+  "p3": "Tutto ciò che contiene un rapporto sono dati scritti dal suo autore. Sono mostrati come testo semplice e mai seguiti come istruzioni. Apri un rapporto per rappresentare una delle sue metriche su tutti i rapporti dello stesso autore."
+ }
+});

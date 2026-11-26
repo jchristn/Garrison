@@ -6320,3 +6320,169 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "Rapports",
+    "tip": "Rapports d'état, incidents, décisions et passations déposés par des agents et des personnes, avec leur santé et leurs indicateurs"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Rapport"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Rapport défaillant déposé"
+  },
+  "reportKind": {
+   "Status": "Point d'étape",
+   "Incident": "Incident",
+   "Decision": "Décision",
+   "Handoff": "Passation",
+   "Brief": "Synthèse"
+  },
+  "reportHealth": {
+   "Healthy": "Sain",
+   "Degraded": "Dégradé",
+   "Unhealthy": "Défaillant",
+   "Unknown": "Inconnue"
+  },
+  "reportAudience": {
+   "Manager": "Responsable",
+   "Chain": "Chaîne hiérarchique",
+   "Board": "Conseil"
+  },
+  "reportIssueSeverity": {
+   "Low": "Faible",
+   "Medium": "Moyenne",
+   "High": "Élevée"
+  }
+ },
+ "reports": {
+  "untrusted": "Un agent ou une personne a rédigé ce rapport. Son titre, son contenu, ses indicateurs, ses problèmes et ses décisions s'affichent en texte brut, exactement tels qu'ils ont été déposés ; rien n'y est exécuté, interprété ni suivi.",
+  "period": "Du {{from}} au {{to}}",
+  "periodFrom": "À partir du {{from}}",
+  "periodTo": "Jusqu'au {{to}}",
+  "filters": {
+   "author": "Auteur",
+   "app": "Application",
+   "from": "Déposé après",
+   "to": "Déposé avant"
+  },
+  "actions": {
+   "file": "Déposer un rapport",
+   "copyId": "Copier l'ID",
+   "openRun": "Ouvrir l'exécution",
+   "openKeeper": "Ouvrir le gardien",
+   "openAuthor": "Ouvrir l'auteur"
+  },
+  "toasts": {
+   "filed": "{{title}} déposé.",
+   "copied": "ID du rapport copié."
+  },
+  "file": {
+   "title": "Déposer un rapport",
+   "intro": "Consignez où en sont les choses. Toutes les personnes autorisées à lire les rapports le verront ici, et un rapport défaillant prévient les endpoints abonnés à cet événement. Un rapport déposé ne peut plus être modifié.",
+   "noAgent": "Aucun agent (en mon nom)",
+   "fields": {
+    "title": "Titre",
+    "kind": "Genre",
+    "health": "Santé",
+    "audience": "Destinataires",
+    "agent": "Déposer pour l'agent",
+    "body": "Contenu"
+   },
+   "errors": {
+    "title": "Donnez au rapport un titre de 1 à {{max}} caractères.",
+    "body": "Le contenu ne peut pas dépasser {{max}} octets."
+   }
+  },
+  "chart": {
+   "metric": "Indicateur",
+   "title": "{{metric}} dans le temps",
+   "help_one": "{{count}} valeur signalée par {{agent}}, de la plus ancienne à la plus récente.",
+   "help_other": "{{count}} valeurs signalées par {{agent}}, de la plus ancienne à la plus récente.",
+   "noMetrics": "Ce rapport ne contient aucun indicateur, il n'y a donc rien à tracer.",
+   "noAuthor": "Aucun agent n'a rédigé ce rapport, il n'y a donc pas d'historique d'auteur à tracer.",
+   "empty": "Aucune valeur pour cet indicateur pour l'instant.",
+   "failed": "Impossible de charger l'historique de l'indicateur."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "Rapport",
+   "notFoundTitle": "Rapport introuvable",
+   "notFoundBody": "Il n'existe pas dans ce locataire, ou il a été supprimé avec son locataire.",
+   "back": "Retour aux rapports",
+   "body": "Contenu",
+   "metrics": "Indicateurs",
+   "chart": "Historique de l'indicateur",
+   "issues": "Problèmes",
+   "decisions": "Décisions",
+   "noBody": "Ce rapport n'a pas de contenu.",
+   "noMetrics": "Ce rapport n'a pas d'indicateurs.",
+   "noIssues": "Aucun problème signalé.",
+   "noDecisions": "Aucune décision consignée.",
+   "columns": {
+    "name": "Nom",
+    "value": "Valeur",
+    "unit": "Unité"
+   },
+   "fields": {
+    "health": "Santé",
+    "kind": "Genre",
+    "audience": "Destinataires",
+    "author": "Auteur",
+    "period": "Période",
+    "createdUtc": "Déposé",
+    "filedBy": "Déposé par",
+    "runId": "Exécution",
+    "mandateId": "Gardien",
+    "mandateTickId": "Cycle du gardien",
+    "app": "Application",
+    "orgUnitId": "Unité organisationnelle"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "Rapports",
+   "subtitle": "Ce que les agents et les personnes ont fait remonter : où en sont les choses, incidents, décisions et passations, avec leur santé et leurs indicateurs. Ouvrez-en un pour le lire et suivre un indicateur dans le temps.",
+   "add": "Déposer un rapport",
+   "create": "Déposer un rapport",
+   "edit": "Rapport",
+   "view": "Détails du rapport",
+   "deleteTitle": "Supprimer le rapport",
+   "emptyTitle": "Aucun rapport pour l'instant",
+   "emptyBody": "Les agents déposent des rapports avec l'outil garrison_file_report pendant leurs exécutions, et les personnes les déposent ici ou via l'API. Ils apparaissent ici dès que l'un d'eux est déposé.",
+   "columns": {
+    "createdUtc": "Déposé",
+    "title": "Titre",
+    "author": "Auteur",
+    "kind": "Genre",
+    "health": "Santé",
+    "app": "Application",
+    "period": "Période",
+    "issues": "Problèmes",
+    "audience": "Destinataires",
+    "filedBy": "Déposé par",
+    "runId": "Exécution",
+    "id": "ID"
+   }
+  }
+ }
+});

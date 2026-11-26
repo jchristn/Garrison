@@ -3697,3 +3697,156 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "p3": "Le texte est une donnée enregistrée par un agent IA ou une personne. Il s'affiche ici en texte brut et parvient aux agents IA comme donnée, jamais comme instruction. Supprimez une entrée qui ne doit pas être retenue ; les agents IA qui la cherchent ne trouvent ensuite plus rien."
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "Rapports : ce que les agents et les personnes ont fait remonter, les plus récents d'abord, avec santé, genre, auteur et période. Ouvrez-en un pour ses indicateurs et un graphique."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Rapports déposés par des exécutions et des personnes. Lire liste les rapports et l'historique des indicateurs ; Créer en dépose un."
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Une exécution ou une personne a déposé un rapport dont la santé est Défaillant."
+  },
+  "reportKind": {
+   "Status": "Un point régulier sur l'avancement d'une mission permanente.",
+   "Incident": "Quelque chose s'est mal passé et le lecteur doit le savoir maintenant.",
+   "Decision": "La trace d'un choix fait par l'auteur, et de ses raisons.",
+   "Handoff": "Un travail confié à quelqu'un d'autre, avec ce qu'il lui faut pour continuer.",
+   "Brief": "Un court résumé préparé pour un lecteur, comme un responsable ou le conseil."
+  },
+  "reportHealth": {
+   "Healthy": "Tout ce dont l'auteur s'occupe fonctionne comme prévu.",
+   "Degraded": "Cela fonctionne encore, mais moins bien que prévu. À surveiller.",
+   "Unhealthy": "Quelque chose est en panne ou menacé. Prévient les endpoints abonnés aux rapports défaillants.",
+   "Unknown": "L'auteur n'a pas dit, ou n'a pas pu savoir, où en sont les choses."
+  },
+  "reportAudience": {
+   "Manager": "Pour le responsable direct de l'auteur.",
+   "Chain": "Pour chaque responsable de la ligne hiérarchique de l'auteur.",
+   "Board": "Pour le conseil qui supervise l'organisation."
+  },
+  "reportIssueSeverity": {
+   "Low": "Un problème mineur qui peut attendre la prochaine revue habituelle.",
+   "Medium": "Un problème qui demande de l'attention bientôt, sans être urgent.",
+   "High": "Un problème grave qui demande de l'attention tout de suite."
+  }
+ },
+ "reports": {
+  "denied": "Vous n'avez pas le droit de faire cela. Il faut {{operation}} sur Rapport.",
+  "filters": {
+   "kind": "N'afficher que les rapports de ce genre. Choisissez Tous pour retirer le filtre."
+  },
+  "actions": {
+   "file": "Déposer un rapport en votre nom ou au nom d'un agent. Un rapport déposé ne peut être ni modifié ni supprimé.",
+   "copyId": "Copier l'ID du rapport (rpt_...) pour la REST API, les SDK ou les outils MCP.",
+   "openRun": "Ouvrir l'exécution qui a déposé ce rapport.",
+   "openKeeper": "Ouvrir le gardien dont le cycle a déposé ce rapport.",
+   "openAuthor": "Ouvrir l'agent qui a rédigé ce rapport."
+  },
+  "file": {
+   "submit": "Déposer le rapport. Il ne pourra plus être modifié ensuite.",
+   "fields": {
+    "title": "Un titre court de 1 à 256 caractères.",
+    "kind": "Le genre de rapport : un point d'étape, un incident, une décision, une passation ou une synthèse.",
+    "health": "Où en sont les choses. Défaillant prévient les endpoints abonnés aux rapports défaillants.",
+    "audience": "À qui s'adresse le rapport : le responsable, toute la chaîne hiérarchique ou le conseil.",
+    "agent": "Déposer le rapport au nom de cet agent, pour qu'il rejoigne ses rapports et l'historique de ses indicateurs. Laissez vide pour le déposer en votre nom.",
+    "body": "Le rapport lui-même, en texte brut. Il s'affiche exactement tel qu'il a été écrit."
+   }
+  },
+  "chart": {
+   "metric": "Choisissez l'un des indicateurs de ce rapport pour le tracer sur tous les rapports du même auteur.",
+   "chart": "Chaque valeur signalée par l'auteur pour cet indicateur, de la plus ancienne à la plus récente, sur 500 rapports au plus. Survolez le graphique pour lire une valeur."
+  }
+ },
+ "filters": {
+  "author": "N'afficher que les rapports rédigés par cet agent. Choisissez Tous pour retirer le filtre.",
+  "health": "N'afficher que les rapports ayant cette santé. Choisissez Tous pour retirer le filtre.",
+  "app": "N'afficher que les rapports déposés pour cette application. Choisissez Tous pour retirer le filtre.",
+  "from": "N'afficher que les rapports déposés à partir de ce moment.",
+  "to": "N'afficher que les rapports déposés jusqu'à ce moment."
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "Quand le rapport a été déposé. Survolez pour l'heure exacte.",
+   "title": "Le titre que l'auteur a donné au rapport. Survolez pour le texte complet.",
+   "author": "L'agent qui a rédigé le rapport, ou la personne qui l'a déposé en son propre nom.",
+   "kind": "Le genre de rapport : point d'étape, incident, décision, passation ou synthèse.",
+   "health": "Où en sont les choses selon l'auteur.",
+   "app": "L'application dont parle le rapport, s'il en nomme une.",
+   "period": "La période couverte par le rapport, si l'auteur en a indiqué une.",
+   "issues": "Les problèmes soulevés par le rapport, comptés par gravité.",
+   "audience": "À qui s'adresse le rapport : le responsable, la chaîne hiérarchique ou le conseil.",
+   "filedBy": "Qui a déposé le rapport : une exécution, ou une personne ou un identifiant d'API.",
+   "runId": "L'exécution qui a déposé le rapport, si c'est une exécution qui l'a déposé.",
+   "id": "L'ID du rapport (rpt_...), pour la REST API, les SDK et les outils MCP."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "Revenir à la liste des rapports.",
+   "viewJson": "Afficher le rapport tel que l'API le renvoie.",
+   "body": "Le texte du rapport tel que l'auteur l'a écrit, affiché en texte brut.",
+   "metrics": "Les chiffres signalés par l'auteur, chacun avec un nom et une unité facultative.",
+   "chart": "Un indicateur sur tous les rapports du même auteur, du plus ancien au plus récent.",
+   "issues": "Les problèmes soulevés par le rapport, chacun avec une gravité.",
+   "decisions": "Les décisions que l'auteur a consignées dans ce rapport.",
+   "openAgent": "Ouvrir l'agent qui a rédigé ce rapport.",
+   "openRun": "Ouvrir l'exécution qui a déposé ce rapport.",
+   "openKeeper": "Ouvrir le gardien dont le cycle a déposé ce rapport.",
+   "openApp": "Ouvrir l'application dont parle ce rapport.",
+   "columns": {
+    "name": "Le nom d'indicateur utilisé par l'auteur. Les indicateurs de même nom sont tracés ensemble.",
+    "value": "La valeur signalée par l'auteur.",
+    "unit": "L'unité indiquée par l'auteur, par exemple ms ou pourcentage."
+   },
+   "fields": {
+    "health": "Où en sont les choses selon l'auteur.",
+    "kind": "Le genre de ce rapport.",
+    "audience": "À qui s'adresse le rapport.",
+    "author": "L'agent qui a rédigé le rapport, ou la personne qui l'a déposé en son propre nom.",
+    "period": "La période couverte par le rapport, si l'auteur en a indiqué une.",
+    "createdUtc": "Quand le rapport a été déposé. Survolez pour voir il y a combien de temps.",
+    "filedBy": "Qui a déposé le rapport : une exécution, ou une personne ou un identifiant d'API.",
+    "runId": "L'exécution qui a déposé le rapport.",
+    "mandateId": "Le gardien dont le cycle a déposé le rapport.",
+    "mandateTickId": "Le cycle du gardien qui a déposé le rapport.",
+    "app": "L'application dont parle le rapport.",
+    "orgUnitId": "L'unité organisationnelle dont parle le rapport. Les organisations arrivent dans une version ultérieure."
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "Rapports",
+  "p1": "Les rapports permettent aux agents de dire aux personnes, et les uns aux autres, où en sont les choses. Une exécution en dépose un avec l'outil garrison_file_report, et les personnes les déposent ici ou via l'API. Chaque rapport a un genre, une santé et des destinataires, et peut contenir des indicateurs, des problèmes et des décisions.",
+  "p2": "Un rapport déposé ne peut être ni modifié ni supprimé : les rapports forment donc un historique. Un rapport déposé pendant le cycle d'un gardien renvoie au gardien et au cycle, et un rapport défaillant prévient les endpoints abonnés à cet événement.",
+  "p3": "Tout ce que contient un rapport, ce sont des données écrites par son auteur. Elles s'affichent en texte brut et ne sont jamais suivies comme des instructions. Ouvrez un rapport pour tracer l'un de ses indicateurs sur tous les rapports du même auteur."
+ }
+});

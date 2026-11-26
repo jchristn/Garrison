@@ -336,6 +336,7 @@ async function seed(api) {
   await seedPipelines(api, ids);
   await seedTriggers(api, ids);
   await seedKeepers(api, ids);
+  await seedReports(api, ids);
   await seedFreezes(api, ids);
   await sleep(1500);
   return ids;
@@ -350,6 +351,29 @@ async function seedFreezes(api, ids) {
   await api.post(tp(`freezes/${lifted.id}/lift`), { reason: 'Contract test lift' });
   ids.liftedFreeze = lifted.id;
   ids.freeze = (await api.post(tp('freezes'), { targetKind: 'Mandate', targetId: ids.keeper, reason: 'Contract test keeper freeze' })).id;
+}
+
+/**
+ * Reports (AA5.10): a report filed in the fake agent's name with a period, metrics, an issue, a decision, and an
+ * idempotency key, so every optional field the dashboard reads exists.
+ */
+async function seedReports(api, ids) {
+  ids.report = (
+    await api.post(tp('reports'), {
+      agent: ids.agent,
+      kind: 'Incident',
+      health: 'Degraded',
+      audience: 'Manager',
+      title: 'Contract test report',
+      body: 'Queue depth doubled.',
+      periodStartUtc: new Date(Date.now() - 3600000).toISOString(),
+      periodEndUtc: new Date().toISOString(),
+      metrics: [{ name: 'queueDepth', value: 48, unit: 'tickets' }],
+      issues: [{ severity: 'High', text: 'Refund API returns 502.' }],
+      decisions: [{ text: 'Paused refunds.' }],
+      idempotencyKey: 'contract-report-1'
+    })
+  ).id;
 }
 
 /**
@@ -684,6 +708,11 @@ function routes(ids) {
     ['listMemoryScopes', tp('memory/scopes')],
     ['listMemoryEntries', tp(`memory/entries?${list}`)],
     ['listMemoryEntries (filters)', tp(`memory/entries?${list}&scopeKind=Agent&scopeId=${ids.agent}&category=notes&tag=recall&search=plan&writer=${ids.agent}`)],
+    // Reports (AA5.10): one report filed in the fake agent's name, its metric series, and the list with filters.
+    ['listReports', tp(`reports?${list}`)],
+    ['listReports (filters)', tp(`reports?${list}&author=${ids.agent}&kind=Incident&health=Degraded`)],
+    ['getReport', tp(`reports/${ids.report}`)],
+    ['listReportMetrics', tp(`reports/metrics?author=${ids.agent}&name=queueDepth&maxPoints=500`)],
     // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
     ['listFreezes', tp(`freezes?${list}`)],
     ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],

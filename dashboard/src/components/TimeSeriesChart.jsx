@@ -21,11 +21,13 @@ const PAD_RIGHT = 20;
 const PAD_BOTTOM = 40;
 const PAD_LEFT = 72;
 const MAX_X_LABELS = 8;
+// Room one x-axis label needs, so narrow charts (phones) show fewer labels instead of overlapping ones.
+const X_LABEL_WIDTH = 96;
 
-function labelIndices(count) {
-  if (count <= MAX_X_LABELS) return new Set(Array.from({ length: count }, (_, i) => i));
+function labelIndices(count, max = MAX_X_LABELS) {
+  if (count <= max) return new Set(Array.from({ length: count }, (_, i) => i));
   const set = new Set();
-  for (let i = 0; i < MAX_X_LABELS; i++) set.add(Math.round((i * (count - 1)) / (MAX_X_LABELS - 1)));
+  for (let i = 0; i < max; i++) set.add(Math.round((i * (count - 1)) / (max - 1)));
   return set;
 }
 
@@ -69,7 +71,7 @@ export default function TimeSeriesChart({ id, title, help, titleTip, kind = 'lin
   const y = (v) => PAD_TOP + plotH - (Math.max(0, v) / axisMax) * plotH;
   const xCenter = (i) => PAD_LEFT + i * colW + colW / 2;
   const spanMs = n > 1 ? new Date(times[n - 1]).getTime() - new Date(times[0]).getTime() : 0;
-  const labels = labelIndices(n);
+  const labels = labelIndices(n, Math.max(2, Math.min(MAX_X_LABELS, Math.floor(plotW / X_LABEL_WIDTH))));
   const lng = i18n.language;
   const hasData = visible.some((s) => s.values.some((v) => v !== null && v !== undefined && v !== 0));
   const name = (s) => s.label || t(`views.analytics.metrics.${s.metric}`);

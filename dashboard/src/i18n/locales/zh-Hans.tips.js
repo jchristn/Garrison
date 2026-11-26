@@ -3694,3 +3694,156 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "p3": "文本是智能体或人员保存的数据。它在这里以纯文本显示，传给智能体时也只作为数据，绝不作为指令。删除不应保留的条目；之后查找它的智能体将什么也找不到。"
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "报告：智能体和人员向上提交的内容，最新的在前，附带健康状况、类型、作者和时间段。打开一份可查看其指标和图表。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "由运行和人员提交的报告。读取可列出并查看报告和指标历史；创建可提交报告。"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "某个运行或人员提交了健康状况为异常的报告。"
+  },
+  "reportKind": {
+   "Status": "定期说明一项长期任务的进展。",
+   "Incident": "出了问题，读者应当立即知道。",
+   "Decision": "记录作者做出的选择及其理由。",
+   "Handoff": "把工作交给他人，并附上继续进行所需的信息。",
+   "Brief": "为上级或董事会等读者准备的简短摘要。"
+  },
+  "reportHealth": {
+   "Healthy": "作者负责的一切都按预期运行。",
+   "Degraded": "仍在运行，但比预期差，值得关注。",
+   "Unhealthy": "有东西坏了或面临风险。会通知订阅了异常报告的端点。",
+   "Unknown": "作者没有说明，或无法判断当前情况。"
+  },
+  "reportAudience": {
+   "Manager": "写给作者的直属上级。",
+   "Chain": "写给作者汇报线上的每一位上级。",
+   "Board": "写给监督组织的董事会。"
+  },
+  "reportIssueSeverity": {
+   "Low": "小问题，可以等到下一次例行检查再处理。",
+   "Medium": "需要尽快关注的问题，但并不紧急。",
+   "High": "需要立即处理的严重问题。"
+  }
+ },
+ "reports": {
+  "denied": "你无权执行此操作。需要报告的{{operation}}权限。",
+  "filters": {
+   "kind": "只显示此类型的报告。选择“全部”可移除筛选。"
+  },
+  "actions": {
+   "file": "以你本人或某个智能体的名义提交报告。报告提交后无法修改或删除。",
+   "copyId": "复制报告 ID (rpt_...)，用于 REST API、SDK 或 MCP 工具。",
+   "openRun": "打开提交这份报告的运行。",
+   "openKeeper": "打开在巡检中提交这份报告的守护者。",
+   "openAuthor": "打开撰写这份报告的智能体。"
+  },
+  "file": {
+   "submit": "提交报告。提交后无法修改。",
+   "fields": {
+    "title": "1 到 256 个字符的简短标题。",
+    "kind": "报告的类型：状态更新、事件、决策、交接或简报。",
+    "health": "当前情况。选择异常会通知订阅了异常报告的端点。",
+    "audience": "报告写给谁：直属上级、整条管理链或董事会。",
+    "agent": "以这个智能体的名义提交，使其计入该智能体的报告和指标历史。留空则以你本人的名义提交。",
+    "body": "报告本身，以纯文本书写。会按原样显示。"
+   }
+  },
+  "chart": {
+   "metric": "选择这份报告中的一个指标，在同一作者的所有报告中绘制。",
+   "chart": "作者为此指标报告的每个值，按时间从早到晚排列，最多来自 500 份报告。将指针悬停在图表上可读取数值。"
+  }
+ },
+ "filters": {
+  "author": "只显示这个智能体撰写的报告。选择“全部”可移除筛选。",
+  "health": "只显示此健康状况的报告。选择“全部”可移除筛选。",
+  "app": "只显示针对这个应用提交的报告。选择“全部”可移除筛选。",
+  "from": "只显示在此时间或之后提交的报告。",
+  "to": "只显示在此时间或之前提交的报告。"
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "报告的提交时间。悬停可查看确切时间。",
+   "title": "作者为报告起的标题。悬停可查看全文。",
+   "author": "撰写报告的智能体，或以本人名义提交报告的人员。",
+   "kind": "报告的类型：状态、事件、决策、交接或简报。",
+   "health": "作者所说的当前情况。",
+   "app": "报告涉及的应用（如果有）。",
+   "period": "报告涵盖的时间段（如果作者提供了）。",
+   "issues": "报告提出的问题，按严重程度计数。",
+   "audience": "报告写给谁：直属上级、管理链或董事会。",
+   "filedBy": "谁提交了报告：某个运行，或某个人员或 API 访问密钥。",
+   "runId": "提交报告的运行（如果是运行提交的）。",
+   "id": "报告 ID (rpt_...)，用于 REST API、SDK 和 MCP 工具。"
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "返回报告列表。",
+   "viewJson": "按 API 返回的原样显示报告。",
+   "body": "作者撰写的报告正文，以纯文本显示。",
+   "metrics": "作者报告的数字，每个都有名称和可选的单位。",
+   "chart": "同一作者所有报告中的一个指标，按时间从早到晚排列。",
+   "issues": "报告提出的问题，每个都有严重程度。",
+   "decisions": "作者在这份报告中记录的决策。",
+   "openAgent": "打开撰写这份报告的智能体。",
+   "openRun": "打开提交这份报告的运行。",
+   "openKeeper": "打开在巡检中提交这份报告的守护者。",
+   "openApp": "打开这份报告涉及的应用。",
+   "columns": {
+    "name": "作者使用的指标名称。名称相同的指标会绘制在一起。",
+    "value": "作者报告的值。",
+    "unit": "作者给出的单位，例如 ms 或百分比。"
+   },
+   "fields": {
+    "health": "作者所说的当前情况。",
+    "kind": "这份报告的类型。",
+    "audience": "这份报告写给谁。",
+    "author": "撰写报告的智能体，或以本人名义提交报告的人员。",
+    "period": "报告涵盖的时间段（如果作者提供了）。",
+    "createdUtc": "报告的提交时间。悬停可查看距今多久。",
+    "filedBy": "谁提交了报告：某个运行，或某个人员或 API 访问密钥。",
+    "runId": "提交报告的运行。",
+    "mandateId": "在巡检中提交报告的守护者。",
+    "mandateTickId": "提交报告的守护者巡检。",
+    "app": "报告涉及的应用。",
+    "orgUnitId": "报告涉及的组织单元。组织功能将在后续版本中推出。"
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "报告",
+  "p1": "智能体通过报告告诉人员以及彼此当前的情况。运行使用 garrison_file_report 工具提交报告，人员可以在这里或通过 API 提交。每份报告都有类型、健康状况和读者，并可以包含指标、问题和决策。",
+  "p2": "报告提交后无法修改或删除，因此报告构成一份记录。在守护者巡检期间提交的报告会关联到该守护者和巡检，健康状况为异常的报告会通知订阅了该事件的端点。",
+  "p3": "报告中的一切都是作者写下的数据。它们以纯文本显示，绝不会被当作指令遵循。打开一份报告，即可在同一作者的所有报告中绘制它的某个指标。"
+ }
+});

@@ -76,6 +76,8 @@ export { escalationsConfig } from './escalationConfigs';
 export { freezesConfig } from './freezeConfigs';
 // AA4.13: scoped memory under Autonomy.
 export { memoryConfig } from './memoryConfigs';
+// AA5.10: reports under Autonomy.
+export { reportsConfig } from './reportConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

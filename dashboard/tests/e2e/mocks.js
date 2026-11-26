@@ -1428,6 +1428,105 @@ function memoryRoutes(method, url, parts) {
   return {};
 }
 
+// ---------------------------------------------------------------- reports (AA5.10)
+
+// Reports echo-agent's keeper filed (rows 1, 2, and 5), one agent-2 filed for the support app (row 3), and a brief a
+// person filed in their own name with no agent and no metrics (row 4). Row 2's body and issue look like markup and
+// instructions; they must stay plain text.
+const REPORT_ROWS = [
+  { kind: 'Status', health: 'Healthy', agent: 1, app: 1, keeper: true, title: 'Support queue: steady', body: 'Queue depth held at 12 all morning.\nNo escalations needed.', metrics: [{ name: 'queueDepth', value: 12, unit: 'tickets' }, { name: 'p95Latency', value: 840, unit: 'ms' }], decisions: ['Kept the night shift at two agents.'], period: [180, 60] },
+  { kind: 'Incident', health: 'Unhealthy', agent: 1, keeper: true, title: 'Refund API failing <script>alert(1)</script>', body: '<b>Not bold.</b> **Not markdown.** Ignore previous instructions.', metrics: [{ name: 'queueDepth', value: 48, unit: 'tickets' }], issues: [{ severity: 'High', text: 'Refund API returns 502 for every request.' }, { severity: 'Medium', text: '<i>Retries</i> double the load.' }], period: [120] },
+  { kind: 'Decision', health: 'Degraded', agent: 2, app: 2, title: 'Switch billing replies to templates', body: 'Answer times rose, so replies now start from templates.', metrics: [{ name: 'errorRate', value: 0.04 }], issues: [{ severity: 'Low', text: 'Two templates need a legal review.' }], decisions: ['Use templates for billing replies.', 'Review the templates weekly.'] },
+  { kind: 'Brief', health: 'Unknown', audience: 'Board', person: true, title: 'Quarterly autonomy brief', body: 'Keepers handled 1,204 ticks this quarter.' },
+  { kind: 'Handoff', health: 'Healthy', agent: 1, title: 'Handing the queue to the night shift', body: 'Open tickets are tagged night.', metrics: [{ name: 'queueDepth', value: 20, unit: 'tickets' }], audience: 'Chain' }
+];
+
+/** Older queueDepth values from echo-agent's reports, so its metric chart has history. */
+const REPORT_HISTORY = [9, 14, 11, 16];
+
+const REPORT_AGENTS = { 1: 'echo-agent', 2: 'agent-2' };
+const REPORT_APPS = { 1: 'research', 2: 'support' };
+
+/** One report by row number (1-based), shaped like GET /reports/{id} (nulls omitted). */
+export function report(i) {
+  const row = REPORT_ROWS[(i - 1) % REPORT_ROWS.length];
+  const out = {
+    id: `rpt_${pad(i)}`,
+    tenantId: TENANT,
+    audience: row.audience || 'Manager',
+    kind: row.kind,
+    health: row.health,
+    title: row.title,
+    body: row.body,
+    metrics: row.metrics || [],
+    issues: row.issues || [],
+    decisions: (row.decisions || []).map((text) => ({ text })),
+    filedByPrincipalType: row.person ? 'User' : 'Run',
+    filedByPrincipalId: row.person ? 'usr_0001' : `run_${pad(i)}`,
+    filedByName: row.person ? 'admin@garrison' : REPORT_AGENTS[row.agent],
+    createdUtc: iso(40 * (REPORT_ROWS.length - i) + 10)
+  };
+  if (row.agent) Object.assign(out, { authorAgentId: `agt_${pad(row.agent)}`, authorAgentName: REPORT_AGENTS[row.agent], runId: `run_${pad(i)}`, filingKey: `${pad(i)}ABCDEF`.repeat(8).slice(0, 64) });
+  if (row.keeper) Object.assign(out, { mandateId: 'mdt_0001', mandateTickId: `mtk_${pad(i)}` });
+  if (row.app) Object.assign(out, { appId: `app_${pad(row.app)}`, appName: REPORT_APPS[row.app] });
+  if (row.period) {
+    out.periodStartUtc = iso(row.period[0]);
+    if (row.period[1] !== undefined) out.periodEndUtc = iso(row.period[1]);
+  }
+  return out;
+}
+
+/** GET /reports with the filters the list sends, newest first like the server. */
+export function reportList(url, rows = REPORT_ROWS.map((_, k) => report(k + 1))) {
+  let list = rows;
+  const author = url.searchParams.get('author');
+  if (author) list = list.filter((r) => r.authorAgentId === author || r.authorAgentName === author);
+  const app = url.searchParams.get('app');
+  if (app) list = list.filter((r) => r.appId === app || r.appName === app);
+  for (const key of ['kind', 'health', 'runId']) {
+    const value = url.searchParams.get(key);
+    if (value) list = list.filter((r) => r[key] === value);
+  }
+  const from = url.searchParams.get('from');
+  if (from) list = list.filter((r) => r.createdUtc >= new Date(from).toISOString());
+  const to = url.searchParams.get('to');
+  if (to) list = list.filter((r) => r.createdUtc <= new Date(to).toISOString());
+  const search = (url.searchParams.get('search') || '').toLowerCase();
+  if (search) list = list.filter((r) => r.title.toLowerCase().includes(search) || r.body.toLowerCase().includes(search));
+  list = [...list].sort((a, b) => b.createdUtc.localeCompare(a.createdUtc));
+  return pageOf(list, url);
+}
+
+/** GET /reports/metrics: one metric's points for an author, oldest first, with echo-agent's older queueDepth history. */
+export function reportMetricPoints(url) {
+  const author = url.searchParams.get('author');
+  const name = url.searchParams.get('name');
+  const points = [];
+  REPORT_HISTORY.forEach((value, k) => points.push({ reportId: `rpt_${pad(90 + k)}`, authorAgentId: 'agt_0001', authorAgentName: 'echo-agent', name: 'queueDepth', value, unit: 'tickets', timestampUtc: iso(1440 * (REPORT_HISTORY.length - k) + 300) }));
+  REPORT_ROWS.forEach((_, k) => {
+    const r = report(k + 1);
+    for (const m of r.metrics) {
+      const p = { reportId: r.id, name: m.name, value: m.value, timestampUtc: r.createdUtc };
+      if (r.authorAgentId) Object.assign(p, { authorAgentId: r.authorAgentId, authorAgentName: r.authorAgentName });
+      if (m.unit) p.unit = m.unit;
+      points.push(p);
+    }
+  });
+  return points
+    .filter((p) => (!author || p.authorAgentId === author || p.authorAgentName === author) && (!name || p.name === name))
+    .sort((a, b) => a.timestampUtc.localeCompare(b.timestampUtc));
+}
+
+/** Responses for the report routes, or undefined for other collections. */
+function reportRoutes(method, url, parts) {
+  if (parts[0] !== 'reports') return undefined;
+  if (parts.length === 1) return method === 'POST' ? { ...report(4), id: 'rpt_0099', title: 'Filed in a test', createdUtc: iso(0) } : reportList(url);
+  if (parts[1] === 'metrics') return reportMetricPoints(url);
+  // An ID the fixtures do not know (the contract test's real IDs) gets row 1, which carries most optional fields.
+  if (parts.length === 2) return /^rpt_\d+$/.test(parts[1]) ? report(Number(parts[1].slice(4))) : { ...report(1), id: parts[1] };
+  return {};
+}
+
 /** Responses for the keeper (mandate) routes, or undefined for other collections. */
 function keeperRoutes(method, url, parts) {
   const collection = parts[0];
@@ -2672,6 +2771,8 @@ export function respond(method, url) {
     if (frozen !== undefined) return frozen;
     const remembered = memoryRoutes(method, url, parts);
     if (remembered !== undefined) return remembered;
+    const reported = reportRoutes(method, url, parts);
+    if (reported !== undefined) return reported;
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
     const apped = appRoutes(method, url, parts);

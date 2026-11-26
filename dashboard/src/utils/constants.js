@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -196,7 +196,7 @@ export const ENUMS = {
   triggerFireSource: ['Cron', 'Webhook', 'Manual'],
   triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
-  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'Test'],
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
   runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
@@ -218,6 +218,11 @@ export const ENUMS = {
   freezeTargetKind: ['Agent', 'Deployment', 'Mandate', 'App', 'OrgUnit', 'Organization', 'TenantAutonomy'],
   // Scoped memory (AA4): where an entry lives. OrgUnit and Organization hold entries once organizations exist (AA7).
   memoryScopeKind: ['Agent', 'App', 'OrgUnit', 'Organization'],
+  // Reports (AA5): what runs and people file upward, how things stand, and who should read them.
+  reportKind: ['Status', 'Incident', 'Decision', 'Handoff', 'Brief'],
+  reportHealth: ['Healthy', 'Degraded', 'Unhealthy', 'Unknown'],
+  reportAudience: ['Manager', 'Chain', 'Board'],
+  reportIssueSeverity: ['Low', 'Medium', 'High'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -371,7 +376,7 @@ export function pipelineReviewDecisionTone(decision) {
 }
 
 /** Events a notification endpoint can subscribe to (Test is only sent by the test action). */
-export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached'];
+export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy'];
 
 /**
  * Escalation targets a person can pick for a keeper's default (AA2): Manager needs an organization (AA7) and is refused
@@ -387,6 +392,39 @@ export const FREEZE_TARGET_KINDS = ['Agent', 'Deployment', 'Mandate', 'App'];
 
 /** Freeze bounds, mirroring the server (AA3): a freeze, lift, or kill switch reason holds at most 2000 characters. */
 export const FREEZE_LIMITS = { reasonMax: 2000 };
+
+/**
+ * Report bounds, mirroring the server (AA5): a title holds 1 to 256 characters, and the body at most 32768 UTF-8 bytes
+ * by default (Reports.MaxBodyBytes on the server may differ; the server has the last word). The metric series reads
+ * up to 500 points by default (the server allows 1 to 5000).
+ */
+export const REPORT_LIMITS = { titleMax: 256, bodyMaxBytes: 32768, metricPoints: 500 };
+
+/** Semantic tone for a report health pill. */
+export function reportHealthTone(health) {
+  switch (health) {
+    case 'Healthy':
+      return 'success';
+    case 'Degraded':
+      return 'warning';
+    case 'Unhealthy':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a report issue severity pill. */
+export function reportIssueSeverityTone(severity) {
+  switch (severity) {
+    case 'High':
+      return 'danger';
+    case 'Medium':
+      return 'warning';
+    default:
+      return 'info';
+  }
+}
 
 /** Trigger and notification endpoint ranges, matching the server's validation (P12.5, P12.14). */
 export const TRIGGER_LIMITS = {

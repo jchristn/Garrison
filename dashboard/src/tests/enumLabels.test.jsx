@@ -51,6 +51,7 @@ const COLLECTIONS = {
   keepers: 'mandates',
   freezes: 'freezes',
   memory: 'memory/entries',
+  reports: 'reports',
   audit: 'audit'
 };
 

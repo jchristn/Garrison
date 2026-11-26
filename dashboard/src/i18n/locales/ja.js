@@ -6259,3 +6259,168 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "レポート",
+    "tip": "エージェントや人が提出した状況報告、インシデント、決定、引き継ぎを、健全性とメトリクス付きで表示します"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "レポート"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "異常のレポートが提出された"
+  },
+  "reportKind": {
+   "Status": "状況",
+   "Incident": "インシデント",
+   "Decision": "決定",
+   "Handoff": "引き継ぎ",
+   "Brief": "概要"
+  },
+  "reportHealth": {
+   "Healthy": "正常",
+   "Degraded": "低下",
+   "Unhealthy": "異常",
+   "Unknown": "不明"
+  },
+  "reportAudience": {
+   "Manager": "上長",
+   "Chain": "上位の管理者すべて",
+   "Board": "取締役会"
+  },
+  "reportIssueSeverity": {
+   "Low": "低",
+   "Medium": "中",
+   "High": "高"
+  }
+ },
+ "reports": {
+  "untrusted": "このレポートはエージェントまたは人が書いたものです。タイトル、本文、メトリクス、問題、決定は、提出されたとおりのプレーンテキストで表示されます。中身が実行、描画、または指示として扱われることはありません。",
+  "period": "{{from}} から {{to}}",
+  "periodFrom": "{{from}} から",
+  "periodTo": "{{to}} まで",
+  "filters": {
+   "author": "作成者",
+   "app": "アプリ",
+   "from": "提出日時 (以降)",
+   "to": "提出日時 (以前)"
+  },
+  "actions": {
+   "file": "レポートを提出",
+   "copyId": "ID をコピー",
+   "openRun": "実行を開く",
+   "openKeeper": "キーパーを開く",
+   "openAuthor": "作成者を開く"
+  },
+  "toasts": {
+   "filed": "{{title}} を提出しました。",
+   "copied": "レポート ID をコピーしました。"
+  },
+  "file": {
+   "title": "レポートを提出",
+   "intro": "現在の状況を書き残します。レポートを読めるすべての人がここで確認でき、健全性が異常のレポートはそのイベントを購読しているエンドポイントに通知されます。提出したレポートは変更できません。",
+   "noAgent": "エージェントなし (自分の名前で提出)",
+   "fields": {
+    "title": "タイトル",
+    "kind": "種類",
+    "health": "健全性",
+    "audience": "宛先",
+    "agent": "代理で提出するエージェント",
+    "body": "本文"
+   },
+   "errors": {
+    "title": "タイトルは 1 から {{max}} 文字で入力してください。",
+    "body": "本文は最大 {{max}} バイトです。"
+   }
+  },
+  "chart": {
+   "metric": "メトリクス",
+   "title": "{{metric}} の推移",
+   "help_other": "{{agent}} が報告した {{count}} 件の値です (古い順)。",
+   "noMetrics": "このレポートにはメトリクスがないため、グラフにするものがありません。",
+   "noAuthor": "このレポートを書いたエージェントがいないため、作成者の履歴をグラフにできません。",
+   "empty": "このメトリクスの値はまだありません。",
+   "failed": "メトリクスの履歴を読み込めませんでした。"
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "レポート",
+   "notFoundTitle": "レポートが見つかりません",
+   "notFoundBody": "このテナントに存在しないか、テナントと一緒に削除されました。",
+   "back": "レポート一覧に戻る",
+   "body": "本文",
+   "metrics": "メトリクス",
+   "chart": "メトリクスの履歴",
+   "issues": "問題",
+   "decisions": "決定",
+   "noBody": "このレポートには本文がありません。",
+   "noMetrics": "このレポートにはメトリクスがありません。",
+   "noIssues": "報告された問題はありません。",
+   "noDecisions": "記録された決定はありません。",
+   "columns": {
+    "name": "名前",
+    "value": "値",
+    "unit": "単位"
+   },
+   "fields": {
+    "health": "健全性",
+    "kind": "種類",
+    "audience": "宛先",
+    "author": "作成者",
+    "period": "対象期間",
+    "createdUtc": "提出日時",
+    "filedBy": "提出者",
+    "runId": "実行",
+    "mandateId": "キーパー",
+    "mandateTickId": "キーパーのティック",
+    "app": "アプリ",
+    "orgUnitId": "組織単位"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "レポート",
+   "subtitle": "エージェントや人が上に報告した内容です。状況、インシデント、決定、引き継ぎを、健全性とメトリクス付きで表示します。開くと本文を読み、メトリクスの推移をグラフで確認できます。",
+   "add": "レポートを提出",
+   "create": "レポートを提出",
+   "edit": "レポート",
+   "view": "レポートの詳細",
+   "deleteTitle": "レポートを削除",
+   "emptyTitle": "レポートはまだありません",
+   "emptyBody": "エージェントは実行中に garrison_file_report ツールでレポートを提出し、人はここまたは API から提出します。提出されるとここに表示されます。",
+   "columns": {
+    "createdUtc": "提出日時",
+    "title": "タイトル",
+    "author": "作成者",
+    "kind": "種類",
+    "health": "健全性",
+    "app": "アプリ",
+    "period": "対象期間",
+    "issues": "問題",
+    "audience": "宛先",
+    "filedBy": "提出者",
+    "runId": "実行",
+    "id": "ID"
+   }
+  }
+ }
+});

@@ -3694,3 +3694,156 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "p3": "文字是代理程式或人員儲存的資料。它在這裡以純文字顯示，傳給代理程式時也只作為資料，絕不作為指令。刪除不應保留的項目；之後尋找它的代理程式將什麼也找不到。"
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "報告：代理程式和人員向上提交的內容，最新的在前，附帶健康狀況、類型、作者和時間範圍。開啟一份可查看其指標和圖表。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "由執行和人員提交的報告。讀取可列出並查看報告和指標歷史；建立可提交報告。"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "某個執行或人員提交了健康狀況為異常的報告。"
+  },
+  "reportKind": {
+   "Status": "定期說明一項長期任務的進展。",
+   "Incident": "出了問題，讀者應當立即知道。",
+   "Decision": "記錄作者做出的選擇及其理由。",
+   "Handoff": "把工作交給他人，並附上繼續進行所需的資訊。",
+   "Brief": "為主管或董事會等讀者準備的簡短摘要。"
+  },
+  "reportHealth": {
+   "Healthy": "作者負責的一切都依預期運作。",
+   "Degraded": "仍在運作，但比預期差，值得留意。",
+   "Unhealthy": "有東西壞了或面臨風險。會通知訂閱了異常報告的端點。",
+   "Unknown": "作者沒有說明，或無法判斷目前情況。"
+  },
+  "reportAudience": {
+   "Manager": "寫給作者的直屬主管。",
+   "Chain": "寫給作者匯報線上的每一位主管。",
+   "Board": "寫給監督組織的董事會。"
+  },
+  "reportIssueSeverity": {
+   "Low": "小問題，可以等到下一次例行檢查再處理。",
+   "Medium": "需要盡快留意的問題，但並不緊急。",
+   "High": "需要立即處理的嚴重問題。"
+  }
+ },
+ "reports": {
+  "denied": "你無權執行此操作。需要報告的{{operation}}權限。",
+  "filters": {
+   "kind": "只顯示此類型的報告。選擇「全部」可移除篩選。"
+  },
+  "actions": {
+   "file": "以你本人或某個代理程式的名義提交報告。報告提交後無法修改或刪除。",
+   "copyId": "複製報告 ID (rpt_...)，用於 REST API、SDK 或 MCP 工具。",
+   "openRun": "開啟提交這份報告的執行。",
+   "openKeeper": "開啟在巡檢中提交這份報告的守護者。",
+   "openAuthor": "開啟撰寫這份報告的代理程式。"
+  },
+  "file": {
+   "submit": "提交報告。提交後無法修改。",
+   "fields": {
+    "title": "1 到 256 個字元的簡短標題。",
+    "kind": "報告的類型：狀態更新、事件、決策、交接或簡報。",
+    "health": "目前情況。選擇異常會通知訂閱了異常報告的端點。",
+    "audience": "報告寫給誰：直屬主管、整條管理鏈或董事會。",
+    "agent": "以這個代理程式的名義提交，使其計入該代理程式的報告和指標歷史。留空則以你本人的名義提交。",
+    "body": "報告本身，以純文字書寫。會依原樣顯示。"
+   }
+  },
+  "chart": {
+   "metric": "選擇這份報告中的一個指標，在同一作者的所有報告中繪製。",
+   "chart": "作者為此指標回報的每個值，依時間由早到晚排列，最多來自 500 份報告。將游標懸停在圖表上可讀取數值。"
+  }
+ },
+ "filters": {
+  "author": "只顯示這個代理程式撰寫的報告。選擇「全部」可移除篩選。",
+  "health": "只顯示此健康狀況的報告。選擇「全部」可移除篩選。",
+  "app": "只顯示針對這個應用程式提交的報告。選擇「全部」可移除篩選。",
+  "from": "只顯示在此時間或之後提交的報告。",
+  "to": "只顯示在此時間或之前提交的報告。"
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "報告的提交時間。懸停可查看確切時間。",
+   "title": "作者為報告取的標題。懸停可查看全文。",
+   "author": "撰寫報告的代理程式，或以本人名義提交報告的人員。",
+   "kind": "報告的類型：狀態、事件、決策、交接或簡報。",
+   "health": "作者所說的目前情況。",
+   "app": "報告涉及的應用程式（如果有）。",
+   "period": "報告涵蓋的時間範圍（如果作者有提供）。",
+   "issues": "報告提出的問題，依嚴重程度計數。",
+   "audience": "報告寫給誰：直屬主管、管理鏈或董事會。",
+   "filedBy": "誰提交了報告：某個執行，或某個人員或 API 存取金鑰。",
+   "runId": "提交報告的執行（如果是執行提交的）。",
+   "id": "報告 ID (rpt_...)，用於 REST API、SDK 和 MCP 工具。"
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "返回報告清單。",
+   "viewJson": "依 API 傳回的原樣顯示報告。",
+   "body": "作者撰寫的報告內文，以純文字顯示。",
+   "metrics": "作者回報的數字，每個都有名稱和選用的單位。",
+   "chart": "同一作者所有報告中的一個指標，依時間由早到晚排列。",
+   "issues": "報告提出的問題，每個都有嚴重程度。",
+   "decisions": "作者在這份報告中記錄的決策。",
+   "openAgent": "開啟撰寫這份報告的代理程式。",
+   "openRun": "開啟提交這份報告的執行。",
+   "openKeeper": "開啟在巡檢中提交這份報告的守護者。",
+   "openApp": "開啟這份報告涉及的應用程式。",
+   "columns": {
+    "name": "作者使用的指標名稱。名稱相同的指標會繪製在一起。",
+    "value": "作者回報的值。",
+    "unit": "作者給出的單位，例如 ms 或百分比。"
+   },
+   "fields": {
+    "health": "作者所說的目前情況。",
+    "kind": "這份報告的類型。",
+    "audience": "這份報告寫給誰。",
+    "author": "撰寫報告的代理程式，或以本人名義提交報告的人員。",
+    "period": "報告涵蓋的時間範圍（如果作者有提供）。",
+    "createdUtc": "報告的提交時間。懸停可查看距今多久。",
+    "filedBy": "誰提交了報告：某個執行，或某個人員或 API 存取金鑰。",
+    "runId": "提交報告的執行。",
+    "mandateId": "在巡檢中提交報告的守護者。",
+    "mandateTickId": "提交報告的守護者巡檢。",
+    "app": "報告涉及的應用程式。",
+    "orgUnitId": "報告涉及的組織單位。組織功能將在後續版本中推出。"
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "報告",
+  "p1": "代理程式透過報告告訴人員以及彼此目前的情況。執行使用 garrison_file_report 工具提交報告，人員可以在這裡或透過 API 提交。每份報告都有類型、健康狀況和讀者，並可以包含指標、問題和決策。",
+  "p2": "報告提交後無法修改或刪除，因此報告構成一份紀錄。在守護者巡檢期間提交的報告會連結到該守護者和巡檢，健康狀況為異常的報告會通知訂閱了該事件的端點。",
+  "p3": "報告中的一切都是作者寫下的資料。它們以純文字顯示，絕不會被當作指示遵從。開啟一份報告，即可在同一作者的所有報告中繪製它的某個指標。"
+ }
+});

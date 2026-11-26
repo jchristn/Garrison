@@ -6306,3 +6306,169 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "Berichte",
+    "tip": "Statusberichte, Vorfälle, Entscheidungen und Übergaben, die Agenten und Personen eingereicht haben, mit Zustand und Kennzahlen"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Bericht"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Gestörter Bericht eingereicht"
+  },
+  "reportKind": {
+   "Status": "Status",
+   "Incident": "Vorfall",
+   "Decision": "Entscheidung",
+   "Handoff": "Übergabe",
+   "Brief": "Kurzbericht"
+  },
+  "reportHealth": {
+   "Healthy": "Gesund",
+   "Degraded": "Beeinträchtigt",
+   "Unhealthy": "Gestört",
+   "Unknown": "Unbekannt"
+  },
+  "reportAudience": {
+   "Manager": "Vorgesetzte",
+   "Chain": "Führungskette",
+   "Board": "Vorstand"
+  },
+  "reportIssueSeverity": {
+   "Low": "Niedrig",
+   "Medium": "Mittel",
+   "High": "Hoch"
+  }
+ },
+ "reports": {
+  "untrusted": "Ein Agent oder eine Person hat diesen Bericht geschrieben. Titel, Inhalt, Kennzahlen, Probleme und Entscheidungen werden genau so als reiner Text angezeigt, wie sie eingereicht wurden; nichts davon wird ausgeführt, gerendert oder befolgt.",
+  "period": "{{from}} bis {{to}}",
+  "periodFrom": "Ab {{from}}",
+  "periodTo": "Bis {{to}}",
+  "filters": {
+   "author": "Autor",
+   "app": "App",
+   "from": "Eingereicht nach",
+   "to": "Eingereicht vor"
+  },
+  "actions": {
+   "file": "Bericht einreichen",
+   "copyId": "ID kopieren",
+   "openRun": "Lauf öffnen",
+   "openKeeper": "Wächter öffnen",
+   "openAuthor": "Autor öffnen"
+  },
+  "toasts": {
+   "filed": "{{title}} eingereicht.",
+   "copied": "Berichts-ID kopiert."
+  },
+  "file": {
+   "title": "Bericht einreichen",
+   "intro": "Halten Sie fest, wie es steht. Alle, die Berichte lesen dürfen, sehen ihn hier, und ein gestörter Bericht benachrichtigt die Endpunkte, die solche Berichte abonniert haben. Ein eingereichter Bericht lässt sich nicht mehr ändern.",
+   "noAgent": "Kein Agent (in meinem Namen)",
+   "fields": {
+    "title": "Titel",
+    "kind": "Art",
+    "health": "Zustand",
+    "audience": "Zielgruppe",
+    "agent": "Für Agent einreichen",
+    "body": "Inhalt"
+   },
+   "errors": {
+    "title": "Geben Sie dem Bericht einen Titel mit 1 bis {{max}} Zeichen.",
+    "body": "Der Inhalt darf höchstens {{max}} Byte umfassen."
+   }
+  },
+  "chart": {
+   "metric": "Kennzahl",
+   "title": "{{metric}} im Zeitverlauf",
+   "help_one": "{{count}} Wert, den {{agent}} gemeldet hat, ältester zuerst.",
+   "help_other": "{{count}} Werte, die {{agent}} gemeldet hat, älteste zuerst.",
+   "noMetrics": "Dieser Bericht enthält keine Kennzahlen, daher gibt es nichts darzustellen.",
+   "noAuthor": "Kein Agent hat diesen Bericht geschrieben, daher gibt es keinen Verlauf eines Autors.",
+   "empty": "Für diese Kennzahl gibt es noch keine Werte.",
+   "failed": "Der Verlauf der Kennzahl konnte nicht geladen werden."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "Bericht",
+   "notFoundTitle": "Bericht nicht gefunden",
+   "notFoundBody": "Er existiert in diesem Mandanten nicht oder wurde mit seinem Mandanten entfernt.",
+   "back": "Zurück zu den Berichten",
+   "body": "Inhalt",
+   "metrics": "Kennzahlen",
+   "chart": "Verlauf der Kennzahl",
+   "issues": "Probleme",
+   "decisions": "Entscheidungen",
+   "noBody": "Dieser Bericht hat keinen Inhalt.",
+   "noMetrics": "Dieser Bericht hat keine Kennzahlen.",
+   "noIssues": "Keine Probleme gemeldet.",
+   "noDecisions": "Keine Entscheidungen festgehalten.",
+   "columns": {
+    "name": "Name",
+    "value": "Wert",
+    "unit": "Einheit"
+   },
+   "fields": {
+    "health": "Zustand",
+    "kind": "Art",
+    "audience": "Zielgruppe",
+    "author": "Autor",
+    "period": "Zeitraum",
+    "createdUtc": "Eingereicht",
+    "filedBy": "Eingereicht von",
+    "runId": "Lauf",
+    "mandateId": "Wächter",
+    "mandateTickId": "Wächter-Tick",
+    "app": "App",
+    "orgUnitId": "Organisationseinheit"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "Berichte",
+   "subtitle": "Was Agenten und Personen nach oben gemeldet haben: wie es steht, Vorfälle, Entscheidungen und Übergaben, mit Zustand und Kennzahlen. Öffnen Sie einen Bericht, um ihn zu lesen und eine Kennzahl im Zeitverlauf darzustellen.",
+   "add": "Bericht einreichen",
+   "create": "Bericht einreichen",
+   "edit": "Bericht",
+   "view": "Berichtsdetails",
+   "deleteTitle": "Bericht löschen",
+   "emptyTitle": "Noch keine Berichte",
+   "emptyBody": "Agenten reichen Berichte während ihrer Läufe mit dem Tool garrison_file_report ein, Personen hier oder über die API. Sie erscheinen hier, sobald einer eingereicht ist.",
+   "columns": {
+    "createdUtc": "Eingereicht",
+    "title": "Titel",
+    "author": "Autor",
+    "kind": "Art",
+    "health": "Zustand",
+    "app": "App",
+    "period": "Zeitraum",
+    "issues": "Probleme",
+    "audience": "Zielgruppe",
+    "filedBy": "Eingereicht von",
+    "runId": "Lauf",
+    "id": "ID"
+   }
+  }
+ }
+});

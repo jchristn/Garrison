@@ -6294,3 +6294,169 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "Reports",
+    "tip": "Status reports, incidents, decisions, and handoffs that agents and people filed, with health and metrics"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Report"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Unhealthy report filed"
+  },
+  "reportKind": {
+   "Status": "Status",
+   "Incident": "Incident",
+   "Decision": "Decision",
+   "Handoff": "Handoff",
+   "Brief": "Brief"
+  },
+  "reportHealth": {
+   "Healthy": "Healthy",
+   "Degraded": "Degraded",
+   "Unhealthy": "Unhealthy",
+   "Unknown": "Unknown"
+  },
+  "reportAudience": {
+   "Manager": "Manager",
+   "Chain": "Management chain",
+   "Board": "Board"
+  },
+  "reportIssueSeverity": {
+   "Low": "Low",
+   "Medium": "Medium",
+   "High": "High"
+  }
+ },
+ "reports": {
+  "untrusted": "An agent or a person wrote this report. Its title, body, metrics, issues, and decisions are shown as plain text exactly as filed; nothing in them is run, rendered, or followed.",
+  "period": "{{from}} to {{to}}",
+  "periodFrom": "From {{from}}",
+  "periodTo": "Until {{to}}",
+  "filters": {
+   "author": "Author",
+   "app": "App",
+   "from": "Filed after",
+   "to": "Filed before"
+  },
+  "actions": {
+   "file": "File report",
+   "copyId": "Copy ID",
+   "openRun": "Open run",
+   "openKeeper": "Open keeper",
+   "openAuthor": "Open author"
+  },
+  "toasts": {
+   "filed": "Filed {{title}}.",
+   "copied": "Copied the report ID."
+  },
+  "file": {
+   "title": "File a report",
+   "intro": "Write down how things stand. Everyone who can read reports sees it here, and an Unhealthy report notifies the endpoints that subscribe to it. A filed report cannot be changed.",
+   "noAgent": "No agent (my own name)",
+   "fields": {
+    "title": "Title",
+    "kind": "Kind",
+    "health": "Health",
+    "audience": "Audience",
+    "agent": "File for agent",
+    "body": "Body"
+   },
+   "errors": {
+    "title": "Give the report a title of 1 to {{max}} characters.",
+    "body": "The body holds at most {{max}} bytes."
+   }
+  },
+  "chart": {
+   "metric": "Metric",
+   "title": "{{metric}} over time",
+   "help_one": "{{count}} value {{agent}} reported, oldest first.",
+   "help_other": "{{count}} values {{agent}} reported, oldest first.",
+   "noMetrics": "This report carries no metrics, so there is nothing to chart.",
+   "noAuthor": "No agent wrote this report, so there is no author history to chart.",
+   "empty": "No values for this metric yet.",
+   "failed": "The metric history could not be loaded."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "Report",
+   "notFoundTitle": "Report not found",
+   "notFoundBody": "It does not exist in this tenant, or it was removed with its tenant.",
+   "back": "Back to reports",
+   "body": "Body",
+   "metrics": "Metrics",
+   "chart": "Metric history",
+   "issues": "Issues",
+   "decisions": "Decisions",
+   "noBody": "This report has no body.",
+   "noMetrics": "This report has no metrics.",
+   "noIssues": "No issues reported.",
+   "noDecisions": "No decisions recorded.",
+   "columns": {
+    "name": "Name",
+    "value": "Value",
+    "unit": "Unit"
+   },
+   "fields": {
+    "health": "Health",
+    "kind": "Kind",
+    "audience": "Audience",
+    "author": "Author",
+    "period": "Period",
+    "createdUtc": "Filed",
+    "filedBy": "Filed by",
+    "runId": "Run",
+    "mandateId": "Keeper",
+    "mandateTickId": "Keeper tick",
+    "app": "App",
+    "orgUnitId": "Organization unit"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "Reports",
+   "subtitle": "What agents and people filed upward: how things stand, incidents, decisions, and handoffs, with health and metrics. Open one to read it and chart a metric over time.",
+   "add": "File report",
+   "create": "File report",
+   "edit": "Report",
+   "view": "Report details",
+   "deleteTitle": "Delete report",
+   "emptyTitle": "No reports yet",
+   "emptyBody": "Agents file reports with the garrison_file_report tool while they run, and people file them here or through the API. They show here once one is filed.",
+   "columns": {
+    "createdUtc": "Filed",
+    "title": "Title",
+    "author": "Author",
+    "kind": "Kind",
+    "health": "Health",
+    "app": "App",
+    "period": "Period",
+    "issues": "Issues",
+    "audience": "Audience",
+    "filedBy": "Filed by",
+    "runId": "Run",
+    "id": "ID"
+   }
+  }
+ }
+});

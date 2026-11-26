@@ -3695,3 +3695,156 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "p3": "Der Text sind Daten, die ein Agent oder eine Person gespeichert hat. Er erscheint hier als reiner Text und erreicht Agenten als Daten, nie als Anweisungen. Löschen Sie einen Eintrag, der nicht behalten werden soll; Agenten, die danach suchen, finden dann nichts mehr."
  }
 });
+
+// Reports (AA5.10): tooltips of the Reports page, the report page, the metric chart, and the File report dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "reports": "Berichte: was Agenten und Personen nach oben gemeldet haben, neueste zuerst, mit Zustand, Art, Autor und Zeitraum. Öffnen Sie einen für seine Kennzahlen und ein Diagramm."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Berichte von Läufen und Personen. Lesen listet Berichte und Kennzahlverläufe auf; Erstellen reicht einen ein."
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Ein Lauf oder eine Person hat einen Bericht mit dem Zustand Gestört eingereicht."
+  },
+  "reportKind": {
+   "Status": "Eine regelmäßige Meldung, wie eine dauerhafte Aufgabe läuft.",
+   "Incident": "Etwas ist schiefgegangen, und der Leser sollte es jetzt erfahren.",
+   "Decision": "Ein Nachweis einer Entscheidung des Autors und ihrer Gründe.",
+   "Handoff": "Arbeit, die an jemand anderen übergeht, mit allem, was zum Weitermachen nötig ist.",
+   "Brief": "Eine kurze Zusammenfassung für einen Leser wie eine Vorgesetzte oder den Vorstand."
+  },
+  "reportHealth": {
+   "Healthy": "Alles, worum sich der Autor kümmert, funktioniert wie erwartet.",
+   "Degraded": "Funktioniert noch, aber schlechter als erwartet. Sollte beobachtet werden.",
+   "Unhealthy": "Etwas ist defekt oder gefährdet. Benachrichtigt die Endpunkte, die gestörte Berichte abonniert haben.",
+   "Unknown": "Der Autor hat nicht angegeben oder konnte nicht sagen, wie es steht."
+  },
+  "reportAudience": {
+   "Manager": "Für die direkte Vorgesetzte oder den direkten Vorgesetzten des Autors.",
+   "Chain": "Für alle Vorgesetzten entlang der Berichtslinie des Autors.",
+   "Board": "Für den Vorstand, der die Organisation beaufsichtigt."
+  },
+  "reportIssueSeverity": {
+   "Low": "Ein kleines Problem, das bis zur nächsten regulären Durchsicht warten kann.",
+   "Medium": "Ein Problem, das bald Aufmerksamkeit braucht, aber nicht dringend ist.",
+   "High": "Ein ernstes Problem, das sofort Aufmerksamkeit braucht."
+  }
+ },
+ "reports": {
+  "denied": "Das dürfen Sie nicht. Dafür ist {{operation}} auf Bericht nötig.",
+  "filters": {
+   "kind": "Nur Berichte dieser Art anzeigen. Wählen Sie Alle, um den Filter zu entfernen."
+  },
+  "actions": {
+   "file": "Einen Bericht im eigenen Namen oder im Namen eines Agenten einreichen. Ein eingereichter Bericht lässt sich weder ändern noch löschen.",
+   "copyId": "Die Berichts-ID (rpt_...) für die REST API, SDKs oder MCP-Tools kopieren.",
+   "openRun": "Den Lauf öffnen, der diesen Bericht eingereicht hat.",
+   "openKeeper": "Den Wächter öffnen, dessen Tick diesen Bericht eingereicht hat.",
+   "openAuthor": "Den Agenten öffnen, der diesen Bericht geschrieben hat."
+  },
+  "file": {
+   "submit": "Den Bericht einreichen. Danach lässt er sich nicht mehr ändern.",
+   "fields": {
+    "title": "Ein kurzer Titel mit 1 bis 256 Zeichen.",
+    "kind": "Welche Art Bericht das ist: eine Statusmeldung, ein Vorfall, eine Entscheidung, eine Übergabe oder ein Kurzbericht.",
+    "health": "Wie es steht. Gestört benachrichtigt die Endpunkte, die gestörte Berichte abonniert haben.",
+    "audience": "Für wen der Bericht ist: die Vorgesetzten, die ganze Führungskette oder den Vorstand.",
+    "agent": "Den Bericht als Bericht dieses Agenten einreichen, damit er zu dessen Berichten und Kennzahlverlauf gehört. Leer lassen, um im eigenen Namen einzureichen.",
+    "body": "Der eigentliche Bericht als reiner Text. Er wird genau so angezeigt, wie er geschrieben wurde."
+   }
+  },
+  "chart": {
+   "metric": "Eine Kennzahl dieses Berichts wählen, um sie über alle Berichte desselben Autors darzustellen.",
+   "chart": "Jeder Wert, den der Autor für diese Kennzahl gemeldet hat, ältester zuerst, aus bis zu 500 Berichten. Fahren Sie über das Diagramm, um einen Wert abzulesen."
+  }
+ },
+ "filters": {
+  "author": "Nur Berichte dieses Agenten anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+  "health": "Nur Berichte mit diesem Zustand anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+  "app": "Nur Berichte zu dieser App anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+  "from": "Nur Berichte anzeigen, die zu oder nach diesem Zeitpunkt eingereicht wurden.",
+  "to": "Nur Berichte anzeigen, die zu oder vor diesem Zeitpunkt eingereicht wurden."
+ },
+ "resources": {
+  "reports": {
+   "createdUtc": "Wann der Bericht eingereicht wurde. Für die genaue Zeit darauf zeigen.",
+   "title": "Der Titel, den der Autor dem Bericht gegeben hat. Für den vollen Text darauf zeigen.",
+   "author": "Der Agent, der den Bericht geschrieben hat, oder die Person, die ihn im eigenen Namen eingereicht hat.",
+   "kind": "Welche Art Bericht es ist: Status, Vorfall, Entscheidung, Übergabe oder Kurzbericht.",
+   "health": "Wie es laut Autor steht.",
+   "app": "Die App, um die es im Bericht geht, sofern er eine nennt.",
+   "period": "Der Zeitraum, den der Bericht abdeckt, sofern der Autor einen angegeben hat.",
+   "issues": "Die Probleme, die der Bericht nennt, nach Schweregrad gezählt.",
+   "audience": "Für wen der Bericht ist: die Vorgesetzten, die Führungskette oder den Vorstand.",
+   "filedBy": "Wer den Bericht eingereicht hat: ein Lauf oder eine Person bzw. API-Anmeldedaten.",
+   "runId": "Der Lauf, der den Bericht eingereicht hat, falls ein Lauf ihn eingereicht hat.",
+   "id": "Die Berichts-ID (rpt_...) für die REST API, SDKs und MCP-Tools."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "back": "Zur Liste der Berichte zurückkehren.",
+   "viewJson": "Den Bericht so anzeigen, wie die API ihn liefert.",
+   "body": "Der Berichtstext, wie der Autor ihn geschrieben hat, als reiner Text.",
+   "metrics": "Zahlen, die der Autor gemeldet hat, jeweils mit einem Namen und optional einer Einheit.",
+   "chart": "Eine Kennzahl über alle Berichte desselben Autors, älteste zuerst.",
+   "issues": "Probleme, die der Bericht nennt, jeweils mit einem Schweregrad.",
+   "decisions": "Entscheidungen, die der Autor in diesem Bericht festgehalten hat.",
+   "openAgent": "Den Agenten öffnen, der diesen Bericht geschrieben hat.",
+   "openRun": "Den Lauf öffnen, der diesen Bericht eingereicht hat.",
+   "openKeeper": "Den Wächter öffnen, dessen Tick diesen Bericht eingereicht hat.",
+   "openApp": "Die App öffnen, um die es in diesem Bericht geht.",
+   "columns": {
+    "name": "Der Name der Kennzahl, den der Autor verwendet hat. Kennzahlen mit demselben Namen erscheinen im selben Diagramm.",
+    "value": "Der Wert, den der Autor gemeldet hat.",
+    "unit": "Die Einheit, die der Autor angegeben hat, etwa ms oder Prozent."
+   },
+   "fields": {
+    "health": "Wie es laut Autor steht.",
+    "kind": "Welche Art Bericht das ist.",
+    "audience": "Für wen der Bericht ist.",
+    "author": "Der Agent, der den Bericht geschrieben hat, oder die Person, die ihn im eigenen Namen eingereicht hat.",
+    "period": "Der Zeitraum, den der Bericht abdeckt, sofern der Autor einen angegeben hat.",
+    "createdUtc": "Wann der Bericht eingereicht wurde. Darauf zeigen, um zu sehen, wie lange das her ist.",
+    "filedBy": "Wer den Bericht eingereicht hat: ein Lauf oder eine Person bzw. API-Anmeldedaten.",
+    "runId": "Der Lauf, der den Bericht eingereicht hat.",
+    "mandateId": "Der Wächter, dessen Tick den Bericht eingereicht hat.",
+    "mandateTickId": "Der Wächter-Tick, der den Bericht eingereicht hat.",
+    "app": "Die App, um die es im Bericht geht.",
+    "orgUnitId": "Die Organisationseinheit, um die es im Bericht geht. Organisationen kommen in einer späteren Version."
+   }
+  }
+ }
+});
+
+// Reports (AA5.10): the explainer of the Reports page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "reports": {
+  "title": "Berichte",
+  "p1": "Mit Berichten teilen Agenten Personen und einander mit, wie es steht. Ein Lauf reicht einen mit dem Tool garrison_file_report ein, Personen tun es hier oder über die API. Jeder Bericht hat eine Art, einen Zustand und eine Zielgruppe und kann Kennzahlen, Probleme und Entscheidungen enthalten.",
+  "p2": "Ein eingereichter Bericht lässt sich weder ändern noch löschen, daher bilden Berichte einen Nachweis. Ein Bericht aus einem Wächter-Tick verweist auf den Wächter und den Tick, und ein gestörter Bericht benachrichtigt die Endpunkte, die solche Berichte abonniert haben.",
+  "p3": "Alles in einem Bericht sind Daten, die sein Autor geschrieben hat. Sie werden als reiner Text angezeigt und nie als Anweisungen befolgt. Öffnen Sie einen Bericht, um eine seiner Kennzahlen über alle Berichte desselben Autors darzustellen."
+ }
+});

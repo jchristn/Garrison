@@ -6320,3 +6320,169 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Reports (AA5.10): the Reports page, the report page and its metric chart, the File report dialog, the report
+// enums, the Report resource type, and the ReportUnhealthy notification event.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "reports": {
+    "label": "Rapporti",
+    "tip": "Rapporti di stato, incidenti, decisioni e passaggi di consegne presentati da agenti e persone, con salute e metriche"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "Report": "Rapporto"
+  },
+  "notificationEvent": {
+   "ReportUnhealthy": "Presentato un rapporto critico"
+  },
+  "reportKind": {
+   "Status": "Stato",
+   "Incident": "Incidente",
+   "Decision": "Decisione",
+   "Handoff": "Passaggio di consegne",
+   "Brief": "Sintesi"
+  },
+  "reportHealth": {
+   "Healthy": "Sano",
+   "Degraded": "Degradato",
+   "Unhealthy": "Critico",
+   "Unknown": "Sconosciuta"
+  },
+  "reportAudience": {
+   "Manager": "Responsabile",
+   "Chain": "Catena gerarchica",
+   "Board": "Consiglio"
+  },
+  "reportIssueSeverity": {
+   "Low": "Bassa",
+   "Medium": "Media",
+   "High": "Alta"
+  }
+ },
+ "reports": {
+  "untrusted": "Questo rapporto è stato scritto da un agente o da una persona. Titolo, testo, metriche, problemi e decisioni sono mostrati come testo semplice, esattamente come sono stati presentati; nulla viene eseguito, interpretato o seguito.",
+  "period": "Dal {{from}} al {{to}}",
+  "periodFrom": "Dal {{from}}",
+  "periodTo": "Fino al {{to}}",
+  "filters": {
+   "author": "Autore",
+   "app": "Applicazione",
+   "from": "Presentato dopo",
+   "to": "Presentato prima"
+  },
+  "actions": {
+   "file": "Presenta rapporto",
+   "copyId": "Copia ID",
+   "openRun": "Apri esecuzione",
+   "openKeeper": "Apri custode",
+   "openAuthor": "Apri autore"
+  },
+  "toasts": {
+   "filed": "{{title}} presentato.",
+   "copied": "ID del rapporto copiato."
+  },
+  "file": {
+   "title": "Presenta un rapporto",
+   "intro": "Annota come stanno le cose. Chiunque possa leggere i rapporti lo vedrà qui, e un rapporto critico avvisa gli endpoint iscritti a questo evento. Un rapporto presentato non si può più modificare.",
+   "noAgent": "Nessun agente (a mio nome)",
+   "fields": {
+    "title": "Titolo",
+    "kind": "Tipo",
+    "health": "Salute",
+    "audience": "Destinatari",
+    "agent": "Presenta per l'agente",
+    "body": "Testo"
+   },
+   "errors": {
+    "title": "Dai al rapporto un titolo da 1 a {{max}} caratteri.",
+    "body": "Il testo può contenere al massimo {{max}} byte."
+   }
+  },
+  "chart": {
+   "metric": "Metrica",
+   "title": "{{metric}} nel tempo",
+   "help_one": "{{count}} valore riportato da {{agent}}, dal più vecchio al più recente.",
+   "help_other": "{{count}} valori riportati da {{agent}}, dal più vecchio al più recente.",
+   "noMetrics": "Questo rapporto non contiene metriche, quindi non c'è nulla da rappresentare.",
+   "noAuthor": "Nessun agente ha scritto questo rapporto, quindi non c'è una cronologia dell'autore da rappresentare.",
+   "empty": "Ancora nessun valore per questa metrica.",
+   "failed": "Impossibile caricare la cronologia della metrica."
+  }
+ },
+ "views": {
+  "reportDetail": {
+   "title": "Rapporto",
+   "notFoundTitle": "Rapporto non trovato",
+   "notFoundBody": "Non esiste in questo tenant, oppure è stato eliminato insieme al suo tenant.",
+   "back": "Torna ai rapporti",
+   "body": "Testo",
+   "metrics": "Metriche",
+   "chart": "Cronologia della metrica",
+   "issues": "Problemi",
+   "decisions": "Decisioni",
+   "noBody": "Questo rapporto non ha testo.",
+   "noMetrics": "Questo rapporto non ha metriche.",
+   "noIssues": "Nessun problema segnalato.",
+   "noDecisions": "Nessuna decisione registrata.",
+   "columns": {
+    "name": "Nome",
+    "value": "Valore",
+    "unit": "Unità"
+   },
+   "fields": {
+    "health": "Salute",
+    "kind": "Tipo",
+    "audience": "Destinatari",
+    "author": "Autore",
+    "period": "Periodo",
+    "createdUtc": "Presentato",
+    "filedBy": "Presentato da",
+    "runId": "Esecuzione",
+    "mandateId": "Custode",
+    "mandateTickId": "Ciclo del custode",
+    "app": "Applicazione",
+    "orgUnitId": "Unità organizzativa"
+   }
+  }
+ },
+ "resources": {
+  "reports": {
+   "title": "Rapporti",
+   "subtitle": "Ciò che agenti e persone hanno riferito verso l'alto: come stanno le cose, incidenti, decisioni e passaggi di consegne, con salute e metriche. Aprine uno per leggerlo e seguire una metrica nel tempo.",
+   "add": "Presenta rapporto",
+   "create": "Presenta rapporto",
+   "edit": "Rapporto",
+   "view": "Dettagli del rapporto",
+   "deleteTitle": "Elimina rapporto",
+   "emptyTitle": "Ancora nessun rapporto",
+   "emptyBody": "Gli agenti presentano rapporti con lo strumento garrison_file_report durante le esecuzioni, e le persone li presentano qui o tramite l'API. Compaiono qui appena ne viene presentato uno.",
+   "columns": {
+    "createdUtc": "Presentato",
+    "title": "Titolo",
+    "author": "Autore",
+    "kind": "Tipo",
+    "health": "Salute",
+    "app": "Applicazione",
+    "period": "Periodo",
+    "issues": "Problemi",
+    "audience": "Destinatari",
+    "filedBy": "Presentato da",
+    "runId": "Esecuzione",
+    "id": "ID"
+   }
+  }
+ }
+});

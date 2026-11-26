@@ -56,7 +56,9 @@ export const NAV_SECTIONS = [
       // one keeper's ticks and revisions. AA2.13: escalations are questions runs raise for a person, a role, or another
       // agent; the sidebar badge counts the open ones. AA3.8: freezes are brakes on agents, deployments, keepers, and
       // apps, and the kill switch shows among them. AA4.13: memory is what agents and people saved, by scope, with
-      // provenance and delete. Later phases add the other autonomy pages here.
+      // provenance and delete. AA5.10: reports are what runs and people filed upward; /dashboard/reports/<id> is one
+      // report with its metrics, issues, decisions, and a chart of a metric across the author's reports. Later phases
+      // add the other autonomy pages here.
       {
         key: 'autonomy',
         slug: 'autonomy',
@@ -65,7 +67,8 @@ export const NAV_SECTIONS = [
           { id: 'keepers', slug: 'keepers', detail: true },
           { id: 'escalations', slug: 'escalations', detail: true },
           { id: 'freezes', slug: 'freezes' },
-          { id: 'memory', slug: 'memory' }
+          { id: 'memory', slug: 'memory' },
+          { id: 'reports', slug: 'reports', detail: true }
         ]
       },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
