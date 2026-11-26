@@ -3847,3 +3847,165 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "p3": "报告中的一切都是作者写下的数据。它们以纯文本显示，绝不会被当作指令遵循。打开一份报告，即可在同一作者的所有报告中绘制它的某个指标。"
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "消息：智能体之间以及来自人员的邮件，最新的在前，包括被循环防护拒绝的消息。打开一条即可阅读其会话。",
+   "messageThreads": "一个消息会话：其中的所有消息，按时间从早到晚排列，包括被拒绝的消息。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "智能体之间以及来自人员的消息。Read 列出消息和会话；Create 发送消息。"
+  },
+  "runKind": {
+   "Message": "由发给没有活动守护者的智能体的紧急消息启动。该运行会读取等待中的消息。"
+  },
+  "messageStatus": {
+   "Queued": "已接受，正在收件人的收件箱中等待。",
+   "Delivered": "已交给收件人的一次运行：守护者巡检、紧急消息运行或一次收件箱读取。",
+   "Acknowledged": "收件人已确认读取并处理了这条消息。",
+   "Expired": "在收件人的任何运行读取它之前，其存活时间已用完。",
+   "Rejected": "发送时被循环防护拒绝，从未送达。原因说明了为什么。"
+  },
+  "messageUrgency": {
+   "Normal": "在收件箱中等待，直到收件人的下一次运行或守护者巡检读取它。",
+   "Urgent": "立即唤醒收件人：其守护者提前巡检，或启动一次新的运行来读取消息。"
+  },
+  "messageRejection": {
+   "HopLimit": "该会话已被转发太多次。跳数上限可防止智能体无休止地循环转发邮件。",
+   "LineRate": "发件人在最近一分钟内向该收件人发送的消息已达到线路速率允许的数量。",
+   "ThreadBudget": "该会话中的消息数已达到单个会话的上限。请开启新的会话继续。",
+   "NoLine": "发件人和收件人之间没有允许的线路，因此它们不能互相发送消息。",
+   "Frozen": "收件智能体已被冻结，在解除冻结之前不接收新邮件。"
+  }
+ },
+ "messages": {
+  "denied": "您不能执行此操作。需要对智能体消息拥有 {{operation}} 权限。",
+  "views": {
+   "all": "显示所有消息，无论其状态如何。",
+   "rejected": "只显示被循环防护拒绝的消息，并显示每条被拒绝的原因。"
+  },
+  "filters": {
+   "status": "只显示该状态的消息。选择“全部”可移除筛选。",
+   "urgency": "只显示普通消息或只显示紧急消息。选择“全部”可移除筛选。",
+   "reason": "只显示因该原因被拒绝的消息。选择“全部”可移除筛选。",
+   "sender": "只显示该智能体发送的消息。选择“全部”可移除筛选。",
+   "recipient": "只显示发给该智能体的消息。选择“全部”可移除筛选。",
+   "from": "只显示在此时间或之后发送的消息。",
+   "to": "只显示在此时间或之前发送的消息。"
+  },
+  "actions": {
+   "send": "以您自己的名义给智能体写消息。循环防护会像检查其他消息一样检查它。",
+   "openThread": "打开这条消息所属的整个会话，按时间从早到晚排列。",
+   "copyId": "复制消息 ID (amg_...)，用于 REST API、SDK 或 MCP 工具。",
+   "openSender": "打开发送这条消息的智能体。",
+   "openRecipient": "打开这条消息的收件智能体。",
+   "openDeliveredRun": "打开接收这条消息的收件人运行。",
+   "openEscalation": "打开针对这条消息发起的升级。"
+  },
+  "send": {
+   "submit": "发送消息。消息发送后无法更改。",
+   "fields": {
+    "recipient": "在收件箱中接收消息的智能体。",
+    "subject": "1 到 256 个字符的简短主题。收件人首先看到它。",
+    "body": "消息本身，以纯文本形式。收件人将其作为数据读取，绝不作为指令。",
+    "urgency": "普通会等待收件人的下一次运行。紧急会立即唤醒收件人。",
+    "ttlSeconds": "消息在过期前可以未读等待多久，从 1 秒到一年。留空则使用服务器默认值。"
+   }
+  }
+ },
+ "filters": {
+  "urgency": "只显示普通消息或只显示紧急消息。选择“全部”可移除筛选。",
+  "reason": "只显示因该原因被拒绝的消息。选择“全部”可移除筛选。",
+  "sender": "只显示该智能体发送的消息。选择“全部”可移除筛选。",
+  "recipient": "只显示发给该智能体的消息。选择“全部”可移除筛选。"
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "消息的发送时间。悬停可查看确切时间。",
+   "urgency": "普通消息等待下一次运行；紧急消息会唤醒收件人。",
+   "status": "消息当前的状态：排队中、已送达、已确认、已过期或已拒绝。",
+   "subject": "发件人写的主题。悬停可查看全文。",
+   "sender": "发送消息的智能体，或发送消息的人员或 API 凭据。",
+   "recipient": "消息的收件智能体。",
+   "reason": "循环防护拒绝该消息的原因及其详情。已接受的消息此处为空。",
+   "hopCount": "发送这条消息时，会话已被转发的次数。",
+   "deliveredRunId": "接收该消息的收件人运行。",
+   "expiresUtc": "如果没有运行先读取，消息的过期时间。",
+   "escalationId": "针对这条消息发起的升级（如有）。",
+   "threadId": "会话 ID：会话中第一条消息的 ID。",
+   "id": "消息 ID (amg_...)，用于 REST API、SDK 和 MCP 工具。"
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "返回消息列表。",
+   "viewJson": "按 API 返回的原样显示会话。",
+   "openSender": "打开发送这条消息的智能体。",
+   "openRecipient": "打开这条消息的收件智能体。",
+   "openDeliveredRun": "打开接收这条消息的运行。",
+   "openEscalation": "打开针对这条消息发起的升级。",
+   "reply": "在同一会话中回复发送这条消息的智能体。",
+   "fields": {
+    "sender": "发送消息的智能体、人员或 API 凭据。",
+    "recipient": "消息的收件智能体。",
+    "createdUtc": "消息的发送时间。悬停可查看距今多久。",
+    "hopCount": "发送这条消息时，会话已被转发的次数。",
+    "deliveredRunId": "接收该消息的收件人运行。",
+    "deliveredUtc": "收件人的运行接收该消息的时间。",
+    "acknowledgedUtc": "收件人确认已处理该消息的时间。",
+    "expiresUtc": "如果没有运行先读取，消息的过期时间。",
+    "wokeRecipient": "这条紧急消息唤醒了收件人：其守护者提前巡检或启动了一次新的运行。",
+    "escalationId": "针对这条消息发起的升级。",
+    "id": "消息 ID (amg_...)，用于 REST API、SDK 和 MCP 工具。"
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "发给此智能体的消息，最新的在前，并显示状态。可在此处给它发送消息。"
+   },
+   "inbox": {
+    "status": "只显示该状态的消息。选择“全部”可移除筛选。",
+    "openAll": "打开按此智能体收件箱筛选的消息页面。",
+    "send": "以您自己的名义给此智能体写消息。",
+    "openThread": "打开这条消息所属的会话。"
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "过去 24 小时内被循环防护拒绝的消息：跳数过多、发送过快、会话过长、没有线路或收件人已冻结。打开已拒绝的消息查看原因。"
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "消息",
+  "p1": "智能体使用 garrison_send_message 工具互相发送消息，人员可以在此处或通过 API 给智能体发送消息。消息在收件人的收件箱中等待，直到某次运行读取它。紧急消息会立即唤醒收件人：其守护者提前巡检，或启动一次新的运行来读取它。",
+  "p2": "循环防护会在接受每条消息之前进行检查。当会话被转发太多次、发件人给同一智能体发送过快、会话过长、两个智能体之间没有线路，或收件人已被冻结时，消息会被拒绝。被拒绝的消息连同原因保留在“已拒绝”视图中。",
+  "p3": "消息中的一切都是发件人写的数据。它以纯文本显示，并作为数据到达智能体，绝不作为指令。打开一条消息即可按时间从早到晚阅读整个会话。"
+ }
+});

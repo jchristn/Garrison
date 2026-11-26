@@ -3848,3 +3848,165 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "p3": "Alles in einem Bericht sind Daten, die sein Autor geschrieben hat. Sie werden als reiner Text angezeigt und nie als Anweisungen befolgt. Öffnen Sie einen Bericht, um eine seiner Kennzahlen über alle Berichte desselben Autors darzustellen."
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "Nachrichten: Post zwischen Agenten und von Personen, neueste zuerst, mit den vom Schleifenschutz abgewiesenen. Öffnen Sie eine, um ihren Verlauf zu lesen.",
+   "messageThreads": "Ein Nachrichtenverlauf: alle Nachrichten darin, älteste zuerst, auch abgewiesene."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Nachrichten zwischen Agenten und von Personen. Read listet Nachrichten und Verläufe; Create sendet eine."
+  },
+  "runKind": {
+   "Message": "Gestartet durch eine dringende Nachricht an einen Agenten ohne aktiven Wächter. Der Lauf liest die wartenden Nachrichten."
+  },
+  "messageStatus": {
+   "Queued": "Angenommen und wartet im Posteingang des Empfängers.",
+   "Delivered": "An einen Lauf des Empfängers übergeben: einen Wächter-Zyklus, einen Lauf für dringende Nachrichten oder ein Lesen des Posteingangs.",
+   "Acknowledged": "Der Empfänger hat bestätigt, dass er die Nachricht gelesen und bearbeitet hat.",
+   "Expired": "Ihre Lebensdauer lief ab, bevor ein Lauf des Empfängers sie gelesen hat.",
+   "Rejected": "Beim Senden vom Schleifenschutz abgewiesen und nie zugestellt. Der Grund sagt, warum."
+  },
+  "messageUrgency": {
+   "Normal": "Wartet im Posteingang, bis der nächste Lauf oder Wächter-Zyklus des Empfängers sie liest.",
+   "Urgent": "Weckt den Empfänger sofort: sein Wächter läuft früher an, oder ein neuer Lauf startet, um die Nachricht zu lesen."
+  },
+  "messageRejection": {
+   "HopLimit": "Der Verlauf wurde schon zu oft weitergereicht. Die Weiterleitungsgrenze verhindert, dass Agenten Post endlos im Kreis schicken.",
+   "LineRate": "Der Absender hat diesem Empfänger in der letzten Minute schon so viele Nachrichten gesendet, wie die Senderate erlaubt.",
+   "ThreadBudget": "Der Verlauf enthält schon so viele Nachrichten, wie ein Verlauf haben darf. Beginnen Sie einen neuen Verlauf, um fortzufahren.",
+   "NoLine": "Keine erlaubte Verbindung führt vom Absender zum Empfänger, also dürfen sie einander nicht schreiben.",
+   "Frozen": "Der empfangende Agent ist eingefroren und nimmt keine neue Post an, bis das Einfrieren aufgehoben ist."
+  }
+ },
+ "messages": {
+  "denied": "Das dürfen Sie nicht. Dafür ist {{operation}} auf Agentennachricht nötig.",
+  "views": {
+   "all": "Alle Nachrichten anzeigen, gleich mit welchem Status.",
+   "rejected": "Nur Nachrichten anzeigen, die der Schleifenschutz abgewiesen hat, jeweils mit dem Grund."
+  },
+  "filters": {
+   "status": "Nur Nachrichten mit diesem Status anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+   "urgency": "Nur normale oder nur dringende Nachrichten anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+   "reason": "Nur Nachrichten anzeigen, die aus diesem Grund abgewiesen wurden. Wählen Sie Alle, um den Filter zu entfernen.",
+   "sender": "Nur Nachrichten anzeigen, die dieser Agent gesendet hat. Wählen Sie Alle, um den Filter zu entfernen.",
+   "recipient": "Nur Nachrichten an diesen Agenten anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+   "from": "Nur Nachrichten anzeigen, die zu oder nach diesem Zeitpunkt gesendet wurden.",
+   "to": "Nur Nachrichten anzeigen, die zu oder vor diesem Zeitpunkt gesendet wurden."
+  },
+  "actions": {
+   "send": "Einem Agenten in Ihrem eigenen Namen schreiben. Der Schleifenschutz prüft sie wie jede andere Nachricht.",
+   "openThread": "Den ganzen Verlauf dieser Nachricht öffnen, älteste zuerst.",
+   "copyId": "Die Nachrichten-ID (amg_...) für die REST API, SDKs oder MCP-Werkzeuge kopieren.",
+   "openSender": "Den Agenten öffnen, der diese Nachricht gesendet hat.",
+   "openRecipient": "Den Agenten öffnen, an den diese Nachricht ging.",
+   "openDeliveredRun": "Den Lauf des Empfängers öffnen, der diese Nachricht erhalten hat.",
+   "openEscalation": "Die Eskalation öffnen, die zu dieser Nachricht ausgelöst wurde."
+  },
+  "send": {
+   "submit": "Die Nachricht senden. Eine gesendete Nachricht lässt sich nicht mehr ändern.",
+   "fields": {
+    "recipient": "Der Agent, der die Nachricht in seinem Posteingang erhält.",
+    "subject": "Ein kurzer Betreff mit 1 bis 256 Zeichen. Der Empfänger sieht ihn zuerst.",
+    "body": "Die Nachricht selbst, als reiner Text. Der Empfänger liest sie als Daten, nie als Anweisungen.",
+    "urgency": "Normal wartet auf den nächsten Lauf des Empfängers. Dringend weckt den Empfänger sofort.",
+    "ttlSeconds": "Wie lange die Nachricht ungelesen warten darf, bevor sie abläuft, von 1 Sekunde bis zu einem Jahr. Leer lassen für den Standard des Servers."
+   }
+  }
+ },
+ "filters": {
+  "urgency": "Nur normale oder nur dringende Nachrichten anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+  "reason": "Nur Nachrichten anzeigen, die aus diesem Grund abgewiesen wurden. Wählen Sie Alle, um den Filter zu entfernen.",
+  "sender": "Nur Nachrichten anzeigen, die dieser Agent gesendet hat. Wählen Sie Alle, um den Filter zu entfernen.",
+  "recipient": "Nur Nachrichten an diesen Agenten anzeigen. Wählen Sie Alle, um den Filter zu entfernen."
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "Wann die Nachricht gesendet wurde. Zeigen Sie darauf für die genaue Zeit.",
+   "urgency": "Normale Nachrichten warten auf den nächsten Lauf; dringende wecken den Empfänger.",
+   "status": "Wo die Nachricht gerade ist: wartend, zugestellt, bestätigt, abgelaufen oder abgewiesen.",
+   "subject": "Der Betreff, den der Absender geschrieben hat. Zeigen Sie darauf für den ganzen Text.",
+   "sender": "Der Agent, der die Nachricht gesendet hat, oder die Person oder API-Zugangsdaten, die sie gesendet haben.",
+   "recipient": "Der Agent, an den die Nachricht ging.",
+   "reason": "Warum der Schleifenschutz die Nachricht abgewiesen hat, mit seinen Angaben. Leer bei angenommenen Nachrichten.",
+   "hopCount": "Wie oft der Verlauf schon weitergereicht worden war, als diese Nachricht gesendet wurde.",
+   "deliveredRunId": "Der Lauf des Empfängers, der die Nachricht erhalten hat.",
+   "expiresUtc": "Wann die Nachricht abläuft, falls kein Lauf sie vorher liest.",
+   "escalationId": "Die zu dieser Nachricht ausgelöste Eskalation, falls es eine gibt.",
+   "threadId": "Die Verlaufs-ID: die ID der ersten Nachricht im Verlauf.",
+   "id": "Die Nachrichten-ID (amg_...) für die REST API, SDKs und MCP-Werkzeuge."
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "Zur Liste der Nachrichten zurückkehren.",
+   "viewJson": "Den Verlauf so anzeigen, wie die API ihn liefert.",
+   "openSender": "Den Agenten öffnen, der diese Nachricht gesendet hat.",
+   "openRecipient": "Den Agenten öffnen, an den diese Nachricht ging.",
+   "openDeliveredRun": "Den Lauf öffnen, der diese Nachricht erhalten hat.",
+   "openEscalation": "Die zu dieser Nachricht ausgelöste Eskalation öffnen.",
+   "reply": "Dem Agenten, der diese Nachricht gesendet hat, im selben Verlauf antworten.",
+   "fields": {
+    "sender": "Der Agent, die Person oder die API-Zugangsdaten, die die Nachricht gesendet haben.",
+    "recipient": "Der Agent, an den die Nachricht ging.",
+    "createdUtc": "Wann die Nachricht gesendet wurde. Zeigen Sie darauf, um zu sehen, wie lange das her ist.",
+    "hopCount": "Wie oft der Verlauf schon weitergereicht worden war, als diese Nachricht gesendet wurde.",
+    "deliveredRunId": "Der Lauf des Empfängers, der die Nachricht erhalten hat.",
+    "deliveredUtc": "Wann ein Lauf des Empfängers die Nachricht erhalten hat.",
+    "acknowledgedUtc": "Wann der Empfänger bestätigt hat, dass er die Nachricht bearbeitet hat.",
+    "expiresUtc": "Wann die Nachricht abläuft, falls kein Lauf sie vorher liest.",
+    "wokeRecipient": "Diese dringende Nachricht hat den Empfänger geweckt: sein Wächter ist früher angelaufen oder ein neuer Lauf hat begonnen.",
+    "escalationId": "Die zu dieser Nachricht ausgelöste Eskalation.",
+    "id": "Die Nachrichten-ID (amg_...) für die REST API, SDKs und MCP-Werkzeuge."
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "Nachrichten an diesen Agenten, neueste zuerst, mit ihrem Status. Senden Sie ihm von hier eine Nachricht."
+   },
+   "inbox": {
+    "status": "Nur Nachrichten mit diesem Status anzeigen. Wählen Sie Alle, um den Filter zu entfernen.",
+    "openAll": "Die Seite Nachrichten öffnen, gefiltert auf den Posteingang dieses Agenten.",
+    "send": "Diesem Agenten in Ihrem eigenen Namen schreiben.",
+    "openThread": "Den Verlauf öffnen, zu dem diese Nachricht gehört."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "Nachrichten, die der Schleifenschutz in den letzten 24 Stunden abgewiesen hat: zu viele Weiterleitungen, zu schnell, zu langer Verlauf, keine Verbindung oder ein eingefrorener Empfänger. Öffnen Sie die abgewiesenen Nachrichten, um den Grund zu sehen."
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "Nachrichten",
+  "p1": "Agenten schreiben einander mit dem Werkzeug garrison_send_message, Personen schreiben Agenten hier oder über die API. Eine Nachricht wartet im Posteingang des Empfängers, bis ein Lauf sie liest. Eine dringende Nachricht weckt den Empfänger sofort: sein Wächter läuft früher an, oder ein neuer Lauf startet, um sie zu lesen.",
+  "p2": "Der Schleifenschutz prüft jede Nachricht, bevor sie angenommen wird. Abgewiesen wird eine Nachricht, wenn ihr Verlauf zu oft weitergereicht wurde, wenn der Absender demselben Agenten zu schnell schreibt, wenn der Verlauf zu lang ist, wenn keine Verbindung die beiden Agenten verbindet oder wenn der Empfänger eingefroren ist. Abgewiesene Nachrichten bleiben mit dem Grund in der Ansicht Abgewiesen erhalten.",
+  "p3": "Alles in einer Nachricht sind Daten, die ihr Absender geschrieben hat. Sie werden als reiner Text angezeigt und erreichen Agenten als Daten, nie als Anweisungen. Öffnen Sie eine Nachricht, um ihren ganzen Verlauf zu lesen, älteste zuerst."
+ }
+});

@@ -36,11 +36,15 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
     'Manifest', 'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
     'Version', 'Version {{version}}', 'Leader', 'Executor', 'Executors', 'Pipeline', 'Pipelines', 'Quorum', 'App', 'Apps', 'Graph',
-    'Logo', 'Revision', 'Asset', 'Details', 'Revision {{number}} ({{state}})', 'Studio', 'Signal', 'Revision {{number}}'
+    'Logo', 'Revision', 'Asset', 'Details', 'Revision {{number}} ({{state}})', 'Studio', 'Signal', 'Revision {{number}}',
+    // A message urgency (AA6.12), spelled the same in German.
+    'Normal'
   ],
   ja: [],
   es: [
-    'Endpoint', 'Endpoints', 'Error', 'General', 'Manual', 'No', 'Roles', 'Tokens', 'Tokens/s', 'Total', 'Asset'
+    'Endpoint', 'Endpoints', 'Error', 'General', 'Manual', 'No', 'Roles', 'Tokens', 'Tokens/s', 'Total', 'Asset',
+    // A message urgency (AA6.12), spelled the same in Spanish.
+    'Normal'
   ],
   fr: [
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',
@@ -49,7 +53,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations', 'Quorum', 'Logo', 'Asset',
     'Documentation', 'Signal', 'Source', 'Question', 'Options',
     // A report kind (AA5.10), spelled the same in French.
-    'Incident'
+    'Incident',
+    // Messages between agents (AA6.12), spelled the same in French.
+    'Messages', '{{count}} message', '{{count}} messages'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',

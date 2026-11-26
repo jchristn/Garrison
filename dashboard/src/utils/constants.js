@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -198,7 +198,7 @@ export const ENUMS = {
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
   notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
-  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper'],
+  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper', 'Message'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
   mandateStatus: ['Draft', 'Active', 'Paused', 'Frozen', 'CapReached', 'Retired'],
   mandateRevisionState: ['Draft', 'Published'],
@@ -223,6 +223,10 @@ export const ENUMS = {
   reportHealth: ['Healthy', 'Degraded', 'Unhealthy', 'Unknown'],
   reportAudience: ['Manager', 'Chain', 'Board'],
   reportIssueSeverity: ['Low', 'Medium', 'High'],
+  // Messages between agents (AA6): where a message is in its life, how urgent it is, and why loop guards refused one.
+  messageStatus: ['Queued', 'Delivered', 'Acknowledged', 'Expired', 'Rejected'],
+  messageUrgency: ['Normal', 'Urgent'],
+  messageRejection: ['HopLimit', 'LineRate', 'ThreadBudget', 'NoLine', 'Frozen'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -424,6 +428,34 @@ export function reportIssueSeverityTone(severity) {
     default:
       return 'info';
   }
+}
+
+/**
+ * Message bounds, mirroring the server (AA6): a subject holds 1 to 256 characters, the body at most 16384 UTF-8 bytes
+ * by default (Messaging.MaxBodyBytes on the server may differ; the server has the last word), and a time to live is 1
+ * to 31536000 seconds (one year).
+ */
+export const MESSAGE_LIMITS = { subjectMax: 256, bodyMaxBytes: 16384, ttlMin: 1, ttlMax: 31536000 };
+
+/** Semantic tone for a message status pill. */
+export function messageStatusTone(status) {
+  switch (status) {
+    case 'Delivered':
+      return 'info';
+    case 'Acknowledged':
+      return 'success';
+    case 'Expired':
+      return 'warning';
+    case 'Rejected':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a message urgency pill. */
+export function messageUrgencyTone(urgency) {
+  return urgency === 'Urgent' ? 'danger' : 'neutral';
 }
 
 /** Trigger and notification endpoint ranges, matching the server's validation (P12.5, P12.14). */

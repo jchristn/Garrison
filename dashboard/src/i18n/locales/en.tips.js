@@ -3848,3 +3848,165 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "p3": "Everything in a report is data its author wrote. It is shown as plain text and never followed as instructions. Open a report to chart one of its metrics across every report of the same author."
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "Messages: mail between agents and from people, newest first, with the ones loop guards refused. Open one to read its thread.",
+   "messageThreads": "One message thread: every message in it, oldest first, rejected ones included."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Messages between agents and from people. Read lists messages and threads; Create sends one."
+  },
+  "runKind": {
+   "Message": "Started by an urgent message to an agent that has no active keeper. The run reads the waiting messages."
+  },
+  "messageStatus": {
+   "Queued": "Accepted and waiting in the recipient's inbox.",
+   "Delivered": "Handed to a run of the recipient: a keeper tick, an urgent message run, or a read of the inbox.",
+   "Acknowledged": "The recipient said it read and handled the message.",
+   "Expired": "Its time to live ran out before any run of the recipient read it.",
+   "Rejected": "Refused by a loop guard when it was sent and never delivered. The reason says why."
+  },
+  "messageUrgency": {
+   "Normal": "Waits in the inbox until the recipient's next run or keeper tick reads it.",
+   "Urgent": "Wakes the recipient now: its keeper ticks early, or a new run starts to read the message."
+  },
+  "messageRejection": {
+   "HopLimit": "The thread had already been passed along too many times. The hop limit stops agents from forwarding mail in endless loops.",
+   "LineRate": "The sender had already sent as many messages to this recipient in the last minute as the line rate allows.",
+   "ThreadBudget": "The thread already held as many messages as one thread may. Start a new thread to go on.",
+   "NoLine": "No allowed line connects the sender and the recipient, so they may not write to each other.",
+   "Frozen": "The recipient agent is frozen, so it takes no new mail until the freeze is lifted."
+  }
+ },
+ "messages": {
+  "denied": "You may not do this. It needs {{operation}} on Agent message.",
+  "views": {
+   "all": "Show every message, whatever its status.",
+   "rejected": "Show only messages the loop guards refused, with the reason each was refused."
+  },
+  "filters": {
+   "status": "Show only messages with this status. Choose All to remove the filter.",
+   "urgency": "Show only normal or only urgent messages. Choose All to remove the filter.",
+   "reason": "Show only messages refused for this reason. Choose All to remove the filter.",
+   "sender": "Show only messages this agent sent. Choose All to remove the filter.",
+   "recipient": "Show only messages sent to this agent. Choose All to remove the filter.",
+   "from": "Show only messages sent at or after this time.",
+   "to": "Show only messages sent at or before this time."
+  },
+  "actions": {
+   "send": "Write a message to an agent in your own name. Loop guards check it like any other message.",
+   "openThread": "Open the whole thread this message belongs to, oldest first.",
+   "copyId": "Copy the message ID (amg_...) for the REST API, SDKs, or MCP tools.",
+   "openSender": "Open the agent that sent this message.",
+   "openRecipient": "Open the agent this message was sent to.",
+   "openDeliveredRun": "Open the run of the recipient that received this message.",
+   "openEscalation": "Open the escalation raised about this message."
+  },
+  "send": {
+   "submit": "Send the message. A message cannot be changed once sent.",
+   "fields": {
+    "recipient": "The agent that receives the message in its inbox.",
+    "subject": "A short subject of 1 to 256 characters. The recipient sees it first.",
+    "body": "The message itself, as plain text. The recipient reads it as data, never as instructions.",
+    "urgency": "Normal waits for the recipient's next run. Urgent wakes the recipient now.",
+    "ttlSeconds": "How long the message may wait unread before it expires, from 1 second to one year. Leave it empty for the server default."
+   }
+  }
+ },
+ "filters": {
+  "urgency": "Show only normal or only urgent messages. Choose All to remove the filter.",
+  "reason": "Show only messages refused for this reason. Choose All to remove the filter.",
+  "sender": "Show only messages this agent sent. Choose All to remove the filter.",
+  "recipient": "Show only messages sent to this agent. Choose All to remove the filter."
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "When the message was sent. Hover for the exact time.",
+   "urgency": "Normal messages wait for the next run; urgent ones wake the recipient.",
+   "status": "Where the message is now: queued, delivered, acknowledged, expired, or rejected.",
+   "subject": "The subject the sender wrote. Hover for the full text.",
+   "sender": "The agent that sent the message, or the person or API credential that sent it.",
+   "recipient": "The agent the message was sent to.",
+   "reason": "Why the loop guards refused the message, with their detail. Empty for messages that were accepted.",
+   "hopCount": "How many times the thread had been passed along when this message was sent.",
+   "deliveredRunId": "The run of the recipient that received the message.",
+   "expiresUtc": "When the message expires if no run reads it first.",
+   "escalationId": "The escalation raised about this message, when there is one.",
+   "threadId": "The thread ID: the ID of the first message in the thread.",
+   "id": "The message ID (amg_...), for the REST API, SDKs, and MCP tools."
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "Return to the list of messages.",
+   "viewJson": "Show the thread as the API returns it.",
+   "openSender": "Open the agent that sent this message.",
+   "openRecipient": "Open the agent this message was sent to.",
+   "openDeliveredRun": "Open the run that received this message.",
+   "openEscalation": "Open the escalation raised about this message.",
+   "reply": "Reply to the agent that sent this message, in the same thread.",
+   "fields": {
+    "sender": "The agent, person, or API credential that sent the message.",
+    "recipient": "The agent the message was sent to.",
+    "createdUtc": "When the message was sent. Hover for how long ago.",
+    "hopCount": "How many times the thread had been passed along when this message was sent.",
+    "deliveredRunId": "The run of the recipient that received the message.",
+    "deliveredUtc": "When a run of the recipient received the message.",
+    "acknowledgedUtc": "When the recipient said it handled the message.",
+    "expiresUtc": "When the message expires if no run reads it first.",
+    "wokeRecipient": "This urgent message woke the recipient: its keeper ticked early or a new run started.",
+    "escalationId": "The escalation raised about this message.",
+    "id": "The message ID (amg_...), for the REST API, SDKs, and MCP tools."
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "Messages sent to this agent, newest first, with their status. Send it a message from here."
+   },
+   "inbox": {
+    "status": "Show only messages with this status. Choose All to remove the filter.",
+    "openAll": "Open the Messages page filtered to this agent's inbox.",
+    "send": "Write a message to this agent in your own name.",
+    "openThread": "Open the thread this message belongs to."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "Messages the loop guards refused in the last 24 hours: too many hops, too fast, too long a thread, no line, or a frozen recipient. Open the Rejected messages to see why."
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "Messages",
+  "p1": "Agents write to each other with the garrison_send_message tool, and people write to agents here or through the API. A message waits in the recipient's inbox until a run reads it. An urgent message wakes the recipient now: its keeper ticks early, or a new run starts to read it.",
+  "p2": "Loop guards check every message before it is accepted. A message is refused when its thread has been passed along too many times, when the sender writes to the same agent too fast, when the thread is too long, when no line connects the two agents, or when the recipient is frozen. Refused messages are kept with the reason in the Rejected view.",
+  "p3": "Everything in a message is data its sender wrote. It is shown as plain text and reaches agents as data, never as instructions. Open a message to read its whole thread, oldest first."
+ }
+});

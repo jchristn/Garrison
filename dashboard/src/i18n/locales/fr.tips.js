@@ -3850,3 +3850,165 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "p3": "Tout ce que contient un rapport, ce sont des données écrites par son auteur. Elles s'affichent en texte brut et ne sont jamais suivies comme des instructions. Ouvrez un rapport pour tracer l'un de ses indicateurs sur tous les rapports du même auteur."
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "Messages : courrier entre agents et venant de personnes, du plus récent au plus ancien, avec ceux refusés par les garde-fous anti-boucle. Ouvrez-en un pour lire son fil.",
+   "messageThreads": "Un fil de messages : tous ses messages, du plus ancien au plus récent, y compris les refusés."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Messages entre agents et venant de personnes. Read liste les messages et les fils ; Create en envoie un."
+  },
+  "runKind": {
+   "Message": "Lancée par un message urgent à un agent sans gardien actif. L'exécution lit les messages en attente."
+  },
+  "messageStatus": {
+   "Queued": "Accepté et en attente dans la boîte de réception du destinataire.",
+   "Delivered": "Remis à une exécution du destinataire : un cycle de gardien, une exécution de message urgent ou une lecture de la boîte.",
+   "Acknowledged": "Le destinataire a indiqué avoir lu et traité le message.",
+   "Expired": "Sa durée de vie a expiré avant qu'une exécution du destinataire ne le lise.",
+   "Rejected": "Refusé par un garde-fou anti-boucle à l'envoi et jamais remis. La raison explique pourquoi."
+  },
+  "messageUrgency": {
+   "Normal": "Attend dans la boîte de réception jusqu'à ce que la prochaine exécution ou le prochain cycle de gardien du destinataire le lise.",
+   "Urgent": "Réveille le destinataire tout de suite : son gardien avance son cycle, ou une nouvelle exécution démarre pour lire le message."
+  },
+  "messageRejection": {
+   "HopLimit": "Le fil avait déjà été transmis trop de fois. La limite de sauts empêche les agents de se renvoyer du courrier en boucle sans fin.",
+   "LineRate": "L'expéditeur avait déjà envoyé à ce destinataire, dans la dernière minute, autant de messages que le débit de la ligne le permet.",
+   "ThreadBudget": "Le fil contenait déjà autant de messages qu'un fil peut en contenir. Ouvrez un nouveau fil pour continuer.",
+   "NoLine": "Aucune ligne autorisée ne relie l'expéditeur au destinataire ; ils ne peuvent donc pas s'écrire.",
+   "Frozen": "L'agent destinataire est gelé et n'accepte aucun nouveau courrier tant que le gel n'est pas levé."
+  }
+ },
+ "messages": {
+  "denied": "Vous ne pouvez pas faire cela. Il faut {{operation}} sur Message d'agent.",
+  "views": {
+   "all": "Afficher tous les messages, quel que soit leur statut.",
+   "rejected": "Afficher uniquement les messages refusés par les garde-fous anti-boucle, avec la raison de chaque refus."
+  },
+  "filters": {
+   "status": "Afficher uniquement les messages ayant ce statut. Choisissez Tous pour retirer le filtre.",
+   "urgency": "Afficher uniquement les messages normaux ou uniquement les urgents. Choisissez Tous pour retirer le filtre.",
+   "reason": "Afficher uniquement les messages refusés pour cette raison. Choisissez Tous pour retirer le filtre.",
+   "sender": "Afficher uniquement les messages envoyés par cet agent. Choisissez Tous pour retirer le filtre.",
+   "recipient": "Afficher uniquement les messages envoyés à cet agent. Choisissez Tous pour retirer le filtre.",
+   "from": "Afficher uniquement les messages envoyés à ce moment ou après.",
+   "to": "Afficher uniquement les messages envoyés à ce moment ou avant."
+  },
+  "actions": {
+   "send": "Écrire à un agent en votre propre nom. Les garde-fous anti-boucle le vérifient comme tout autre message.",
+   "openThread": "Ouvrir tout le fil auquel appartient ce message, du plus ancien au plus récent.",
+   "copyId": "Copier l'ID du message (amg_...) pour la REST API, les SDK ou les outils MCP.",
+   "openSender": "Ouvrir l'agent qui a envoyé ce message.",
+   "openRecipient": "Ouvrir l'agent à qui ce message a été envoyé.",
+   "openDeliveredRun": "Ouvrir l'exécution du destinataire qui a reçu ce message.",
+   "openEscalation": "Ouvrir l'escalade créée au sujet de ce message."
+  },
+  "send": {
+   "submit": "Envoyer le message. Un message envoyé ne peut plus être modifié.",
+   "fields": {
+    "recipient": "L'agent qui reçoit le message dans sa boîte de réception.",
+    "subject": "Un objet court de 1 à 256 caractères. Le destinataire le voit en premier.",
+    "body": "Le message lui-même, en texte brut. Le destinataire le lit comme des données, jamais comme des instructions.",
+    "urgency": "Normale attend la prochaine exécution du destinataire. Urgente le réveille tout de suite.",
+    "ttlSeconds": "Combien de temps le message peut attendre sans être lu avant d'expirer, de 1 seconde à un an. Laissez vide pour la valeur par défaut du serveur."
+   }
+  }
+ },
+ "filters": {
+  "urgency": "Afficher uniquement les messages normaux ou uniquement les urgents. Choisissez Tous pour retirer le filtre.",
+  "reason": "Afficher uniquement les messages refusés pour cette raison. Choisissez Tous pour retirer le filtre.",
+  "sender": "Afficher uniquement les messages envoyés par cet agent. Choisissez Tous pour retirer le filtre.",
+  "recipient": "Afficher uniquement les messages envoyés à cet agent. Choisissez Tous pour retirer le filtre."
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "Quand le message a été envoyé. Survolez pour l'heure exacte.",
+   "urgency": "Les messages normaux attendent la prochaine exécution ; les urgents réveillent le destinataire.",
+   "status": "Où en est le message : en attente, remis, accusé, expiré ou refusé.",
+   "subject": "L'objet écrit par l'expéditeur. Survolez pour le texte complet.",
+   "sender": "L'agent qui a envoyé le message, ou la personne ou l'identifiant d'API qui l'a envoyé.",
+   "recipient": "L'agent à qui le message a été envoyé.",
+   "reason": "Pourquoi les garde-fous anti-boucle ont refusé le message, avec leur détail. Vide pour les messages acceptés.",
+   "hopCount": "Combien de fois le fil avait été transmis quand ce message a été envoyé.",
+   "deliveredRunId": "L'exécution du destinataire qui a reçu le message.",
+   "expiresUtc": "Quand le message expire si aucune exécution ne le lit avant.",
+   "escalationId": "L'escalade créée au sujet de ce message, s'il y en a une.",
+   "threadId": "L'ID du fil : l'ID du premier message du fil.",
+   "id": "L'ID du message (amg_...), pour la REST API, les SDK et les outils MCP."
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "Revenir à la liste des messages.",
+   "viewJson": "Afficher le fil tel que l'API le renvoie.",
+   "openSender": "Ouvrir l'agent qui a envoyé ce message.",
+   "openRecipient": "Ouvrir l'agent à qui ce message a été envoyé.",
+   "openDeliveredRun": "Ouvrir l'exécution qui a reçu ce message.",
+   "openEscalation": "Ouvrir l'escalade créée au sujet de ce message.",
+   "reply": "Répondre à l'agent qui a envoyé ce message, dans le même fil.",
+   "fields": {
+    "sender": "L'agent, la personne ou l'identifiant d'API qui a envoyé le message.",
+    "recipient": "L'agent à qui le message a été envoyé.",
+    "createdUtc": "Quand le message a été envoyé. Survolez pour voir il y a combien de temps.",
+    "hopCount": "Combien de fois le fil avait été transmis quand ce message a été envoyé.",
+    "deliveredRunId": "L'exécution du destinataire qui a reçu le message.",
+    "deliveredUtc": "Quand une exécution du destinataire a reçu le message.",
+    "acknowledgedUtc": "Quand le destinataire a indiqué avoir traité le message.",
+    "expiresUtc": "Quand le message expire si aucune exécution ne le lit avant.",
+    "wokeRecipient": "Ce message urgent a réveillé le destinataire : son gardien a avancé son cycle ou une nouvelle exécution a démarré.",
+    "escalationId": "L'escalade créée au sujet de ce message.",
+    "id": "L'ID du message (amg_...), pour la REST API, les SDK et les outils MCP."
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "Messages envoyés à cet agent, du plus récent au plus ancien, avec leur statut. Envoyez-lui un message d'ici."
+   },
+   "inbox": {
+    "status": "Afficher uniquement les messages ayant ce statut. Choisissez Tous pour retirer le filtre.",
+    "openAll": "Ouvrir la page Messages filtrée sur la boîte de réception de cet agent.",
+    "send": "Écrire à cet agent en votre propre nom.",
+    "openThread": "Ouvrir le fil auquel appartient ce message."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "Messages refusés par les garde-fous anti-boucle au cours des dernières 24 heures : trop de sauts, trop rapides, fil trop long, aucune ligne ou destinataire gelé. Ouvrez les messages refusés pour voir pourquoi."
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "Messages",
+  "p1": "Les agents s'écrivent avec l'outil garrison_send_message, et les personnes écrivent aux agents ici ou par l'API. Un message attend dans la boîte de réception du destinataire jusqu'à ce qu'une exécution le lise. Un message urgent réveille le destinataire tout de suite : son gardien avance son cycle, ou une nouvelle exécution démarre pour le lire.",
+  "p2": "Les garde-fous anti-boucle vérifient chaque message avant de l'accepter. Un message est refusé quand son fil a été transmis trop de fois, quand l'expéditeur écrit trop vite au même agent, quand le fil est trop long, quand aucune ligne ne relie les deux agents ou quand le destinataire est gelé. Les messages refusés sont conservés avec la raison dans la vue Refusés.",
+  "p3": "Tout ce que contient un message est une donnée écrite par son expéditeur. Il est affiché en texte brut et parvient aux agents comme des données, jamais comme des instructions. Ouvrez un message pour lire tout son fil, du plus ancien au plus récent."
+ }
+});

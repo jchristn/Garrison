@@ -78,6 +78,8 @@ export { freezesConfig } from './freezeConfigs';
 export { memoryConfig } from './memoryConfigs';
 // AA5.10: reports under Autonomy.
 export { reportsConfig } from './reportConfigs';
+// AA6.12: messages between agents under Autonomy.
+export { messagesConfig } from './messageConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

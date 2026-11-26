@@ -3847,3 +3847,165 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "p3": "報告中的一切都是作者寫下的資料。它們以純文字顯示，絕不會被當作指示遵從。開啟一份報告，即可在同一作者的所有報告中繪製它的某個指標。"
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "訊息：代理程式之間以及來自人員的郵件，最新的在前，包括被迴圈防護拒絕的訊息。開啟一則即可閱讀其討論串。",
+   "messageThreads": "一個訊息討論串：其中的所有訊息，依時間由舊到新排列，包括被拒絕的訊息。"
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "代理程式之間以及來自人員的訊息。Read 列出訊息和討論串；Create 傳送訊息。"
+  },
+  "runKind": {
+   "Message": "由傳給沒有啟用中守護者的代理程式的緊急訊息啟動。該執行會讀取等待中的訊息。"
+  },
+  "messageStatus": {
+   "Queued": "已接受，正在收件者的收件匣中等待。",
+   "Delivered": "已交給收件者的一次執行：守護者巡檢、緊急訊息執行或一次收件匣讀取。",
+   "Acknowledged": "收件者已確認讀取並處理了這則訊息。",
+   "Expired": "在收件者的任何執行讀取它之前，其存活時間已用完。",
+   "Rejected": "傳送時被迴圈防護拒絕，從未送達。原因說明了為什麼。"
+  },
+  "messageUrgency": {
+   "Normal": "在收件匣中等待，直到收件者的下一次執行或守護者巡檢讀取它。",
+   "Urgent": "立即喚醒收件者：其守護者提前巡檢，或啟動一次新的執行來讀取訊息。"
+  },
+  "messageRejection": {
+   "HopLimit": "該討論串已被轉送太多次。跳數上限可防止代理程式無止盡地循環轉送郵件。",
+   "LineRate": "寄件者在最近一分鐘內傳給該收件者的訊息已達到線路速率允許的數量。",
+   "ThreadBudget": "該討論串中的訊息數已達到單一討論串的上限。請開啟新的討論串繼續。",
+   "NoLine": "寄件者和收件者之間沒有允許的線路，因此它們不能互相傳送訊息。",
+   "Frozen": "收件代理程式已被凍結，在解除凍結之前不接收新郵件。"
+  }
+ },
+ "messages": {
+  "denied": "您不能執行此操作。需要對代理程式訊息擁有 {{operation}} 權限。",
+  "views": {
+   "all": "顯示所有訊息，不論其狀態為何。",
+   "rejected": "只顯示被迴圈防護拒絕的訊息，並顯示每則被拒絕的原因。"
+  },
+  "filters": {
+   "status": "只顯示該狀態的訊息。選擇「全部」可移除篩選。",
+   "urgency": "只顯示一般訊息或只顯示緊急訊息。選擇「全部」可移除篩選。",
+   "reason": "只顯示因該原因被拒絕的訊息。選擇「全部」可移除篩選。",
+   "sender": "只顯示該代理程式傳送的訊息。選擇「全部」可移除篩選。",
+   "recipient": "只顯示傳給該代理程式的訊息。選擇「全部」可移除篩選。",
+   "from": "只顯示在此時間或之後傳送的訊息。",
+   "to": "只顯示在此時間或之前傳送的訊息。"
+  },
+  "actions": {
+   "send": "以您自己的名義寫訊息給代理程式。迴圈防護會像檢查其他訊息一樣檢查它。",
+   "openThread": "開啟這則訊息所屬的整個討論串，依時間由舊到新排列。",
+   "copyId": "複製訊息 ID (amg_...)，用於 REST API、SDK 或 MCP 工具。",
+   "openSender": "開啟傳送這則訊息的代理程式。",
+   "openRecipient": "開啟這則訊息的收件代理程式。",
+   "openDeliveredRun": "開啟接收這則訊息的收件者執行。",
+   "openEscalation": "開啟針對這則訊息發起的升級。"
+  },
+  "send": {
+   "submit": "傳送訊息。訊息傳送後無法變更。",
+   "fields": {
+    "recipient": "在收件匣中接收訊息的代理程式。",
+    "subject": "1 到 256 個字元的簡短主旨。收件者會先看到它。",
+    "body": "訊息本身，以純文字形式。收件者會將其當作資料讀取，絕不當作指示。",
+    "urgency": "一般會等待收件者的下一次執行。緊急會立即喚醒收件者。",
+    "ttlSeconds": "訊息在到期前可以未讀等待多久，從 1 秒到一年。留空則使用伺服器預設值。"
+   }
+  }
+ },
+ "filters": {
+  "urgency": "只顯示一般訊息或只顯示緊急訊息。選擇「全部」可移除篩選。",
+  "reason": "只顯示因該原因被拒絕的訊息。選擇「全部」可移除篩選。",
+  "sender": "只顯示該代理程式傳送的訊息。選擇「全部」可移除篩選。",
+  "recipient": "只顯示傳給該代理程式的訊息。選擇「全部」可移除篩選。"
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "訊息的傳送時間。停留游標可查看確切時間。",
+   "urgency": "一般訊息等待下一次執行；緊急訊息會喚醒收件者。",
+   "status": "訊息目前的狀態：排隊中、已送達、已確認、已過期或已拒絕。",
+   "subject": "寄件者寫的主旨。停留游標可查看全文。",
+   "sender": "傳送訊息的代理程式，或傳送訊息的人員或 API 憑證。",
+   "recipient": "訊息的收件代理程式。",
+   "reason": "迴圈防護拒絕該訊息的原因及其詳情。已接受的訊息此處為空。",
+   "hopCount": "傳送這則訊息時，討論串已被轉送的次數。",
+   "deliveredRunId": "接收該訊息的收件者執行。",
+   "expiresUtc": "如果沒有執行先讀取，訊息的到期時間。",
+   "escalationId": "針對這則訊息發起的升級（如有）。",
+   "threadId": "討論串 ID：討論串中第一則訊息的 ID。",
+   "id": "訊息 ID (amg_...)，用於 REST API、SDK 和 MCP 工具。"
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "返回訊息清單。",
+   "viewJson": "依 API 傳回的原樣顯示討論串。",
+   "openSender": "開啟傳送這則訊息的代理程式。",
+   "openRecipient": "開啟這則訊息的收件代理程式。",
+   "openDeliveredRun": "開啟接收這則訊息的執行。",
+   "openEscalation": "開啟針對這則訊息發起的升級。",
+   "reply": "在同一討論串中回覆傳送這則訊息的代理程式。",
+   "fields": {
+    "sender": "傳送訊息的代理程式、人員或 API 憑證。",
+    "recipient": "訊息的收件代理程式。",
+    "createdUtc": "訊息的傳送時間。停留游標可查看距今多久。",
+    "hopCount": "傳送這則訊息時，討論串已被轉送的次數。",
+    "deliveredRunId": "接收該訊息的收件者執行。",
+    "deliveredUtc": "收件者的執行接收該訊息的時間。",
+    "acknowledgedUtc": "收件者確認已處理該訊息的時間。",
+    "expiresUtc": "如果沒有執行先讀取，訊息的到期時間。",
+    "wokeRecipient": "這則緊急訊息喚醒了收件者：其守護者提前巡檢或啟動了一次新的執行。",
+    "escalationId": "針對這則訊息發起的升級。",
+    "id": "訊息 ID (amg_...)，用於 REST API、SDK 和 MCP 工具。"
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "傳給此代理程式的訊息，最新的在前，並顯示狀態。可在此處傳訊息給它。"
+   },
+   "inbox": {
+    "status": "只顯示該狀態的訊息。選擇「全部」可移除篩選。",
+    "openAll": "開啟依此代理程式收件匣篩選的訊息頁面。",
+    "send": "以您自己的名義寫訊息給此代理程式。",
+    "openThread": "開啟這則訊息所屬的討論串。"
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "過去 24 小時內被迴圈防護拒絕的訊息：跳數過多、傳送過快、討論串過長、沒有線路或收件者已凍結。開啟已拒絕的訊息查看原因。"
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "訊息",
+  "p1": "代理程式使用 garrison_send_message 工具互相傳送訊息，人員可以在此處或透過 API 傳訊息給代理程式。訊息會在收件者的收件匣中等待，直到某次執行讀取它。緊急訊息會立即喚醒收件者：其守護者提前巡檢，或啟動一次新的執行來讀取它。",
+  "p2": "迴圈防護會在接受每則訊息之前進行檢查。當討論串被轉送太多次、寄件者傳給同一代理程式過快、討論串過長、兩個代理程式之間沒有線路，或收件者已被凍結時，訊息會被拒絕。被拒絕的訊息連同原因保留在「已拒絕」檢視中。",
+  "p3": "訊息中的一切都是寄件者寫的資料。它以純文字顯示，並作為資料送達代理程式，絕不當作指示。開啟一則訊息即可依時間由舊到新閱讀整個討論串。"
+ }
+});

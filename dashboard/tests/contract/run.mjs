@@ -337,6 +337,7 @@ async function seed(api) {
   await seedTriggers(api, ids);
   await seedKeepers(api, ids);
   await seedReports(api, ids);
+  await seedMessages(api, ids);
   await seedFreezes(api, ids);
   await sleep(1500);
   return ids;
@@ -351,6 +352,23 @@ async function seedFreezes(api, ids) {
   await api.post(tp(`freezes/${lifted.id}/lift`), { reason: 'Contract test lift' });
   ids.liftedFreeze = lifted.id;
   ids.freeze = (await api.post(tp('freezes'), { targetKind: 'Mandate', targetId: ids.keeper, reason: 'Contract test keeper freeze' })).id;
+}
+
+/**
+ * Messages (AA6.12): a person writes to the fake agent with a body, urgency, time to live, and idempotency key, so the
+ * optional fields the dashboard reads exist and the message starts a thread.
+ */
+async function seedMessages(api, ids) {
+  ids.message = (
+    await api.post(tp('messages'), {
+      recipient: ids.agent,
+      subject: 'Contract test message',
+      body: 'Queue depth doubled.',
+      urgency: 'Normal',
+      ttlSeconds: 3600,
+      idempotencyKey: 'contract-message-1'
+    })
+  ).id;
 }
 
 /**
@@ -713,6 +731,11 @@ function routes(ids) {
     ['listReports (filters)', tp(`reports?${list}&author=${ids.agent}&kind=Incident&health=Degraded`)],
     ['getReport', tp(`reports/${ids.report}`)],
     ['listReportMetrics', tp(`reports/metrics?author=${ids.agent}&name=queueDepth&maxPoints=500`)],
+    // Messages (AA6.12): one message a person sent the fake agent, the list with filters, and its thread.
+    ['listMessages', tp(`messages?${list}`)],
+    ['listMessages (filters)', tp(`messages?${list}&recipient=${ids.agent}&status=Queued&urgency=Normal`)],
+    ['getMessage', tp(`messages/${ids.message}`)],
+    ['getMessageThread', tp(`message-threads/${ids.message}`)],
     // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
     ['listFreezes', tp(`freezes?${list}`)],
     ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],

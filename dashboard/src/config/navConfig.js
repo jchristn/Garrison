@@ -57,8 +57,9 @@ export const NAV_SECTIONS = [
       // agent; the sidebar badge counts the open ones. AA3.8: freezes are brakes on agents, deployments, keepers, and
       // apps, and the kill switch shows among them. AA4.13: memory is what agents and people saved, by scope, with
       // provenance and delete. AA5.10: reports are what runs and people filed upward; /dashboard/reports/<id> is one
-      // report with its metrics, issues, decisions, and a chart of a metric across the author's reports. Later phases
-      // add the other autonomy pages here.
+      // report with its metrics, issues, decisions, and a chart of a metric across the author's reports. AA6.12:
+      // messages are mail between agents and from people, with the ones loop guards refused; /dashboard/message-threads/<id>
+      // is one thread, oldest first (a hidden tab, opened from a message). Later phases add the other autonomy pages here.
       {
         key: 'autonomy',
         slug: 'autonomy',
@@ -68,7 +69,9 @@ export const NAV_SECTIONS = [
           { id: 'escalations', slug: 'escalations', detail: true },
           { id: 'freezes', slug: 'freezes' },
           { id: 'memory', slug: 'memory' },
-          { id: 'reports', slug: 'reports', detail: true }
+          { id: 'reports', slug: 'reports', detail: true },
+          { id: 'messages', slug: 'messages' },
+          { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true }
         ]
       },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },

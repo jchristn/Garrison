@@ -11,12 +11,15 @@ import { autonomySummary } from '../utils/keepers';
 import { isKillSwitch } from '../utils/freezes';
 import useActiveFreezes from '../hooks/useActiveFreezes';
 import KillSwitchControl from './KillSwitchControl';
+import { hoursAgo, rejectedPath } from '../utils/messages';
 
 const PAGE = 250;
 
 /**
  * Home Autonomy card (AA1.16): how many keepers are active, paused, and ticking, when the next one wakes, and the keepers
  * whose last tick needs a person. AA3.8: the autonomy kill switch with its toggle, and how many freezes are active.
+ * AA6.12: how many messages the loop guards refused in the last 24 hours, linking to the Rejected messages (hidden when
+ * the caller cannot read messages).
  * Hidden when the caller cannot read keepers or the server has none of the routes.
  */
 export default function HomeAutonomyCard() {
@@ -25,6 +28,7 @@ export default function HomeAutonomyCard() {
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const [summary, setSummary] = useState(undefined);
+  const [rejected, setRejected] = useState(null);
   const activeFreezes = useActiveFreezes();
   const lng = i18n.language;
 
@@ -34,6 +38,12 @@ export default function HomeAutonomyCard() {
       .listMandates(tenantId, { pageNumber: 1, pageSize: PAGE })
       .then((r) => setSummary(autonomySummary(r.items || [], r.totalCount)))
       .catch((e) => setSummary(e?.status === 403 || e?.status === 404 ? null : undefined));
+    if (apiClient.listMessages) {
+      apiClient
+        .listMessages(tenantId, { status: 'Rejected', from: hoursAgo(24), pageNumber: 1, pageSize: 1 })
+        .then((r) => setRejected(r.totalCount ?? (r.items || []).length))
+        .catch(() => setRejected(null));
+    }
   }, [apiClient, tenantId]);
 
   useEffect(() => {
@@ -65,6 +75,19 @@ export default function HomeAutonomyCard() {
           <a href={pathFor('freezes')} {...tip(t('tips.views.home.autonomy.freezes'))} onClick={(e) => open(e, pathFor('freezes'))}>
             {t('views.home.autonomy.freezes', { count: frozenCount })}
           </a>
+        </p>
+      )}
+      {rejected !== null && (
+        <p data-testid="home-autonomy-rejected">
+          {rejected > 0 ? (
+            <a href={rejectedPath()} {...tip(t('tips.views.home.autonomy.rejected'))} onClick={(e) => open(e, rejectedPath())}>
+              {t('views.home.autonomy.rejected', { count: rejected })}
+            </a>
+          ) : (
+            <span className="text-muted" {...tip(t('tips.views.home.autonomy.rejected'))}>
+              {t('views.home.autonomy.noneRejected')}
+            </span>
+          )}
         </p>
       )}
       {summary.total === 0 ? (

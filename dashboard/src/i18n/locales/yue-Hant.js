@@ -6424,3 +6424,183 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "訊息",
+    "tip": "代理程式之間以及來自人員嘅郵件，包括被迴圈防護拒絕嘅訊息及原因"
+   },
+   "messageThreads": {
+    "label": "訊息討論串",
+    "tip": "一個討論串中嘅所有訊息，依時間由舊到新排列"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "代理程式訊息"
+  },
+  "runKind": {
+   "Message": "緊急訊息"
+  },
+  "messageStatus": {
+   "Queued": "排隊中",
+   "Delivered": "已送達",
+   "Acknowledged": "已確認",
+   "Expired": "已過期",
+   "Rejected": "已拒絕"
+  },
+  "messageUrgency": {
+   "Normal": "一般",
+   "Urgent": "緊急"
+  },
+  "messageRejection": {
+   "HopLimit": "跳數上限",
+   "LineRate": "線路速率",
+   "ThreadBudget": "討論串上限",
+   "NoLine": "無線路",
+   "Frozen": "收件者已凍結"
+  }
+ },
+ "messages": {
+  "untrusted": "呢啲訊息由代理程式同人員撰寫。主旨、內文同拒絕詳情會依傳送時嘅原樣以純文字顯示；其中任何內容都唔會被執行、轉譯或當作指示遵循。",
+  "views": {
+   "label": "顯示哪些訊息",
+   "all": "所有訊息",
+   "rejected": "已拒絕",
+   "rejectedNote": "傳送時被迴圈防護拒絕嘅訊息及原因。被拒絕嘅訊息從來冇送達。"
+  },
+  "filters": {
+   "reason": "原因",
+   "sender": "寄件者",
+   "recipient": "收件者",
+   "from": "傳送時間晚於",
+   "to": "傳送時間早於"
+  },
+  "actions": {
+   "send": "傳送訊息",
+   "openThread": "開啟討論串",
+   "copyId": "複製 ID",
+   "openSender": "開啟寄件者",
+   "openRecipient": "開啟收件者",
+   "openDeliveredRun": "開啟接收嘅執行",
+   "openEscalation": "開啟升級"
+  },
+  "toasts": {
+   "sent": "已傳送給 {{recipient}}。",
+   "copied": "已複製訊息 ID。"
+  },
+  "send": {
+   "title": "傳送訊息",
+   "intro": "寫訊息給代理程式。訊息會在其收件匣中等待，直到某次執行讀取佢；緊急訊息會立即喚醒代理程式。",
+   "replyIntro": "在呢個討論串中回覆。回覆會傳給傳送該訊息嘅代理程式。",
+   "pickRecipient": "選擇代理程式",
+   "ttlPlaceholder": "伺服器預設值",
+   "sending": "傳送中...",
+   "rejected": "迴圈防護拒絕了呢則訊息。",
+   "rejectedStored": "被拒絕嘅訊息會保留在已拒絕清單中。",
+   "fields": {
+    "recipient": "收件者",
+    "subject": "主旨",
+    "body": "內文",
+    "urgency": "緊急程度",
+    "ttlSeconds": "到期時間（秒）"
+   },
+   "errors": {
+    "recipient": "請選擇要接收訊息嘅代理程式。",
+    "subject": "請為訊息填寫 1 到 {{max}} 個字元嘅主旨。",
+    "body": "內文最多 {{max}} 位元組。",
+    "ttlSeconds": "請輸入 {{min}} 到 {{max}} 之間嘅整數秒數，或留空。"
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "訊息討論串",
+   "notFoundTitle": "找不到討論串",
+   "notFoundBody": "佢不存在於呢個租用戶中，或已隨其租用戶一併移除。",
+   "back": "返回訊息",
+   "count_other": "{{count}} 則訊息",
+   "rejectedCount_other": "{{count}} 則已拒絕",
+   "emptyTitle": "呢個討論串中冇訊息",
+   "emptyBody": "討論串存在，但其中冇你可以讀取嘅訊息。",
+   "listLabel": "呢個討論串中嘅訊息，依時間由舊到新排列",
+   "noBody": "呢則訊息冇內文。",
+   "noDetail": "冇更多詳情。",
+   "woke": "已喚醒收件者",
+   "artifacts": "附加嘅成品",
+   "reply": "回覆",
+   "replyPrefix": "回覆：",
+   "fields": {
+    "sender": "寄件者",
+    "recipient": "收件者",
+    "createdUtc": "傳送時間",
+    "hopCount": "跳數",
+    "deliveredRunId": "送達嘅執行",
+    "deliveredUtc": "送達時間",
+    "acknowledgedUtc": "確認時間",
+    "expiresUtc": "到期時間",
+    "wokeRecipient": "喚醒",
+    "escalationId": "升級",
+    "id": "訊息 ID"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "收件匣",
+    "status": "狀態",
+    "openAll": "在訊息中開啟",
+    "none": "呢個代理程式仲未有訊息。",
+    "noneWithStatus": "呢個代理程式冇該狀態嘅訊息。",
+    "more": "顯示 {{total}} 則中最新嘅 {{shown}} 則。開啟訊息頁面可查看全部。"
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_other": "過去 24 小時內有 {{count}} 則訊息被迴圈防護拒絕",
+    "noneRejected": "過去 24 小時內冇訊息被迴圈防護拒絕"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "訊息",
+   "subtitle": "代理程式之間以及來自人員嘅郵件，最新嘅在前，包括被迴圈防護拒絕嘅訊息。開啟一則即可閱讀整個討論串。",
+   "add": "傳送訊息",
+   "create": "傳送訊息",
+   "edit": "訊息",
+   "view": "訊息詳情",
+   "deleteTitle": "刪除訊息",
+   "emptyTitle": "仲未有訊息",
+   "emptyBody": "代理程式在執行時以 garrison_send_message 工具傳送訊息，人員可在呢度或透過 API 傳送。訊息傳送後會顯示喺呢度。",
+   "columns": {
+    "createdUtc": "傳送時間",
+    "urgency": "緊急程度",
+    "status": "狀態",
+    "subject": "主旨",
+    "sender": "寄件者",
+    "recipient": "收件者",
+    "reason": "拒絕",
+    "hopCount": "跳數",
+    "deliveredRunId": "送達嘅執行",
+    "expiresUtc": "到期時間",
+    "escalationId": "升級",
+    "threadId": "討論串",
+    "id": "ID"
+   }
+  }
+ }
+});

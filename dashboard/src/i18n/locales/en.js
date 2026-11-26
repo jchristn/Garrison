@@ -6460,3 +6460,186 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "Messages",
+    "tip": "Mail between agents and from people, with the messages loop guards refused and why"
+   },
+   "messageThreads": {
+    "label": "Message thread",
+    "tip": "Every message of one thread, oldest first"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Agent message"
+  },
+  "runKind": {
+   "Message": "Urgent message"
+  },
+  "messageStatus": {
+   "Queued": "Queued",
+   "Delivered": "Delivered",
+   "Acknowledged": "Acknowledged",
+   "Expired": "Expired",
+   "Rejected": "Rejected"
+  },
+  "messageUrgency": {
+   "Normal": "Normal",
+   "Urgent": "Urgent"
+  },
+  "messageRejection": {
+   "HopLimit": "Hop limit",
+   "LineRate": "Line rate",
+   "ThreadBudget": "Thread budget",
+   "NoLine": "No line",
+   "Frozen": "Recipient frozen"
+  }
+ },
+ "messages": {
+  "untrusted": "Agents and people wrote these messages. Subjects, bodies, and rejection details are shown as plain text exactly as sent; nothing in them is run, rendered, or followed.",
+  "views": {
+   "label": "Which messages",
+   "all": "All messages",
+   "rejected": "Rejected",
+   "rejectedNote": "Messages the loop guards refused when they were sent, with the reason. A rejected message was never delivered."
+  },
+  "filters": {
+   "reason": "Reason",
+   "sender": "Sender",
+   "recipient": "Recipient",
+   "from": "Sent after",
+   "to": "Sent before"
+  },
+  "actions": {
+   "send": "Send message",
+   "openThread": "Open thread",
+   "copyId": "Copy ID",
+   "openSender": "Open sender",
+   "openRecipient": "Open recipient",
+   "openDeliveredRun": "Open delivered run",
+   "openEscalation": "Open escalation"
+  },
+  "toasts": {
+   "sent": "Sent to {{recipient}}.",
+   "copied": "Copied the message ID."
+  },
+  "send": {
+   "title": "Send a message",
+   "intro": "Write to an agent. The message waits in its inbox until a run reads it; an urgent message wakes the agent now.",
+   "replyIntro": "Reply in this thread. The reply goes to the agent that sent the message.",
+   "pickRecipient": "Choose an agent",
+   "ttlPlaceholder": "Server default",
+   "sending": "Sending...",
+   "rejected": "The loop guards refused this message.",
+   "rejectedStored": "The refused message is kept in the Rejected list.",
+   "fields": {
+    "recipient": "To",
+    "subject": "Subject",
+    "body": "Body",
+    "urgency": "Urgency",
+    "ttlSeconds": "Expires after (seconds)"
+   },
+   "errors": {
+    "recipient": "Choose the agent to send the message to.",
+    "subject": "Give the message a subject of 1 to {{max}} characters.",
+    "body": "The body holds at most {{max}} bytes.",
+    "ttlSeconds": "Enter a whole number of seconds from {{min}} to {{max}}, or leave it empty."
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "Message thread",
+   "notFoundTitle": "Thread not found",
+   "notFoundBody": "It does not exist in this tenant, or it was removed with its tenant.",
+   "back": "Back to messages",
+   "count_one": "{{count}} message",
+   "count_other": "{{count}} messages",
+   "rejectedCount_one": "{{count}} rejected",
+   "rejectedCount_other": "{{count}} rejected",
+   "emptyTitle": "No messages in this thread",
+   "emptyBody": "The thread exists but holds no messages you can read.",
+   "listLabel": "Messages in this thread, oldest first",
+   "noBody": "This message has no body.",
+   "noDetail": "No further detail.",
+   "woke": "Woke the recipient",
+   "artifacts": "Attached artifacts",
+   "reply": "Reply",
+   "replyPrefix": "Re: ",
+   "fields": {
+    "sender": "From",
+    "recipient": "To",
+    "createdUtc": "Sent",
+    "hopCount": "Hops",
+    "deliveredRunId": "Delivered to run",
+    "deliveredUtc": "Delivered",
+    "acknowledgedUtc": "Acknowledged",
+    "expiresUtc": "Expires",
+    "wokeRecipient": "Wake",
+    "escalationId": "Escalation",
+    "id": "Message ID"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "Inbox",
+    "status": "Status",
+    "openAll": "Open in Messages",
+    "none": "No messages for this agent yet.",
+    "noneWithStatus": "No messages for this agent with this status.",
+    "more": "Showing the newest {{shown}} of {{total}}. Open in Messages to see them all."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_one": "{{count}} message rejected by loop guards in the last 24 hours",
+    "rejected_other": "{{count}} messages rejected by loop guards in the last 24 hours",
+    "noneRejected": "No messages rejected by loop guards in the last 24 hours"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "Messages",
+   "subtitle": "Mail between agents and from people, newest first, with the messages the loop guards refused. Open one to read its whole thread.",
+   "add": "Send message",
+   "create": "Send message",
+   "edit": "Message",
+   "view": "Message details",
+   "deleteTitle": "Delete message",
+   "emptyTitle": "No messages yet",
+   "emptyBody": "Agents send messages with the garrison_send_message tool while they run, and people send them here or through the API. They show here once one is sent.",
+   "columns": {
+    "createdUtc": "Sent",
+    "urgency": "Urgency",
+    "status": "Status",
+    "subject": "Subject",
+    "sender": "From",
+    "recipient": "To",
+    "reason": "Rejection",
+    "hopCount": "Hops",
+    "deliveredRunId": "Delivered to run",
+    "expiresUtc": "Expires",
+    "escalationId": "Escalation",
+    "threadId": "Thread",
+    "id": "ID"
+   }
+  }
+ }
+});

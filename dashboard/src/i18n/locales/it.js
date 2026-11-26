@@ -6486,3 +6486,186 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "Messaggi",
+    "tip": "Posta tra agenti e da persone, con i messaggi che le protezioni anti-ciclo hanno rifiutato e il motivo"
+   },
+   "messageThreads": {
+    "label": "Conversazione di messaggi",
+    "tip": "Tutti i messaggi di una conversazione, dal più vecchio"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Messaggio di agente"
+  },
+  "runKind": {
+   "Message": "Messaggio urgente"
+  },
+  "messageStatus": {
+   "Queued": "In coda",
+   "Delivered": "Consegnato",
+   "Acknowledged": "Confermato",
+   "Expired": "Scaduto",
+   "Rejected": "Rifiutato"
+  },
+  "messageUrgency": {
+   "Normal": "Normale",
+   "Urgent": "Urgente"
+  },
+  "messageRejection": {
+   "HopLimit": "Limite di passaggi",
+   "LineRate": "Frequenza della linea",
+   "ThreadBudget": "Budget della conversazione",
+   "NoLine": "Nessuna linea",
+   "Frozen": "Destinatario congelato"
+  }
+ },
+ "messages": {
+  "untrusted": "Agenti e persone hanno scritto questi messaggi. Oggetti, corpi e dettagli dei rifiuti sono mostrati come testo semplice, esattamente come inviati; nulla viene eseguito, visualizzato come markup o seguito.",
+  "views": {
+   "label": "Quali messaggi",
+   "all": "Tutti i messaggi",
+   "rejected": "Rifiutati",
+   "rejectedNote": "Messaggi che le protezioni anti-ciclo hanno rifiutato all'invio, con il motivo. Un messaggio rifiutato non è mai stato consegnato."
+  },
+  "filters": {
+   "reason": "Motivo",
+   "sender": "Mittente",
+   "recipient": "Destinatario",
+   "from": "Inviato dopo",
+   "to": "Inviato prima"
+  },
+  "actions": {
+   "send": "Invia messaggio",
+   "openThread": "Apri conversazione",
+   "copyId": "Copia ID",
+   "openSender": "Apri mittente",
+   "openRecipient": "Apri destinatario",
+   "openDeliveredRun": "Apri esecuzione ricevente",
+   "openEscalation": "Apri escalation"
+  },
+  "toasts": {
+   "sent": "Inviato a {{recipient}}.",
+   "copied": "ID del messaggio copiato."
+  },
+  "send": {
+   "title": "Invia un messaggio",
+   "intro": "Scrivi a un agente. Il messaggio attende nella sua casella finché un'esecuzione non lo legge; un messaggio urgente sveglia subito l'agente.",
+   "replyIntro": "Rispondi in questa conversazione. La risposta va all'agente che ha inviato il messaggio.",
+   "pickRecipient": "Scegli un agente",
+   "ttlPlaceholder": "Predefinito del server",
+   "sending": "Invio in corso...",
+   "rejected": "Le protezioni anti-ciclo hanno rifiutato questo messaggio.",
+   "rejectedStored": "Il messaggio rifiutato resta nell'elenco dei rifiutati.",
+   "fields": {
+    "recipient": "A",
+    "subject": "Oggetto",
+    "body": "Corpo",
+    "urgency": "Urgenza",
+    "ttlSeconds": "Scade dopo (secondi)"
+   },
+   "errors": {
+    "recipient": "Scegli l'agente a cui inviare il messaggio.",
+    "subject": "Dai al messaggio un oggetto da 1 a {{max}} caratteri.",
+    "body": "Il corpo contiene al massimo {{max}} byte.",
+    "ttlSeconds": "Inserisci un numero intero di secondi da {{min}} a {{max}}, oppure lascia vuoto."
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "Conversazione di messaggi",
+   "notFoundTitle": "Conversazione non trovata",
+   "notFoundBody": "Non esiste in questo tenant, oppure è stata rimossa con il suo tenant.",
+   "back": "Torna ai messaggi",
+   "count_one": "{{count}} messaggio",
+   "count_other": "{{count}} messaggi",
+   "rejectedCount_one": "{{count}} rifiutato",
+   "rejectedCount_other": "{{count}} rifiutati",
+   "emptyTitle": "Nessun messaggio in questa conversazione",
+   "emptyBody": "La conversazione esiste ma non contiene messaggi che puoi leggere.",
+   "listLabel": "Messaggi di questa conversazione, dal più vecchio",
+   "noBody": "Questo messaggio non ha corpo.",
+   "noDetail": "Nessun altro dettaglio.",
+   "woke": "Ha svegliato il destinatario",
+   "artifacts": "Artefatti allegati",
+   "reply": "Rispondi",
+   "replyPrefix": "R: ",
+   "fields": {
+    "sender": "Da",
+    "recipient": "A",
+    "createdUtc": "Inviato",
+    "hopCount": "Passaggi",
+    "deliveredRunId": "Consegnato all'esecuzione",
+    "deliveredUtc": "Consegnato",
+    "acknowledgedUtc": "Confermato",
+    "expiresUtc": "Scade",
+    "wokeRecipient": "Risveglio",
+    "escalationId": "Escalation",
+    "id": "ID del messaggio"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "Posta in arrivo",
+    "status": "Stato",
+    "openAll": "Apri in Messaggi",
+    "none": "Ancora nessun messaggio per questo agente.",
+    "noneWithStatus": "Nessun messaggio per questo agente con questo stato.",
+    "more": "Sono mostrati i {{shown}} più recenti su {{total}}. Apri Messaggi per vederli tutti."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_one": "{{count}} messaggio rifiutato dalle protezioni anti-ciclo nelle ultime 24 ore",
+    "rejected_other": "{{count}} messaggi rifiutati dalle protezioni anti-ciclo nelle ultime 24 ore",
+    "noneRejected": "Nessun messaggio rifiutato dalle protezioni anti-ciclo nelle ultime 24 ore"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "Messaggi",
+   "subtitle": "Posta tra agenti e da persone, dal più recente, con i messaggi che le protezioni anti-ciclo hanno rifiutato. Aprine uno per leggere tutta la conversazione.",
+   "add": "Invia messaggio",
+   "create": "Invia messaggio",
+   "edit": "Messaggio",
+   "view": "Dettagli del messaggio",
+   "deleteTitle": "Elimina messaggio",
+   "emptyTitle": "Ancora nessun messaggio",
+   "emptyBody": "Gli agenti inviano messaggi con lo strumento garrison_send_message durante l'esecuzione, e le persone li inviano qui o tramite l'API. Compaiono qui appena ne viene inviato uno.",
+   "columns": {
+    "createdUtc": "Inviato",
+    "urgency": "Urgenza",
+    "status": "Stato",
+    "subject": "Oggetto",
+    "sender": "Da",
+    "recipient": "A",
+    "reason": "Rifiuto",
+    "hopCount": "Passaggi",
+    "deliveredRunId": "Consegnato all'esecuzione",
+    "expiresUtc": "Scade",
+    "escalationId": "Escalation",
+    "threadId": "Conversazione",
+    "id": "ID"
+   }
+  }
+ }
+});

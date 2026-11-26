@@ -26,6 +26,7 @@ import GrafanaLink from '../components/GrafanaLink';
 import { useGrafana } from '../hooks/useServerInfo';
 import { agentDashboardUrl } from '../utils/grafana';
 import AgentRevisionsPanel from '../components/AgentRevisionsPanel';
+import AgentInboxPanel from '../components/AgentInboxPanel';
 import { EnvironmentBadge, RevisionPinBadge } from '../components/RevisionBadges';
 import { revisionNumbers } from '../utils/revisions';
 import FreezeAction from '../components/FreezeAction';
@@ -36,7 +37,7 @@ import { freezeOn } from '../utils/freezes';
 
 /**
  * One agent end to end: identity, exposure, delegation, deployments with weights, environments, and revision pins,
- * revisions (list, diff, publish), A2A card, and recent runs.
+ * revisions (list, diff, publish), A2A card, recent runs, and (AA6.12) the agent's inbox of messages with Send message.
  */
 export default function AgentDetailView({ recordId }) {
   const { t, i18n } = useTranslation();
@@ -207,6 +208,7 @@ export default function AgentDetailView({ recordId }) {
           { id: 'deployments', label: t('views.agentDetail.deployments', { count: deployments.length }), tip: t('tips.views.agentDetail.tabs.deployments') },
           { id: 'revisions', label: t('views.agentDetail.revisions'), tip: t('tips.views.agentDetail.tabs.revisions') },
           { id: 'runs', label: t('views.agentDetail.recentRuns'), tip: t('tips.views.agentDetail.tabs.runs') },
+          { id: 'inbox', label: t('views.agentDetail.inbox.tab'), tip: t('tips.views.agentDetail.tabs.inbox') },
           { id: 'card', label: t('views.agentDetail.card'), tip: t('tips.views.agentDetail.tabs.card') }
         ]}
       />
@@ -298,6 +300,7 @@ export default function AgentDetailView({ recordId }) {
               ))}
             </ul>
           ))}
+        {tab === 'inbox' && <AgentInboxPanel agent={agent} />}
         {tab === 'card' && (cardError ? <div className="text-muted">{errorMessage(t, cardError)}</div> : <CodeBlock value={card} prettyJson />)}
       </div>
       <JsonViewerModal open={jsonOpen} value={agent} onClose={() => setJsonOpen(false)} />

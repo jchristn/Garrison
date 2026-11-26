@@ -6486,3 +6486,186 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "Messages",
+    "tip": "Courrier entre agents et venant de personnes, avec les messages refusés par les garde-fous anti-boucle et la raison"
+   },
+   "messageThreads": {
+    "label": "Fil de messages",
+    "tip": "Tous les messages d'un fil, du plus ancien au plus récent"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Message d'agent"
+  },
+  "runKind": {
+   "Message": "Message urgent"
+  },
+  "messageStatus": {
+   "Queued": "En attente",
+   "Delivered": "Remis",
+   "Acknowledged": "Accusé",
+   "Expired": "Expiré",
+   "Rejected": "Refusé"
+  },
+  "messageUrgency": {
+   "Normal": "Normale",
+   "Urgent": "Urgente"
+  },
+  "messageRejection": {
+   "HopLimit": "Limite de sauts",
+   "LineRate": "Débit de la ligne",
+   "ThreadBudget": "Budget du fil",
+   "NoLine": "Aucune ligne",
+   "Frozen": "Destinataire gelé"
+  }
+ },
+ "messages": {
+  "untrusted": "Des agents et des personnes ont écrit ces messages. Les objets, les corps et les détails de refus sont affichés en texte brut, tels qu'envoyés ; rien n'y est exécuté, rendu ni suivi.",
+  "views": {
+   "label": "Quels messages",
+   "all": "Tous les messages",
+   "rejected": "Refusés",
+   "rejectedNote": "Messages que les garde-fous anti-boucle ont refusés à l'envoi, avec la raison. Un message refusé n'a jamais été remis."
+  },
+  "filters": {
+   "reason": "Raison",
+   "sender": "Expéditeur",
+   "recipient": "Destinataire",
+   "from": "Envoyé après",
+   "to": "Envoyé avant"
+  },
+  "actions": {
+   "send": "Envoyer un message",
+   "openThread": "Ouvrir le fil",
+   "copyId": "Copier l'ID",
+   "openSender": "Ouvrir l'expéditeur",
+   "openRecipient": "Ouvrir le destinataire",
+   "openDeliveredRun": "Ouvrir l'exécution destinataire",
+   "openEscalation": "Ouvrir l'escalade"
+  },
+  "toasts": {
+   "sent": "Envoyé à {{recipient}}.",
+   "copied": "ID du message copié."
+  },
+  "send": {
+   "title": "Envoyer un message",
+   "intro": "Écrivez à un agent. Le message attend dans sa boîte de réception jusqu'à ce qu'une exécution le lise ; un message urgent réveille l'agent tout de suite.",
+   "replyIntro": "Répondez dans ce fil. La réponse va à l'agent qui a envoyé le message.",
+   "pickRecipient": "Choisir un agent",
+   "ttlPlaceholder": "Valeur par défaut du serveur",
+   "sending": "Envoi...",
+   "rejected": "Les garde-fous anti-boucle ont refusé ce message.",
+   "rejectedStored": "Le message refusé est conservé dans la liste des refusés.",
+   "fields": {
+    "recipient": "À",
+    "subject": "Objet",
+    "body": "Corps",
+    "urgency": "Urgence",
+    "ttlSeconds": "Expire après (secondes)"
+   },
+   "errors": {
+    "recipient": "Choisissez l'agent à qui envoyer le message.",
+    "subject": "Donnez au message un objet de 1 à {{max}} caractères.",
+    "body": "Le corps contient au plus {{max}} octets.",
+    "ttlSeconds": "Saisissez un nombre entier de secondes de {{min}} à {{max}}, ou laissez le champ vide."
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "Fil de messages",
+   "notFoundTitle": "Fil introuvable",
+   "notFoundBody": "Il n'existe pas dans ce locataire, ou il a été supprimé avec son locataire.",
+   "back": "Retour aux messages",
+   "count_one": "{{count}} message",
+   "count_other": "{{count}} messages",
+   "rejectedCount_one": "{{count}} refusé",
+   "rejectedCount_other": "{{count}} refusés",
+   "emptyTitle": "Aucun message dans ce fil",
+   "emptyBody": "Le fil existe mais ne contient aucun message que vous pouvez lire.",
+   "listLabel": "Messages de ce fil, du plus ancien au plus récent",
+   "noBody": "Ce message n'a pas de corps.",
+   "noDetail": "Aucun détail supplémentaire.",
+   "woke": "A réveillé le destinataire",
+   "artifacts": "Artefacts joints",
+   "reply": "Répondre",
+   "replyPrefix": "RE : ",
+   "fields": {
+    "sender": "De",
+    "recipient": "À",
+    "createdUtc": "Envoyé",
+    "hopCount": "Sauts",
+    "deliveredRunId": "Remis à l'exécution",
+    "deliveredUtc": "Remis",
+    "acknowledgedUtc": "Accusé",
+    "expiresUtc": "Expire",
+    "wokeRecipient": "Réveil",
+    "escalationId": "Escalade",
+    "id": "ID du message"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "Boîte de réception",
+    "status": "Statut",
+    "openAll": "Ouvrir dans Messages",
+    "none": "Aucun message pour cet agent pour l'instant.",
+    "noneWithStatus": "Aucun message pour cet agent avec ce statut.",
+    "more": "Affichage des {{shown}} plus récents sur {{total}}. Ouvrez Messages pour tous les voir."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_one": "{{count}} message refusé par les garde-fous anti-boucle au cours des dernières 24 heures",
+    "rejected_other": "{{count}} messages refusés par les garde-fous anti-boucle au cours des dernières 24 heures",
+    "noneRejected": "Aucun message refusé par les garde-fous anti-boucle au cours des dernières 24 heures"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "Messages",
+   "subtitle": "Courrier entre agents et venant de personnes, du plus récent au plus ancien, avec les messages refusés par les garde-fous anti-boucle. Ouvrez-en un pour lire tout son fil.",
+   "add": "Envoyer un message",
+   "create": "Envoyer un message",
+   "edit": "Message",
+   "view": "Détails du message",
+   "deleteTitle": "Supprimer le message",
+   "emptyTitle": "Aucun message pour l'instant",
+   "emptyBody": "Les agents envoient des messages avec l'outil garrison_send_message pendant leur exécution, et les personnes les envoient ici ou par l'API. Ils apparaissent ici dès qu'un message est envoyé.",
+   "columns": {
+    "createdUtc": "Envoyé",
+    "urgency": "Urgence",
+    "status": "Statut",
+    "subject": "Objet",
+    "sender": "De",
+    "recipient": "À",
+    "reason": "Refus",
+    "hopCount": "Sauts",
+    "deliveredRunId": "Remis à l'exécution",
+    "expiresUtc": "Expire",
+    "escalationId": "Escalade",
+    "threadId": "Fil",
+    "id": "ID"
+   }
+  }
+ }
+});

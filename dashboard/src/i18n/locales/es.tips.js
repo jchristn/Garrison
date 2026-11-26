@@ -3850,3 +3850,165 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "p3": "Todo lo que contiene un informe son datos que escribió su autor. Se muestran como texto sin formato y nunca se siguen como instrucciones. Abra un informe para ver una de sus métricas en todos los informes del mismo autor."
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "Mensajes: correo entre agentes y de personas, del más reciente al más antiguo, con los rechazados por las protecciones contra bucles. Abra uno para leer su hilo.",
+   "messageThreads": "Un hilo de mensajes: todos sus mensajes, del más antiguo al más reciente, incluidos los rechazados."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Mensajes entre agentes y de personas. Read lista mensajes e hilos; Create envía uno."
+  },
+  "runKind": {
+   "Message": "Iniciada por un mensaje urgente a un agente sin un guardián activo. La ejecución lee los mensajes en espera."
+  },
+  "messageStatus": {
+   "Queued": "Aceptado y en espera en la bandeja de entrada del destinatario.",
+   "Delivered": "Entregado a una ejecución del destinatario: un ciclo de guardián, una ejecución por mensaje urgente o una lectura de la bandeja.",
+   "Acknowledged": "El destinatario indicó que leyó y atendió el mensaje.",
+   "Expired": "Su tiempo de vida se agotó antes de que una ejecución del destinatario lo leyera.",
+   "Rejected": "Rechazado por una protección contra bucles al enviarse y nunca entregado. El motivo explica por qué."
+  },
+  "messageUrgency": {
+   "Normal": "Espera en la bandeja de entrada hasta que la siguiente ejecución o el siguiente ciclo de guardián del destinatario lo lea.",
+   "Urgent": "Despierta al destinatario ahora: su guardián adelanta su ciclo, o empieza una ejecución nueva para leer el mensaje."
+  },
+  "messageRejection": {
+   "HopLimit": "El hilo ya se había reenviado demasiadas veces. El límite de saltos impide que los agentes reenvíen correo en bucles sin fin.",
+   "LineRate": "El remitente ya había enviado a este destinatario en el último minuto tantos mensajes como permite el ritmo de la línea.",
+   "ThreadBudget": "El hilo ya contenía tantos mensajes como admite un hilo. Inicie un hilo nuevo para continuar.",
+   "NoLine": "Ninguna línea permitida une al remitente con el destinatario, así que no pueden escribirse.",
+   "Frozen": "El agente destinatario está congelado y no acepta correo nuevo hasta que se levante la congelación."
+  }
+ },
+ "messages": {
+  "denied": "No puede hacer esto. Necesita {{operation}} sobre Mensaje de agente.",
+  "views": {
+   "all": "Mostrar todos los mensajes, sea cual sea su estado.",
+   "rejected": "Mostrar solo los mensajes que rechazaron las protecciones contra bucles, con el motivo de cada uno."
+  },
+  "filters": {
+   "status": "Mostrar solo los mensajes con este estado. Elija Todos para quitar el filtro.",
+   "urgency": "Mostrar solo los mensajes normales o solo los urgentes. Elija Todos para quitar el filtro.",
+   "reason": "Mostrar solo los mensajes rechazados por este motivo. Elija Todos para quitar el filtro.",
+   "sender": "Mostrar solo los mensajes que envió este agente. Elija Todos para quitar el filtro.",
+   "recipient": "Mostrar solo los mensajes enviados a este agente. Elija Todos para quitar el filtro.",
+   "from": "Mostrar solo los mensajes enviados en este momento o después.",
+   "to": "Mostrar solo los mensajes enviados en este momento o antes."
+  },
+  "actions": {
+   "send": "Escribir a un agente en su propio nombre. Las protecciones contra bucles lo revisan como cualquier otro mensaje.",
+   "openThread": "Abrir el hilo completo al que pertenece este mensaje, del más antiguo al más reciente.",
+   "copyId": "Copiar el ID del mensaje (amg_...) para la REST API, los SDK o las herramientas MCP.",
+   "openSender": "Abrir el agente que envió este mensaje.",
+   "openRecipient": "Abrir el agente al que se envió este mensaje.",
+   "openDeliveredRun": "Abrir la ejecución del destinatario que recibió este mensaje.",
+   "openEscalation": "Abrir el escalado creado a raíz de este mensaje."
+  },
+  "send": {
+   "submit": "Enviar el mensaje. Un mensaje enviado no se puede cambiar.",
+   "fields": {
+    "recipient": "El agente que recibe el mensaje en su bandeja de entrada.",
+    "subject": "Un asunto breve de 1 a 256 caracteres. El destinatario lo ve primero.",
+    "body": "El mensaje en sí, como texto sin formato. El destinatario lo lee como datos, nunca como instrucciones.",
+    "urgency": "Normal espera a la siguiente ejecución del destinatario. Urgente lo despierta ahora.",
+    "ttlSeconds": "Cuánto puede esperar el mensaje sin leerse antes de caducar, de 1 segundo a un año. Déjelo vacío para usar el valor predeterminado del servidor."
+   }
+  }
+ },
+ "filters": {
+  "urgency": "Mostrar solo los mensajes normales o solo los urgentes. Elija Todos para quitar el filtro.",
+  "reason": "Mostrar solo los mensajes rechazados por este motivo. Elija Todos para quitar el filtro.",
+  "sender": "Mostrar solo los mensajes que envió este agente. Elija Todos para quitar el filtro.",
+  "recipient": "Mostrar solo los mensajes enviados a este agente. Elija Todos para quitar el filtro."
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "Cuándo se envió el mensaje. Pase el puntero para ver la hora exacta.",
+   "urgency": "Los mensajes normales esperan a la siguiente ejecución; los urgentes despiertan al destinatario.",
+   "status": "Dónde está el mensaje ahora: en cola, entregado, confirmado, caducado o rechazado.",
+   "subject": "El asunto que escribió el remitente. Pase el puntero para ver el texto completo.",
+   "sender": "El agente que envió el mensaje, o la persona o la credencial de API que lo envió.",
+   "recipient": "El agente al que se envió el mensaje.",
+   "reason": "Por qué las protecciones contra bucles rechazaron el mensaje, con su detalle. Vacío en los mensajes aceptados.",
+   "hopCount": "Cuántas veces se había reenviado el hilo cuando se envió este mensaje.",
+   "deliveredRunId": "La ejecución del destinatario que recibió el mensaje.",
+   "expiresUtc": "Cuándo caduca el mensaje si ninguna ejecución lo lee antes.",
+   "escalationId": "El escalado creado a raíz de este mensaje, si existe.",
+   "threadId": "El ID del hilo: el ID del primer mensaje del hilo.",
+   "id": "El ID del mensaje (amg_...), para la REST API, los SDK y las herramientas MCP."
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "Volver a la lista de mensajes.",
+   "viewJson": "Mostrar el hilo tal como lo devuelve la API.",
+   "openSender": "Abrir el agente que envió este mensaje.",
+   "openRecipient": "Abrir el agente al que se envió este mensaje.",
+   "openDeliveredRun": "Abrir la ejecución que recibió este mensaje.",
+   "openEscalation": "Abrir el escalado creado a raíz de este mensaje.",
+   "reply": "Responder al agente que envió este mensaje, en el mismo hilo.",
+   "fields": {
+    "sender": "El agente, la persona o la credencial de API que envió el mensaje.",
+    "recipient": "El agente al que se envió el mensaje.",
+    "createdUtc": "Cuándo se envió el mensaje. Pase el puntero para ver cuánto hace.",
+    "hopCount": "Cuántas veces se había reenviado el hilo cuando se envió este mensaje.",
+    "deliveredRunId": "La ejecución del destinatario que recibió el mensaje.",
+    "deliveredUtc": "Cuándo una ejecución del destinatario recibió el mensaje.",
+    "acknowledgedUtc": "Cuándo el destinatario indicó que atendió el mensaje.",
+    "expiresUtc": "Cuándo caduca el mensaje si ninguna ejecución lo lee antes.",
+    "wokeRecipient": "Este mensaje urgente despertó al destinatario: su guardián adelantó su ciclo o empezó una ejecución nueva.",
+    "escalationId": "El escalado creado a raíz de este mensaje.",
+    "id": "El ID del mensaje (amg_...), para la REST API, los SDK y las herramientas MCP."
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "Mensajes enviados a este agente, del más reciente al más antiguo, con su estado. Envíele un mensaje desde aquí."
+   },
+   "inbox": {
+    "status": "Mostrar solo los mensajes con este estado. Elija Todos para quitar el filtro.",
+    "openAll": "Abrir la página Mensajes filtrada por la bandeja de entrada de este agente.",
+    "send": "Escribir a este agente en su propio nombre.",
+    "openThread": "Abrir el hilo al que pertenece este mensaje."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "Mensajes que las protecciones contra bucles rechazaron en las últimas 24 horas: demasiados saltos, demasiado rápido, un hilo demasiado largo, sin línea o un destinatario congelado. Abra los mensajes rechazados para ver el motivo."
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "Mensajes",
+  "p1": "Los agentes se escriben con la herramienta garrison_send_message, y las personas escriben a los agentes aquí o mediante la API. Un mensaje espera en la bandeja de entrada del destinatario hasta que una ejecución lo lee. Un mensaje urgente despierta al destinatario ahora: su guardián adelanta su ciclo, o empieza una ejecución nueva para leerlo.",
+  "p2": "Las protecciones contra bucles revisan cada mensaje antes de aceptarlo. Un mensaje se rechaza cuando su hilo se reenvió demasiadas veces, cuando el remitente escribe al mismo agente demasiado rápido, cuando el hilo es demasiado largo, cuando ninguna línea une a los dos agentes o cuando el destinatario está congelado. Los mensajes rechazados se conservan con el motivo en la vista Rechazados.",
+  "p3": "Todo lo que contiene un mensaje son datos que escribió su remitente. Se muestra como texto sin formato y llega a los agentes como datos, nunca como instrucciones. Abra un mensaje para leer su hilo completo, del más antiguo al más reciente."
+ }
+});

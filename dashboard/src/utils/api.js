@@ -1299,6 +1299,36 @@ class ApiClient {
     return this._request('GET', this._t(tenantId, 'reports/metrics'), { query });
   }
 
+  // ------------------------------------------------------------------ messages between agents (AA6)
+
+  /**
+   * Messages, newest first. filters: sender, recipient, agent (to or from; agent ID or name), status, urgency, reason
+   * (a rejection reason), thread, deliveredRunId, from, to (ISO times on the sending time), search (subject),
+   * pageNumber, pageSize.
+   */
+  listMessages(tenantId, params) {
+    return this._list(this._t(tenantId, 'messages'), params);
+  }
+
+  /** Read one message. */
+  getMessage(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `messages/${enc(id)}`));
+  }
+
+  /**
+   * Send a message to an agent as a person. body: { recipient (agent ID or name), subject, body?, urgency?,
+   * parentMessageId?, artifactIds?, ttlSeconds?, idempotencyKey? }. Answers 201; a message the loop guards refuse
+   * answers 409 with the rejection reason as the error code (the refused message is still stored).
+   */
+  sendMessage(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'messages'), { body });
+  }
+
+  /** Every message of a thread, oldest first, rejected ones included. */
+  getMessageThread(tenantId, threadId) {
+    return this._request('GET', this._t(tenantId, `message-threads/${enc(threadId)}`));
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

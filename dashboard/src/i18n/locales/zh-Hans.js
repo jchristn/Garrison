@@ -6425,3 +6425,183 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "消息",
+    "tip": "智能体之间以及来自人员的邮件，包括被循环防护拒绝的消息及原因"
+   },
+   "messageThreads": {
+    "label": "消息会话",
+    "tip": "一个会话中的所有消息，按时间从早到晚排列"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "智能体消息"
+  },
+  "runKind": {
+   "Message": "紧急消息"
+  },
+  "messageStatus": {
+   "Queued": "排队中",
+   "Delivered": "已送达",
+   "Acknowledged": "已确认",
+   "Expired": "已过期",
+   "Rejected": "已拒绝"
+  },
+  "messageUrgency": {
+   "Normal": "普通",
+   "Urgent": "紧急"
+  },
+  "messageRejection": {
+   "HopLimit": "跳数上限",
+   "LineRate": "线路速率",
+   "ThreadBudget": "会话上限",
+   "NoLine": "无线路",
+   "Frozen": "收件人已冻结"
+  }
+ },
+ "messages": {
+  "untrusted": "这些消息由智能体和人员撰写。主题、正文和拒绝详情按发送时的原样以纯文本显示；其中的任何内容都不会被执行、渲染或当作指令遵循。",
+  "views": {
+   "label": "显示哪些消息",
+   "all": "所有消息",
+   "rejected": "已拒绝",
+   "rejectedNote": "发送时被循环防护拒绝的消息及原因。被拒绝的消息从未送达。"
+  },
+  "filters": {
+   "reason": "原因",
+   "sender": "发件人",
+   "recipient": "收件人",
+   "from": "发送时间晚于",
+   "to": "发送时间早于"
+  },
+  "actions": {
+   "send": "发送消息",
+   "openThread": "打开会话",
+   "copyId": "复制 ID",
+   "openSender": "打开发件人",
+   "openRecipient": "打开收件人",
+   "openDeliveredRun": "打开接收的运行",
+   "openEscalation": "打开升级"
+  },
+  "toasts": {
+   "sent": "已发送给 {{recipient}}。",
+   "copied": "已复制消息 ID。"
+  },
+  "send": {
+   "title": "发送消息",
+   "intro": "给智能体写消息。消息在其收件箱中等待，直到某次运行读取它；紧急消息会立即唤醒智能体。",
+   "replyIntro": "在此会话中回复。回复会发给发送该消息的智能体。",
+   "pickRecipient": "选择智能体",
+   "ttlPlaceholder": "服务器默认值",
+   "sending": "正在发送...",
+   "rejected": "循环防护拒绝了这条消息。",
+   "rejectedStored": "被拒绝的消息保留在已拒绝列表中。",
+   "fields": {
+    "recipient": "收件人",
+    "subject": "主题",
+    "body": "正文",
+    "urgency": "紧急程度",
+    "ttlSeconds": "过期时间（秒）"
+   },
+   "errors": {
+    "recipient": "请选择要接收消息的智能体。",
+    "subject": "请为消息填写 1 到 {{max}} 个字符的主题。",
+    "body": "正文最多 {{max}} 字节。",
+    "ttlSeconds": "请输入 {{min}} 到 {{max}} 之间的整数秒数，或留空。"
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "消息会话",
+   "notFoundTitle": "未找到会话",
+   "notFoundBody": "它不存在于此租户中，或已随其租户一起删除。",
+   "back": "返回消息",
+   "count_other": "{{count}} 条消息",
+   "rejectedCount_other": "{{count}} 条已拒绝",
+   "emptyTitle": "此会话中没有消息",
+   "emptyBody": "会话存在，但其中没有您可以读取的消息。",
+   "listLabel": "此会话中的消息，按时间从早到晚排列",
+   "noBody": "这条消息没有正文。",
+   "noDetail": "没有更多详情。",
+   "woke": "已唤醒收件人",
+   "artifacts": "附带的产物",
+   "reply": "回复",
+   "replyPrefix": "回复：",
+   "fields": {
+    "sender": "发件人",
+    "recipient": "收件人",
+    "createdUtc": "发送时间",
+    "hopCount": "跳数",
+    "deliveredRunId": "送达的运行",
+    "deliveredUtc": "送达时间",
+    "acknowledgedUtc": "确认时间",
+    "expiresUtc": "过期时间",
+    "wokeRecipient": "唤醒",
+    "escalationId": "升级",
+    "id": "消息 ID"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "收件箱",
+    "status": "状态",
+    "openAll": "在消息中打开",
+    "none": "此智能体还没有消息。",
+    "noneWithStatus": "此智能体没有该状态的消息。",
+    "more": "显示 {{total}} 条中最新的 {{shown}} 条。打开消息页面可查看全部。"
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_other": "过去 24 小时内有 {{count}} 条消息被循环防护拒绝",
+    "noneRejected": "过去 24 小时内没有消息被循环防护拒绝"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "消息",
+   "subtitle": "智能体之间以及来自人员的邮件，最新的在前，包括被循环防护拒绝的消息。打开一条即可阅读整个会话。",
+   "add": "发送消息",
+   "create": "发送消息",
+   "edit": "消息",
+   "view": "消息详情",
+   "deleteTitle": "删除消息",
+   "emptyTitle": "还没有消息",
+   "emptyBody": "智能体在运行时用 garrison_send_message 工具发送消息，人员可在此处或通过 API 发送。消息发送后会显示在这里。",
+   "columns": {
+    "createdUtc": "发送时间",
+    "urgency": "紧急程度",
+    "status": "状态",
+    "subject": "主题",
+    "sender": "发件人",
+    "recipient": "收件人",
+    "reason": "拒绝",
+    "hopCount": "跳数",
+    "deliveredRunId": "送达的运行",
+    "expiresUtc": "过期时间",
+    "escalationId": "升级",
+    "threadId": "会话",
+    "id": "ID"
+   }
+  }
+ }
+});

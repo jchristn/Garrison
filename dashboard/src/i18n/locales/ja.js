@@ -6424,3 +6424,183 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "メッセージ",
+    "tip": "エージェント間や人からのメール。ループガードが拒否したメッセージとその理由も表示します"
+   },
+   "messageThreads": {
+    "label": "メッセージスレッド",
+    "tip": "1 つのスレッドのすべてのメッセージ (古い順)"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "エージェントメッセージ"
+  },
+  "runKind": {
+   "Message": "緊急メッセージ"
+  },
+  "messageStatus": {
+   "Queued": "待機中",
+   "Delivered": "配信済み",
+   "Acknowledged": "確認済み",
+   "Expired": "期限切れ",
+   "Rejected": "拒否"
+  },
+  "messageUrgency": {
+   "Normal": "通常",
+   "Urgent": "緊急"
+  },
+  "messageRejection": {
+   "HopLimit": "ホップ上限",
+   "LineRate": "ライン送信レート",
+   "ThreadBudget": "スレッド上限",
+   "NoLine": "ラインなし",
+   "Frozen": "受信者が凍結中"
+  }
+ },
+ "messages": {
+  "untrusted": "これらのメッセージはエージェントや人が書いたものです。件名、本文、拒否の詳細は送信されたとおりプレーンテキストで表示され、実行、描画、指示として従うことは一切ありません。",
+  "views": {
+   "label": "表示するメッセージ",
+   "all": "すべてのメッセージ",
+   "rejected": "拒否",
+   "rejectedNote": "送信時にループガードが拒否したメッセージと、その理由です。拒否されたメッセージは一度も配信されていません。"
+  },
+  "filters": {
+   "reason": "理由",
+   "sender": "送信者",
+   "recipient": "受信者",
+   "from": "この日時以降に送信",
+   "to": "この日時以前に送信"
+  },
+  "actions": {
+   "send": "メッセージを送信",
+   "openThread": "スレッドを開く",
+   "copyId": "ID をコピー",
+   "openSender": "送信者を開く",
+   "openRecipient": "受信者を開く",
+   "openDeliveredRun": "受信した実行を開く",
+   "openEscalation": "エスカレーションを開く"
+  },
+  "toasts": {
+   "sent": "{{recipient}} に送信しました。",
+   "copied": "メッセージ ID をコピーしました。"
+  },
+  "send": {
+   "title": "メッセージを送信",
+   "intro": "エージェントにメッセージを書きます。メッセージは実行が読むまで受信箱で待機します。緊急のメッセージはすぐにエージェントを起こします。",
+   "replyIntro": "このスレッドで返信します。返信はメッセージを送ったエージェントに届きます。",
+   "pickRecipient": "エージェントを選択",
+   "ttlPlaceholder": "サーバーの既定値",
+   "sending": "送信中...",
+   "rejected": "ループガードがこのメッセージを拒否しました。",
+   "rejectedStored": "拒否されたメッセージは拒否の一覧に残ります。",
+   "fields": {
+    "recipient": "宛先",
+    "subject": "件名",
+    "body": "本文",
+    "urgency": "緊急度",
+    "ttlSeconds": "有効期限 (秒)"
+   },
+   "errors": {
+    "recipient": "メッセージを送るエージェントを選択してください。",
+    "subject": "件名は 1 から {{max}} 文字で入力してください。",
+    "body": "本文は最大 {{max}} バイトです。",
+    "ttlSeconds": "{{min}} から {{max}} までの整数の秒数を入力するか、空欄のままにしてください。"
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "メッセージスレッド",
+   "notFoundTitle": "スレッドが見つかりません",
+   "notFoundBody": "このテナントに存在しないか、テナントとともに削除されました。",
+   "back": "メッセージに戻る",
+   "count_other": "{{count}} 件のメッセージ",
+   "rejectedCount_other": "{{count}} 件拒否",
+   "emptyTitle": "このスレッドにメッセージはありません",
+   "emptyBody": "スレッドは存在しますが、読むことのできるメッセージがありません。",
+   "listLabel": "このスレッドのメッセージ (古い順)",
+   "noBody": "このメッセージには本文がありません。",
+   "noDetail": "詳細はありません。",
+   "woke": "受信者を起こしました",
+   "artifacts": "添付された成果物",
+   "reply": "返信",
+   "replyPrefix": "返信: ",
+   "fields": {
+    "sender": "送信者",
+    "recipient": "宛先",
+    "createdUtc": "送信日時",
+    "hopCount": "ホップ数",
+    "deliveredRunId": "配信先の実行",
+    "deliveredUtc": "配信日時",
+    "acknowledgedUtc": "確認日時",
+    "expiresUtc": "有効期限",
+    "wokeRecipient": "起動",
+    "escalationId": "エスカレーション",
+    "id": "メッセージ ID"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "受信箱",
+    "status": "ステータス",
+    "openAll": "メッセージで開く",
+    "none": "このエージェント宛てのメッセージはまだありません。",
+    "noneWithStatus": "このステータスのメッセージはこのエージェント宛てにありません。",
+    "more": "{{total}} 件中、新しい {{shown}} 件を表示しています。すべて見るにはメッセージを開いてください。"
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_other": "過去 24 時間にループガードが拒否したメッセージ: {{count}} 件",
+    "noneRejected": "過去 24 時間にループガードが拒否したメッセージはありません"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "メッセージ",
+   "subtitle": "エージェント間や人からのメール (新しい順) と、ループガードが拒否したメッセージ。開くとスレッド全体を読めます。",
+   "add": "メッセージを送信",
+   "create": "メッセージを送信",
+   "edit": "メッセージ",
+   "view": "メッセージの詳細",
+   "deleteTitle": "メッセージを削除",
+   "emptyTitle": "メッセージはまだありません",
+   "emptyBody": "エージェントは実行中に garrison_send_message ツールでメッセージを送り、人はここか API から送ります。送信されるとここに表示されます。",
+   "columns": {
+    "createdUtc": "送信日時",
+    "urgency": "緊急度",
+    "status": "ステータス",
+    "subject": "件名",
+    "sender": "送信者",
+    "recipient": "宛先",
+    "reason": "拒否",
+    "hopCount": "ホップ数",
+    "deliveredRunId": "配信先の実行",
+    "expiresUtc": "有効期限",
+    "escalationId": "エスカレーション",
+    "threadId": "スレッド",
+    "id": "ID"
+   }
+  }
+ }
+});

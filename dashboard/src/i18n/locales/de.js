@@ -6472,3 +6472,186 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "Nachrichten",
+    "tip": "Post zwischen Agenten und von Personen, mit den Nachrichten, die Schleifenschutz-Regeln abgewiesen haben, und dem Grund"
+   },
+   "messageThreads": {
+    "label": "Nachrichtenverlauf",
+    "tip": "Alle Nachrichten eines Verlaufs, älteste zuerst"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Agentennachricht"
+  },
+  "runKind": {
+   "Message": "Dringende Nachricht"
+  },
+  "messageStatus": {
+   "Queued": "Wartend",
+   "Delivered": "Zugestellt",
+   "Acknowledged": "Bestätigt",
+   "Expired": "Abgelaufen",
+   "Rejected": "Abgewiesen"
+  },
+  "messageUrgency": {
+   "Normal": "Normal",
+   "Urgent": "Dringend"
+  },
+  "messageRejection": {
+   "HopLimit": "Weiterleitungsgrenze",
+   "LineRate": "Senderate",
+   "ThreadBudget": "Verlaufsbudget",
+   "NoLine": "Keine Verbindung",
+   "Frozen": "Empfänger eingefroren"
+  }
+ },
+ "messages": {
+  "untrusted": "Agenten und Personen haben diese Nachrichten geschrieben. Betreff, Text und Ablehnungsdetails werden als reiner Text genau so angezeigt, wie sie gesendet wurden; nichts davon wird ausgeführt, gerendert oder befolgt.",
+  "views": {
+   "label": "Welche Nachrichten",
+   "all": "Alle Nachrichten",
+   "rejected": "Abgewiesen",
+   "rejectedNote": "Nachrichten, die der Schleifenschutz beim Senden abgewiesen hat, mit dem Grund. Eine abgewiesene Nachricht wurde nie zugestellt."
+  },
+  "filters": {
+   "reason": "Grund",
+   "sender": "Absender",
+   "recipient": "Empfänger",
+   "from": "Gesendet nach",
+   "to": "Gesendet vor"
+  },
+  "actions": {
+   "send": "Nachricht senden",
+   "openThread": "Verlauf öffnen",
+   "copyId": "ID kopieren",
+   "openSender": "Absender öffnen",
+   "openRecipient": "Empfänger öffnen",
+   "openDeliveredRun": "Empfangenden Lauf öffnen",
+   "openEscalation": "Eskalation öffnen"
+  },
+  "toasts": {
+   "sent": "An {{recipient}} gesendet.",
+   "copied": "Nachrichten-ID kopiert."
+  },
+  "send": {
+   "title": "Nachricht senden",
+   "intro": "Schreiben Sie einem Agenten. Die Nachricht wartet in seinem Posteingang, bis ein Lauf sie liest; eine dringende Nachricht weckt den Agenten sofort.",
+   "replyIntro": "Antworten Sie in diesem Verlauf. Die Antwort geht an den Agenten, der die Nachricht gesendet hat.",
+   "pickRecipient": "Agenten auswählen",
+   "ttlPlaceholder": "Standard des Servers",
+   "sending": "Wird gesendet...",
+   "rejected": "Der Schleifenschutz hat diese Nachricht abgewiesen.",
+   "rejectedStored": "Die abgewiesene Nachricht bleibt in der Liste Abgewiesen erhalten.",
+   "fields": {
+    "recipient": "An",
+    "subject": "Betreff",
+    "body": "Text",
+    "urgency": "Dringlichkeit",
+    "ttlSeconds": "Läuft ab nach (Sekunden)"
+   },
+   "errors": {
+    "recipient": "Wählen Sie den Agenten, an den die Nachricht geht.",
+    "subject": "Geben Sie der Nachricht einen Betreff mit 1 bis {{max}} Zeichen.",
+    "body": "Der Text darf höchstens {{max}} Byte enthalten.",
+    "ttlSeconds": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} Sekunden ein oder lassen Sie das Feld leer."
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "Nachrichtenverlauf",
+   "notFoundTitle": "Verlauf nicht gefunden",
+   "notFoundBody": "Er existiert in diesem Mandanten nicht oder wurde mit seinem Mandanten entfernt.",
+   "back": "Zurück zu den Nachrichten",
+   "count_one": "{{count}} Nachricht",
+   "count_other": "{{count}} Nachrichten",
+   "rejectedCount_one": "{{count}} abgewiesen",
+   "rejectedCount_other": "{{count}} abgewiesen",
+   "emptyTitle": "Keine Nachrichten in diesem Verlauf",
+   "emptyBody": "Der Verlauf existiert, enthält aber keine Nachrichten, die Sie lesen dürfen.",
+   "listLabel": "Nachrichten in diesem Verlauf, älteste zuerst",
+   "noBody": "Diese Nachricht hat keinen Text.",
+   "noDetail": "Keine weiteren Angaben.",
+   "woke": "Hat den Empfänger geweckt",
+   "artifacts": "Angehängte Artefakte",
+   "reply": "Antworten",
+   "replyPrefix": "AW: ",
+   "fields": {
+    "sender": "Von",
+    "recipient": "An",
+    "createdUtc": "Gesendet",
+    "hopCount": "Weiterleitungen",
+    "deliveredRunId": "Zugestellt an Lauf",
+    "deliveredUtc": "Zugestellt",
+    "acknowledgedUtc": "Bestätigt",
+    "expiresUtc": "Läuft ab",
+    "wokeRecipient": "Wecken",
+    "escalationId": "Eskalation",
+    "id": "Nachrichten-ID"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "Posteingang",
+    "status": "Status",
+    "openAll": "In Nachrichten öffnen",
+    "none": "Noch keine Nachrichten für diesen Agenten.",
+    "noneWithStatus": "Keine Nachrichten für diesen Agenten mit diesem Status.",
+    "more": "Die neuesten {{shown}} von {{total}} werden angezeigt. Öffnen Sie Nachrichten, um alle zu sehen."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_one": "{{count}} Nachricht in den letzten 24 Stunden vom Schleifenschutz abgewiesen",
+    "rejected_other": "{{count}} Nachrichten in den letzten 24 Stunden vom Schleifenschutz abgewiesen",
+    "noneRejected": "Keine Nachrichten in den letzten 24 Stunden vom Schleifenschutz abgewiesen"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "Nachrichten",
+   "subtitle": "Post zwischen Agenten und von Personen, neueste zuerst, mit den Nachrichten, die der Schleifenschutz abgewiesen hat. Öffnen Sie eine, um den ganzen Verlauf zu lesen.",
+   "add": "Nachricht senden",
+   "create": "Nachricht senden",
+   "edit": "Nachricht",
+   "view": "Nachrichtendetails",
+   "deleteTitle": "Nachricht löschen",
+   "emptyTitle": "Noch keine Nachrichten",
+   "emptyBody": "Agenten senden Nachrichten während ihrer Läufe mit dem Werkzeug garrison_send_message, Personen hier oder über die API. Sie erscheinen hier, sobald eine gesendet wurde.",
+   "columns": {
+    "createdUtc": "Gesendet",
+    "urgency": "Dringlichkeit",
+    "status": "Status",
+    "subject": "Betreff",
+    "sender": "Von",
+    "recipient": "An",
+    "reason": "Ablehnung",
+    "hopCount": "Weiterleitungen",
+    "deliveredRunId": "Zugestellt an Lauf",
+    "expiresUtc": "Läuft ab",
+    "escalationId": "Eskalation",
+    "threadId": "Verlauf",
+    "id": "ID"
+   }
+  }
+ }
+});

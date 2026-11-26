@@ -6490,3 +6490,186 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Messages (AA6.12): the Messages page, the thread page, the agent inbox tab, the Send message dialog, the
+// Home card line, the message enums, the AgentMessage resource type, and the Message run kind.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "messages": {
+    "label": "Mensajes",
+    "tip": "Correo entre agentes y de personas, con los mensajes que rechazaron las protecciones contra bucles y el motivo"
+   },
+   "messageThreads": {
+    "label": "Hilo de mensajes",
+    "tip": "Todos los mensajes de un hilo, del más antiguo al más reciente"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Mensaje de agente"
+  },
+  "runKind": {
+   "Message": "Mensaje urgente"
+  },
+  "messageStatus": {
+   "Queued": "En cola",
+   "Delivered": "Entregado",
+   "Acknowledged": "Confirmado",
+   "Expired": "Caducado",
+   "Rejected": "Rechazado"
+  },
+  "messageUrgency": {
+   "Normal": "Normal",
+   "Urgent": "Urgente"
+  },
+  "messageRejection": {
+   "HopLimit": "Límite de saltos",
+   "LineRate": "Ritmo de la línea",
+   "ThreadBudget": "Presupuesto del hilo",
+   "NoLine": "Sin línea",
+   "Frozen": "Destinatario congelado"
+  }
+ },
+ "messages": {
+  "untrusted": "Agentes y personas escribieron estos mensajes. Asuntos, cuerpos y detalles de rechazo se muestran como texto sin formato, tal como se enviaron; nada de ello se ejecuta, se representa ni se sigue.",
+  "views": {
+   "label": "Qué mensajes",
+   "all": "Todos los mensajes",
+   "rejected": "Rechazados",
+   "rejectedNote": "Mensajes que las protecciones contra bucles rechazaron al enviarse, con el motivo. Un mensaje rechazado nunca se entregó."
+  },
+  "filters": {
+   "reason": "Motivo",
+   "sender": "Remitente",
+   "recipient": "Destinatario",
+   "from": "Enviado después de",
+   "to": "Enviado antes de"
+  },
+  "actions": {
+   "send": "Enviar mensaje",
+   "openThread": "Abrir hilo",
+   "copyId": "Copiar ID",
+   "openSender": "Abrir remitente",
+   "openRecipient": "Abrir destinatario",
+   "openDeliveredRun": "Abrir ejecución receptora",
+   "openEscalation": "Abrir escalado"
+  },
+  "toasts": {
+   "sent": "Enviado a {{recipient}}.",
+   "copied": "Se copió el ID del mensaje."
+  },
+  "send": {
+   "title": "Enviar un mensaje",
+   "intro": "Escriba a un agente. El mensaje espera en su bandeja de entrada hasta que una ejecución lo lee; un mensaje urgente despierta al agente ahora.",
+   "replyIntro": "Responda en este hilo. La respuesta va al agente que envió el mensaje.",
+   "pickRecipient": "Elija un agente",
+   "ttlPlaceholder": "Valor predeterminado del servidor",
+   "sending": "Enviando...",
+   "rejected": "Las protecciones contra bucles rechazaron este mensaje.",
+   "rejectedStored": "El mensaje rechazado se conserva en la lista de rechazados.",
+   "fields": {
+    "recipient": "Para",
+    "subject": "Asunto",
+    "body": "Cuerpo",
+    "urgency": "Urgencia",
+    "ttlSeconds": "Caduca tras (segundos)"
+   },
+   "errors": {
+    "recipient": "Elija el agente al que enviar el mensaje.",
+    "subject": "Dé al mensaje un asunto de 1 a {{max}} caracteres.",
+    "body": "El cuerpo admite como máximo {{max}} bytes.",
+    "ttlSeconds": "Escriba un número entero de segundos de {{min}} a {{max}}, o déjelo vacío."
+   }
+  }
+ },
+ "views": {
+  "messageThread": {
+   "title": "Hilo de mensajes",
+   "notFoundTitle": "Hilo no encontrado",
+   "notFoundBody": "No existe en este inquilino, o se eliminó junto con su inquilino.",
+   "back": "Volver a los mensajes",
+   "count_one": "{{count}} mensaje",
+   "count_other": "{{count}} mensajes",
+   "rejectedCount_one": "{{count}} rechazado",
+   "rejectedCount_other": "{{count}} rechazados",
+   "emptyTitle": "No hay mensajes en este hilo",
+   "emptyBody": "El hilo existe, pero no contiene mensajes que usted pueda leer.",
+   "listLabel": "Mensajes de este hilo, del más antiguo al más reciente",
+   "noBody": "Este mensaje no tiene cuerpo.",
+   "noDetail": "Sin más detalles.",
+   "woke": "Despertó al destinatario",
+   "artifacts": "Artefactos adjuntos",
+   "reply": "Responder",
+   "replyPrefix": "RE: ",
+   "fields": {
+    "sender": "De",
+    "recipient": "Para",
+    "createdUtc": "Enviado",
+    "hopCount": "Saltos",
+    "deliveredRunId": "Entregado a la ejecución",
+    "deliveredUtc": "Entregado",
+    "acknowledgedUtc": "Confirmado",
+    "expiresUtc": "Caduca",
+    "wokeRecipient": "Despertar",
+    "escalationId": "Escalado",
+    "id": "ID del mensaje"
+   }
+  },
+  "agentDetail": {
+   "inbox": {
+    "tab": "Bandeja de entrada",
+    "status": "Estado",
+    "openAll": "Abrir en Mensajes",
+    "none": "Todavía no hay mensajes para este agente.",
+    "noneWithStatus": "No hay mensajes para este agente con este estado.",
+    "more": "Se muestran los {{shown}} más recientes de {{total}}. Abra Mensajes para verlos todos."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected_one": "{{count}} mensaje rechazado por las protecciones contra bucles en las últimas 24 horas",
+    "rejected_other": "{{count}} mensajes rechazados por las protecciones contra bucles en las últimas 24 horas",
+    "noneRejected": "Ningún mensaje rechazado por las protecciones contra bucles en las últimas 24 horas"
+   }
+  }
+ },
+ "resources": {
+  "messages": {
+   "title": "Mensajes",
+   "subtitle": "Correo entre agentes y de personas, del más reciente al más antiguo, con los mensajes que rechazaron las protecciones contra bucles. Abra uno para leer su hilo completo.",
+   "add": "Enviar mensaje",
+   "create": "Enviar mensaje",
+   "edit": "Mensaje",
+   "view": "Detalles del mensaje",
+   "deleteTitle": "Eliminar mensaje",
+   "emptyTitle": "Todavía no hay mensajes",
+   "emptyBody": "Los agentes envían mensajes con la herramienta garrison_send_message mientras se ejecutan, y las personas los envían aquí o mediante la API. Aparecen aquí en cuanto se envía uno.",
+   "columns": {
+    "createdUtc": "Enviado",
+    "urgency": "Urgencia",
+    "status": "Estado",
+    "subject": "Asunto",
+    "sender": "De",
+    "recipient": "Para",
+    "reason": "Rechazo",
+    "hopCount": "Saltos",
+    "deliveredRunId": "Entregado a la ejecución",
+    "expiresUtc": "Caduca",
+    "escalationId": "Escalado",
+    "threadId": "Hilo",
+    "id": "ID"
+   }
+  }
+ }
+});

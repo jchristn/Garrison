@@ -52,6 +52,7 @@ const COLLECTIONS = {
   freezes: 'freezes',
   memory: 'memory/entries',
   reports: 'reports',
+  messages: 'messages',
   audit: 'audit'
 };
 

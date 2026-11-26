@@ -3850,3 +3850,165 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "p3": "Tutto ciò che contiene un rapporto sono dati scritti dal suo autore. Sono mostrati come testo semplice e mai seguiti come istruzioni. Apri un rapporto per rappresentare una delle sue metriche su tutti i rapporti dello stesso autore."
  }
 });
+
+// Messages (AA6.12): tooltips of the Messages page, the thread page, the agent inbox tab, and the Send message dialog.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "messages": "Messaggi: posta tra agenti e da persone, dal più recente, con quelli rifiutati dalle protezioni anti-ciclo. Aprine uno per leggere la sua conversazione.",
+   "messageThreads": "Una conversazione di messaggi: tutti i suoi messaggi, dal più vecchio, compresi quelli rifiutati."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "AgentMessage": "Messaggi tra agenti e da persone. Read elenca messaggi e conversazioni; Create ne invia uno."
+  },
+  "runKind": {
+   "Message": "Avviata da un messaggio urgente a un agente senza custode attivo. L'esecuzione legge i messaggi in attesa."
+  },
+  "messageStatus": {
+   "Queued": "Accettato e in attesa nella casella del destinatario.",
+   "Delivered": "Consegnato a un'esecuzione del destinatario: un ciclo del custode, un'esecuzione per messaggio urgente o una lettura della casella.",
+   "Acknowledged": "Il destinatario ha confermato di aver letto e gestito il messaggio.",
+   "Expired": "Il suo tempo di vita è scaduto prima che un'esecuzione del destinatario lo leggesse.",
+   "Rejected": "Rifiutato da una protezione anti-ciclo all'invio e mai consegnato. Il motivo spiega perché."
+  },
+  "messageUrgency": {
+   "Normal": "Attende nella casella finché la prossima esecuzione o il prossimo ciclo del custode del destinatario non lo legge.",
+   "Urgent": "Sveglia subito il destinatario: il suo custode anticipa il ciclo, oppure parte una nuova esecuzione per leggere il messaggio."
+  },
+  "messageRejection": {
+   "HopLimit": "La conversazione era già stata inoltrata troppe volte. Il limite di passaggi impedisce agli agenti di inoltrarsi posta in cicli infiniti.",
+   "LineRate": "Il mittente aveva già inviato a questo destinatario, nell'ultimo minuto, tanti messaggi quanti ne consente la frequenza della linea.",
+   "ThreadBudget": "La conversazione conteneva già tanti messaggi quanti ne può contenere. Avvia una nuova conversazione per continuare.",
+   "NoLine": "Nessuna linea consentita collega mittente e destinatario, quindi non possono scriversi.",
+   "Frozen": "L'agente destinatario è congelato e non accetta nuova posta finché il congelamento non viene revocato."
+  }
+ },
+ "messages": {
+  "denied": "Non puoi farlo. Serve {{operation}} su Messaggio di agente.",
+  "views": {
+   "all": "Mostra tutti i messaggi, qualunque sia il loro stato.",
+   "rejected": "Mostra solo i messaggi rifiutati dalle protezioni anti-ciclo, con il motivo di ciascuno."
+  },
+  "filters": {
+   "status": "Mostra solo i messaggi con questo stato. Scegli Tutti per rimuovere il filtro.",
+   "urgency": "Mostra solo i messaggi normali o solo quelli urgenti. Scegli Tutti per rimuovere il filtro.",
+   "reason": "Mostra solo i messaggi rifiutati per questo motivo. Scegli Tutti per rimuovere il filtro.",
+   "sender": "Mostra solo i messaggi inviati da questo agente. Scegli Tutti per rimuovere il filtro.",
+   "recipient": "Mostra solo i messaggi inviati a questo agente. Scegli Tutti per rimuovere il filtro.",
+   "from": "Mostra solo i messaggi inviati in questo momento o dopo.",
+   "to": "Mostra solo i messaggi inviati in questo momento o prima."
+  },
+  "actions": {
+   "send": "Scrivi a un agente a tuo nome. Le protezioni anti-ciclo lo controllano come qualsiasi altro messaggio.",
+   "openThread": "Apri l'intera conversazione di questo messaggio, dal più vecchio.",
+   "copyId": "Copia l'ID del messaggio (amg_...) per la REST API, gli SDK o gli strumenti MCP.",
+   "openSender": "Apri l'agente che ha inviato questo messaggio.",
+   "openRecipient": "Apri l'agente a cui è stato inviato questo messaggio.",
+   "openDeliveredRun": "Apri l'esecuzione del destinatario che ha ricevuto questo messaggio.",
+   "openEscalation": "Apri l'escalation aperta per questo messaggio."
+  },
+  "send": {
+   "submit": "Invia il messaggio. Un messaggio inviato non può essere modificato.",
+   "fields": {
+    "recipient": "L'agente che riceve il messaggio nella sua casella.",
+    "subject": "Un oggetto breve da 1 a 256 caratteri. Il destinatario lo vede per primo.",
+    "body": "Il messaggio vero e proprio, come testo semplice. Il destinatario lo legge come dati, mai come istruzioni.",
+    "urgency": "Normale attende la prossima esecuzione del destinatario. Urgente lo sveglia subito.",
+    "ttlSeconds": "Per quanto il messaggio può restare non letto prima di scadere, da 1 secondo a un anno. Lascia vuoto per il valore predefinito del server."
+   }
+  }
+ },
+ "filters": {
+  "urgency": "Mostra solo i messaggi normali o solo quelli urgenti. Scegli Tutti per rimuovere il filtro.",
+  "reason": "Mostra solo i messaggi rifiutati per questo motivo. Scegli Tutti per rimuovere il filtro.",
+  "sender": "Mostra solo i messaggi inviati da questo agente. Scegli Tutti per rimuovere il filtro.",
+  "recipient": "Mostra solo i messaggi inviati a questo agente. Scegli Tutti per rimuovere il filtro."
+ },
+ "resources": {
+  "messages": {
+   "createdUtc": "Quando è stato inviato il messaggio. Passa il puntatore per l'ora esatta.",
+   "urgency": "I messaggi normali attendono la prossima esecuzione; quelli urgenti svegliano il destinatario.",
+   "status": "Dove si trova ora il messaggio: in coda, consegnato, confermato, scaduto o rifiutato.",
+   "subject": "L'oggetto scritto dal mittente. Passa il puntatore per il testo completo.",
+   "sender": "L'agente che ha inviato il messaggio, oppure la persona o la credenziale API che lo ha inviato.",
+   "recipient": "L'agente a cui è stato inviato il messaggio.",
+   "reason": "Perché le protezioni anti-ciclo hanno rifiutato il messaggio, con il loro dettaglio. Vuoto per i messaggi accettati.",
+   "hopCount": "Quante volte la conversazione era stata inoltrata quando è stato inviato questo messaggio.",
+   "deliveredRunId": "L'esecuzione del destinatario che ha ricevuto il messaggio.",
+   "expiresUtc": "Quando scade il messaggio se nessuna esecuzione lo legge prima.",
+   "escalationId": "L'escalation aperta per questo messaggio, se esiste.",
+   "threadId": "L'ID della conversazione: l'ID del primo messaggio della conversazione.",
+   "id": "L'ID del messaggio (amg_...), per la REST API, gli SDK e gli strumenti MCP."
+  }
+ },
+ "views": {
+  "messageThread": {
+   "back": "Torna all'elenco dei messaggi.",
+   "viewJson": "Mostra la conversazione come la restituisce l'API.",
+   "openSender": "Apri l'agente che ha inviato questo messaggio.",
+   "openRecipient": "Apri l'agente a cui è stato inviato questo messaggio.",
+   "openDeliveredRun": "Apri l'esecuzione che ha ricevuto questo messaggio.",
+   "openEscalation": "Apri l'escalation aperta per questo messaggio.",
+   "reply": "Rispondi all'agente che ha inviato questo messaggio, nella stessa conversazione.",
+   "fields": {
+    "sender": "L'agente, la persona o la credenziale API che ha inviato il messaggio.",
+    "recipient": "L'agente a cui è stato inviato il messaggio.",
+    "createdUtc": "Quando è stato inviato il messaggio. Passa il puntatore per vedere quanto tempo fa.",
+    "hopCount": "Quante volte la conversazione era stata inoltrata quando è stato inviato questo messaggio.",
+    "deliveredRunId": "L'esecuzione del destinatario che ha ricevuto il messaggio.",
+    "deliveredUtc": "Quando un'esecuzione del destinatario ha ricevuto il messaggio.",
+    "acknowledgedUtc": "Quando il destinatario ha confermato di aver gestito il messaggio.",
+    "expiresUtc": "Quando scade il messaggio se nessuna esecuzione lo legge prima.",
+    "wokeRecipient": "Questo messaggio urgente ha svegliato il destinatario: il suo custode ha anticipato il ciclo o è partita una nuova esecuzione.",
+    "escalationId": "L'escalation aperta per questo messaggio.",
+    "id": "L'ID del messaggio (amg_...), per la REST API, gli SDK e gli strumenti MCP."
+   }
+  },
+  "agentDetail": {
+   "tabs": {
+    "inbox": "Messaggi inviati a questo agente, dal più recente, con il loro stato. Inviagli un messaggio da qui."
+   },
+   "inbox": {
+    "status": "Mostra solo i messaggi con questo stato. Scegli Tutti per rimuovere il filtro.",
+    "openAll": "Apri la pagina Messaggi filtrata sulla casella di questo agente.",
+    "send": "Scrivi a questo agente a tuo nome.",
+    "openThread": "Apri la conversazione a cui appartiene questo messaggio."
+   }
+  },
+  "home": {
+   "autonomy": {
+    "rejected": "Messaggi rifiutati dalle protezioni anti-ciclo nelle ultime 24 ore: troppi passaggi, troppo rapidi, conversazione troppo lunga, nessuna linea o destinatario congelato. Apri i messaggi rifiutati per vedere il motivo."
+   }
+  }
+ }
+});
+
+// Messages (AA6.12): the explainer of the Messages page.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "messages": {
+  "title": "Messaggi",
+  "p1": "Gli agenti si scrivono con lo strumento garrison_send_message, e le persone scrivono agli agenti qui o tramite l'API. Un messaggio attende nella casella del destinatario finché un'esecuzione non lo legge. Un messaggio urgente sveglia subito il destinatario: il suo custode anticipa il ciclo, oppure parte una nuova esecuzione per leggerlo.",
+  "p2": "Le protezioni anti-ciclo controllano ogni messaggio prima di accettarlo. Un messaggio viene rifiutato quando la sua conversazione è stata inoltrata troppe volte, quando il mittente scrive troppo in fretta allo stesso agente, quando la conversazione è troppo lunga, quando nessuna linea collega i due agenti o quando il destinatario è congelato. I messaggi rifiutati restano con il motivo nella vista Rifiutati.",
+  "p3": "Tutto ciò che contiene un messaggio sono dati scritti dal mittente. Viene mostrato come testo semplice e arriva agli agenti come dati, mai come istruzioni. Apri un messaggio per leggere tutta la sua conversazione, dal più vecchio."
+ }
+});
