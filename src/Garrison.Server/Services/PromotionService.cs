@@ -109,6 +109,9 @@ namespace Garrison.Server.Services
                 else if (environment.Name == DraftEnvironment) errors[key + ".name"] = "The name draft is reserved for playground runs.";
                 else if (!seen.Add(environment.Name)) errors[key + ".name"] = "Environment " + environment.Name + " is listed twice.";
                 if (environment.Description != null && environment.Description.Length > 1000) errors[key + ".description"] = "At most 1000 characters.";
+                if (environment.EvalGateSet != null && environment.EvalGateSet.Trim().Length > 128) errors[key + ".evalGateSet"] = "At most 128 characters.";
+                environment.EvalGateSet = String.IsNullOrWhiteSpace(environment.EvalGateSet) ? null : environment.EvalGateSet.Trim();
+                if (environment.EvalGateSet == null) environment.EvalGateThreshold = null;
             }
             if (errors.Count > 0) throw new ValidationException("The environment list is invalid.", errors, codes);
 
@@ -141,6 +144,7 @@ namespace Garrison.Server.Services
         /// <exception cref="NotFoundException">Thrown when the agent or revision does not exist in the tenant.</exception>
         /// <exception cref="ConflictException">Thrown with PromotionOrderViolation, RevisionNotPublished, NoSourceRevision,
         /// AmbiguousSourceRevision, or NoTargetDeployments.</exception>
+        /// <exception cref="EvalGateFailedException">Thrown with EvalGateFailed when the target environment's eval gate has no passing eval run of the revision (AA9.6).</exception>
         public async Task<PromotionRecord?> PromoteAsync(RequestContext ctx, string tenantId, PromotionRequest request, Func<string, Task<bool>> authorizeTarget, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -179,6 +183,9 @@ namespace Garrison.Server.Services
             AgentRevision revision = await SourceRevisionAsync(tenantId, agent, request, deployments, order[sourceIndex].Name, token).ConfigureAwait(false);
             List<Deployment> targets = deployments.Where(d => d.Environment == target).OrderBy(d => d.Name, StringComparer.Ordinal).ToList();
             if (targets.Count == 0) throw new ConflictException("NoTargetDeployments", "Agent " + agent.Name + " has no deployment in environment " + target + ". Create one there first.");
+            // AA9.6: an environment with an eval gate admits only a revision whose eval run against the gate set passed.
+            Garrison.Server.Runtime.EvalGateService? gates = _Server.TryGet<Garrison.Server.Runtime.EvalGateService>();
+            if (gates != null) await gates.RequireAsync(tenantId, order[targetIndex], revision, null, token).ConfigureAwait(false);
 
             PromotionRecord record = new PromotionRecord();
             record.TenantId = tenantId;

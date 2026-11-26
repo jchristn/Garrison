@@ -157,14 +157,14 @@ namespace Test.Shared.Suites
             string setId;
             using (DatabaseDriverBase first = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(54, SchemaBuilder.LatestVersion, "Latest schema version");
-                Assert.Equal(54, first.SchemaVersion, "Schema version after the first migration");
+                Assert.True(SchemaBuilder.LatestVersion >= 54, "Latest schema version includes 54");
+                Assert.Equal(SchemaBuilder.LatestVersion, first.SchemaVersion, "Schema version after the first migration");
                 EvalSet set = await first.EvalSets.CreateWithCasesAsync(new EvalSet { TenantId = "ten_m", Name = "kept", Tags = new List<string> { "x" } }, new List<EvalCase> { Case("ten_m", null, 0, "Hello", false) }, token).ConfigureAwait(false);
                 setId = set.Id;
             }
             using (DatabaseDriverBase second = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(54, second.SchemaVersion, "Schema version after the second migration");
+                Assert.Equal(SchemaBuilder.LatestVersion, second.SchemaVersion, "Schema version after the second migration");
                 EvalSet kept = Assert.NotNull(await second.EvalSets.ReadAsync("ten_m", setId, token).ConfigureAwait(false), "The set survives a second migration");
                 Assert.True(kept.CaseCount == 1 && kept.Tags.Single() == "x", "Its cases and tags survive too");
                 List<EvalCase> cases = await second.EvalCases.ListBySetAsync("ten_m", setId, token).ConfigureAwait(false);

@@ -40,7 +40,7 @@ namespace Garrison.Core.Database.Interfaces
         Task<EvalSet> CreateWithCasesAsync(EvalSet obj, List<EvalCase> cases, CancellationToken token = default);
 
         /// <summary>
-        /// Replace a Draft version's description and tags. Name, version, state, origin, and authorship do not change.
+        /// Replace a Draft version's description, judge agent, and tags. Name, version, state, origin, and authorship do not change.
         /// </summary>
         /// <param name="obj">Set.</param>
         /// <param name="token">Cancellation token.</param>

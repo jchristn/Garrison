@@ -22,7 +22,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, name, description, version, previousversionid, state, origin, approvedbyid, approvedbyname, approvedutc, authoringorgunitid, authoredbytype, authoredbyid, authoredbyname, authoredbyagentid, createdutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, name, description, version, previousversionid, state, origin, approvedbyid, approvedbyname, approvedutc, authoringorgunitid, authoredbytype, authoredbyid, authoredbyname, authoredbyagentid, judgeagent, createdutc, lastupdateutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly AdoEvalCaseMethods _CaseMethods;
@@ -110,10 +110,11 @@ namespace Garrison.Core.Database.Ado
                     throw new ConflictException("EvalSetImmutable", "Eval set " + obj.Id + " is approved and cannot change; edit it to create the next version as a draft.");
                 }
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "UPDATE " + _Sets + " SET description = @description, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid AND state = @draft;",
+                    "UPDATE " + _Sets + " SET description = @description, judgeagent = @judgeagent, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid AND state = @draft;",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "description", obj.Description);
+                        AdoDatabaseDriver.Add(command, "judgeagent", obj.JudgeAgent);
                         AdoDatabaseDriver.Add(command, "lastupdateutc", now);
                         AdoDatabaseDriver.Add(command, "id", obj.Id);
                         AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
@@ -314,6 +315,7 @@ namespace Garrison.Core.Database.Ado
             obj.AuthoredById = AdoConverters.NullableStr(reader, "authoredbyid");
             obj.AuthoredByName = AdoConverters.NullableStr(reader, "authoredbyname");
             obj.AuthoredByAgentId = AdoConverters.NullableStr(reader, "authoredbyagentid");
+            obj.JudgeAgent = AdoConverters.NullableStr(reader, "judgeagent");
             obj.CaseCount = AdoConverters.Int(reader, "casecount");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
@@ -338,6 +340,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "authoredbyid", obj.AuthoredById);
             AdoDatabaseDriver.Add(command, "authoredbyname", obj.AuthoredByName);
             AdoDatabaseDriver.Add(command, "authoredbyagentid", obj.AuthoredByAgentId);
+            AdoDatabaseDriver.Add(command, "judgeagent", obj.JudgeAgent);
             AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
             AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
         }

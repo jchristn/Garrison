@@ -415,6 +415,7 @@ namespace Garrison.Server.Protocols
                 if ((RunOnlyEscalationTool(tool.Name) || RunOnlyMessageTool(tool.Name)) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
                 if (tool.Name.StartsWith("garrison_org_", StringComparison.Ordinal) && ctx.PrincipalType == PrincipalTypeEnum.Run && !await OrgMemberRunAsync(ctx, token).ConfigureAwait(false)) continue;
                 if (tool.Name == "garrison_list_change_rules" && ctx.PrincipalType == PrincipalTypeEnum.Run && await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
+                if ((tool.Name == "garrison_run_eval" || tool.Name == "garrison_get_eval_run") && ctx.PrincipalType == PrincipalTypeEnum.Run && await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -920,6 +921,13 @@ namespace Garrison.Server.Protocols
                     case "garrison_get_org_proposal":
                     case "garrison_decide_org_proposal":
                         result = await ChangeRuleToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_run_eval":
+                    case "garrison_get_eval_run":
+                    case "garrison_list_eval_sets":
+                    case "garrison_create_eval_set":
+                    case "garrison_approve_eval_set":
+                        result = await EvalToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_freezes":
                     case "garrison_freeze":
@@ -2013,6 +2021,67 @@ namespace Garrison.Server.Protocols
                     CanaryRelease existing = await ToolCallAsync(() => canaries.ReadAsync(tenantId, arguments.ReleaseId, token)).ConfigureAwait(false);
                     return await ToolCallAsync(() => canaries.AbortAsync(ctx, existing, arguments.Reason, token)).ConfigureAwait(false);
                 }
+            }
+        }
+
+        private async Task<object> EvalToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // AA9.12: executive runs evaluate their own drafts and read their own eval runs (hidden cases as scores only);
+            // people with EvalSet and EvalRun permissions use every eval tool. Approving is for people only.
+            McpEvalArguments arguments = ManagementArguments<McpEvalArguments>(args);
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run && await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null)
+                throw ToolError("NotAnExecutive", "Only an executive run (a deployment with managementAccess OrgSubtree whose agent leads a unit) runs evals.");
+            await Require(ctx, tenantId, tool.ResourceType, tool.Operation, null, token).ConfigureAwait(false);
+            EvalSetService sets = _Context.Get<EvalSetService>();
+            EvalRunService runs = _Context.Get<EvalRunService>();
+            try
+            {
+                switch (tool.Name)
+                {
+                    case "garrison_run_eval":
+                    {
+                        EvalRunRequest request = new EvalRunRequest
+                        {
+                            SetId = arguments.Set, SetVersion = arguments.SetVersion, AgentId = arguments.Agent, AgentRevisionId = arguments.AgentRevisionId, DeploymentId = arguments.Deployment,
+                            StudioDraftId = arguments.StudioDraftId, Threshold = arguments.Threshold, BudgetUsd = arguments.BudgetUsd,
+                            InputMode = String.IsNullOrWhiteSpace(arguments.InputMode) ? EvalRunInputModeEnum.Cases : ParseOr(arguments.InputMode, EvalRunInputModeEnum.Cases, "inputMode")
+                        };
+                        if (arguments.RecentInputCount.HasValue) request.RecentInputCount = arguments.RecentInputCount.Value;
+                        return await ToolCallAsync(() => runs.CreateAsync(ctx, tenantId, request, token)).ConfigureAwait(false);
+                    }
+                    case "garrison_get_eval_run":
+                    {
+                        EvalRun run = await ToolCallAsync(() => runs.ReadAsync(ctx, tenantId, arguments.EvalRunId, token)).ConfigureAwait(false);
+                        McpEvalRunDetail detail = new McpEvalRunDetail { EvalRun = run };
+                        if (arguments.IncludeResults != false) detail.Results = await runs.ResultsAsync(ctx, run, token).ConfigureAwait(false);
+                        return detail;
+                    }
+                    case "garrison_list_eval_sets":
+                    {
+                        EnumerationQuery query = new EnumerationQuery { Search = arguments.Search, Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                        EvalSetStateEnum? state = String.IsNullOrWhiteSpace(arguments.State) ? null : ParseOr(arguments.State, EvalSetStateEnum.Draft, "state");
+                        EvalSetOriginEnum? origin = String.IsNullOrWhiteSpace(arguments.Origin) ? null : ParseOr(arguments.Origin, EvalSetOriginEnum.Human, "origin");
+                        return await sets.EnumerateAsync(tenantId, state, origin, arguments.Tag, arguments.LatestOnly == true, query, token).ConfigureAwait(false);
+                    }
+                    case "garrison_create_eval_set":
+                    {
+                        EvalSetRequest body = new EvalSetRequest
+                        {
+                            Name = arguments.Name, Description = arguments.Description, JudgeAgent = arguments.JudgeAgent, Tags = arguments.Tags, Cases = arguments.Cases,
+                            Origin = String.IsNullOrWhiteSpace(arguments.Origin) ? null : ParseOr(arguments.Origin, EvalSetOriginEnum.Human, "origin")
+                        };
+                        return await ToolCallAsync(() => sets.CreateAsync(ctx, tenantId, body, token)).ConfigureAwait(false);
+                    }
+                    default:
+                    {
+                        EvalSet set = await ToolCallAsync(() => sets.ReadAsync(tenantId, arguments.Set, token)).ConfigureAwait(false);
+                        return await ToolCallAsync(() => sets.ApproveAsync(ctx, set, token)).ConfigureAwait(false);
+                    }
+                }
+            }
+            catch (AppAccessException e)
+            {
+                throw ToolError(e.Code, e.Message);
             }
         }
 

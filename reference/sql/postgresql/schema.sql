@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 54).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 55).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2890,3 +2890,9 @@ CREATE TABLE IF NOT EXISTS "canary_release_steps" (
 CREATE INDEX IF NOT EXISTS "idx_runs_evalrun" ON "runs" ("tenantid", "evalrunid") WHERE evalrunid IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "idx_runs_shadowtrial" ON "runs" ("tenantid", "shadowtrialid") WHERE shadowtrialid IS NOT NULL;
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 54, 'Evaluation, shadow trials, and canary releases', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 54);
+
+-- Migration 55: Environment eval gates and eval set judges
+ALTER TABLE "tenant_environments" ADD COLUMN IF NOT EXISTS evalgateset VARCHAR(128);
+ALTER TABLE "tenant_environments" ADD COLUMN IF NOT EXISTS evalgatethreshold DOUBLE PRECISION;
+ALTER TABLE "eval_sets" ADD COLUMN IF NOT EXISTS judgeagent VARCHAR(128);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 55, 'Environment eval gates and eval set judges', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 55);

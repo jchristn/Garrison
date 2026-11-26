@@ -74,6 +74,7 @@ namespace Garrison.Server.Modules
         private MemoryOptions? _MemoryOptions = null;
         private ReportOptions? _ReportOptions = null;
         private EvaluationOptions? _EvaluationOptions = null;
+        private EvalRunner? _EvalRunner = null;
         private MessagingOptions? _MessagingOptions = null;
         private EscalationService? _Escalations = null;
         private FreezeService? _Freezes = null;
@@ -236,7 +237,6 @@ namespace Garrison.Server.Modules
             // on them.
             _EvaluationOptions = new EvaluationOptions();
             context.Register(_EvaluationOptions);
-            context.Register(new EvalSetVersioning(context.Database));
             // AA9.7, AA9.8: shadow trials copy a source deployment's finished runs to a candidate as Shadow runs; canary
             // releases move deployment weights step by step. The leader sweeps both.
             ShadowTrialService shadowTrials = new ShadowTrialService(context, _Runs);
@@ -246,6 +246,16 @@ namespace Garrison.Server.Modules
             _Maintenance.Canaries = canaries;
             context.Register(shadowTrials);
             context.Register(canaries);
+            EvalSetVersioning versioning = new EvalSetVersioning(context.Database);
+            context.Register(versioning);
+            // AA9.3 to AA9.6: eval sets, the leader's eval runner, eval runs, and promotion gates.
+            LeaderElectionService leader = _Leader;
+            _EvalRunner = new EvalRunner(context, _EvaluationOptions, () => leader.IsLeader, _Runs, _Signals, context.Logging);
+            _Maintenance.Evaluations = _EvalRunner;
+            context.Register(new EvalSetService(context, _EvaluationOptions, versioning, chain));
+            context.Register(_EvalRunner);
+            context.Register(new EvalRunService(context, _EvalRunner));
+            context.Register(new EvalGateService(context, chain));
 
             // AA6: messages between agents; keeper ticks drain their inbox, urgent mail wakes the recipient, and
             // escalations to agents arrive as urgent messages.
@@ -355,10 +365,11 @@ namespace Garrison.Server.Modules
             new ChangeRuleRoutes(context, context.Get<ChangeRuleService>(), context.Get<OrgProposalService>()).Register(routes);
             new ShadowTrialRoutes(context.Get<ShadowTrialService>()).Register(routes);
             new CanaryRoutes(context.Get<CanaryService>()).Register(routes);
+            new EvaluationRoutes(context, context.Get<EvalSetService>(), context.Get<EvalRunService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, approvals, escalations, freezes, reports, nodes)", "Live updates");
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, eval-run:{id}, approvals, escalations, freezes, reports, nodes)", "Live updates");
         }
 
         /// <inheritdoc />
@@ -450,9 +461,11 @@ namespace Garrison.Server.Modules
             _Gauges?.Dispose();
             if (_Pipelines != null) await _Pipelines.StopAsync().ConfigureAwait(false);
             if (_Notifications != null) await _Notifications.StopAsync().ConfigureAwait(false);
+            if (_EvalRunner != null) await _EvalRunner.StopAsync().ConfigureAwait(false);
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);
             if (_Leader != null) await _Leader.StopAsync(token).ConfigureAwait(false);
             _Maintenance?.Dispose();
+            _EvalRunner?.Dispose();
             _CredentialBroker?.Dispose();
             _Approvals?.Dispose();
             _Pipelines?.Dispose();

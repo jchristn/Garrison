@@ -138,6 +138,13 @@ namespace Garrison.Core.Models
         public string? AuthoredByAgentId { get; set; } = null;
 
         /// <summary>
+        /// Agent (identifier or name, at most 128 characters) that grades this set's Judge checks, or null. Required when a
+        /// case has a Judge check, a case has no checks and no expected text, or the set runs in RecentInputs mode; such
+        /// checks score 0 with a note when it is missing (AA9.4).
+        /// </summary>
+        public string? JudgeAgent { get; set; } = null;
+
+        /// <summary>
         /// Free-form tags, each at most 64 characters, in the order given.
         /// </summary>
         public List<string> Tags

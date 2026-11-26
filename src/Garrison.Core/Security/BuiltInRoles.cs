@@ -179,6 +179,11 @@ namespace Garrison.Core.Security
             p_auditor_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
             p_auditor_releases.Operations = new List<string> { "Read" };
             auditor.Permissions.Add(p_auditor_releases);
+            BuiltInPermission p_auditor_evaluation = new BuiltInPermission();
+            p_auditor_evaluation.Name = "Auditor.Evaluation";
+            p_auditor_evaluation.ResourceTypes = new List<string> { "EvalSet", "EvalRun" };
+            p_auditor_evaluation.Operations = new List<string> { "Read" };
+            auditor.Permissions.Add(p_auditor_evaluation);
             roles.Add(auditor);
 
             BuiltInRole resourceadmin = new BuiltInRole();
@@ -201,6 +206,11 @@ namespace Garrison.Core.Security
             p_editor_write.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "ArtifactStore", "ModelPrice", "Run", "Manifest", "Conversation", "Artifact", "Approval", "Escalation", "Freeze", "Memory", "Report", "AgentMessage", "Organization", "ChangeRule", "Pipeline", "PipelineRun", "Trigger", "Mandate", "NotificationEndpoint", "AgentRevision", "Promotion", "AgentAsset", "Capability", "FanOutGroup", "AgenticApp", "StudioDraft" };
             p_editor_write.Operations = new List<string> { "Read", "Write", "Execute" };
             editor.Permissions.Add(p_editor_write);
+            BuiltInPermission p_editor_evaluation = new BuiltInPermission();
+            p_editor_evaluation.Name = "Editor.Evaluation";
+            p_editor_evaluation.ResourceTypes = new List<string> { "EvalSet", "EvalRun" };
+            p_editor_evaluation.Operations = new List<string> { "Read", "Write", "Execute" };
+            editor.Permissions.Add(p_editor_evaluation);
             BuiltInPermission p_editor_quota = new BuiltInPermission();
             p_editor_quota.Name = "Editor.QuotaRead";
             p_editor_quota.ResourceTypes = new List<string> { "UsageQuota" };
@@ -227,6 +237,11 @@ namespace Garrison.Core.Security
             p_viewer_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
             p_viewer_releases.Operations = new List<string> { "Read" };
             viewer.Permissions.Add(p_viewer_releases);
+            BuiltInPermission p_viewer_evaluation = new BuiltInPermission();
+            p_viewer_evaluation.Name = "Viewer.Evaluation";
+            p_viewer_evaluation.ResourceTypes = new List<string> { "EvalSet", "EvalRun" };
+            p_viewer_evaluation.Operations = new List<string> { "Read" };
+            viewer.Permissions.Add(p_viewer_evaluation);
             roles.Add(viewer);
 
             BuiltInRole tenantmember = new BuiltInRole();
@@ -311,6 +326,11 @@ namespace Garrison.Core.Security
             p_agentdeveloper_changerules.ResourceTypes = new List<string> { "ChangeRule" };
             p_agentdeveloper_changerules.Operations = new List<string> { "Read" };
             agentdeveloper.Permissions.Add(p_agentdeveloper_changerules);
+            BuiltInPermission p_agentdeveloper_evaluation = new BuiltInPermission();
+            p_agentdeveloper_evaluation.Name = "AgentDeveloper.Evaluation";
+            p_agentdeveloper_evaluation.ResourceTypes = new List<string> { "EvalSet", "EvalRun" };
+            p_agentdeveloper_evaluation.Operations = new List<string> { "Create", "Read", "Update", "Execute" };
+            agentdeveloper.Permissions.Add(p_agentdeveloper_evaluation);
             BuiltInPermission p_agentoperator_organizations = new BuiltInPermission();
             p_agentoperator_organizations.Name = "AgentOperator.Organizations";
             p_agentoperator_organizations.ResourceTypes = new List<string> { "Organization" };
@@ -332,6 +352,11 @@ namespace Garrison.Core.Security
             p_agentoperator_releases.ResourceTypes = new List<string> { "ShadowTrial", "CanaryRelease" };
             p_agentoperator_releases.Operations = new List<string> { "Read", "Update" };
             agentoperator.Permissions.Add(p_agentoperator_releases);
+            BuiltInPermission p_agentoperator_evaluation = new BuiltInPermission();
+            p_agentoperator_evaluation.Name = "AgentOperator.Evaluation";
+            p_agentoperator_evaluation.ResourceTypes = new List<string> { "EvalSet", "EvalRun" };
+            p_agentoperator_evaluation.Operations = new List<string> { "Read", "Execute" };
+            agentoperator.Permissions.Add(p_agentoperator_evaluation);
             roles.Add(agentoperator);
 
             BuiltInRole agentinvoker = new BuiltInRole();

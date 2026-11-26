@@ -416,6 +416,11 @@ namespace Garrison.Core.Database.Ado
             v54.BuildVersion54();
             migrations.Add(new SchemaMigration(54, "Evaluation, shadow trials, and canary releases", v54._Statements, v54._Columns));
 
+            // AA9.6: an environment may require an eval set and threshold before promotion; an eval set names its judge.
+            SchemaBuilder v55 = new SchemaBuilder(catalog, dialect);
+            v55.BuildVersion55();
+            migrations.Add(new SchemaMigration(55, "Environment eval gates and eval set judges", v55._Statements, v55._Columns));
+
             return migrations;
         }
 
@@ -479,6 +484,14 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion55()
+        {
+            SqlDialect d = _Dialect;
+            Column("tenant_environments", "evalgateset", "VARCHAR(128)");
+            Column("tenant_environments", "evalgatethreshold", d.TypeDouble);
+            Column("eval_sets", "judgeagent", "VARCHAR(128)");
         }
 
         private void BuildVersion54()

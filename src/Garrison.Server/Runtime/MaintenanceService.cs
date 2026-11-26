@@ -169,6 +169,11 @@ namespace Garrison.Server.Runtime
         public KeeperScheduler? Keepers { get; set; } = null;
 
         /// <summary>
+        /// Eval runner (AA9.3): the leader starts or resumes Pending and Running eval runs on every pass; null when not wired.
+        /// </summary>
+        public EvalRunner? Evaluations { get; set; } = null;
+
+        /// <summary>
         /// Escalation service (AA2), whose timeout sweep the leader runs every pass; null when not wired.
         /// </summary>
         public EscalationService? Escalations { get; set; } = null;
@@ -626,6 +631,11 @@ namespace Garrison.Server.Runtime
                             // Starting ticks creates runs; that work is not a pause.
                             _Pause.Touch();
                         }
+                    }
+                    EvalRunner? evaluations = Evaluations;
+                    if (evaluations != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        await GarrisonTracing.BackgroundAsync("maintenance", "evaluations", evaluations.SweepAsync, token).ConfigureAwait(false);
                     }
                     NotificationService? notifications = Notifications;
                     if (notifications != null && await AwakeAsync(token).ConfigureAwait(false))

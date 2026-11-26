@@ -102,6 +102,7 @@ namespace Garrison.Core.Evaluation
             next.AuthoredById = authorId;
             next.AuthoredByName = authorName;
             next.AuthoredByAgentId = authorType == PrincipalTypeEnum.Run ? source.AuthoredByAgentId : null;
+            next.JudgeAgent = source.JudgeAgent;
             next.Tags = new List<string>(source.Tags);
             return next;
         }

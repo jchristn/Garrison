@@ -17,6 +17,7 @@ namespace Garrison.Server.WebSockets
     using Garrison.Core.Requests;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Services;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
     using WatsonWebserver.Core;
@@ -338,6 +339,22 @@ namespace Garrison.Server.WebSockets
                 if (String.IsNullOrEmpty(organizationId) || await _Context.Database.Organizations.ReadAsync(ctx.TenantId, organizationId, token).ConfigureAwait(false) == null) return "Organization not found.";
                 return null;
             }
+            if (channel.StartsWith("eval-run:", StringComparison.Ordinal))
+            {
+                // One eval run (AA9.13): eval.case.completed for each recorded case result, then eval.completed.
+                string evalRunId = channel.Substring("eval-run:".Length);
+                AuthorizationDecision evalRuns = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.EvalRun, OperationTypeEnum.Read, evalRunId, token).ConfigureAwait(false);
+                if (!evalRuns.Permitted) return evalRuns.Reason;
+                try
+                {
+                    await _Context.Get<EvalRunService>().ReadAsync(ctx, ctx.TenantId!, evalRunId, token).ConfigureAwait(false);
+                }
+                catch (NotFoundException)
+                {
+                    return "Eval run not found.";
+                }
+                return null;
+            }
             if (channel.StartsWith("agent-inbox:", StringComparison.Ordinal))
             {
                 // One agent's inbox (AA6.10): message.queued, message.delivered, message.acknowledged, message.expired, and
@@ -349,7 +366,7 @@ namespace Garrison.Server.WebSockets
                 return null;
             }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, approvals, escalations, freezes, reports, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, agent-inbox:{agentId}, organization:{orgId}, eval-run:{id}, approvals, escalations, freezes, reports, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -381,6 +398,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key.StartsWith("fan-out:", StringComparison.Ordinal)) await PumpFanOutAsync(session, ctx, subscription.Key.Substring("fan-out:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("studio-draft:", StringComparison.Ordinal)) await PumpStudioDraftAsync(session, ctx, subscription.Key.Substring("studio-draft:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("mandate:", StringComparison.Ordinal)) await PumpMandateAsync(session, ctx, subscription.Key.Substring("mandate:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("eval-run:", StringComparison.Ordinal)) await PumpEvalRunAsync(session, ctx, subscription.Key.Substring("eval-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -685,6 +703,29 @@ namespace Garrison.Server.WebSockets
             {
                 MandateTick? finished = (await _Context.Database.MandateTicks.ListRecentAsync(ctx.TenantId!, mandate.Id, 1, token).ConfigureAwait(false)).FirstOrDefault();
                 await SendAsync(session, sendLock, new { type = "tick.completed", mandateId = mandate.Id, tickId = finished?.Id, runId = finished?.RunId, outcome = (finished?.Outcome ?? mandate.LastTickOutcome)?.ToString(), appliedIntervalSeconds = finished?.AppliedIntervalSeconds, nextWakeUtc = mandate.NextWakeUtc, status = mandate.Status.ToString() }, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task PumpEvalRunAsync(WebSocketSession session, RequestContext ctx, string evalRunId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // AA9.13: each case result once, in order (results already recorded when the subscription starts are sent on
+            // the first pass), then eval.completed once the eval run finishes. Run tokens get hidden cases as scores only.
+            EvalRunService service = _Context.Get<EvalRunService>();
+            if (state.Fingerprint == "done") return;
+            EvalRun run = await service.ReadAsync(ctx, ctx.TenantId!, evalRunId, token).ConfigureAwait(false);
+            List<EvalCaseResult> results = await service.ResultsAsync(ctx, run, token).ConfigureAwait(false);
+            HashSet<string> sent = new HashSet<string>((state.SecondaryFingerprint ?? String.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+            foreach (EvalCaseResult result in results.OrderBy(r => r.Order))
+            {
+                string order = result.Order.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!sent.Add(order)) continue;
+                state.SecondaryFingerprint = String.Join(",", sent);
+                await SendAsync(session, sendLock, new { type = "eval.case.completed", evalRunId = run.Id, completedCases = run.CompletedCases, totalCases = run.TotalCases, result = result }, token).ConfigureAwait(false);
+            }
+            if (run.Status == EvalRunStatusEnum.Completed || run.Status == EvalRunStatusEnum.Failed || run.Status == EvalRunStatusEnum.Cancelled)
+            {
+                state.Fingerprint = "done";
+                await SendAsync(session, sendLock, new { type = "eval.completed", evalRunId = run.Id, status = run.Status.ToString(), score = run.Score, threshold = run.Threshold, passed = run.Passed, completedCases = run.CompletedCases, passedCases = run.PassedCases, erroredCases = run.ErroredCases, totalCases = run.TotalCases, costUsd = run.CostUsd, failureReason = run.FailureReason }, token).ConfigureAwait(false);
             }
         }
 

@@ -222,6 +222,16 @@ namespace Garrison.Core.Telemetry
         /// </summary>
         public static readonly MetricDescriptor CanaryTransitions = new MetricDescriptor("garrison.canary.transitions", MetricKindEnum.Counter, "{transition}", "result", "Canary release transitions, by result (started, advanced, promoted, rolled_back, aborted); carries no release, agent, or deployment identifiers", "server", "Autonomy", "garrison-autonomy");
 
+        /// <summary>
+        /// Eval runs finished, by outcome (AA9.14).
+        /// </summary>
+        public static readonly MetricDescriptor EvalRuns = new MetricDescriptor("garrison.eval.runs", MetricKindEnum.Counter, "{eval_run}", "outcome", "Eval runs finished, by outcome (passed, failed below the threshold, completed without a threshold, error, cancelled); carries no set, agent, or run identifiers", "server", "Autonomy", "garrison-autonomy");
+
+        /// <summary>
+        /// Eval case duration, by scorer (AA9.14).
+        /// </summary>
+        public static readonly MetricDescriptor EvalCaseDuration = new MetricDescriptor("garrison.eval.case.duration", MetricKindEnum.Histogram, "s", "scorer", "Time from starting an eval case's run to its recorded result, scoring included, by the case's first scorer (ExactMatch, Contains, JsonSchemaValid, Judge, or None when the run failed)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
+
         /// <summary>Keeper intervals applied after ticks (AA1).</summary>
         public static readonly MetricDescriptor KeeperInterval = new MetricDescriptor("garrison.keeper.interval", MetricKindEnum.Histogram, "s", "mode", "Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
 
@@ -507,7 +517,7 @@ namespace Garrison.Core.Telemetry
             SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, OrgProposals, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, OrgProposals, EvalRuns, EvalCaseDuration, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

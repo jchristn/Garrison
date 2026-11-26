@@ -69,7 +69,9 @@ namespace Garrison.Server.Services
                 AgentRevision? revision = await _Server.Database.AgentRevisions.ReadAsync(tenantId, revisionId, token).ConfigureAwait(false);
                 if (revision == null || revision.AgentId != agent.Id) throw Invalid("agentRevisionId", "UnknownRevision", "Revision " + revisionId + " does not belong to agent " + agent.Name + ".");
             }
-            Deployment playground = await EphemeralAsync(tenantId, agent, request.SourceDeploymentId, revisionId, token).ConfigureAwait(false);
+            string name = "playground-" + agent.Name;
+            if (name.Length > 64) name = name.Substring(0, 64).TrimEnd('-');
+            Deployment playground = await EphemeralAsync(tenantId, agent, request.SourceDeploymentId, revisionId, name, "Playground copy (managed by the studio).", false, token).ConfigureAwait(false);
             InvocationOptions options = new InvocationOptions
             {
                 Input = request.Input, DeploymentId = playground.Id, Kind = RunKindEnum.Playground, ConversationId = request.ConversationId,
@@ -93,7 +95,28 @@ namespace Garrison.Server.Services
         {
             if (draft == null) throw new ArgumentNullException(nameof(draft));
             if (request == null) throw new ArgumentNullException(nameof(request));
-            string? agentName = request.Agent;
+            Agent agent = await ApplyDraftRevisionAsync(ctx, tenantId, draft, request.Agent, token).ConfigureAwait(false);
+            if (draft.Items.Any(i => i.Kind == "Agent" && i.Name == agent.Name && i.Operation == StudioDraftOperationEnum.Upsert)) request.AgentRevisionId = agent.DraftRevisionId ?? request.AgentRevisionId;
+            return await InvokeAsync(ctx, tenantId, agent, request, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Write a studio draft's document for one agent as that agent's draft revision (live configuration is not changed)
+        /// and return the agent as stored, with DraftRevisionId pointing at it. A draft without a document for the agent
+        /// returns the agent unchanged.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="draft">Studio draft.</param>
+        /// <param name="agentName">Agent name; null or empty for the draft's target app entry agent.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The agent.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or draft is null.</exception>
+        /// <exception cref="ValidationException">Thrown with AgentNotLive when the agent does not exist yet, NoEntryAgent, or DraftInvalid.</exception>
+        public async Task<Agent> ApplyDraftRevisionAsync(RequestContext ctx, string tenantId, StudioDraft draft, string? agentName, CancellationToken token)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (draft == null) throw new ArgumentNullException(nameof(draft));
             if (String.IsNullOrWhiteSpace(agentName))
             {
                 StudioGraphNodeEntry(draft, out agentName);
@@ -103,21 +126,40 @@ namespace Garrison.Server.Services
                 ?? await _Server.Database.Agents.ReadAsync(tenantId, agentName, token).ConfigureAwait(false)
                 ?? throw Invalid("agent", "AgentNotLive", "Agent " + agentName + " does not exist yet. Apply the draft that creates it, then try its changes in the playground.");
             StudioDraftItem? item = draft.Items.FirstOrDefault(i => i.Kind == "Agent" && i.Name == agent.Name && i.Operation == StudioDraftOperationEnum.Upsert);
-            if (item != null)
-            {
-                // Write the draft's document as the agent's draft revision (AD1.7 revision.publish false): live stays as is.
-                ManifestDocument document = ManifestParser.Parse(item.Document)[0];
-                document.Spec["revision"] = new Dictionary<string, object?> { ["publish"] = false, ["changeNote"] = "Playground: studio draft " + draft.Title };
-                Dictionary<string, object?> metadata = new Dictionary<string, object?> { ["name"] = agent.Name };
-                if (document.Metadata.Description != null) metadata["description"] = document.Metadata.Description;
-                string bundle = ManifestParser.ToYaml(new[] { new Dictionary<string, object?> { ["apiVersion"] = "garrison/v1", ["kind"] = "Agent", ["metadata"] = metadata, ["spec"] = document.Spec } });
-                ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId) };
-                ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(tenantId, bundle, options, token).ConfigureAwait(false);
-                if (applied.FailedCount > 0) throw Invalid("agent", "DraftInvalid", "The draft's document for " + agent.Name + " does not validate: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Message)));
-                agent = await _Server.Database.Agents.ReadAsync(tenantId, agent.Id, token).ConfigureAwait(false) ?? agent;
-                request.AgentRevisionId = agent.DraftRevisionId ?? request.AgentRevisionId;
-            }
-            return await InvokeAsync(ctx, tenantId, agent, request, token).ConfigureAwait(false);
+            if (item == null) return agent;
+            // Write the draft's document as the agent's draft revision (AD1.7 revision.publish false): live stays as is.
+            ManifestDocument document = ManifestParser.Parse(item.Document)[0];
+            document.Spec["revision"] = new Dictionary<string, object?> { ["publish"] = false, ["changeNote"] = "Playground: studio draft " + draft.Title };
+            Dictionary<string, object?> metadata = new Dictionary<string, object?> { ["name"] = agent.Name };
+            if (document.Metadata.Description != null) metadata["description"] = document.Metadata.Description;
+            string bundle = ManifestParser.ToYaml(new[] { new Dictionary<string, object?> { ["apiVersion"] = "garrison/v1", ["kind"] = "Agent", ["metadata"] = metadata, ["spec"] = document.Spec } });
+            ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId) };
+            ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(tenantId, bundle, options, token).ConfigureAwait(false);
+            if (applied.FailedCount > 0) throw Invalid("agent", "DraftInvalid", "The draft's document for " + agent.Name + " does not validate: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Message)));
+            return await _Server.Database.Agents.ReadAsync(tenantId, agent.Id, token).ConfigureAwait(false) ?? agent;
+        }
+
+        /// <summary>
+        /// The deployment eval runs of one agent revision use (AA9.3): a copy of one of the agent's deployments in the
+        /// reserved draft environment, named eval-{agent}-r{revision number}, pinned to the revision, with weight 0 so
+        /// ordinary routing never picks it. It is created on first use and reused afterwards, so case runs of the same
+        /// revision always run the same configuration.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agent">Agent.</param>
+        /// <param name="revision">Revision of the agent to pin.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The deployment.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when agent or revision is null.</exception>
+        /// <exception cref="ValidationException">Thrown with NoDeployment when the agent has no deployment to copy.</exception>
+        public async Task<Deployment> EvalDeploymentAsync(string tenantId, Agent agent, AgentRevision revision, CancellationToken token)
+        {
+            if (agent == null) throw new ArgumentNullException(nameof(agent));
+            if (revision == null) throw new ArgumentNullException(nameof(revision));
+            string suffix = "-r" + revision.Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string stem = "eval-" + agent.Name;
+            if (stem.Length + suffix.Length > 64) stem = stem.Substring(0, 64 - suffix.Length).TrimEnd('-');
+            return await EphemeralAsync(tenantId, agent, null, revision.Id, stem + suffix, "Eval copy for revision " + revision.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) + " (managed by the eval runner).", true, token).ConfigureAwait(false);
         }
 
         #endregion
@@ -134,7 +176,7 @@ namespace Garrison.Server.Services
             if (parsed.Count == 1 && parsed[0].Spec.TryGetValue("entry", out object? entry) && entry != null) agentName = Garrison.Core.Templates.TemplateValues.ToText(entry);
         }
 
-        private async Task<Deployment> EphemeralAsync(string tenantId, Agent agent, string? sourceDeploymentId, string? revisionId, CancellationToken token)
+        private async Task<Deployment> EphemeralAsync(string tenantId, Agent agent, string? sourceDeploymentId, string? revisionId, string name, string description, bool evaluation, CancellationToken token)
         {
             List<Deployment> deployments = await ConfigurationSupport.DeploymentsAsync(_Server, tenantId, d => d.AgentId == agent.Id, token).ConfigureAwait(false);
             Deployment? source = !String.IsNullOrEmpty(sourceDeploymentId)
@@ -143,20 +185,20 @@ namespace Garrison.Server.Services
             if (source == null || source.Environment == Constants.PlaygroundEnvironment)
                 throw Invalid("sourceDeploymentId", "NoDeployment", "Agent " + agent.Name + " has no deployment for the playground to copy. Create one (for example in dev) first.");
 
-            string name = "playground-" + agent.Name;
-            if (name.Length > 64) name = name.Substring(0, 64).TrimEnd('-');
             await _Lock.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 Deployment? existing = deployments.FirstOrDefault(d => d.Name == name && d.Environment == Constants.PlaygroundEnvironment);
+                if (evaluation && existing != null && existing.AgentRevisionId == revisionId) return existing;
                 Deployment copy = Serializer.Deserialize<Deployment>(Serializer.Serialize(source)) ?? throw new InvalidOperationException("Could not copy deployment " + source.Name + ".");
                 foreach (DeploymentApprovalRule rule in copy.ApprovalRules) rule.Id = String.Empty;
                 copy.Id = existing?.Id ?? String.Empty;
                 copy.Name = name;
-                copy.Description = "Playground copy of " + source.Name + " (managed by the studio).";
+                copy.Description = description.Replace(" (managed", " of " + source.Name + " (managed", StringComparison.Ordinal);
                 copy.Environment = Constants.PlaygroundEnvironment;
                 copy.AgentRevisionId = revisionId;
                 copy.IsProtected = true;
+                if (evaluation) copy.Weight = 0;
                 copy.ConfigVersion = (existing?.ConfigVersion ?? 0) + 1;
                 copy.LastUpdateUtc = DateTime.UtcNow;
                 if (existing == null)

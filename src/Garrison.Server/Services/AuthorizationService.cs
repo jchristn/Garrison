@@ -523,6 +523,14 @@ namespace Garrison.Server.Services
                 allowed = deployment != null && (deployment.ManagementAccess == ManagementAccessEnum.Drafts
                     || (deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree && !(resourceType == ResourceTypeEnum.AgentRevision && operation == OperationTypeEnum.Update)));
             }
+            if (!allowed && IsEvalGrant(resourceType, operation))
+            {
+                // AA9.10, AA9.12: an executive (managementAccess OrgSubtree) reads eval sets (hidden cases redacted), writes
+                // evaluator sets, and runs and reads evals of its own drafts; the eval services enforce the rest.
+                Run? run = String.IsNullOrEmpty(ctx.RunId) ? null : await _Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+                Deployment? deployment = run == null ? null : await _Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false);
+                allowed = deployment != null && deployment.ManagementAccess == ManagementAccessEnum.OrgSubtree;
+            }
             if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may discover and invoke agents, read runs, or upload configured artifacts for their own execution; deployments with managementAccess Drafts or OrgSubtree may also work on studio drafts.");
 
             if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator) return AuthorizationDecision.Permit("Run on behalf of a system administrator.");
@@ -610,6 +618,13 @@ namespace Garrison.Server.Services
                 origin.IsTenantAdmin = user.IsTenantAdmin;
             }
             return origin;
+        }
+
+        private static bool IsEvalGrant(ResourceTypeEnum resourceType, OperationTypeEnum operation)
+        {
+            if (resourceType == ResourceTypeEnum.EvalSet) return operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create;
+            if (resourceType == ResourceTypeEnum.EvalRun) return operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Execute;
+            return false;
         }
 
         private static bool IsDraftGrant(ResourceTypeEnum resourceType, OperationTypeEnum operation)

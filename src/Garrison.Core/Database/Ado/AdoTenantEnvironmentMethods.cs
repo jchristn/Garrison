@@ -49,6 +49,8 @@ namespace Garrison.Core.Database.Ado
                     environment.Name = AdoConverters.Str(reader, "name");
                     environment.Description = AdoConverters.NullableStr(reader, "description");
                     environment.Position = AdoConverters.Int(reader, "position");
+                    environment.EvalGateSet = AdoConverters.NullableStr(reader, "evalgateset");
+                    environment.EvalGateThreshold = AdoConverters.NullableDouble(reader, "evalgatethreshold");
                     return environment;
                 }, token);
         }
@@ -66,7 +68,7 @@ namespace Garrison.Core.Database.Ado
                     TenantEnvironment environment = environments[i];
                     environment.Position = i;
                     await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                        "INSERT INTO " + _Table + " (id, tenantid, name, description, position) VALUES (@id, @tenantid, @name, @description, @position);",
+                        "INSERT INTO " + _Table + " (id, tenantid, name, description, position, evalgateset, evalgatethreshold) VALUES (@id, @tenantid, @name, @description, @position, @evalgateset, @evalgatethreshold);",
                         command =>
                         {
                             AdoDatabaseDriver.Add(command, "id", IdGenerator.NewChildRowId());
@@ -74,6 +76,8 @@ namespace Garrison.Core.Database.Ado
                             AdoDatabaseDriver.Add(command, "name", environment.Name);
                             AdoDatabaseDriver.Add(command, "description", environment.Description);
                             AdoDatabaseDriver.Add(command, "position", environment.Position);
+                            AdoDatabaseDriver.Add(command, "evalgateset", environment.EvalGateSet);
+                            AdoDatabaseDriver.Add(command, "evalgatethreshold", environment.EvalGateThreshold);
                         }, ct).ConfigureAwait(false);
                 }
             }, token).ConfigureAwait(false);
