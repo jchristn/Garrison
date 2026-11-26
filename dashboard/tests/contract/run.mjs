@@ -340,6 +340,7 @@ async function seed(api) {
   await seedMessages(api, ids);
   await seedOrganizations(api, ids);
   await seedFreezes(api, ids);
+  await seedEvaluations(api, ids);
   await sleep(1500);
   return ids;
 }
@@ -416,6 +417,27 @@ async function seedOrganizations(api, ids) {
     ]
   });
   ids.changeRule = rule.id;
+}
+
+/**
+ * Evaluations (AA9.15): an eval set with a judge agent, tags, and two cases (an exact match against expected text and a
+ * hidden case with Contains and Judge checks), approved, so every field the Eval sets pages read exists. Eval runs,
+ * shadow trials, and canary releases need a worker or a second deployment of one agent, so their lists are checked
+ * empty.
+ */
+async function seedEvaluations(api, ids) {
+  const set = await api.post(tp('eval-sets'), {
+    name: 'contract-evals',
+    description: 'Contract test eval set',
+    origin: 'Human',
+    judgeAgent: 'contract-echo',
+    tags: ['contract'],
+    cases: [
+      { name: 'exact', inputText: 'Say hello.', expectedText: 'hello', hidden: false, checks: [{ scorer: 'ExactMatch', weight: 1 }] },
+      { name: 'hidden', inputText: 'Say goodbye.', expectedText: 'goodbye', hidden: true, checks: [{ scorer: 'Contains', argument: 'bye', weight: 1 }, { scorer: 'Judge', argument: 'Polite.', weight: 2 }] }
+    ]
+  });
+  ids.evalSet = (await api.post(tp(`eval-sets/${set.id}/approve`), {})).id;
 }
 
 /**
@@ -797,6 +819,13 @@ function routes(ids) {
     ['listChangeRules (organization)', tp(`change-rules?${list}&organization=${ids.organization}&activeOnly=true`)],
     ['getChangeRule', tp(`change-rules/${ids.changeRule}`)],
     ['listOrgProposals', tp(`organizations/${ids.organization}/proposals?maxResults=200&skip=0`)],
+    // Evaluations (AA9.15): the approved set with its cases, and the (empty) run, shadow trial, and canary lists.
+    ['listEvalSets', tp(`eval-sets?${list}&latestOnly=true`)],
+    ['getEvalSet', tp(`eval-sets/${ids.evalSet}`)],
+    ['listEvalCases', tp(`eval-sets/${ids.evalSet}/cases`)],
+    ['listEvalRuns', tp(`eval-runs?${list}&set=${ids.evalSet}`)],
+    ['listShadowTrials', tp(`shadow-trials?${list}`)],
+    ['listCanaryReleases', tp(`canary-releases?${list}`)],
     // Freezes (AA3.8): one lifted agent freeze and one active keeper freeze, and the kill switch (off).
     ['listFreezes', tp(`freezes?${list}`)],
     ['listFreezes (active)', tp(`freezes?active=true&maxResults=1000&skip=0`)],

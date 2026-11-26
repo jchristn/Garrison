@@ -4378,3 +4378,416 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "p3": "Every applied proposal is recorded as a revision of the organization, so you can roll it back. Only people write rules."
  }
 });
+
+// Evaluations (AA9.9, AA9.15): tooltips of the evaluation pages, forms, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "evaluations": "Eval sets: versioned cases that grade an agent, approved by a person before they gate a promotion.",
+   "evalRuns": "Eval runs: each run of an eval set against a deployment or an agent revision, followed case by case.",
+   "shadowTrials": "Shadow trials: a candidate deployment answers copies of real inputs without acting, and the outputs are compared.",
+   "canaryReleases": "Canary releases: a candidate deployment takes more traffic step by step and rolls back on its own when it misbehaves."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Eval sets and their cases. Read views them; Create and Update write them; only people approve them.",
+   "EvalRun": "Eval runs of a set against a deployment or a revision. Execute starts and cancels them.",
+   "ShadowTrial": "Shadow trials that copy a deployment's inputs to a candidate. Create starts one; Update stops it.",
+   "CanaryRelease": "Canary releases that shift an agent's traffic in steps. Create starts one; Update aborts it."
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "A canary release rolled back because the candidate's error rate or eval score fell outside its bounds."
+  },
+  "runKind": {
+   "Eval": "One case of an eval run: the case input sent to the deployment or revision being graded.",
+   "Shadow": "A copy of a real input replayed on a shadow trial's candidate. It cannot act on anything."
+  },
+  "evalSetState": {
+   "Draft": "Still being written. Cases can change, and the set cannot gate a promotion yet.",
+   "Approved": "A person approved this version. It is kept as it is and can gate promotions and canary releases."
+  },
+  "evalSetOrigin": {
+   "Human": "A person wrote this set in the dashboard or through the API.",
+   "Evaluator": "An agent wrote this set. It gates only when it comes from outside the subtree of the agent being graded.",
+   "Playground": "The set grew out of turns saved from the studio playground."
+  },
+  "evalScorer": {
+   "ExactMatch": "The output must equal the text exactly, ignoring surrounding whitespace.",
+   "Contains": "The output must contain the text somewhere.",
+   "JsonSchemaValid": "The output must be JSON that matches the JSON Schema.",
+   "Judge": "The set's judge agent reads the input, the reference answer, and the output, and grades it."
+  },
+  "evalRunStatus": {
+   "Pending": "Waiting to start its first case.",
+   "Running": "Cases are running now; the page follows them as they finish.",
+   "Completed": "Every case finished and the run has a score.",
+   "Failed": "The run stopped early, for example when its budget ran out. The reason is on the run.",
+   "Cancelled": "A person cancelled the run before every case finished."
+  },
+  "evalRunTarget": {
+   "AgentRevision": "An agent revision runs on a temporary deployment, so live traffic is not touched.",
+   "Deployment": "A deployment runs the cases as it is configured now."
+  },
+  "evalRunInputMode": {
+   "Cases": "The set's own cases with their checks.",
+   "RecentInputs": "The deployment's most recent succeeded inputs, graded by the judge agent."
+  },
+  "shadowTrialStatus": {
+   "Running": "Runs of the source are being copied to the candidate now.",
+   "Completed": "The trial reached its end time.",
+   "Stopped": "A person stopped the trial.",
+   "Failed": "The trial could not continue. The reason is on the trial."
+  },
+  "canaryStatus": {
+   "Running": "The candidate is on one of the steps, taking part of the traffic.",
+   "Promoted": "Every step passed, and the candidate takes all of the traffic.",
+   "RolledBack": "The candidate fell outside its bounds, and the weights went back to where they were.",
+   "Aborted": "A person aborted the release, and the weights went back to where they were."
+  }
+ },
+ "filters": {
+  "state": "Show only records in this state, such as draft or approved.",
+  "latestOnly": "Show only the newest version of each eval set, or every version.",
+  "set": "Show only the runs of this eval set version."
+ },
+ "evals": {
+  "reason": "Why you are stopping it. Optional; it is kept with the record and in the audit log.",
+  "verdict": {
+   "passed": "The weighted score reached the threshold.",
+   "failed": "The weighted score stayed below the threshold.",
+   "none": "The run is still going, or it has no threshold to pass."
+  },
+  "outcome": {
+   "passed": "The case's weighted score passed.",
+   "failed": "The case ran, but its checks did not pass.",
+   "errored": "The case run failed, so the case scored zero."
+  },
+  "actions": {
+   "runSet": "Run an eval set against a deployment or an agent revision.",
+   "openSet": "Open the eval set version this run graded with.",
+   "cancelRun": "Stop the run and cancel the cases that have not finished.",
+   "stopTrial": "Stop copying runs to the candidate. The counts so far are kept.",
+   "abortCanary": "Stop the release and put both deployments back at the weights they had before.",
+   "copyId": "Copy the ID for the REST API, SDKs, or MCP tools."
+  },
+  "case": {
+   "name": "A short name for the case, shown in run results.",
+   "inputText": "What the agent receives as its input when the case runs.",
+   "expectedText": "The reference answer. Checks without text of their own compare against it.",
+   "hidden": "Keep the input and expected output from the agents being graded. Their runs see only the score.",
+   "checks": "How the output is scored. Each check scores 0 to 1, and the case score is their weighted mean.",
+   "scorer": "How this check scores the output.",
+   "weight": "How much this check counts in the case score, 0 to 100. Zero reports the check without counting it.",
+   "argument": {
+    "ExactMatch": "The exact text the output must equal. Empty uses the case's expected output.",
+    "Contains": "Text the output must contain. Empty uses the case's expected output.",
+    "JsonSchemaValid": "The JSON Schema the output must match.",
+    "Judge": "What the judge looks for, in plain words. Optional; the judge also reads the expected output."
+   },
+   "addCheck": "Add another way to score the output.",
+   "removeCheck": "Remove this check from the case.",
+   "save": "Save the case to this draft version.",
+   "saveNextVersion": "Save the case. The approved version stays as it is, and the change goes to the next version."
+  },
+  "run": {
+   "setId": "The eval set version to run.",
+   "targetType": "Grade a deployment as it runs now, or an agent revision on a temporary deployment.",
+   "deploymentId": "The deployment whose answers are graded.",
+   "agentId": "The agent whose revision is graded.",
+   "agentRevisionId": "A specific revision ID. Empty uses the agent's draft revision.",
+   "inputMode": "Run the set's cases, or replay the deployment's recent inputs for the judge to grade.",
+   "recentInputCount": "How many of the deployment's latest succeeded inputs to replay.",
+   "thresholdPercent": "The score the run must reach to pass. Empty leaves the run without a verdict.",
+   "budgetUsd": "The most the case and judge runs may spend together. Empty means no budget.",
+   "start": "Start the eval run and open its page."
+  },
+  "save": {
+   "open": "Save this turn's input and answer as a case of an eval set.",
+   "set": "The eval set the case goes into. A case added to an approved version goes to its next version.",
+   "newSetName": "The name of the new eval set. It stays the same across versions.",
+   "submit": "Save the case with the playground run as its source.",
+   "done": "Close and stay in the playground.",
+   "openSet": "Open the eval set with its cases.",
+   "runSet": "Open the set and run it against the draft revision the playground ran."
+  },
+  "setDetail": {
+   "back": "Back to the list of eval sets.",
+   "viewJson": "See this version and its cases as the API returns them.",
+   "edit": "Change the description, judge agent, and tags.",
+   "editApproved": "Edit the set. The approved version stays as it is, and the change makes the next version.",
+   "delete": "Delete this draft version. Approved versions are kept.",
+   "approve": "Approve this version so it can gate promotions and canary releases. Only people approve.",
+   "approveEmpty": "Add a case first. An empty set cannot be approved.",
+   "runEmpty": "Add a case first. An empty set has nothing to run.",
+   "cases": "The cases of this version in the order they run.",
+   "addCase": "Add a case at the end of this draft.",
+   "addCaseApproved": "Add a case. It goes to the next version, a new draft, and this version stays as it is.",
+   "editCase": "Change this case's input, expected output, or checks.",
+   "editCaseApproved": "Edit this case. The change goes to the next version, a new draft.",
+   "removeCase": "Remove the case from the draft.",
+   "openSourceRun": "Open the run the case was saved from.",
+   "versions": "Every version of this set, newest first.",
+   "openVersion": "Open this version of the set.",
+   "runs": "The latest eval runs of this version.",
+   "allRuns": "Open the eval runs list filtered to this version.",
+   "openRun": "Open the eval run with its case results.",
+   "fields": {
+    "state": "Draft while it is being written; Approved once a person approved it.",
+    "origin": "Who or what wrote the set: a person, an agent, or the studio playground.",
+    "judgeAgent": "The agent that grades Judge checks, cases without expected output, and recent inputs.",
+    "tags": "Labels to find the set by.",
+    "authoredBy": "The person or agent that wrote this version.",
+    "approvedBy": "The person who approved this version, and when.",
+    "previousVersion": "The version this one was made from.",
+    "lastUpdateUtc": "When this version last changed. Hover for how long ago.",
+    "description": "What the set checks, in plain words."
+   },
+   "columns": {
+    "order": "The order cases run in.",
+    "name": "The case's name.",
+    "input": "What the agent receives. Hover for the full text.",
+    "expected": "The reference answer. Hover for the full text.",
+    "scorers": "The checks that score the case, or the default when it has none.",
+    "hidden": "Hidden cases show the agents being graded only their score.",
+    "source": "The run this case was saved from, when it came from the playground."
+   },
+   "versionColumns": {
+    "version": "The version number.",
+    "state": "Draft or approved.",
+    "caseCount": "How many cases the version holds.",
+    "approvedBy": "The person who approved the version.",
+    "lastUpdateUtc": "When the version last changed."
+   },
+   "runColumns": {
+    "run": "The eval run ID. Open it for the case results.",
+    "status": "Where the run stands.",
+    "verdict": "Whether the score reached the threshold.",
+    "score": "The weighted score, from 0 to 100 percent.",
+    "target": "The deployment or agent revision that was graded.",
+    "createdUtc": "When the run started."
+   }
+  },
+  "runDetail": {
+   "back": "Back to the list of eval runs.",
+   "viewJson": "See the run as the API returns it.",
+   "live": "Updates arrive over the live channel as each case finishes.",
+   "polling": "The live channel is not connected, so the page checks for updates every few seconds.",
+   "progress": "Cases finished so far, out of every case in the run.",
+   "results": "One row per case, in order. Failing and errored rows are highlighted.",
+   "failingOnly": "Show only the cases that failed or errored.",
+   "open": "Open the case with its expected output, output, and every check.",
+   "openAgent": "Open the agent that was graded.",
+   "openDraft": "Open the studio draft whose revision was graded.",
+   "openCaseRun": "Open the run that answered this case.",
+   "openSourceRun": "Open the run the case or recent input came from.",
+   "openJudgeRun": "Open the judge agent's run that graded this check.",
+   "input": "What the agent received.",
+   "diff": "Lines only in the expected output are marked minus; lines only in the agent's output are marked plus.",
+   "output": "What the agent answered.",
+   "checks": "Each check with its scorer, weight, score, and the scorer's note.",
+   "kpi": {
+    "score": "The weighted mean of the case scores, against the threshold to pass.",
+    "passed": "Cases whose checks passed, out of every case.",
+    "errored": "Cases whose run failed. They score zero.",
+    "cost": "What the case and judge runs spent, against the budget."
+   },
+   "fields": {
+    "target": "The deployment or the agent and revision that was graded.",
+    "targetType": "Whether a deployment or an agent revision was graded.",
+    "inputMode": "The set's cases, or a deployment's recent inputs.",
+    "startedBy": "The person, credential, or agent that started the run.",
+    "createdUtc": "When the run was started.",
+    "completedUtc": "When the last case finished.",
+    "studioDraftId": "The studio draft an executive ran this evaluation for."
+   },
+   "columns": {
+    "order": "The order the case ran in.",
+    "case": "The case's name, or its number.",
+    "outcome": "Passed, failed, or errored.",
+    "score": "The case's weighted score, 0 to 100 percent.",
+    "checks": "How many of the case's checks passed.",
+    "output": "The start of the agent's answer, or the error. Hover for more.",
+    "open": "Open a case to see the diff and the scorer notes."
+   },
+   "checkColumns": {
+    "scorer": "How this check scored the output.",
+    "weight": "How much the check counts in the case score.",
+    "score": "This check's score, 0 to 100 percent.",
+    "outcome": "Whether this check passed.",
+    "note": "What the scorer said about the output, such as the judge's reasoning.",
+    "judgeRun": "The judge agent's run for this check, when a judge graded it."
+   }
+  },
+  "shadowDetail": {
+   "back": "Back to the list of shadow trials.",
+   "viewJson": "See the trial as the API returns it.",
+   "kpi": {
+    "compared": "Copied runs whose candidate output was compared with the source's.",
+    "agreed": "Comparisons where the candidate's output matched the source's.",
+    "diverged": "Comparisons where the candidate's output differed from the source's.",
+    "failures": "Copied runs that failed on the candidate.",
+    "agreement": "Agreed comparisons out of every comparison."
+   },
+   "fields": {
+    "source": "The deployment whose succeeded runs are copied. It is not affected.",
+    "candidate": "The deployment that replays the copies as Shadow runs.",
+    "samplePercent": "The share of the source's runs that are copied.",
+    "comparison": "How the two outputs are compared.",
+    "endsUtc": "When the trial ends on its own.",
+    "createdBy": "Who started the trial.",
+    "createdUtc": "When the trial started.",
+    "completedUtc": "When the trial ended."
+   }
+  },
+  "canaryDetail": {
+   "back": "Back to the list of canary releases.",
+   "viewJson": "See the release as the API returns it.",
+   "openAgent": "Open the agent whose traffic the release shifts.",
+   "steps": "The steps of the release in order, with the one the candidate is on.",
+   "columns": {
+    "step": "The step number.",
+    "weightPercent": "The share of the agent's traffic the candidate takes during the step.",
+    "minimumRuns": "Candidate runs that must finish before the step may advance.",
+    "minimumMinutes": "Minutes the step must last before it may advance.",
+    "state": "Done, the current step, the step it stopped on, or still to come."
+   },
+   "stepStates": {
+    "done": "The step passed and the release moved on.",
+    "current": "The candidate is on this step now.",
+    "stopped": "The release ended on this step.",
+    "pending": "The release has not reached this step."
+   },
+   "fields": {
+    "agent": "The agent whose traffic is shifted between the two deployments.",
+    "candidate": "The deployment being released, with its weight from before the release.",
+    "baseline": "The deployment that keeps the rest of the traffic, with its weight from before.",
+    "maxErrorRatePercent": "More failed candidate runs than this in a step rolls the release back.",
+    "gate": "When set, a step advances only while the latest eval score stays at or above the minimum.",
+    "stepStartedUtc": "When the current step began.",
+    "createdBy": "Who started the release.",
+    "completedUtc": "When the release ended."
+   }
+  },
+  "filters": {
+   "state": "Show only draft versions or only approved versions.",
+   "origin": "Show only sets written by people, by agents, or saved from the playground."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "add": "Create version 1 of a new eval set. Add its cases on the set's page.",
+   "name": "The set's name. It stays the same across versions.",
+   "version": "The version number. Editing an approved version makes the next one.",
+   "state": "Draft or approved. Only approved versions can gate promotions.",
+   "origin": "Written by a person, by an agent, or saved from the playground.",
+   "caseCount": "How many cases this version holds.",
+   "judgeAgent": "The agent that grades Judge checks and cases without expected output.",
+   "tags": "Labels to find the set by.",
+   "authoredByName": "The person or agent that wrote this version.",
+   "approvedByName": "The person who approved this version. Hover for when.",
+   "description": "What the set checks. Hover for the full text.",
+   "lastUpdateUtc": "When this version last changed. Hover for the exact time.",
+   "id": "The eval set version ID (evs_...), for the REST API, SDKs, and MCP tools."
+  },
+  "evalRuns": {
+   "setName": "The eval set and version that was run.",
+   "status": "Where the run stands: pending, running, completed, failed, or cancelled.",
+   "verdict": "Whether the score reached the threshold.",
+   "score": "The weighted mean of the case scores.",
+   "threshold": "The score the run had to reach to pass.",
+   "progress": "Cases finished and passed, out of every case.",
+   "target": "The deployment or agent revision that was graded.",
+   "inputMode": "The set's cases, or a deployment's recent inputs.",
+   "costUsd": "What the case and judge runs spent.",
+   "startedByName": "The person, credential, or agent that started the run.",
+   "createdUtc": "When the run started. Hover for the exact time.",
+   "id": "The eval run ID (evr_...), for the REST API, SDKs, and MCP tools."
+  },
+  "shadowTrials": {
+   "add": "Start copying a share of a deployment's runs to a candidate deployment of the same agent.",
+   "name": "A short name for the trial.",
+   "status": "Running, completed, stopped, or failed.",
+   "source": "The deployment whose runs are copied.",
+   "candidate": "The deployment that replays the copies.",
+   "samplePercent": "The share of the source's runs that are copied.",
+   "comparedCount": "Copies whose outputs were compared.",
+   "agreedCount": "Comparisons where the outputs agreed.",
+   "divergedCount": "Comparisons where the outputs differed.",
+   "candidateFailureCount": "Copies that failed on the candidate.",
+   "agreement": "Agreed comparisons out of every comparison.",
+   "endsUtc": "When the trial ends on its own, or Until stopped.",
+   "createdUtc": "When the trial started. Hover for the exact time.",
+   "id": "The shadow trial ID (shd_...), for the REST API, SDKs, and MCP tools.",
+   "sourceDeploymentId": "The deployment whose succeeded runs are copied. Its own runs are not affected.",
+   "candidateDeploymentId": "Another deployment of the same agent that answers the copies without acting.",
+   "comparisonEvalSetId": "An eval set whose checks compare the outputs. Empty compares normalized text.",
+   "useJudge": "Ask the judge agent whether the candidate's answer agrees with the source's."
+  },
+  "canaryReleases": {
+   "add": "Start moving an agent's traffic to a candidate deployment in steps.",
+   "agent": "The agent whose traffic moves between the two deployments.",
+   "status": "Running, promoted, rolled back, or aborted.",
+   "candidate": "The deployment being released.",
+   "baseline": "The deployment that keeps the rest of the traffic.",
+   "step": "The step the release is on and the candidate's share of traffic.",
+   "maxErrorRatePercent": "The candidate error rate that rolls the release back.",
+   "gate": "The eval set and minimum score a step needs to advance, if any.",
+   "rollbackReason": "Why the release rolled back or was aborted. Hover for the full text.",
+   "createdUtc": "When the release started. Hover for the exact time.",
+   "id": "The canary release ID (cnr_...), for the REST API, SDKs, and MCP tools.",
+   "agentId": "The agent whose two deployments share the traffic.",
+   "baselineDeploymentId": "The deployment that serves the traffic the candidate does not take.",
+   "candidateDeploymentId": "The deployment that takes more traffic at each step.",
+   "steps": "The traffic shares the candidate moves through, each with a minimum of runs and minutes.",
+   "weightPercent": "The candidate's share of the traffic during this step, 1 to 100.",
+   "minimumRuns": "Candidate runs that must finish during the step before it may advance.",
+   "minimumMinutes": "Minutes the step must last before it may advance.",
+   "evalSetId": "An eval set whose latest run must reach the minimum score for a step to advance.",
+   "minEvalScorePercent": "The lowest eval score, in percent, that lets a step advance."
+  }
+ }
+});
+
+// Evaluations (AA9.15): the explainers of the evaluation pages.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "evalSets": {
+  "title": "Eval sets",
+  "p1": "An eval set is a list of cases: an input, the answer you expect, and checks that score the agent's output from 0 to 1. A case can be hidden so the agents being graded see only its score.",
+  "p2": "Sets are versioned. A person approves a draft version, and an approved version never changes, so it can gate promotions to an environment and canary releases. Editing an approved version makes the next version as a draft.",
+  "p3": "The quickest way to start is the studio playground: save a turn you like as a case, then run the set against the draft revision."
+ },
+ "evalRuns": {
+  "title": "Eval runs",
+  "p1": "An eval run sends every case of a set version to a deployment, or to an agent revision on a temporary deployment, and scores each answer with the case's checks.",
+  "p2": "The run's score is the weighted mean of its case scores, and it passes when the score reaches the threshold. A budget stops the run when case and judge runs have spent it."
+ },
+ "shadowTrials": {
+  "title": "Shadow trials",
+  "p1": "A shadow trial copies a share of a deployment's succeeded runs to a candidate deployment of the same agent. The copies run as Shadow runs, which cannot use effectful tools, send messages, write memory, or file reports.",
+  "p2": "Each candidate answer is compared with the source's, as normalized text, with an eval set, or by the judge agent. The trial counts how often they agree and how often the candidate fails."
+ },
+ "canaryReleases": {
+  "title": "Canary releases",
+  "p1": "A canary release moves an agent's traffic to a candidate deployment in steps. Each step lasts a minimum of runs and minutes before it may advance.",
+  "p2": "While the candidate's error rate, and the latest eval score when the release has an eval gate, stay within bounds, the release advances and is promoted after the last step. Otherwise it rolls back to the weights from before, and a Canary rolled back notification goes out."
+ }
+});

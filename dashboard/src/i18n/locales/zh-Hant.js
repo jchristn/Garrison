@@ -7258,3 +7258,701 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "評估集",
+    "tip": "在代理程式上線前為其評分的版本化案例集"
+   },
+   "evalRuns": {
+    "label": "評估執行",
+    "tip": "針對部署或代理程式修訂執行評估集的紀錄"
+   },
+   "shadowTrials": {
+    "label": "影子試驗",
+    "tip": "候選部署重播真實輸入，但不會實際採取行動"
+   },
+   "canaryReleases": {
+    "label": "金絲雀發佈",
+    "tip": "候選部署分階段承接越來越多的流量"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "評估集",
+   "EvalRun": "評估執行",
+   "ShadowTrial": "影子試驗",
+   "CanaryRelease": "金絲雀發佈"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "金絲雀發佈已回復"
+  },
+  "runKind": {
+   "Eval": "評估案例",
+   "Shadow": "影子副本"
+  },
+  "evalSetState": {
+   "Draft": "草稿",
+   "Approved": "已核准"
+  },
+  "evalSetOrigin": {
+   "Human": "由人員撰寫",
+   "Evaluator": "由代理程式撰寫",
+   "Playground": "來自試驗場"
+  },
+  "evalScorer": {
+   "ExactMatch": "完全相符",
+   "Contains": "包含",
+   "JsonSchemaValid": "符合 JSON Schema",
+   "Judge": "評審代理程式"
+  },
+  "evalRunStatus": {
+   "Pending": "等候中",
+   "Running": "執行中",
+   "Completed": "已完成",
+   "Failed": "失敗",
+   "Cancelled": "已取消"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "代理程式修訂",
+   "Deployment": "部署"
+  },
+  "evalRunInputMode": {
+   "Cases": "評估集的案例",
+   "RecentInputs": "近期輸入"
+  },
+  "shadowTrialStatus": {
+   "Running": "執行中",
+   "Completed": "已完成",
+   "Stopped": "已停止",
+   "Failed": "失敗"
+  },
+  "canaryStatus": {
+   "Running": "執行中",
+   "Promoted": "已推進",
+   "RolledBack": "已回復",
+   "Aborted": "已中止"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "已有同名的評估集。請開啟並編輯它，以建立下一個版本。",
+  "AlreadyApproved": "此版本已經核准。",
+  "EvalSetEmpty": "此評估集還沒有案例。請先新增案例。",
+  "EvalSetImmutable": "此版本已核准，會保持原樣。請編輯它以開啟下一個版本，或改為刪除草稿版本。",
+  "ApprovalIsPeopleOnly": "只有人員可以核准評估集。代理程式不能核准為自己評分的評估集。",
+  "EvalRunFinished": "此評估執行已經結束。",
+  "ShadowTrialAlreadyRunning": "此候選部署已在另一個試驗中為該部署進行影子執行。",
+  "ShadowTrialNotRunning": "此影子試驗已不在執行中。",
+  "CanaryAlreadyRunning": "其中一個部署已在執行中的金絲雀發佈裡。",
+  "CanaryNotRunning": "此金絲雀發佈已不在執行中。",
+  "EvalGateFailed": "推進需要此修訂針對該環境已核准評估集的一次通過評估執行，目前還沒有。",
+  "PeopleOnly": "只有人員和 API 憑證可以執行此操作，執行權杖不行。"
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{completed}} / {{total}} 個案例，{{passed}} 個通過",
+  "noJudge": "沒有評審",
+  "noSet": "無",
+  "untilStopped": "直到停止",
+  "verdict": {
+   "passed": "通過",
+   "failed": "低於門檻",
+   "none": "沒有判定"
+  },
+  "outcome": {
+   "passed": "通過",
+   "failed": "未通過",
+   "errored": "發生錯誤"
+  },
+  "target": {
+   "deployment": "部署 {{name}}",
+   "revision": "代理程式 {{agent}}，修訂 {{revision}}"
+  },
+  "actions": {
+   "runSet": "執行評估集",
+   "openSet": "開啟評估集",
+   "cancelRun": "取消執行",
+   "stopTrial": "停止試驗",
+   "abortCanary": "中止發佈",
+   "copyId": "複製 ID"
+  },
+  "toasts": {
+   "copied": "已複製 ID。",
+   "approved": "已核准 {{name}} v{{version}}。現在它可以把關推進。",
+   "caseSaved": "已儲存案例。",
+   "caseSavedNextVersion": "已將案例儲存到新草稿版本 {{version}}。",
+   "caseSavedTo": "已將案例儲存到 {{name}}。",
+   "caseRemoved": "已移除案例。",
+   "caseRemovedNextVersion": "已從新草稿版本 {{version}} 移除案例。",
+   "setSavedNextVersion": "已儲存為新草稿版本 {{version}}。",
+   "runStarted": "已開始執行 {{name}} 的評估。",
+   "runCancelled": "已取消評估執行。",
+   "trialStopped": "已停止影子試驗。",
+   "canaryAborted": "已中止金絲雀發佈，權重已恢復為初始值。"
+  },
+  "reason": {
+   "label": "原因",
+   "placeholder": "選填。會與紀錄一起保存，並寫入稽核記錄。"
+  },
+  "form": {
+   "errors": {
+    "name": "請為評估集輸入 1 至 {{max}} 個字元的名稱。",
+    "description": "描述最多 {{max}} 個字元。",
+    "judgeAgent": "評審代理程式名稱最多 {{max}} 個字元。",
+    "tags": "每個標籤最多 {{max}} 個字元。"
+   }
+  },
+  "set": {
+   "nextVersion": "此版本已核准，因此儲存後會建立草稿版本 {{version}}。此版本會保持原樣。"
+  },
+  "case": {
+   "addTitle": "新增案例到 {{name}}",
+   "editTitle": "編輯案例 {{number}}",
+   "save": "儲存案例",
+   "nextVersion": "此版本已核准，因此變更會寫入新草稿版本 {{version}}。此版本會保持原樣。",
+   "fromRun": "儲存自執行 {{id}}。",
+   "fields": {
+    "name": "名稱",
+    "inputText": "輸入",
+    "expectedText": "預期輸出",
+    "hidden": "對受評分的代理程式隱藏",
+    "checks": "檢查項目"
+   },
+   "placeholders": {
+    "name": "選填，例如超過上限的退款",
+    "inputText": "代理程式收到的訊息",
+    "expectedText": "好的回答應該說什麼"
+   },
+   "hints": {
+    "name": "選填，最多 {{max}} 個字元。",
+    "inputText": "必填。案例會把這段文字當作輸入傳給代理程式。",
+    "expectedText": "選填。沒有自己文字的完全相符和包含檢查會與它比較；評審會把它當作參考答案。",
+    "hidden": "代理程式自己的執行只能看到隱藏案例的分數，看不到輸入或預期輸出，因此無法得知答案。"
+   },
+   "checks": {
+    "scorer": "評分方式",
+    "weight": "權重",
+    "add": "新增檢查項目",
+    "remove": "移除檢查項目 {{number}}",
+    "none": "沒有檢查項目。案例會以完全相符的方式與預期輸出比較評分；沒有預期輸出時，則由評審代理程式評分。"
+   },
+   "scorerHints": {
+    "ExactMatch": "忽略前後空白後，輸出與文字相同即通過。",
+    "Contains": "輸出包含該文字即通過。",
+    "JsonSchemaValid": "輸出是符合結構描述的 JSON 即通過。",
+    "Judge": "評估集的評審代理程式會依照評分準則和預期輸出為輸出評分。"
+   },
+   "argumentLabels": {
+    "ExactMatch": "完全相符的文字",
+    "Contains": "要尋找的文字",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "評分準則"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "留空時使用預期輸出",
+    "Contains": "留空時使用預期輸出",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "選填。好的回答必須做到什麼"
+   },
+   "errors": {
+    "input": "案例需要輸入文字。",
+    "name": "名稱最多 {{max}} 個字元。",
+    "weight": "權重為 0 至 {{max}}。",
+    "schema": "請在這裡輸入 JSON Schema 物件。",
+    "argument": "請輸入文字，或填寫案例的預期輸出。"
+   }
+  },
+  "run": {
+   "title": "執行評估集",
+   "titleFor": "執行 {{name}} v{{version}}",
+   "intro": "每個案例會以獨立的評估執行進行。針對代理程式修訂的執行會使用臨時部署，不會影響即時流量。",
+   "start": "開始執行",
+   "starting": "正在開始...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "選擇部署",
+   "chooseAgent": "選擇代理程式",
+   "fields": {
+    "setId": "評估集",
+    "targetType": "評估對象",
+    "deploymentId": "部署",
+    "agentId": "代理程式",
+    "agentRevisionId": "修訂",
+    "inputMode": "輸入",
+    "recentInputCount": "要重播的近期輸入數",
+    "thresholdPercent": "通過門檻（百分比）",
+    "budgetUsd": "預算（USD）"
+   },
+   "hints": {
+    "setId": "列出每個評估集的最新版本。",
+    "targetType": "目前運作中的部署，或代理程式修訂，例如工作室試驗場執行的草稿。",
+    "agentId": "必填。未指定修訂時，會執行代理程式的草稿修訂，或其最新發佈的修訂。",
+    "agentRevisionId": "選填。代理程式修訂 ID；留空時執行草稿修訂。",
+    "inputMode": "評估集的案例，或部署最近成功的輸入，由評審代理程式評分。",
+    "recentInputCount": "1 至 {{max}}。",
+    "thresholdPercent": "選填，0 至 100。加權分數達到此值時，執行即通過。",
+    "budgetUsd": "選填。案例和評審執行花費達到此金額時，會略過剩下的案例，執行判定為失敗。"
+   },
+   "errors": {
+    "set": "請選擇要執行的評估集。",
+    "deployment": "請選擇要評估的部署。",
+    "agent": "請選擇要評估的代理程式。",
+    "threshold": "門檻為 0 至 100 百分比。",
+    "budget": "預算為 0 至 {{max}} USD。",
+    "recentInputs": "請重播 1 至 {{max}} 個近期輸入。"
+   }
+  },
+  "save": {
+   "open": "儲存為評估案例",
+   "title": "儲存為評估案例",
+   "intro": "這一輪的輸入和代理程式的回答會成為一個案例。請編輯預期輸出，寫出好的回答應有的內容，而不只是這次的回答。",
+   "set": "評估集",
+   "newSet": "新增評估集...",
+   "newSetName": "新評估集名稱",
+   "newSetHint": "新評估集會以草稿開始，來源為「來自試驗場」。",
+   "submit": "儲存案例",
+   "done": "完成",
+   "openSet": "開啟評估集",
+   "runSet": "執行評估集",
+   "entryAgent": "入口代理程式",
+   "saved": "已將案例儲存到 {{name}} v{{version}}。",
+   "runHint": "「執行評估集」會評估 {{agent}} 的草稿修訂，也就是此試驗場執行的修訂。",
+   "errors": {
+    "set": "請選擇評估集，或建立新的評估集。"
+   }
+  },
+  "setDetail": {
+   "title": "評估集",
+   "back": "所有評估集",
+   "notFoundTitle": "找不到評估集",
+   "notFoundBody": "它可能是已被刪除的草稿。已核准的版本一律會保留。",
+   "approve": "核准",
+   "approveTitle": "核准 {{name}} v{{version}}",
+   "approveMessage": "已核准的版本會完全保持原樣，可以把關推進和金絲雀發佈。之後的編輯會建立下一個草稿版本。",
+   "approvedNote": "此版本已核准並保持原樣。編輯評估集或案例會建立草稿版本 {{version}}。",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "有些案例由評審代理程式評分，但此評估集沒有設定評審。執行前請編輯評估集並選擇評審代理程式。",
+   "editTitle": "編輯 {{name}}",
+   "deleteTitle": "刪除草稿版本",
+   "deleteMessage": "要刪除 {{name}} v{{version}} 嗎？已核准的版本不受影響。",
+   "cases": "案例（{{count}}）",
+   "addCase": "新增案例",
+   "noCases": "還沒有案例。請在這裡新增，或從工作室試驗場儲存一輪對話。",
+   "noExpected": "無",
+   "hidden": "已隱藏",
+   "removeCaseTitle": "移除案例 {{number}}",
+   "removeCaseMessage": "要從草稿移除此案例嗎？",
+   "removeCaseApproved": "此版本已核准，因此案例會從新草稿版本 {{version}} 移除。此版本仍保留它。",
+   "versions": "版本",
+   "thisVersion": "v{{version}}（目前這個）",
+   "runs": "近期評估執行",
+   "allRuns": "此版本的所有執行",
+   "noRuns": "此版本尚未執行過。",
+   "fields": {
+    "state": "狀態",
+    "origin": "來源",
+    "judgeAgent": "評審代理程式",
+    "tags": "標籤",
+    "authoredBy": "撰寫者",
+    "approvedBy": "核准者",
+    "previousVersion": "上一個版本",
+    "lastUpdateUtc": "最後變更",
+    "description": "描述"
+   },
+   "columns": {
+    "order": "#",
+    "name": "名稱",
+    "input": "輸入",
+    "expected": "預期輸出",
+    "scorers": "評分方式",
+    "hidden": "隱藏",
+    "source": "來源執行"
+   },
+   "versionColumns": {
+    "version": "版本",
+    "state": "狀態",
+    "caseCount": "案例",
+    "approvedBy": "核准者",
+    "lastUpdateUtc": "最後變更"
+   },
+   "runColumns": {
+    "run": "評估執行",
+    "status": "狀態",
+    "verdict": "判定",
+    "score": "分數",
+    "target": "評估對象",
+    "createdUtc": "開始時間"
+   }
+  },
+  "runDetail": {
+   "title": "評估執行",
+   "back": "所有評估執行",
+   "notFoundTitle": "找不到評估執行",
+   "notFoundBody": "請檢查 ID，或從評估集開啟該執行。",
+   "live": "即時",
+   "polling": "輪詢",
+   "failure": "執行失敗：{{reason}}",
+   "progressLabel": "已完成的案例",
+   "kpi": {
+    "score": "分數",
+    "threshold": "門檻 {{threshold}}",
+    "noThreshold": "沒有門檻",
+    "passed": "通過的案例",
+    "errored": "發生錯誤的案例",
+    "cost": "成本",
+    "budget": "預算 {{budget}}",
+    "noBudget": "沒有預算"
+   },
+   "fields": {
+    "target": "評估對象",
+    "targetType": "目標",
+    "inputMode": "輸入",
+    "startedBy": "啟動者",
+    "createdUtc": "開始時間",
+    "completedUtc": "結束時間",
+    "studioDraftId": "工作室草稿"
+   },
+   "recentInputs": "{{count}} 個近期輸入",
+   "results": "案例結果（{{count}}）",
+   "failingOnly": "只看未通過（{{count}}）",
+   "noFailing": "每個案例都通過了。",
+   "noResults": "此執行沒有記錄任何案例結果。",
+   "waiting": "正在等候第一個案例完成。",
+   "caseNumber": "案例 {{number}}",
+   "recentInput": "近期輸入 {{number}}",
+   "checksPassed": "{{passed}} / {{total}} 通過",
+   "open": "開啟",
+   "columns": {
+    "order": "#",
+    "case": "案例",
+    "outcome": "結果",
+    "score": "分數",
+    "checks": "檢查項目",
+    "output": "輸出"
+   },
+   "resultTitle": "案例 {{number}}",
+   "resultTitleNamed": "案例 {{number}}：{{name}}",
+   "scoreIs": "分數 {{score}}",
+   "openCaseRun": "開啟案例執行",
+   "openSourceRun": "開啟來源執行",
+   "hiddenCase": "此案例對受評分的代理程式隱藏。",
+   "input": "輸入",
+   "diff": "預期輸出與實際輸出的比較",
+   "expected": "預期",
+   "output": "輸出",
+   "noOutput": "沒有輸出。",
+   "checks": "檢查項目",
+   "noChecks": "沒有任何檢查項目被評分。",
+   "checkColumns": {
+    "scorer": "評分方式",
+    "weight": "權重",
+    "score": "分數",
+    "outcome": "結果",
+    "note": "評分說明",
+    "judgeRun": "評審執行"
+   },
+   "cancelTitle": "取消評估執行",
+   "cancelMessage": "要取消 {{name}} 的這次執行嗎？尚未完成的案例會一併取消。"
+  },
+  "shadow": {
+   "errors": {
+    "name": "名稱最多 {{max}} 個字元。",
+    "source": "請選擇要複製其執行的部署。",
+    "candidate": "請選擇候選部署。",
+    "same": "候選部署必須與來源部署不同。",
+    "sample": "請抽樣 1 至 100 百分比的執行。",
+    "ends": "請選擇未來的結束時間，或留空讓它一直執行到停止為止。"
+   }
+  },
+  "shadowDetail": {
+   "title": "影子試驗",
+   "back": "所有影子試驗",
+   "notFoundTitle": "找不到影子試驗",
+   "notFoundBody": "請檢查 ID，或從清單開啟該試驗。",
+   "note": "影子執行會在候選部署上重播來源的輸入。它們不能使用會產生副作用的工具、傳送訊息、寫入記憶或提交報告，來源的執行也不受影響。",
+   "stopReason": "已停止：{{reason}}",
+   "stopTitle": "停止影子試驗",
+   "stopMessage": "要停止 {{name}} 嗎？之後不會再複製執行；目前的計數會保留。",
+   "kpi": {
+    "compared": "已比較",
+    "agreed": "一致",
+    "diverged": "不一致",
+    "failures": "候選部署失敗",
+    "agreement": "一致率"
+   },
+   "comparison": {
+    "text": "正規化文字",
+    "set": "使用評估集",
+    "judge": "由評審代理程式"
+   },
+   "fields": {
+    "source": "來源",
+    "candidate": "候選",
+    "samplePercent": "抽樣比例",
+    "comparison": "比較方式",
+    "endsUtc": "結束時間",
+    "createdBy": "啟動者",
+    "createdUtc": "開始時間",
+    "completedUtc": "結束於"
+   }
+  },
+  "canary": {
+   "stepOf": "第 {{number}} / {{total}} 階段，{{percent}}%",
+   "gateText": "{{name}} 達到 {{score}} 以上",
+   "noGate": "沒有評估關卡",
+   "errors": {
+    "agent": "請選擇要轉移流量的代理程式。",
+    "candidate": "請選擇候選部署。",
+    "baseline": "請選擇基準部署。",
+    "same": "候選部署與基準部署必須是不同的部署。",
+    "steps": "請至少列出一個階段。最後一個階段為 100 百分比。",
+    "tooMany": "一次發佈最多 {{max}} 個階段。",
+    "increasing": "每個階段的百分比為 1 至 100，且高於前一個階段。",
+    "lastStep": "最後一個階段必須是 100 百分比。",
+    "errorRate": "錯誤率上限為 0 至 100 百分比。",
+    "gate": "評估關卡需要同時設定評估集和最低分數，或兩者都不設定。",
+    "score": "最低分數為 0 至 100 百分比。"
+   }
+  },
+  "canaryDetail": {
+   "title": "金絲雀發佈",
+   "heading": "{{agent}} 的金絲雀發佈",
+   "back": "所有金絲雀發佈",
+   "notFoundTitle": "找不到金絲雀發佈",
+   "notFoundBody": "請檢查 ID，或從清單開啟該發佈。",
+   "rolledBack": "已回復：{{reason}} 權重已恢復為初始值。",
+   "aborted": "已中止：{{reason}} 權重已恢復為初始值。",
+   "promoted": "已推進。{{candidate}} 承接全部流量。",
+   "noReason": "未提供原因。",
+   "withWeight": "{{name}}（發佈前權重 {{weight}}）",
+   "gate": "最新評估分數達到 {{score}} 以上",
+   "steps": "階段",
+   "columns": {
+    "step": "階段",
+    "weightPercent": "候選部署流量",
+    "minimumRuns": "最少執行數",
+    "minimumMinutes": "最少分鐘數",
+    "state": "狀態"
+   },
+   "stepStates": {
+    "done": "已完成",
+    "current": "目前",
+    "stopped": "停在此處",
+    "pending": "等候中"
+   },
+   "abortTitle": "中止金絲雀發佈",
+   "abortMessage": "要中止發佈嗎？兩個部署都會恢復為發佈開始前的權重。",
+   "fields": {
+    "agent": "代理程式",
+    "candidate": "候選",
+    "baseline": "基準",
+    "maxErrorRatePercent": "錯誤率上限",
+    "gate": "評估關卡",
+    "stepStartedUtc": "目前階段開始時間",
+    "createdBy": "啟動者",
+    "completedUtc": "結束時間"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "案例需要輸入文字。",
+   "UnknownScorer": "請使用完全相符、包含、符合 JSON Schema 或評審代理程式。",
+   "ArgumentRequired": "請輸入文字，或填寫案例的預期輸出。",
+   "InvalidJsonSchema": "這不是有效的 JSON Schema。",
+   "TooManyCases": "此評估集的案例數已達上限。",
+   "EvaluatorIsForAgents": "「由代理程式撰寫」來源僅適用於代理程式建立的評估集。請選擇「由人員撰寫」或「來自試驗場」。",
+   "SetRequired": "請選擇要執行的評估集。",
+   "TargetRequired": "請選擇要評估的對象。",
+   "RecentInputsNeedDeployment": "近期輸入會重播部署的執行。請評估部署。",
+   "NoRecentInputs": "此部署還沒有可重播的成功執行。",
+   "EvalSetEmpty": "此版本沒有案例。",
+   "JudgeAgentRequired": "有些案例需要評審代理程式，但此評估集沒有設定。請編輯評估集並選擇一個。",
+   "DeploymentNotFound": "此租用戶中沒有該部署。",
+   "SameDeployment": "請選擇兩個不同的部署。",
+   "DifferentAgent": "兩個部署必須屬於同一個代理程式。",
+   "DeploymentInactive": "該部署未啟用。請先啟用它。",
+   "AgentMismatch": "代理程式必須是來源部署的代理程式。",
+   "EndsInPast": "請選擇未來的結束時間，或留空。",
+   "EvalSetNotFound": "此租用戶中沒有該評估集。",
+   "AgentNotFound": "此租用戶中沒有該代理程式。",
+   "EvalGateIncomplete": "評估關卡需要同時設定評估集和最低分數，或兩者都不設定。",
+   "NotIncreasing": "每個階段的百分比必須高於前一個階段。",
+   "LastStepNotFull": "最後一個階段必須是 100 百分比。"
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "評估集",
+   "subtitle": "為代理程式評分的版本化案例。核准一個版本後，它就能把關推進和金絲雀發佈。",
+   "add": "新增評估集",
+   "create": "新增評估集",
+   "edit": "編輯評估集",
+   "view": "評估集",
+   "deleteTitle": "刪除草稿版本",
+   "emptyTitle": "還沒有評估集",
+   "emptyBody": "在這裡新增評估集及其案例，或從工作室試驗場儲存一輪對話作為第一個案例。",
+   "filters": {
+    "latestOnly": "版本",
+    "newestOnly": "只顯示最新版本",
+    "allVersions": "所有版本"
+   },
+   "columns": {
+    "name": "名稱",
+    "version": "版本",
+    "state": "狀態",
+    "origin": "來源",
+    "caseCount": "案例",
+    "judgeAgent": "評審代理程式",
+    "tags": "標籤",
+    "authoredByName": "撰寫者",
+    "approvedByName": "核准者",
+    "description": "描述",
+    "lastUpdateUtc": "最後變更",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名稱",
+    "description": "描述",
+    "origin": "來源",
+    "judgeAgent": "評審代理程式",
+    "tags": "標籤"
+   },
+   "hints": {
+    "name": "1 至 {{max}} 個字元。各版本的名稱保持不變。",
+    "description": "選填，最多 {{max}} 個字元。",
+    "origin": "「來自試驗場」標示由試驗場對話發展而來的評估集。",
+    "judgeAgent": "負責評分評審檢查、沒有預期輸出的案例以及近期輸入的代理程式。",
+    "tags": "選填，每行一個，每個最多 {{max}} 個字元。"
+   }
+  },
+  "evalRuns": {
+   "title": "評估執行",
+   "subtitle": "評估集版本針對部署或代理程式修訂的每次執行，以及其分數與門檻的比較。",
+   "add": "執行評估集",
+   "create": "執行評估集",
+   "edit": "評估執行",
+   "view": "評估執行",
+   "deleteTitle": "刪除評估執行",
+   "emptyTitle": "還沒有評估執行",
+   "emptyBody": "執行評估集，在部署或草稿修訂上線前為其評分。",
+   "columns": {
+    "setName": "評估集",
+    "status": "狀態",
+    "verdict": "判定",
+    "score": "分數",
+    "threshold": "門檻",
+    "progress": "進度",
+    "target": "評估對象",
+    "inputMode": "輸入",
+    "costUsd": "成本",
+    "startedByName": "啟動者",
+    "createdUtc": "開始時間",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "影子試驗",
+   "subtitle": "候選部署重播即時部署的一部分輸入但不採取行動，再比較兩者的輸出。",
+   "add": "開始影子試驗",
+   "create": "開始影子試驗",
+   "edit": "影子試驗",
+   "view": "影子試驗",
+   "deleteTitle": "刪除影子試驗",
+   "emptyTitle": "還沒有影子試驗",
+   "emptyBody": "開始試驗，在候選部署承接任何流量前，看看它如何回答真實輸入。",
+   "columns": {
+    "name": "名稱",
+    "status": "狀態",
+    "source": "來源",
+    "candidate": "候選",
+    "samplePercent": "抽樣比例",
+    "comparedCount": "已比較",
+    "agreedCount": "一致",
+    "divergedCount": "不一致",
+    "candidateFailureCount": "失敗",
+    "agreement": "一致率",
+    "endsUtc": "結束時間",
+    "createdUtc": "開始時間",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名稱",
+    "sourceDeploymentId": "來源部署",
+    "candidateDeploymentId": "候選部署",
+    "samplePercent": "抽樣（百分比）",
+    "endsUtc": "結束時間",
+    "comparisonEvalSetId": "使用評估集比較",
+    "useJudge": "使用評審代理程式比較"
+   },
+   "hints": {
+    "name": "選填，最多 {{max}} 個字元。",
+    "sourceDeploymentId": "必填。會複製它成功的執行；它本身不受影響。",
+    "candidateDeploymentId": "必填。同一個代理程式的另一個部署。",
+    "samplePercent": "1 至 100，預設 10。要複製的來源執行比例。",
+    "endsUtc": "選填。留空時會一直執行，直到有人停止。",
+    "comparisonEvalSetId": "選填。未指定時，輸出會以正規化文字比較。",
+    "useJudge": "請評審代理程式判斷兩個輸出是否一致。"
+   }
+  },
+  "canaryReleases": {
+   "title": "金絲雀發佈",
+   "subtitle": "候選部署分階段承接代理程式越來越多的流量，表現異常時會自動回復。",
+   "add": "開始金絲雀發佈",
+   "create": "開始金絲雀發佈",
+   "edit": "金絲雀發佈",
+   "view": "金絲雀發佈",
+   "deleteTitle": "刪除金絲雀發佈",
+   "emptyTitle": "還沒有金絲雀發佈",
+   "emptyBody": "開始發佈，逐步將流量移到新的部署。",
+   "addStep": "新增階段",
+   "columns": {
+    "agent": "代理程式",
+    "status": "狀態",
+    "candidate": "候選",
+    "baseline": "基準",
+    "step": "階段",
+    "maxErrorRatePercent": "錯誤上限",
+    "gate": "評估關卡",
+    "rollbackReason": "回復原因",
+    "createdUtc": "開始時間",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "代理程式",
+    "baselineDeploymentId": "基準部署",
+    "candidateDeploymentId": "候選部署",
+    "steps": "階段",
+    "weightPercent": "候選部署流量（百分比）",
+    "minimumRuns": "最少執行數",
+    "minimumMinutes": "最少分鐘數",
+    "maxErrorRatePercent": "錯誤率上限（百分比）",
+    "evalSetId": "評估關卡評估集",
+    "minEvalScorePercent": "最低評估分數（百分比）"
+   },
+   "hints": {
+    "agentId": "必填。兩個部署都屬於它。",
+    "baselineDeploymentId": "必填。它承接其餘的流量。",
+    "candidateDeploymentId": "必填。要發佈的部署。",
+    "steps": "1 至 {{max}} 個階段。每個百分比都高於前一個，最後一個為 100。",
+    "maxErrorRatePercent": "0 至 100，預設 5。某個階段中候選部署的失敗執行超過此比例時，發佈會回復。",
+    "evalSetId": "選填。只有此評估集的最新評估執行達到最低分數時，階段才會前進。",
+    "minEvalScorePercent": "設定評估關卡評估集時必填，0 至 100。"
+   }
+  }
+ }
+});

@@ -59,6 +59,14 @@ import MessageThreadView from '../MessageThreadView';
 import OrganizationsView from '../OrganizationsView';
 import OrganizationDetailView from '../OrganizationDetailView';
 import ChangeRulesView from '../ChangeRulesView';
+import EvalSetsView from '../EvalSetsView';
+import EvalSetDetailView from '../EvalSetDetailView';
+import EvalRunsView from '../EvalRunsView';
+import EvalRunDetailView from '../EvalRunDetailView';
+import ShadowTrialsView from '../ShadowTrialsView';
+import ShadowTrialDetailView from '../ShadowTrialDetailView';
+import CanaryReleasesView from '../CanaryReleasesView';
+import CanaryReleaseDetailView from '../CanaryReleaseDetailView';
 import FreezesView from '../FreezesView';
 import MemoryView from '../MemoryView';
 
@@ -92,6 +100,10 @@ export const PAGE_VIEWS = {
   messages: MessagesView,
   organizations: OrganizationsView,
   changeRules: ChangeRulesView,
+  evaluations: EvalSetsView,
+  evalRuns: EvalRunsView,
+  shadowTrials: ShadowTrialsView,
+  canaryReleases: CanaryReleasesView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,
@@ -130,6 +142,10 @@ export const DETAIL_VIEWS = {
   reports: ReportDetailView,
   messageThreads: MessageThreadView,
   organizations: OrganizationDetailView,
+  evaluations: EvalSetDetailView,
+  evalRuns: EvalRunDetailView,
+  shadowTrials: ShadowTrialDetailView,
+  canaryReleases: CanaryReleaseDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView,
   studio: StudioDraftView,

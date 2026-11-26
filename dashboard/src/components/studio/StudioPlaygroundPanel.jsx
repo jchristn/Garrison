@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MarkdownView from '../MarkdownView';
+import SaveEvalCaseModal from '../SaveEvalCaseModal';
 import { DownloadIcon, PlayIcon } from '../Icons';
 import { tip } from '../Tooltip';
 import StudioLink from './StudioLink';
@@ -18,7 +19,8 @@ import { TURN_POLL_MS, downloadMarkdown, entryAgent, playgroundAgents, playgroun
  * app's entry agent) as that agent's draft revision and runs it on its playground deployment, without touching live
  * configuration (POST .../studio/drafts/{id}/playground/invoke). Turns after the first continue the same conversation.
  * Each turn shows its status and answer and links to its run, whose page has the run tree with fan-out groups and the
- * conversation's files. The turns download as Markdown.
+ * conversation's files. The turns download as Markdown. A succeeded turn can be saved as an eval case (AA9.9): its input
+ * and answer become a case of a chosen or new eval set, which can then be run against the agent's draft revision.
  */
 export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
   const { t } = useTranslation();
@@ -30,6 +32,7 @@ export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
   const [turns, setTurns] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(null);
   const unmounted = useRef(false);
   const agents = playgroundAgents(draft, graph);
   const entry = entryAgent(draft, graph);
@@ -136,6 +139,11 @@ export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
                       {t('components.studio.playground.openRun')}
                     </StudioLink>
                   )}
+                  {turn.runId && turn.status === 'Succeeded' && (
+                    <button type="button" className="button-link" onClick={() => setSaving(turn)} data-testid="studio-playground-save-case" {...tip(t('tips.evals.save.open'))}>
+                      {t('evals.save.open')}
+                    </button>
+                  )}
                 </span>
                 {turn.answer || turn.error ? (
                   <MarkdownView text={turn.answer || turn.error} testId="studio-playground-answer" />
@@ -198,6 +206,7 @@ export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
           <PlayIcon size={14} /> {busy ? t('views.invoke.sending') : t('components.studio.playground.send')}
         </button>
       </div>
+      {saving && <SaveEvalCaseModal input={saving.input} output={saving.answer} runId={saving.runId} agentName={saving.agent || entry || ''} onClose={() => setSaving(null)} />}
       <p className="chat-disclaimer" data-testid="studio-playground-disclaimer" {...tip(t('tips.studio.chat.disclaimer'))}>
         {t('components.studio.chat.disclaimer')}
       </p>

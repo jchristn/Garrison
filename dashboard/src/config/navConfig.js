@@ -62,7 +62,9 @@ export const NAV_SECTIONS = [
       // is one thread, oldest first (a hidden tab, opened from a message). AA7.14: organizations are trees of units with
       // leads, members, peer lines, and budgets; /dashboard/organizations/<id> is one organization's chart, budgets, and
       // revisions. AA8.12: change rules are what people pre-approve for an organization's executives; proposals live on
-      // the organization's page. Later phases add the other autonomy pages here.
+      // the organization's page. AA9.15: evaluations are eval sets (/dashboard/evaluations/<id> is one set version with its
+      // cases, versions, and runs), eval runs (/dashboard/eval-runs/<id> follows one run live, case by case), shadow
+      // trials, and canary releases, each with a detail page. Later phases add the other autonomy pages here.
       {
         key: 'autonomy',
         slug: 'autonomy',
@@ -76,7 +78,11 @@ export const NAV_SECTIONS = [
           { id: 'messages', slug: 'messages' },
           { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true },
           { id: 'organizations', slug: 'organizations', detail: true },
-          { id: 'changeRules', slug: 'change-rules' }
+          { id: 'changeRules', slug: 'change-rules' },
+          { id: 'evaluations', slug: 'evaluations', detail: true },
+          { id: 'evalRuns', slug: 'eval-runs', detail: true },
+          { id: 'shadowTrials', slug: 'shadow-trials', detail: true },
+          { id: 'canaryReleases', slug: 'canary-releases', detail: true }
         ]
       },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },

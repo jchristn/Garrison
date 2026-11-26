@@ -4380,3 +4380,416 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "p3": "Chaque proposition appliquée est enregistrée comme révision de l'organisation : vous pouvez donc l'annuler. Seules des personnes écrivent les règles."
  }
 });
+
+// Evaluations (AA9.9, AA9.15): tooltips of the evaluation pages, forms, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "evaluations": "Jeux d'évaluation : des cas versionnés qui notent un agent, approuvés par une personne avant de conditionner une promotion.",
+   "evalRuns": "Exécutions d'évaluation : chaque exécution d'un jeu d'évaluation sur un déploiement ou une révision d'agent, suivie cas par cas.",
+   "shadowTrials": "Essais fantômes : un déploiement candidat répond à des copies d'entrées réelles sans agir, et les sorties sont comparées.",
+   "canaryReleases": "Diffusions canari : un déploiement candidat reçoit davantage de trafic étape par étape et revient en arrière de lui-même s'il se comporte mal."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Les jeux d'évaluation et leurs cas. Lecture les affiche ; Création et Mise à jour les écrivent ; seules les personnes les approuvent.",
+   "EvalRun": "Les exécutions d'un jeu sur un déploiement ou une révision. Exécution les lance et les annule.",
+   "ShadowTrial": "Les essais fantômes qui copient les entrées d'un déploiement vers un candidat. Création en lance un ; Mise à jour l'arrête.",
+   "CanaryRelease": "Les diffusions canari qui déplacent le trafic d'un agent par étapes. Création en lance une ; Mise à jour l'interrompt."
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "Une diffusion canari est revenue en arrière parce que le taux d'erreur ou la note d'évaluation du candidat est sorti de ses limites."
+  },
+  "runKind": {
+   "Eval": "Un cas d'une exécution d'évaluation : l'entrée du cas envoyée au déploiement ou à la révision notée.",
+   "Shadow": "Une copie d'une entrée réelle rejouée sur le candidat d'un essai fantôme. Elle ne peut agir sur rien."
+  },
+  "evalSetState": {
+   "Draft": "En cours de rédaction. Les cas peuvent changer, et le jeu ne peut pas encore conditionner une promotion.",
+   "Approved": "Une personne a approuvé cette version. Elle reste telle quelle et peut conditionner les promotions et les diffusions canari."
+  },
+  "evalSetOrigin": {
+   "Human": "Une personne a écrit ce jeu dans le tableau de bord ou via l'API.",
+   "Evaluator": "Un agent a écrit ce jeu. Il ne conditionne une promotion que s'il vient de l'extérieur de la sous-arborescence de l'agent noté.",
+   "Playground": "Le jeu est né de tours enregistrés depuis le bac à sable de l'atelier."
+  },
+  "evalScorer": {
+   "ExactMatch": "La sortie doit être exactement égale au texte, sans tenir compte des espaces autour.",
+   "Contains": "La sortie doit contenir le texte quelque part.",
+   "JsonSchemaValid": "La sortie doit être du JSON conforme au JSON Schema.",
+   "Judge": "L'agent juge du jeu lit l'entrée, la réponse de référence et la sortie, puis la note."
+  },
+  "evalRunStatus": {
+   "Pending": "En attente du lancement de son premier cas.",
+   "Running": "Des cas s'exécutent en ce moment ; la page les suit à mesure qu'ils se terminent.",
+   "Completed": "Tous les cas sont terminés et l'exécution a une note.",
+   "Failed": "L'exécution s'est arrêtée tôt, par exemple quand son budget était épuisé. Le motif figure sur l'exécution.",
+   "Cancelled": "Une personne a annulé l'exécution avant la fin de tous les cas."
+  },
+  "evalRunTarget": {
+   "AgentRevision": "Une révision d'agent s'exécute sur un déploiement temporaire : le trafic réel n'est donc pas touché.",
+   "Deployment": "Un déploiement exécute les cas avec sa configuration actuelle."
+  },
+  "evalRunInputMode": {
+   "Cases": "Les cas propres au jeu, avec leurs contrôles.",
+   "RecentInputs": "Les entrées réussies les plus récentes du déploiement, notées par l'agent juge."
+  },
+  "shadowTrialStatus": {
+   "Running": "Les exécutions de la source sont en train d'être copiées vers le candidat.",
+   "Completed": "L'essai a atteint son heure de fin.",
+   "Stopped": "Une personne a arrêté l'essai.",
+   "Failed": "L'essai n'a pas pu continuer. Le motif figure sur l'essai."
+  },
+  "canaryStatus": {
+   "Running": "Le candidat est sur l'une des étapes et reçoit une partie du trafic.",
+   "Promoted": "Toutes les étapes ont réussi, et le candidat reçoit tout le trafic.",
+   "RolledBack": "Le candidat est sorti de ses limites, et les poids ont retrouvé leurs valeurs précédentes.",
+   "Aborted": "Une personne a interrompu la diffusion, et les poids ont retrouvé leurs valeurs précédentes."
+  }
+ },
+ "filters": {
+  "state": "Afficher uniquement les enregistrements dans cet état, par exemple brouillon ou approuvé.",
+  "latestOnly": "Afficher uniquement la version la plus récente de chaque jeu d'évaluation, ou toutes les versions.",
+  "set": "Afficher uniquement les exécutions de cette version du jeu d'évaluation."
+ },
+ "evals": {
+  "reason": "Pourquoi vous l'arrêtez. Facultatif ; le motif est conservé avec l'enregistrement et dans le journal d'audit.",
+  "verdict": {
+   "passed": "La note pondérée a atteint le seuil.",
+   "failed": "La note pondérée est restée sous le seuil.",
+   "none": "L'exécution est encore en cours, ou elle n'a pas de seuil à atteindre."
+  },
+  "outcome": {
+   "passed": "La note pondérée du cas a réussi.",
+   "failed": "Le cas s'est exécuté, mais ses contrôles n'ont pas réussi.",
+   "errored": "L'exécution du cas a échoué : le cas a donc obtenu zéro."
+  },
+  "actions": {
+   "runSet": "Exécuter un jeu d'évaluation sur un déploiement ou une révision d'agent.",
+   "openSet": "Ouvrir la version du jeu d'évaluation utilisée pour noter cette exécution.",
+   "cancelRun": "Arrêter l'exécution et annuler les cas non terminés.",
+   "stopTrial": "Cesser de copier des exécutions vers le candidat. Les décomptes actuels sont conservés.",
+   "abortCanary": "Arrêter la diffusion et remettre les deux déploiements aux poids qu'ils avaient avant.",
+   "copyId": "Copier l'ID pour l'API REST, les SDKs ou les outils MCP."
+  },
+  "case": {
+   "name": "Un nom court pour le cas, affiché dans les résultats d'exécution.",
+   "inputText": "Ce que l'agent reçoit comme entrée quand le cas s'exécute.",
+   "expectedText": "La réponse de référence. Les contrôles sans texte propre s'y comparent.",
+   "hidden": "Cacher l'entrée et la sortie attendue aux agents notés. Leurs exécutions ne voient que la note.",
+   "checks": "La façon dont la sortie est notée. Chaque contrôle donne une note de 0 à 1, et la note du cas est leur moyenne pondérée.",
+   "scorer": "La façon dont ce contrôle note la sortie.",
+   "weight": "Le poids de ce contrôle dans la note du cas, de 0 à 100. Zéro affiche le contrôle sans le compter.",
+   "argument": {
+    "ExactMatch": "Le texte exact auquel la sortie doit être égale. Vide : utilise la sortie attendue du cas.",
+    "Contains": "Le texte que la sortie doit contenir. Vide : utilise la sortie attendue du cas.",
+    "JsonSchemaValid": "Le JSON Schema auquel la sortie doit se conformer.",
+    "Judge": "Ce que le juge recherche, en mots simples. Facultatif ; le juge lit aussi la sortie attendue."
+   },
+   "addCheck": "Ajouter une autre façon de noter la sortie.",
+   "removeCheck": "Retirer ce contrôle du cas.",
+   "save": "Enregistrer le cas dans cette version brouillon.",
+   "saveNextVersion": "Enregistrer le cas. La version approuvée reste telle quelle, et la modification va dans la version suivante."
+  },
+  "run": {
+   "setId": "La version du jeu d'évaluation à exécuter.",
+   "targetType": "Noter un déploiement tel qu'il fonctionne aujourd'hui, ou une révision d'agent sur un déploiement temporaire.",
+   "deploymentId": "Le déploiement dont les réponses sont notées.",
+   "agentId": "L'agent dont la révision est notée.",
+   "agentRevisionId": "Un ID de révision précis. Vide : utilise la révision brouillon de l'agent.",
+   "inputMode": "Exécuter les cas du jeu, ou rejouer les entrées récentes du déploiement pour que le juge les note.",
+   "recentInputCount": "Le nombre de dernières entrées réussies du déploiement à rejouer.",
+   "thresholdPercent": "La note que l'exécution doit atteindre pour réussir. Vide : l'exécution n'a pas de verdict.",
+   "budgetUsd": "Le montant maximal que les exécutions des cas et du juge peuvent dépenser ensemble. Vide signifie aucun budget.",
+   "start": "Lancer l'exécution d'évaluation et ouvrir sa page."
+  },
+  "save": {
+   "open": "Enregistrer l'entrée et la réponse de ce tour comme cas d'un jeu d'évaluation.",
+   "set": "Le jeu d'évaluation qui reçoit le cas. Un cas ajouté à une version approuvée va dans sa version suivante.",
+   "newSetName": "Le nom du nouveau jeu d'évaluation. Il reste le même d'une version à l'autre.",
+   "submit": "Enregistrer le cas avec l'exécution du bac à sable comme source.",
+   "done": "Fermer et rester dans le bac à sable.",
+   "openSet": "Ouvrir le jeu d'évaluation avec ses cas.",
+   "runSet": "Ouvrir le jeu et l'exécuter sur la révision brouillon exécutée par le bac à sable."
+  },
+  "setDetail": {
+   "back": "Revenir à la liste des jeux d'évaluation.",
+   "viewJson": "Voir cette version et ses cas tels que l'API les renvoie.",
+   "edit": "Modifier la description, l'agent juge et les étiquettes.",
+   "editApproved": "Modifier le jeu. La version approuvée reste telle quelle, et la modification crée la version suivante.",
+   "delete": "Supprimer cette version brouillon. Les versions approuvées sont conservées.",
+   "approve": "Approuver cette version pour qu'elle puisse conditionner les promotions et les diffusions canari. Seules les personnes approuvent.",
+   "approveEmpty": "Ajoutez d'abord un cas. Un jeu vide ne peut pas être approuvé.",
+   "runEmpty": "Ajoutez d'abord un cas. Un jeu vide n'a rien à exécuter.",
+   "cases": "Les cas de cette version dans l'ordre où ils s'exécutent.",
+   "addCase": "Ajouter un cas à la fin de ce brouillon.",
+   "addCaseApproved": "Ajouter un cas. Il va dans la version suivante, un nouveau brouillon, et cette version reste telle quelle.",
+   "editCase": "Modifier l'entrée, la sortie attendue ou les contrôles de ce cas.",
+   "editCaseApproved": "Modifier ce cas. La modification va dans la version suivante, un nouveau brouillon.",
+   "removeCase": "Retirer le cas du brouillon.",
+   "openSourceRun": "Ouvrir l'exécution depuis laquelle le cas a été enregistré.",
+   "versions": "Toutes les versions de ce jeu, de la plus récente à la plus ancienne.",
+   "openVersion": "Ouvrir cette version du jeu.",
+   "runs": "Les dernières exécutions d'évaluation de cette version.",
+   "allRuns": "Ouvrir la liste des exécutions d'évaluation filtrée sur cette version.",
+   "openRun": "Ouvrir l'exécution d'évaluation avec les résultats de ses cas.",
+   "fields": {
+    "state": "Brouillon pendant la rédaction ; Approuvé dès qu'une personne l'a approuvé.",
+    "origin": "Qui ou quoi a écrit le jeu : une personne, un agent ou le bac à sable de l'atelier.",
+    "judgeAgent": "L'agent qui note les contrôles Agent juge, les cas sans sortie attendue et les entrées récentes.",
+    "tags": "Des étiquettes pour retrouver le jeu.",
+    "authoredBy": "La personne ou l'agent qui a écrit cette version.",
+    "approvedBy": "La personne qui a approuvé cette version, et quand.",
+    "previousVersion": "La version à partir de laquelle celle-ci a été créée.",
+    "lastUpdateUtc": "La dernière modification de cette version. Survolez pour voir depuis combien de temps.",
+    "description": "Ce que le jeu vérifie, en mots simples."
+   },
+   "columns": {
+    "order": "L'ordre dans lequel les cas s'exécutent.",
+    "name": "Le nom du cas.",
+    "input": "Ce que l'agent reçoit. Survolez pour voir le texte complet.",
+    "expected": "La réponse de référence. Survolez pour voir le texte complet.",
+    "scorers": "Les contrôles qui notent le cas, ou la notation par défaut s'il n'en a aucun.",
+    "hidden": "Les cas masqués ne montrent aux agents notés que leur note.",
+    "source": "L'exécution depuis laquelle ce cas a été enregistré, quand il vient du bac à sable."
+   },
+   "versionColumns": {
+    "version": "Le numéro de version.",
+    "state": "Brouillon ou approuvé.",
+    "caseCount": "Le nombre de cas que contient la version.",
+    "approvedBy": "La personne qui a approuvé la version.",
+    "lastUpdateUtc": "La dernière modification de la version."
+   },
+   "runColumns": {
+    "run": "L'ID de l'exécution d'évaluation. Ouvrez-la pour voir les résultats des cas.",
+    "status": "Où en est l'exécution.",
+    "verdict": "Si la note a atteint le seuil.",
+    "score": "La note pondérée, de 0 à 100 pour cent.",
+    "target": "Le déploiement ou la révision d'agent qui a été noté.",
+    "createdUtc": "Le moment où l'exécution a commencé."
+   }
+  },
+  "runDetail": {
+   "back": "Revenir à la liste des exécutions d'évaluation.",
+   "viewJson": "Voir l'exécution telle que l'API la renvoie.",
+   "live": "Les mises à jour arrivent par le canal en direct à mesure que chaque cas se termine.",
+   "polling": "Le canal en direct n'est pas connecté : la page vérifie donc les mises à jour toutes les quelques secondes.",
+   "progress": "Les cas terminés jusqu'ici, sur l'ensemble des cas de l'exécution.",
+   "results": "Une ligne par cas, dans l'ordre. Les lignes en échec et en erreur sont mises en évidence.",
+   "failingOnly": "Afficher uniquement les cas en échec ou en erreur.",
+   "open": "Ouvrir le cas avec sa sortie attendue, sa sortie et tous ses contrôles.",
+   "openAgent": "Ouvrir l'agent qui a été noté.",
+   "openDraft": "Ouvrir le brouillon d'atelier dont la révision a été notée.",
+   "openCaseRun": "Ouvrir l'exécution qui a répondu à ce cas.",
+   "openSourceRun": "Ouvrir l'exécution dont provient le cas ou l'entrée récente.",
+   "openJudgeRun": "Ouvrir l'exécution de l'agent juge qui a noté ce contrôle.",
+   "input": "Ce que l'agent a reçu.",
+   "diff": "Les lignes présentes uniquement dans la sortie attendue sont marquées d'un moins ; celles présentes uniquement dans la sortie de l'agent, d'un plus.",
+   "output": "Ce que l'agent a répondu.",
+   "checks": "Chaque contrôle avec sa notation, son poids, sa note et la remarque de la notation.",
+   "kpi": {
+    "score": "La moyenne pondérée des notes des cas, comparée au seuil de réussite.",
+    "passed": "Les cas dont les contrôles ont réussi, sur l'ensemble des cas.",
+    "errored": "Les cas dont l'exécution a échoué. Ils obtiennent zéro.",
+    "cost": "Ce qu'ont dépensé les exécutions des cas et du juge, comparé au budget."
+   },
+   "fields": {
+    "target": "Le déploiement, ou l'agent et la révision, qui a été noté.",
+    "targetType": "Si c'est un déploiement ou une révision d'agent qui a été noté.",
+    "inputMode": "Les cas du jeu, ou les entrées récentes d'un déploiement.",
+    "startedBy": "La personne, l'identifiant ou l'agent qui a lancé l'exécution.",
+    "createdUtc": "Le moment où l'exécution a été lancée.",
+    "completedUtc": "Le moment où le dernier cas s'est terminé.",
+    "studioDraftId": "Le brouillon d'atelier pour lequel un agent de direction a lancé cette évaluation."
+   },
+   "columns": {
+    "order": "L'ordre dans lequel le cas s'est exécuté.",
+    "case": "Le nom du cas, ou son numéro.",
+    "outcome": "Réussi, échoué ou en erreur.",
+    "score": "La note pondérée du cas, de 0 à 100 pour cent.",
+    "checks": "Le nombre de contrôles du cas qui ont réussi.",
+    "output": "Le début de la réponse de l'agent, ou l'erreur. Survolez pour en voir plus.",
+    "open": "Ouvrez un cas pour voir la comparaison et les remarques de notation."
+   },
+   "checkColumns": {
+    "scorer": "La façon dont ce contrôle a noté la sortie.",
+    "weight": "Le poids du contrôle dans la note du cas.",
+    "score": "La note de ce contrôle, de 0 à 100 pour cent.",
+    "outcome": "Si ce contrôle a réussi.",
+    "note": "Ce que la notation a dit de la sortie, par exemple le raisonnement du juge.",
+    "judgeRun": "L'exécution de l'agent juge pour ce contrôle, quand un juge l'a noté."
+   }
+  },
+  "shadowDetail": {
+   "back": "Revenir à la liste des essais fantômes.",
+   "viewJson": "Voir l'essai tel que l'API le renvoie.",
+   "kpi": {
+    "compared": "Les exécutions copiées dont la sortie du candidat a été comparée à celle de la source.",
+    "agreed": "Les comparaisons où la sortie du candidat correspondait à celle de la source.",
+    "diverged": "Les comparaisons où la sortie du candidat différait de celle de la source.",
+    "failures": "Les exécutions copiées qui ont échoué sur le candidat.",
+    "agreement": "Les comparaisons concordantes sur l'ensemble des comparaisons."
+   },
+   "fields": {
+    "source": "Le déploiement dont les exécutions réussies sont copiées. Il n'est pas touché.",
+    "candidate": "Le déploiement qui rejoue les copies comme exécutions fantômes.",
+    "samplePercent": "La part des exécutions de la source qui est copiée.",
+    "comparison": "La façon dont les deux sorties sont comparées.",
+    "endsUtc": "Le moment où l'essai se termine de lui-même.",
+    "createdBy": "La personne qui a lancé l'essai.",
+    "createdUtc": "Le moment où l'essai a commencé.",
+    "completedUtc": "Le moment où l'essai s'est terminé."
+   }
+  },
+  "canaryDetail": {
+   "back": "Revenir à la liste des diffusions canari.",
+   "viewJson": "Voir la diffusion telle que l'API la renvoie.",
+   "openAgent": "Ouvrir l'agent dont la diffusion déplace le trafic.",
+   "steps": "Les étapes de la diffusion dans l'ordre, avec celle où se trouve le candidat.",
+   "columns": {
+    "step": "Le numéro de l'étape.",
+    "weightPercent": "La part du trafic de l'agent que reçoit le candidat pendant l'étape.",
+    "minimumRuns": "Les exécutions du candidat qui doivent se terminer avant que l'étape puisse avancer.",
+    "minimumMinutes": "Les minutes que l'étape doit durer avant de pouvoir avancer.",
+    "state": "Terminée, l'étape en cours, l'étape où la diffusion s'est arrêtée, ou encore à venir."
+   },
+   "stepStates": {
+    "done": "L'étape a réussi et la diffusion est passée à la suivante.",
+    "current": "Le candidat est sur cette étape en ce moment.",
+    "stopped": "La diffusion s'est terminée sur cette étape.",
+    "pending": "La diffusion n'a pas encore atteint cette étape."
+   },
+   "fields": {
+    "agent": "L'agent dont le trafic est déplacé entre les deux déploiements.",
+    "candidate": "Le déploiement en cours de diffusion, avec son poids d'avant la diffusion.",
+    "baseline": "Le déploiement qui garde le reste du trafic, avec son poids d'avant.",
+    "maxErrorRatePercent": "Au-delà de cette part d'exécutions candidates échouées dans une étape, la diffusion revient en arrière.",
+    "gate": "Si elle est définie, une étape n'avance que tant que la dernière note d'évaluation reste égale ou supérieure au minimum.",
+    "stepStartedUtc": "Le moment où l'étape en cours a commencé.",
+    "createdBy": "La personne qui a lancé la diffusion.",
+    "completedUtc": "Le moment où la diffusion s'est terminée."
+   }
+  },
+  "filters": {
+   "state": "Afficher uniquement les versions brouillon ou uniquement les versions approuvées.",
+   "origin": "Afficher uniquement les jeux écrits par des personnes, par des agents, ou enregistrés depuis le bac à sable."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "add": "Créer la version 1 d'un nouveau jeu d'évaluation. Ajoutez ses cas sur la page du jeu.",
+   "name": "Le nom du jeu. Il reste le même d'une version à l'autre.",
+   "version": "Le numéro de version. Modifier une version approuvée crée la suivante.",
+   "state": "Brouillon ou approuvé. Seules les versions approuvées peuvent conditionner les promotions.",
+   "origin": "Écrit par une personne, par un agent, ou enregistré depuis le bac à sable.",
+   "caseCount": "Le nombre de cas que contient cette version.",
+   "judgeAgent": "L'agent qui note les contrôles Agent juge et les cas sans sortie attendue.",
+   "tags": "Des étiquettes pour retrouver le jeu.",
+   "authoredByName": "La personne ou l'agent qui a écrit cette version.",
+   "approvedByName": "La personne qui a approuvé cette version. Survolez pour voir quand.",
+   "description": "Ce que le jeu vérifie. Survolez pour voir le texte complet.",
+   "lastUpdateUtc": "La dernière modification de cette version. Survolez pour voir l'heure exacte.",
+   "id": "L'ID de la version du jeu d'évaluation (evs_...), pour l'API REST, les SDKs et les outils MCP."
+  },
+  "evalRuns": {
+   "setName": "Le jeu d'évaluation et la version qui ont été exécutés.",
+   "status": "Où en est l'exécution : en attente, en cours, terminée, échouée ou annulée.",
+   "verdict": "Si la note a atteint le seuil.",
+   "score": "La moyenne pondérée des notes des cas.",
+   "threshold": "La note que l'exécution devait atteindre pour réussir.",
+   "progress": "Les cas terminés et réussis, sur l'ensemble des cas.",
+   "target": "Le déploiement ou la révision d'agent qui a été noté.",
+   "inputMode": "Les cas du jeu, ou les entrées récentes d'un déploiement.",
+   "costUsd": "Ce qu'ont dépensé les exécutions des cas et du juge.",
+   "startedByName": "La personne, l'identifiant ou l'agent qui a lancé l'exécution.",
+   "createdUtc": "Le moment où l'exécution a commencé. Survolez pour voir l'heure exacte.",
+   "id": "L'ID de l'exécution d'évaluation (evr_...), pour l'API REST, les SDKs et les outils MCP."
+  },
+  "shadowTrials": {
+   "add": "Commencer à copier une part des exécutions d'un déploiement vers un déploiement candidat du même agent.",
+   "name": "Un nom court pour l'essai.",
+   "status": "En cours, terminé, arrêté ou échoué.",
+   "source": "Le déploiement dont les exécutions sont copiées.",
+   "candidate": "Le déploiement qui rejoue les copies.",
+   "samplePercent": "La part des exécutions de la source qui est copiée.",
+   "comparedCount": "Les copies dont les sorties ont été comparées.",
+   "agreedCount": "Les comparaisons où les sorties concordaient.",
+   "divergedCount": "Les comparaisons où les sorties différaient.",
+   "candidateFailureCount": "Les copies qui ont échoué sur le candidat.",
+   "agreement": "Les comparaisons concordantes sur l'ensemble des comparaisons.",
+   "endsUtc": "Le moment où l'essai se termine de lui-même, ou Jusqu'à l'arrêt.",
+   "createdUtc": "Le moment où l'essai a commencé. Survolez pour voir l'heure exacte.",
+   "id": "L'ID de l'essai fantôme (shd_...), pour l'API REST, les SDKs et les outils MCP.",
+   "sourceDeploymentId": "Le déploiement dont les exécutions réussies sont copiées. Ses propres exécutions ne sont pas touchées.",
+   "candidateDeploymentId": "Un autre déploiement du même agent qui répond aux copies sans agir.",
+   "comparisonEvalSetId": "Un jeu d'évaluation dont les contrôles comparent les sorties. Vide : compare le texte normalisé.",
+   "useJudge": "Demander à l'agent juge si la réponse du candidat concorde avec celle de la source."
+  },
+  "canaryReleases": {
+   "add": "Commencer à déplacer par étapes le trafic d'un agent vers un déploiement candidat.",
+   "agent": "L'agent dont le trafic passe d'un déploiement à l'autre.",
+   "status": "En cours, promue, revenue en arrière ou interrompue.",
+   "candidate": "Le déploiement en cours de diffusion.",
+   "baseline": "Le déploiement qui garde le reste du trafic.",
+   "step": "L'étape où se trouve la diffusion et la part du trafic du candidat.",
+   "maxErrorRatePercent": "Le taux d'erreur du candidat qui fait revenir la diffusion en arrière.",
+   "gate": "Le jeu d'évaluation et la note minimale dont une étape a besoin pour avancer, le cas échéant.",
+   "rollbackReason": "Pourquoi la diffusion est revenue en arrière ou a été interrompue. Survolez pour voir le texte complet.",
+   "createdUtc": "Le moment où la diffusion a commencé. Survolez pour voir l'heure exacte.",
+   "id": "L'ID de la diffusion canari (cnr_...), pour l'API REST, les SDKs et les outils MCP.",
+   "agentId": "L'agent dont les deux déploiements se partagent le trafic.",
+   "baselineDeploymentId": "Le déploiement qui sert le trafic que le candidat ne reçoit pas.",
+   "candidateDeploymentId": "Le déploiement qui reçoit davantage de trafic à chaque étape.",
+   "steps": "Les parts de trafic que le candidat franchit, chacune avec un minimum d'exécutions et de minutes.",
+   "weightPercent": "La part du trafic du candidat pendant cette étape, de 1 à 100.",
+   "minimumRuns": "Les exécutions du candidat qui doivent se terminer pendant l'étape avant qu'elle puisse avancer.",
+   "minimumMinutes": "Les minutes que l'étape doit durer avant de pouvoir avancer.",
+   "evalSetId": "Un jeu d'évaluation dont la dernière exécution doit atteindre la note minimale pour qu'une étape avance.",
+   "minEvalScorePercent": "La note d'évaluation la plus basse, en pourcentage, qui permet à une étape d'avancer."
+  }
+ }
+});
+
+// Evaluations (AA9.15): the explainers of the evaluation pages.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "evalSets": {
+  "title": "Jeux d'évaluation",
+  "p1": "Un jeu d'évaluation est une liste de cas : une entrée, la réponse attendue et des contrôles qui notent la sortie de l'agent de 0 à 1. Un cas peut être masqué pour que les agents notés ne voient que sa note.",
+  "p2": "Les jeux sont versionnés. Une personne approuve une version brouillon, et une version approuvée ne change plus jamais : elle peut donc conditionner les promotions vers un environnement et les diffusions canari. Modifier une version approuvée crée la version suivante en brouillon.",
+  "p3": "Le plus rapide pour commencer est le bac à sable de l'atelier : enregistrez comme cas un tour qui vous plaît, puis exécutez le jeu sur la révision brouillon."
+ },
+ "evalRuns": {
+  "title": "Exécutions d'évaluation",
+  "p1": "Une exécution d'évaluation envoie chaque cas d'une version de jeu à un déploiement, ou à une révision d'agent sur un déploiement temporaire, et note chaque réponse avec les contrôles du cas.",
+  "p2": "La note de l'exécution est la moyenne pondérée des notes de ses cas, et elle réussit quand cette note atteint le seuil. Un budget arrête l'exécution dès que les exécutions des cas et du juge l'ont dépensé."
+ },
+ "shadowTrials": {
+  "title": "Essais fantômes",
+  "p1": "Un essai fantôme copie une part des exécutions réussies d'un déploiement vers un déploiement candidat du même agent. Les copies tournent comme exécutions fantômes, qui ne peuvent pas utiliser d'outils à effet, envoyer de messages, écrire en mémoire ni déposer de rapports.",
+  "p2": "Chaque réponse du candidat est comparée à celle de la source : comme texte normalisé, avec un jeu d'évaluation ou par l'agent juge. L'essai compte combien de fois elles concordent et combien de fois le candidat échoue."
+ },
+ "canaryReleases": {
+  "title": "Diffusions canari",
+  "p1": "Une diffusion canari déplace par étapes le trafic d'un agent vers un déploiement candidat. Chaque étape dure un minimum d'exécutions et de minutes avant de pouvoir avancer.",
+  "p2": "Tant que le taux d'erreur du candidat, et la dernière note d'évaluation quand la diffusion a une condition d'évaluation, restent dans leurs limites, la diffusion avance et le candidat est promu après la dernière étape. Sinon, elle revient aux poids d'avant, et une notification Diffusion canari revenue en arrière est envoyée."
+ }
+});

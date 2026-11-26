@@ -7326,3 +7326,701 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "Conjuntos de evaluación",
+    "tip": "Conjuntos versionados de casos que califican a los agentes antes de su lanzamiento"
+   },
+   "evalRuns": {
+    "label": "Ejecuciones de evaluación",
+    "tip": "Ejecuciones de un conjunto de evaluación contra un despliegue o una revisión de agente"
+   },
+   "shadowTrials": {
+    "label": "Pruebas en sombra",
+    "tip": "Un despliegue candidato repite entradas reales sin actuar"
+   },
+   "canaryReleases": {
+    "label": "Lanzamientos canario",
+    "tip": "Un despliegue candidato recibe una parte creciente del tráfico por pasos"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Conjunto de evaluación",
+   "EvalRun": "Ejecución de evaluación",
+   "ShadowTrial": "Prueba en sombra",
+   "CanaryRelease": "Lanzamiento canario"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "Lanzamiento canario revertido"
+  },
+  "runKind": {
+   "Eval": "Caso de evaluación",
+   "Shadow": "Copia en sombra"
+  },
+  "evalSetState": {
+   "Draft": "Borrador",
+   "Approved": "Aprobado"
+  },
+  "evalSetOrigin": {
+   "Human": "Escrito por una persona",
+   "Evaluator": "Escrito por un agente",
+   "Playground": "Desde la zona de pruebas"
+  },
+  "evalScorer": {
+   "ExactMatch": "Coincidencia exacta",
+   "Contains": "Contiene",
+   "JsonSchemaValid": "JSON Schema válido",
+   "Judge": "Agente juez"
+  },
+  "evalRunStatus": {
+   "Pending": "Pendiente",
+   "Running": "En ejecución",
+   "Completed": "Completada",
+   "Failed": "Fallida",
+   "Cancelled": "Cancelada"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "Revisión de agente",
+   "Deployment": "Despliegue"
+  },
+  "evalRunInputMode": {
+   "Cases": "Los casos del conjunto",
+   "RecentInputs": "Entradas recientes"
+  },
+  "shadowTrialStatus": {
+   "Running": "En ejecución",
+   "Completed": "Completada",
+   "Stopped": "Detenida",
+   "Failed": "Fallida"
+  },
+  "canaryStatus": {
+   "Running": "En ejecución",
+   "Promoted": "Promovido",
+   "RolledBack": "Revertido",
+   "Aborted": "Interrumpido"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "Ya existe un conjunto de evaluación con este nombre. Ábrelo y edítalo para crear su siguiente versión.",
+  "AlreadyApproved": "Esta versión ya está aprobada.",
+  "EvalSetEmpty": "Este conjunto de evaluación aún no tiene casos. Añade un caso primero.",
+  "EvalSetImmutable": "Esta versión está aprobada y se conserva tal cual. Edítala para abrir la siguiente versión, o elimina en su lugar una versión en borrador.",
+  "ApprovalIsPeopleOnly": "Solo una persona puede aprobar un conjunto de evaluación. Un agente no puede aprobar el conjunto que lo califica.",
+  "EvalRunFinished": "Esta ejecución de evaluación ya terminó.",
+  "ShadowTrialAlreadyRunning": "Este candidato ya sigue en sombra a ese despliegue en otra prueba.",
+  "ShadowTrialNotRunning": "Esta prueba en sombra ya no está en ejecución.",
+  "CanaryAlreadyRunning": "Uno de estos despliegues ya está en un lanzamiento canario en curso.",
+  "CanaryNotRunning": "Este lanzamiento canario ya no está en curso.",
+  "EvalGateFailed": "La promoción necesita una ejecución de evaluación superada de esta revisión contra el conjunto de evaluación aprobado del entorno, y todavía no hay ninguna.",
+  "PeopleOnly": "Solo las personas y las credenciales de la API pueden hacer esto. Un token de ejecución no puede."
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{completed}} de {{total}} casos, {{passed}} superados",
+  "noJudge": "Sin juez",
+  "noSet": "Ninguno",
+  "untilStopped": "Hasta que se detenga",
+  "verdict": {
+   "passed": "Superada",
+   "failed": "Por debajo del umbral",
+   "none": "Sin veredicto"
+  },
+  "outcome": {
+   "passed": "Superado",
+   "failed": "No superado",
+   "errored": "Con error"
+  },
+  "target": {
+   "deployment": "Despliegue {{name}}",
+   "revision": "Agente {{agent}}, revisión {{revision}}"
+  },
+  "actions": {
+   "runSet": "Ejecutar conjunto",
+   "openSet": "Abrir conjunto",
+   "cancelRun": "Cancelar ejecución",
+   "stopTrial": "Detener prueba",
+   "abortCanary": "Interrumpir lanzamiento",
+   "copyId": "Copiar ID"
+  },
+  "toasts": {
+   "copied": "Se copió el ID.",
+   "approved": "Se aprobó {{name}} v{{version}}. Ya puede condicionar promociones.",
+   "caseSaved": "Se guardó el caso.",
+   "caseSavedNextVersion": "Se guardó el caso en la versión {{version}}, un borrador nuevo.",
+   "caseSavedTo": "Se guardó el caso en {{name}}.",
+   "caseRemoved": "Se quitó el caso.",
+   "caseRemovedNextVersion": "Se quitó el caso de la versión {{version}}, un borrador nuevo.",
+   "setSavedNextVersion": "Se guardó como versión {{version}}, un borrador nuevo.",
+   "runStarted": "Se inició una ejecución de evaluación de {{name}}.",
+   "runCancelled": "Se canceló la ejecución de evaluación.",
+   "trialStopped": "Se detuvo la prueba en sombra.",
+   "canaryAborted": "Se interrumpió el lanzamiento canario. Los pesos iniciales están de vuelta."
+  },
+  "reason": {
+   "label": "Motivo",
+   "placeholder": "Opcional. Se guarda con el registro y en el registro de auditoría."
+  },
+  "form": {
+   "errors": {
+    "name": "Ponle al conjunto un nombre de 1 a {{max}} caracteres.",
+    "description": "La descripción admite como máximo {{max}} caracteres.",
+    "judgeAgent": "El nombre del agente juez admite como máximo {{max}} caracteres.",
+    "tags": "Cada etiqueta admite como máximo {{max}} caracteres."
+   }
+  },
+  "set": {
+   "nextVersion": "Esta versión está aprobada, así que al guardar se crea la versión {{version}} como borrador. Esta versión se queda como está."
+  },
+  "case": {
+   "addTitle": "Añadir un caso a {{name}}",
+   "editTitle": "Editar el caso {{number}}",
+   "save": "Guardar caso",
+   "nextVersion": "Esta versión está aprobada, así que el cambio va a la versión {{version}}, un borrador nuevo. Esta versión se queda como está.",
+   "fromRun": "Guardado desde la ejecución {{id}}.",
+   "fields": {
+    "name": "Nombre",
+    "inputText": "Entrada",
+    "expectedText": "Salida esperada",
+    "hidden": "Oculto a los agentes calificados",
+    "checks": "Comprobaciones"
+   },
+   "placeholders": {
+    "name": "Opcional, por ejemplo reembolso por encima del límite",
+    "inputText": "El mensaje que recibe el agente",
+    "expectedText": "Lo que dice una buena respuesta"
+   },
+   "hints": {
+    "name": "Opcional, como máximo {{max}} caracteres.",
+    "inputText": "Obligatorio. El caso se lo envía al agente como entrada.",
+    "expectedText": "Opcional. Las comprobaciones de coincidencia exacta y de Contiene se comparan con ella cuando no tienen texto propio; el juez la lee como respuesta de referencia.",
+    "hidden": "Las ejecuciones propias de un agente solo ven la puntuación de un caso oculto, nunca su entrada ni su salida esperada, así que no puede aprenderse las respuestas."
+   },
+   "checks": {
+    "scorer": "Calificador",
+    "weight": "Peso",
+    "add": "Añadir comprobación",
+    "remove": "Quitar la comprobación {{number}}",
+    "none": "Sin comprobaciones. El caso se puntúa por coincidencia exacta con la salida esperada, o con el agente juez cuando no hay salida esperada."
+   },
+   "scorerHints": {
+    "ExactMatch": "Se supera cuando la salida es igual al texto, sin contar los espacios de alrededor.",
+    "Contains": "Se supera cuando la salida contiene el texto.",
+    "JsonSchemaValid": "Se supera cuando la salida es JSON que cumple el esquema.",
+    "Judge": "El agente juez del conjunto califica la salida según la rúbrica y la salida esperada."
+   },
+   "argumentLabels": {
+    "ExactMatch": "Texto exacto",
+    "Contains": "Texto que buscar",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "Rúbrica"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "Vacío usa la salida esperada",
+    "Contains": "Vacío usa la salida esperada",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "Opcional. Lo que debe hacer una buena respuesta"
+   },
+   "errors": {
+    "input": "Un caso necesita un texto de entrada.",
+    "name": "El nombre admite como máximo {{max}} caracteres.",
+    "weight": "Un peso va de 0 a {{max}}.",
+    "schema": "Pon aquí un objeto JSON Schema.",
+    "argument": "Escribe el texto, o rellena la salida esperada del caso."
+   }
+  },
+  "run": {
+   "title": "Ejecutar un conjunto de evaluación",
+   "titleFor": "Ejecutar {{name}} v{{version}}",
+   "intro": "Cada caso se ejecuta como su propia ejecución de evaluación. Las ejecuciones contra una revisión de agente usan un despliegue temporal y no tocan el tráfico en vivo.",
+   "start": "Iniciar ejecución",
+   "starting": "Iniciando...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "Elige un despliegue",
+   "chooseAgent": "Elige un agente",
+   "fields": {
+    "setId": "Conjunto de evaluación",
+    "targetType": "Evaluar",
+    "deploymentId": "Despliegue",
+    "agentId": "Agente",
+    "agentRevisionId": "Revisión",
+    "inputMode": "Entradas",
+    "recentInputCount": "Entradas recientes que repetir",
+    "thresholdPercent": "Umbral para superar (porcentaje)",
+    "budgetUsd": "Presupuesto (USD)"
+   },
+   "hints": {
+    "setId": "Se muestra la versión más reciente de cada conjunto.",
+    "targetType": "Un despliegue tal como funciona ahora, o una revisión de agente como el borrador que ejecuta la zona de pruebas del estudio.",
+    "agentId": "Obligatorio. Sin revisión se ejecuta la revisión en borrador del agente, o la última publicada.",
+    "agentRevisionId": "Opcional. Un ID de revisión de agente; vacío ejecuta la revisión en borrador.",
+    "inputMode": "Los casos del conjunto, o las últimas entradas correctas del despliegue calificadas por el agente juez.",
+    "recentInputCount": "De 1 a {{max}}.",
+    "thresholdPercent": "Opcional, de 0 a 100. La ejecución se supera cuando su puntuación ponderada lo alcanza.",
+    "budgetUsd": "Opcional. Cuando las ejecuciones de casos y del juez gastan esta cantidad, se omiten los casos restantes y la ejecución falla."
+   },
+   "errors": {
+    "set": "Elige el conjunto de evaluación que ejecutar.",
+    "deployment": "Elige el despliegue que evaluar.",
+    "agent": "Elige el agente que evaluar.",
+    "threshold": "Un umbral va de 0 a 100 por ciento.",
+    "budget": "Un presupuesto va de 0 a {{max}} USD.",
+    "recentInputs": "Repite de 1 a {{max}} entradas recientes."
+   }
+  },
+  "save": {
+   "open": "Guardar como caso de evaluación",
+   "title": "Guardar como caso de evaluación",
+   "intro": "La entrada del turno y la respuesta del agente se convierten en un caso. Edita la salida esperada para que diga cómo es una buena respuesta, no solo lo que dijo esta.",
+   "set": "Conjunto de evaluación",
+   "newSet": "Nuevo conjunto de evaluación...",
+   "newSetName": "Nombre del nuevo conjunto",
+   "newSetHint": "El nuevo conjunto empieza como borrador con el origen Desde la zona de pruebas.",
+   "submit": "Guardar caso",
+   "done": "Listo",
+   "openSet": "Abrir conjunto",
+   "runSet": "Ejecutar conjunto",
+   "entryAgent": "el agente de entrada",
+   "saved": "Se guardó el caso en {{name}} v{{version}}.",
+   "runHint": "Ejecutar conjunto evalúa la revisión en borrador de {{agent}}, la revisión que ejecutó esta zona de pruebas.",
+   "errors": {
+    "set": "Elige un conjunto de evaluación, o crea uno nuevo."
+   }
+  },
+  "setDetail": {
+   "title": "Conjunto de evaluación",
+   "back": "Todos los conjuntos de evaluación",
+   "notFoundTitle": "No se encontró el conjunto de evaluación",
+   "notFoundBody": "Puede que fuera un borrador que alguien eliminó. Las versiones aprobadas se conservan siempre.",
+   "approve": "Aprobar",
+   "approveTitle": "Aprobar {{name}} v{{version}}",
+   "approveMessage": "Una versión aprobada se conserva exactamente como está y puede condicionar promociones y lanzamientos canario. Las ediciones posteriores crean la siguiente versión como borrador.",
+   "approvedNote": "Esta versión está aprobada y se conserva tal cual. Editar el conjunto o un caso crea la versión {{version}} como borrador.",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "Algunos casos los califica el agente juez, pero este conjunto no tiene ninguno. Edita el conjunto y elige un agente juez antes de ejecutarlo.",
+   "editTitle": "Editar {{name}}",
+   "deleteTitle": "Eliminar la versión en borrador",
+   "deleteMessage": "¿Eliminar {{name}} v{{version}}? Las versiones aprobadas no se ven afectadas.",
+   "cases": "Casos ({{count}})",
+   "addCase": "Añadir caso",
+   "noCases": "Aún no hay casos. Añade uno aquí, o guarda un turno desde la zona de pruebas del estudio.",
+   "noExpected": "Ninguna",
+   "hidden": "Oculto",
+   "removeCaseTitle": "Quitar el caso {{number}}",
+   "removeCaseMessage": "¿Quitar este caso del borrador?",
+   "removeCaseApproved": "Esta versión está aprobada, así que el caso se quita de la versión {{version}}, un borrador nuevo. Esta versión lo conserva.",
+   "versions": "Versiones",
+   "thisVersion": "v{{version}} (esta)",
+   "runs": "Ejecuciones de evaluación recientes",
+   "allRuns": "Todas las ejecuciones de esta versión",
+   "noRuns": "Esta versión aún no se ha ejecutado.",
+   "fields": {
+    "state": "Estado",
+    "origin": "Origen",
+    "judgeAgent": "Agente juez",
+    "tags": "Etiquetas",
+    "authoredBy": "Escrito por",
+    "approvedBy": "Aprobado por",
+    "previousVersion": "Versión anterior",
+    "lastUpdateUtc": "Último cambio",
+    "description": "Descripción"
+   },
+   "columns": {
+    "order": "#",
+    "name": "Nombre",
+    "input": "Entrada",
+    "expected": "Salida esperada",
+    "scorers": "Calificado por",
+    "hidden": "Oculto",
+    "source": "Desde la ejecución"
+   },
+   "versionColumns": {
+    "version": "Versión",
+    "state": "Estado",
+    "caseCount": "Casos",
+    "approvedBy": "Aprobado por",
+    "lastUpdateUtc": "Último cambio"
+   },
+   "runColumns": {
+    "run": "Ejecución de evaluación",
+    "status": "Estado",
+    "verdict": "Veredicto",
+    "score": "Puntuación",
+    "target": "Evaluado",
+    "createdUtc": "Iniciada"
+   }
+  },
+  "runDetail": {
+   "title": "Ejecución de evaluación",
+   "back": "Todas las ejecuciones de evaluación",
+   "notFoundTitle": "No se encontró la ejecución de evaluación",
+   "notFoundBody": "Revisa el ID, o abre la ejecución desde su conjunto de evaluación.",
+   "live": "En vivo",
+   "polling": "Consultando",
+   "failure": "La ejecución falló: {{reason}}",
+   "progressLabel": "Casos terminados",
+   "kpi": {
+    "score": "Puntuación",
+    "threshold": "Umbral {{threshold}}",
+    "noThreshold": "Sin umbral",
+    "passed": "Casos superados",
+    "errored": "Casos con error",
+    "cost": "Coste",
+    "budget": "Presupuesto {{budget}}",
+    "noBudget": "Sin presupuesto"
+   },
+   "fields": {
+    "target": "Evaluado",
+    "targetType": "Objetivo",
+    "inputMode": "Entradas",
+    "startedBy": "Iniciada por",
+    "createdUtc": "Iniciada",
+    "completedUtc": "Terminada",
+    "studioDraftId": "Borrador del estudio"
+   },
+   "recentInputs": "{{count}} entradas recientes",
+   "results": "Resultados de los casos ({{count}})",
+   "failingOnly": "Solo los no superados ({{count}})",
+   "noFailing": "Todos los casos se superaron.",
+   "noResults": "Esta ejecución no registró resultados de casos.",
+   "waiting": "Esperando a que termine el primer caso.",
+   "caseNumber": "Caso {{number}}",
+   "recentInput": "Entrada reciente {{number}}",
+   "checksPassed": "{{passed}} de {{total}} superadas",
+   "open": "Abrir",
+   "columns": {
+    "order": "#",
+    "case": "Caso",
+    "outcome": "Resultado",
+    "score": "Puntuación",
+    "checks": "Comprobaciones",
+    "output": "Salida"
+   },
+   "resultTitle": "Caso {{number}}",
+   "resultTitleNamed": "Caso {{number}}: {{name}}",
+   "scoreIs": "Puntuación {{score}}",
+   "openCaseRun": "Abrir la ejecución del caso",
+   "openSourceRun": "Abrir la ejecución de origen",
+   "hiddenCase": "Este caso está oculto a los agentes calificados.",
+   "input": "Entrada",
+   "diff": "Salida esperada frente a la salida",
+   "expected": "Esperada",
+   "output": "Salida",
+   "noOutput": "Sin salida.",
+   "checks": "Comprobaciones",
+   "noChecks": "No se puntuó ninguna comprobación.",
+   "checkColumns": {
+    "scorer": "Calificador",
+    "weight": "Peso",
+    "score": "Puntuación",
+    "outcome": "Resultado",
+    "note": "Nota del calificador",
+    "judgeRun": "Ejecución del juez"
+   },
+   "cancelTitle": "Cancelar la ejecución de evaluación",
+   "cancelMessage": "¿Cancelar esta ejecución de {{name}}? Los casos que no han terminado se cancelan con ella."
+  },
+  "shadow": {
+   "errors": {
+    "name": "El nombre admite como máximo {{max}} caracteres.",
+    "source": "Elige el despliegue cuyas ejecuciones se copian.",
+    "candidate": "Elige el despliegue candidato.",
+    "same": "El candidato debe ser un despliegue distinto del de origen.",
+    "sample": "Toma una muestra de 1 a 100 por ciento de las ejecuciones.",
+    "ends": "Elige un final en el futuro, o déjalo vacío para que siga hasta que se detenga."
+   }
+  },
+  "shadowDetail": {
+   "title": "Prueba en sombra",
+   "back": "Todas las pruebas en sombra",
+   "notFoundTitle": "No se encontró la prueba en sombra",
+   "notFoundBody": "Revisa el ID, o abre la prueba desde la lista.",
+   "note": "Las ejecuciones en sombra repiten las entradas del origen en el candidato. No pueden usar herramientas con efectos, enviar mensajes, escribir en la memoria ni presentar informes, y las ejecuciones de origen no se ven afectadas.",
+   "stopReason": "Detenida: {{reason}}",
+   "stopTitle": "Detener la prueba en sombra",
+   "stopMessage": "¿Detener {{name}}? No se copian más ejecuciones; los recuentos hasta ahora se conservan.",
+   "kpi": {
+    "compared": "Comparadas",
+    "agreed": "Coincidentes",
+    "diverged": "Divergentes",
+    "failures": "Fallos del candidato",
+    "agreement": "Coincidencia"
+   },
+   "comparison": {
+    "text": "Texto normalizado",
+    "set": "Con un conjunto de evaluación",
+    "judge": "Por el agente juez"
+   },
+   "fields": {
+    "source": "Origen",
+    "candidate": "Candidato",
+    "samplePercent": "Muestra",
+    "comparison": "Comparado por",
+    "endsUtc": "Termina",
+    "createdBy": "Iniciada por",
+    "createdUtc": "Iniciada",
+    "completedUtc": "Terminada"
+   }
+  },
+  "canary": {
+   "stepOf": "Paso {{number}} de {{total}} al {{percent}}%",
+   "gateText": "{{name}} con {{score}} o más",
+   "noGate": "Sin requisito de evaluación",
+   "errors": {
+    "agent": "Elige el agente cuyo tráfico se desplaza.",
+    "candidate": "Elige el despliegue candidato.",
+    "baseline": "Elige el despliegue base.",
+    "same": "El candidato y la base deben ser despliegues distintos.",
+    "steps": "Indica al menos un paso. El último paso es el 100 por ciento.",
+    "tooMany": "Un lanzamiento tiene como máximo {{max}} pasos.",
+    "increasing": "El porcentaje de cada paso va de 1 a 100 y es mayor que el del paso anterior.",
+    "lastStep": "El último paso debe ser el 100 por ciento.",
+    "errorRate": "El límite de la tasa de errores va de 0 a 100 por ciento.",
+    "gate": "Un requisito de evaluación necesita un conjunto de evaluación y una puntuación mínima, o ninguno de los dos.",
+    "score": "La puntuación mínima va de 0 a 100 por ciento."
+   }
+  },
+  "canaryDetail": {
+   "title": "Lanzamiento canario",
+   "heading": "Lanzamiento canario de {{agent}}",
+   "back": "Todos los lanzamientos canario",
+   "notFoundTitle": "No se encontró el lanzamiento canario",
+   "notFoundBody": "Revisa el ID, o abre el lanzamiento desde la lista.",
+   "rolledBack": "Revertido: {{reason}} Los pesos iniciales están de vuelta.",
+   "aborted": "Interrumpido: {{reason}} Los pesos iniciales están de vuelta.",
+   "promoted": "Promovido. {{candidate}} recibe todo el tráfico.",
+   "noReason": "no se indicó ningún motivo.",
+   "withWeight": "{{name}} (peso {{weight}} antes del lanzamiento)",
+   "gate": "Última puntuación de evaluación de {{score}} o más",
+   "steps": "Pasos",
+   "columns": {
+    "step": "Paso",
+    "weightPercent": "Tráfico del candidato",
+    "minimumRuns": "Ejecuciones mínimas",
+    "minimumMinutes": "Minutos mínimos",
+    "state": "Estado"
+   },
+   "stepStates": {
+    "done": "Hecho",
+    "current": "Actual",
+    "stopped": "Se detuvo aquí",
+    "pending": "En espera"
+   },
+   "abortTitle": "Interrumpir el lanzamiento canario",
+   "abortMessage": "¿Interrumpir el lanzamiento? Los dos despliegues vuelven a los pesos que tenían antes de que empezara.",
+   "fields": {
+    "agent": "Agente",
+    "candidate": "Candidato",
+    "baseline": "Base",
+    "maxErrorRatePercent": "Límite de la tasa de errores",
+    "gate": "Requisito de evaluación",
+    "stepStartedUtc": "Inicio del paso actual",
+    "createdBy": "Iniciado por",
+    "completedUtc": "Terminado"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "Un caso necesita un texto de entrada.",
+   "UnknownScorer": "Usa Coincidencia exacta, Contiene, JSON Schema válido o Agente juez.",
+   "ArgumentRequired": "Escribe el texto, o rellena la salida esperada del caso.",
+   "InvalidJsonSchema": "Esto no es un JSON Schema válido.",
+   "TooManyCases": "El conjunto ya tiene el máximo de casos que admite un conjunto.",
+   "EvaluatorIsForAgents": "El origen Escrito por un agente es para los conjuntos que creó un agente. Elige Escrito por una persona o Desde la zona de pruebas.",
+   "SetRequired": "Elige el conjunto de evaluación que ejecutar.",
+   "TargetRequired": "Elige qué evaluar.",
+   "RecentInputsNeedDeployment": "Las entradas recientes repiten las ejecuciones de un despliegue. Evalúa un despliegue.",
+   "NoRecentInputs": "El despliegue aún no tiene ejecuciones correctas que repetir.",
+   "EvalSetEmpty": "Esta versión no tiene casos.",
+   "JudgeAgentRequired": "Algunos casos necesitan el agente juez, pero el conjunto no tiene ninguno. Edita el conjunto y elige uno.",
+   "DeploymentNotFound": "Ese despliegue no existe en este inquilino.",
+   "SameDeployment": "Elige dos despliegues distintos.",
+   "DifferentAgent": "Los dos despliegues deben pertenecer al mismo agente.",
+   "DeploymentInactive": "Ese despliegue está inactivo. Actívalo primero.",
+   "AgentMismatch": "El agente debe ser el agente del despliegue de origen.",
+   "EndsInPast": "Elige un final en el futuro, o déjalo vacío.",
+   "EvalSetNotFound": "Ese conjunto de evaluación no existe en este inquilino.",
+   "AgentNotFound": "Ese agente no existe en este inquilino.",
+   "EvalGateIncomplete": "Un requisito de evaluación necesita un conjunto de evaluación y una puntuación mínima, o ninguno de los dos.",
+   "NotIncreasing": "El porcentaje de cada paso debe ser mayor que el del paso anterior.",
+   "LastStepNotFull": "El último paso debe ser el 100 por ciento."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "Conjuntos de evaluación",
+   "subtitle": "Casos versionados que califican a un agente. Aprueba una versión para que pueda condicionar promociones y lanzamientos canario.",
+   "add": "Añadir conjunto de evaluación",
+   "create": "Añadir conjunto de evaluación",
+   "edit": "Editar conjunto de evaluación",
+   "view": "Conjunto de evaluación",
+   "deleteTitle": "Eliminar la versión en borrador",
+   "emptyTitle": "Aún no hay conjuntos de evaluación",
+   "emptyBody": "Añade aquí un conjunto y sus casos, o guarda un turno de la zona de pruebas del estudio como primer caso.",
+   "filters": {
+    "latestOnly": "Versiones",
+    "newestOnly": "Solo la versión más reciente",
+    "allVersions": "Todas las versiones"
+   },
+   "columns": {
+    "name": "Nombre",
+    "version": "Versión",
+    "state": "Estado",
+    "origin": "Origen",
+    "caseCount": "Casos",
+    "judgeAgent": "Agente juez",
+    "tags": "Etiquetas",
+    "authoredByName": "Escrito por",
+    "approvedByName": "Aprobado por",
+    "description": "Descripción",
+    "lastUpdateUtc": "Último cambio",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Nombre",
+    "description": "Descripción",
+    "origin": "Origen",
+    "judgeAgent": "Agente juez",
+    "tags": "Etiquetas"
+   },
+   "hints": {
+    "name": "De 1 a {{max}} caracteres. El nombre se mantiene en todas las versiones.",
+    "description": "Opcional, como máximo {{max}} caracteres.",
+    "origin": "Desde la zona de pruebas marca los conjuntos que nacieron de turnos de la zona de pruebas.",
+    "judgeAgent": "El agente que califica las comprobaciones de juez, los casos sin salida esperada y las entradas recientes.",
+    "tags": "Opcional, una por línea, como máximo {{max}} caracteres cada una."
+   }
+  },
+  "evalRuns": {
+   "title": "Ejecuciones de evaluación",
+   "subtitle": "Cada ejecución de una versión de un conjunto de evaluación contra un despliegue o una revisión de agente, con su puntuación frente al umbral.",
+   "add": "Ejecutar conjunto",
+   "create": "Ejecutar un conjunto de evaluación",
+   "edit": "Ejecución de evaluación",
+   "view": "Ejecución de evaluación",
+   "deleteTitle": "Eliminar la ejecución de evaluación",
+   "emptyTitle": "Aún no hay ejecuciones de evaluación",
+   "emptyBody": "Ejecuta un conjunto de evaluación para calificar un despliegue o una revisión en borrador antes de su lanzamiento.",
+   "columns": {
+    "setName": "Conjunto de evaluación",
+    "status": "Estado",
+    "verdict": "Veredicto",
+    "score": "Puntuación",
+    "threshold": "Umbral",
+    "progress": "Progreso",
+    "target": "Evaluado",
+    "inputMode": "Entradas",
+    "costUsd": "Coste",
+    "startedByName": "Iniciada por",
+    "createdUtc": "Iniciada",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "Pruebas en sombra",
+   "subtitle": "Un despliegue candidato repite, sin actuar, una parte de las entradas de un despliegue en vivo, y se comparan las salidas.",
+   "add": "Iniciar prueba en sombra",
+   "create": "Iniciar una prueba en sombra",
+   "edit": "Prueba en sombra",
+   "view": "Prueba en sombra",
+   "deleteTitle": "Eliminar la prueba en sombra",
+   "emptyTitle": "Aún no hay pruebas en sombra",
+   "emptyBody": "Inicia una prueba para ver cómo responde un despliegue candidato a entradas reales antes de que reciba tráfico.",
+   "columns": {
+    "name": "Nombre",
+    "status": "Estado",
+    "source": "Origen",
+    "candidate": "Candidato",
+    "samplePercent": "Muestra",
+    "comparedCount": "Comparadas",
+    "agreedCount": "Coincidentes",
+    "divergedCount": "Divergentes",
+    "candidateFailureCount": "Fallos",
+    "agreement": "Coincidencia",
+    "endsUtc": "Termina",
+    "createdUtc": "Iniciada",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Nombre",
+    "sourceDeploymentId": "Despliegue de origen",
+    "candidateDeploymentId": "Despliegue candidato",
+    "samplePercent": "Muestra (porcentaje)",
+    "endsUtc": "Termina",
+    "comparisonEvalSetId": "Comparar con un conjunto de evaluación",
+    "useJudge": "Comparar con el agente juez"
+   },
+   "hints": {
+    "name": "Opcional, como máximo {{max}} caracteres.",
+    "sourceDeploymentId": "Obligatorio. Se copian sus ejecuciones correctas; no se ve afectado.",
+    "candidateDeploymentId": "Obligatorio. Otro despliegue del mismo agente.",
+    "samplePercent": "De 1 a 100, 10 por defecto. La parte de las ejecuciones del origen que se copia.",
+    "endsUtc": "Opcional. Vacío sigue hasta que alguien la detenga.",
+    "comparisonEvalSetId": "Opcional. Sin él, las salidas se comparan como texto normalizado.",
+    "useJudge": "Preguntar al agente juez si las dos salidas coinciden."
+   }
+  },
+  "canaryReleases": {
+   "title": "Lanzamientos canario",
+   "subtitle": "Un despliegue candidato recibe por pasos una parte creciente del tráfico de un agente y se revierte por sí solo cuando se comporta mal.",
+   "add": "Iniciar lanzamiento canario",
+   "create": "Iniciar un lanzamiento canario",
+   "edit": "Lanzamiento canario",
+   "view": "Lanzamiento canario",
+   "deleteTitle": "Eliminar el lanzamiento canario",
+   "emptyTitle": "Aún no hay lanzamientos canario",
+   "emptyBody": "Inicia un lanzamiento para llevar el tráfico a un despliegue nuevo paso a paso.",
+   "addStep": "Añadir paso",
+   "columns": {
+    "agent": "Agente",
+    "status": "Estado",
+    "candidate": "Candidato",
+    "baseline": "Base",
+    "step": "Paso",
+    "maxErrorRatePercent": "Límite de errores",
+    "gate": "Requisito de evaluación",
+    "rollbackReason": "Motivo de la reversión",
+    "createdUtc": "Iniciado",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "Agente",
+    "baselineDeploymentId": "Despliegue base",
+    "candidateDeploymentId": "Despliegue candidato",
+    "steps": "Pasos",
+    "weightPercent": "Tráfico del candidato (porcentaje)",
+    "minimumRuns": "Ejecuciones mínimas",
+    "minimumMinutes": "Minutos mínimos",
+    "maxErrorRatePercent": "Límite de la tasa de errores (porcentaje)",
+    "evalSetId": "Conjunto del requisito de evaluación",
+    "minEvalScorePercent": "Puntuación mínima de evaluación (porcentaje)"
+   },
+   "hints": {
+    "agentId": "Obligatorio. Los dos despliegues le pertenecen.",
+    "baselineDeploymentId": "Obligatorio. Se queda con el resto del tráfico.",
+    "candidateDeploymentId": "Obligatorio. El despliegue que se lanza.",
+    "steps": "De 1 a {{max}} pasos. Cada porcentaje es mayor que el anterior, y el último es 100.",
+    "maxErrorRatePercent": "De 0 a 100, 5 por defecto. Si en un paso fallan más ejecuciones del candidato que esto, el lanzamiento se revierte.",
+    "evalSetId": "Opcional. Un paso solo avanza cuando la última ejecución de evaluación de este conjunto alcanza la puntuación mínima.",
+    "minEvalScorePercent": "Obligatorio con un conjunto de requisito de evaluación, de 0 a 100."
+   }
+  }
+ }
+});

@@ -7257,3 +7257,701 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "評価セット",
+    "tip": "リリース前にエージェントを採点する、バージョン管理されたケースのセット"
+   },
+   "evalRuns": {
+    "label": "評価実行",
+    "tip": "評価セットをデプロイメントまたはエージェントのリビジョンに対して実行した記録"
+   },
+   "shadowTrials": {
+    "label": "シャドートライアル",
+    "tip": "候補のデプロイメントが実際の入力を、何も操作せずに再生します"
+   },
+   "canaryReleases": {
+    "label": "カナリアリリース",
+    "tip": "候補のデプロイメントが受け持つトラフィックを段階的に増やします"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "評価セット",
+   "EvalRun": "評価実行",
+   "ShadowTrial": "シャドートライアル",
+   "CanaryRelease": "カナリアリリース"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "カナリアがロールバックされました"
+  },
+  "runKind": {
+   "Eval": "評価ケース",
+   "Shadow": "シャドーコピー"
+  },
+  "evalSetState": {
+   "Draft": "下書き",
+   "Approved": "承認済み"
+  },
+  "evalSetOrigin": {
+   "Human": "人が作成",
+   "Evaluator": "エージェントが作成",
+   "Playground": "プレイグラウンドから"
+  },
+  "evalScorer": {
+   "ExactMatch": "完全一致",
+   "Contains": "含む",
+   "JsonSchemaValid": "JSON Schema に適合",
+   "Judge": "判定エージェント"
+  },
+  "evalRunStatus": {
+   "Pending": "保留中",
+   "Running": "実行中",
+   "Completed": "完了",
+   "Failed": "失敗",
+   "Cancelled": "キャンセル済み"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "エージェントのリビジョン",
+   "Deployment": "デプロイメント"
+  },
+  "evalRunInputMode": {
+   "Cases": "セットのケース",
+   "RecentInputs": "最近の入力"
+  },
+  "shadowTrialStatus": {
+   "Running": "実行中",
+   "Completed": "完了",
+   "Stopped": "停止済み",
+   "Failed": "失敗"
+  },
+  "canaryStatus": {
+   "Running": "実行中",
+   "Promoted": "昇格済み",
+   "RolledBack": "ロールバック済み",
+   "Aborted": "中止済み"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "この名前の評価セットはすでにあります。そのセットを開いて編集すると、次のバージョンが作成されます。",
+  "AlreadyApproved": "このバージョンはすでに承認されています。",
+  "EvalSetEmpty": "この評価セットにはまだケースがありません。先にケースを追加してください。",
+  "EvalSetImmutable": "このバージョンは承認済みのため、そのまま保持されます。編集して次のバージョンを作成するか、代わりに下書きのバージョンを削除してください。",
+  "ApprovalIsPeopleOnly": "評価セットを承認できるのは人だけです。エージェントは自分を採点するセットを承認できません。",
+  "EvalRunFinished": "この評価実行はすでに終了しています。",
+  "ShadowTrialAlreadyRunning": "この候補は別のトライアルで、すでにそのデプロイメントのシャドーを実行しています。",
+  "ShadowTrialNotRunning": "このシャドートライアルはもう実行されていません。",
+  "CanaryAlreadyRunning": "これらのデプロイメントのいずれかが、実行中のカナリアリリースにすでに含まれています。",
+  "CanaryNotRunning": "このカナリアリリースはもう実行されていません。",
+  "EvalGateFailed": "昇格するには、このリビジョンが環境の承認済み評価セットに合格した評価実行が必要ですが、まだありません。",
+  "PeopleOnly": "この操作ができるのは人と API のアクセスキーだけです。実行トークンではできません。"
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{total}} 件中 {{completed}} 件のケースが完了、{{passed}} 件が合格",
+  "noJudge": "判定なし",
+  "noSet": "なし",
+  "untilStopped": "停止するまで",
+  "verdict": {
+   "passed": "合格",
+   "failed": "しきい値未満",
+   "none": "判定なし"
+  },
+  "outcome": {
+   "passed": "合格",
+   "failed": "不合格",
+   "errored": "エラー"
+  },
+  "target": {
+   "deployment": "デプロイメント {{name}}",
+   "revision": "エージェント {{agent}}、リビジョン {{revision}}"
+  },
+  "actions": {
+   "runSet": "セットを実行",
+   "openSet": "セットを開く",
+   "cancelRun": "実行をキャンセル",
+   "stopTrial": "トライアルを停止",
+   "abortCanary": "リリースを中止",
+   "copyId": "ID をコピー"
+  },
+  "toasts": {
+   "copied": "ID をコピーしました。",
+   "approved": "{{name}} v{{version}} を承認しました。これで昇格のゲートとして使えます。",
+   "caseSaved": "ケースを保存しました。",
+   "caseSavedNextVersion": "ケースを新しい下書きのバージョン {{version}} に保存しました。",
+   "caseSavedTo": "ケースを {{name}} に保存しました。",
+   "caseRemoved": "ケースを削除しました。",
+   "caseRemovedNextVersion": "新しい下書きのバージョン {{version}} からケースを削除しました。",
+   "setSavedNextVersion": "新しい下書きのバージョン {{version}} として保存しました。",
+   "runStarted": "{{name}} の評価実行を開始しました。",
+   "runCancelled": "評価実行をキャンセルしました。",
+   "trialStopped": "シャドートライアルを停止しました。",
+   "canaryAborted": "カナリアリリースを中止しました。重みは開始前の値に戻りました。"
+  },
+  "reason": {
+   "label": "理由",
+   "placeholder": "任意。記録と監査ログに保存されます。"
+  },
+  "form": {
+   "errors": {
+    "name": "セットの名前を 1 から {{max}} 文字で入力してください。",
+    "description": "説明は最大 {{max}} 文字です。",
+    "judgeAgent": "判定エージェントの名前は最大 {{max}} 文字です。",
+    "tags": "各タグは最大 {{max}} 文字です。"
+   }
+  },
+  "set": {
+   "nextVersion": "このバージョンは承認済みのため、保存するとバージョン {{version}} が下書きとして作成されます。このバージョンはそのまま残ります。"
+  },
+  "case": {
+   "addTitle": "{{name}} にケースを追加",
+   "editTitle": "ケース {{number}} を編集",
+   "save": "ケースを保存",
+   "nextVersion": "このバージョンは承認済みのため、変更は新しい下書きのバージョン {{version}} に入ります。このバージョンはそのまま残ります。",
+   "fromRun": "実行 {{id}} から保存しました。",
+   "fields": {
+    "name": "名前",
+    "inputText": "入力",
+    "expectedText": "期待される出力",
+    "hidden": "採点対象のエージェントには非表示",
+    "checks": "チェック"
+   },
+   "placeholders": {
+    "name": "任意。例: 上限を超える返金",
+    "inputText": "エージェントが受け取るメッセージ",
+    "expectedText": "良い回答が述べる内容"
+   },
+   "hints": {
+    "name": "任意。最大 {{max}} 文字です。",
+    "inputText": "必須。ケースはこれをエージェントへの入力として送ります。",
+    "expectedText": "任意。完全一致と「含む」のチェックは、独自のテキストがない場合にこれと比較します。判定エージェントはこれを模範解答として読みます。",
+    "hidden": "エージェント自身の実行には非表示のケースのスコアだけが見え、入力や期待される出力は見えません。そのため答えを覚えることはできません。"
+   },
+   "checks": {
+    "scorer": "スコアラー",
+    "weight": "重み",
+    "add": "チェックを追加",
+    "remove": "チェック {{number}} を削除",
+    "none": "チェックがありません。このケースは期待される出力との完全一致で採点されます。期待される出力がない場合は判定エージェントが採点します。"
+   },
+   "scorerHints": {
+    "ExactMatch": "前後の空白を除いて、出力がテキストと等しければ合格です。",
+    "Contains": "出力がテキストを含んでいれば合格です。",
+    "JsonSchemaValid": "出力がスキーマに適合する JSON であれば合格です。",
+    "Judge": "セットの判定エージェントが、評価基準と期待される出力に照らして出力を採点します。"
+   },
+   "argumentLabels": {
+    "ExactMatch": "一致させるテキスト",
+    "Contains": "検索するテキスト",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "評価基準"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "空の場合は期待される出力を使います",
+    "Contains": "空の場合は期待される出力を使います",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "任意。良い回答が満たすべきこと"
+   },
+   "errors": {
+    "input": "ケースには入力テキストが必要です。",
+    "name": "名前は最大 {{max}} 文字です。",
+    "weight": "重みは 0 から {{max}} です。",
+    "schema": "ここに JSON Schema のオブジェクトを入力してください。",
+    "argument": "テキストを入力するか、ケースの期待される出力を入力してください。"
+   }
+  },
+  "run": {
+   "title": "評価セットを実行",
+   "titleFor": "{{name}} v{{version}} を実行",
+   "intro": "各ケースはそれぞれ評価の実行として動きます。エージェントのリビジョンに対する実行は一時的なデプロイメントを使うため、本番のトラフィックには影響しません。",
+   "start": "実行を開始",
+   "starting": "開始しています...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "デプロイメントを選択",
+   "chooseAgent": "エージェントを選択",
+   "fields": {
+    "setId": "評価セット",
+    "targetType": "評価対象",
+    "deploymentId": "デプロイメント",
+    "agentId": "エージェント",
+    "agentRevisionId": "リビジョン",
+    "inputMode": "入力",
+    "recentInputCount": "再生する最近の入力の数",
+    "thresholdPercent": "合格しきい値 (パーセント)",
+    "budgetUsd": "予算 (USD)"
+   },
+   "hints": {
+    "setId": "各セットの最新バージョンが表示されます。",
+    "targetType": "現在動いているデプロイメント、またはエージェントのリビジョン (スタジオのプレイグラウンドが実行する下書きなど) です。",
+    "agentId": "必須。リビジョンを指定しない場合は、エージェントの下書きのリビジョンか、最新の公開済みリビジョンが実行されます。",
+    "agentRevisionId": "任意。エージェントのリビジョン ID です。空の場合は下書きのリビジョンを実行します。",
+    "inputMode": "セットのケース、またはデプロイメントで最近成功した入力を判定エージェントが採点します。",
+    "recentInputCount": "1 から {{max}} です。",
+    "thresholdPercent": "任意。0 から 100 です。重み付きスコアがこの値に達すると実行は合格します。",
+    "budgetUsd": "任意。ケースと判定の実行がこの額を使うと、残りのケースはスキップされ、実行は失敗になります。"
+   },
+   "errors": {
+    "set": "実行する評価セットを選択してください。",
+    "deployment": "評価するデプロイメントを選択してください。",
+    "agent": "評価するエージェントを選択してください。",
+    "threshold": "しきい値は 0 から 100 パーセントです。",
+    "budget": "予算は 0 から {{max}} USD です。",
+    "recentInputs": "再生する最近の入力は 1 から {{max}} 件です。"
+   }
+  },
+  "save": {
+   "open": "評価ケースとして保存",
+   "title": "評価ケースとして保存",
+   "intro": "このターンの入力とエージェントの回答がケースになります。今回の回答をなぞるだけでなく、良い回答とは何かが分かるように期待される出力を編集してください。",
+   "set": "評価セット",
+   "newSet": "新しい評価セット...",
+   "newSetName": "新しいセットの名前",
+   "newSetHint": "新しいセットは、作成元が「プレイグラウンドから」の下書きとして始まります。",
+   "submit": "ケースを保存",
+   "done": "完了",
+   "openSet": "セットを開く",
+   "runSet": "セットを実行",
+   "entryAgent": "エントリーエージェント",
+   "saved": "ケースを {{name}} v{{version}} に保存しました。",
+   "runHint": "「セットを実行」は、このプレイグラウンドが実行した {{agent}} の下書きのリビジョンを評価します。",
+   "errors": {
+    "set": "評価セットを選択するか、新しく作成してください。"
+   }
+  },
+  "setDetail": {
+   "title": "評価セット",
+   "back": "すべての評価セット",
+   "notFoundTitle": "評価セットが見つかりません",
+   "notFoundBody": "誰かが削除した下書きだった可能性があります。承認済みのバージョンは常に保持されます。",
+   "approve": "承認",
+   "approveTitle": "{{name}} v{{version}} を承認",
+   "approveMessage": "承認済みのバージョンはそのまま保持され、昇格とカナリアリリースのゲートとして使えます。その後の編集では、次のバージョンが下書きとして作成されます。",
+   "approvedNote": "このバージョンは承認済みで、そのまま保持されます。セットやケースを編集すると、バージョン {{version}} が下書きとして作成されます。",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "判定エージェントが採点するケースがありますが、このセットには判定エージェントがありません。実行する前にセットを編集して判定エージェントを選んでください。",
+   "editTitle": "{{name}} を編集",
+   "deleteTitle": "下書きのバージョンを削除",
+   "deleteMessage": "{{name}} v{{version}} を削除しますか？承認済みのバージョンには影響しません。",
+   "cases": "ケース ({{count}})",
+   "addCase": "ケースを追加",
+   "noCases": "まだケースがありません。ここで追加するか、スタジオのプレイグラウンドからターンを保存してください。",
+   "noExpected": "なし",
+   "hidden": "非表示",
+   "removeCaseTitle": "ケース {{number}} を削除",
+   "removeCaseMessage": "このケースを下書きから削除しますか？",
+   "removeCaseApproved": "このバージョンは承認済みのため、ケースは新しい下書きのバージョン {{version}} から削除されます。このバージョンにはケースが残ります。",
+   "versions": "バージョン",
+   "thisVersion": "v{{version}} (このバージョン)",
+   "runs": "最近の評価実行",
+   "allRuns": "このバージョンのすべての実行",
+   "noRuns": "このバージョンはまだ実行されていません。",
+   "fields": {
+    "state": "状態",
+    "origin": "作成元",
+    "judgeAgent": "判定エージェント",
+    "tags": "タグ",
+    "authoredBy": "作成者",
+    "approvedBy": "承認者",
+    "previousVersion": "前のバージョン",
+    "lastUpdateUtc": "最終変更",
+    "description": "説明"
+   },
+   "columns": {
+    "order": "#",
+    "name": "名前",
+    "input": "入力",
+    "expected": "期待される出力",
+    "scorers": "採点方法",
+    "hidden": "非表示",
+    "source": "元の実行"
+   },
+   "versionColumns": {
+    "version": "バージョン",
+    "state": "状態",
+    "caseCount": "ケース",
+    "approvedBy": "承認者",
+    "lastUpdateUtc": "最終変更"
+   },
+   "runColumns": {
+    "run": "評価実行",
+    "status": "ステータス",
+    "verdict": "判定",
+    "score": "スコア",
+    "target": "評価対象",
+    "createdUtc": "開始"
+   }
+  },
+  "runDetail": {
+   "title": "評価実行",
+   "back": "すべての評価実行",
+   "notFoundTitle": "評価実行が見つかりません",
+   "notFoundBody": "ID を確認するか、評価セットから実行を開いてください。",
+   "live": "ライブ",
+   "polling": "ポーリング中",
+   "failure": "実行が失敗しました: {{reason}}",
+   "progressLabel": "完了したケース",
+   "kpi": {
+    "score": "スコア",
+    "threshold": "しきい値 {{threshold}}",
+    "noThreshold": "しきい値なし",
+    "passed": "合格したケース",
+    "errored": "エラーになったケース",
+    "cost": "コスト",
+    "budget": "予算 {{budget}}",
+    "noBudget": "予算なし"
+   },
+   "fields": {
+    "target": "評価対象",
+    "targetType": "対象の種類",
+    "inputMode": "入力",
+    "startedBy": "開始者",
+    "createdUtc": "開始",
+    "completedUtc": "終了",
+    "studioDraftId": "スタジオの下書き"
+   },
+   "recentInputs": "最近の入力 {{count}} 件",
+   "results": "ケースの結果 ({{count}})",
+   "failingOnly": "不合格のみ ({{count}})",
+   "noFailing": "すべてのケースが合格しました。",
+   "noResults": "この実行にはケースの結果が記録されていません。",
+   "waiting": "最初のケースが終わるのを待っています。",
+   "caseNumber": "ケース {{number}}",
+   "recentInput": "最近の入力 {{number}}",
+   "checksPassed": "{{total}} 件中 {{passed}} 件が合格",
+   "open": "開く",
+   "columns": {
+    "order": "#",
+    "case": "ケース",
+    "outcome": "結果",
+    "score": "スコア",
+    "checks": "チェック",
+    "output": "出力"
+   },
+   "resultTitle": "ケース {{number}}",
+   "resultTitleNamed": "ケース {{number}}: {{name}}",
+   "scoreIs": "スコア {{score}}",
+   "openCaseRun": "ケースの実行を開く",
+   "openSourceRun": "元の実行を開く",
+   "hiddenCase": "このケースは採点対象のエージェントには表示されません。",
+   "input": "入力",
+   "diff": "期待される出力と実際の出力の比較",
+   "expected": "期待値",
+   "output": "出力",
+   "noOutput": "出力はありません。",
+   "checks": "チェック",
+   "noChecks": "採点されたチェックはありません。",
+   "checkColumns": {
+    "scorer": "スコアラー",
+    "weight": "重み",
+    "score": "スコア",
+    "outcome": "結果",
+    "note": "スコアラーのメモ",
+    "judgeRun": "判定の実行"
+   },
+   "cancelTitle": "評価実行をキャンセル",
+   "cancelMessage": "{{name}} のこの実行をキャンセルしますか？終わっていないケースも一緒にキャンセルされます。"
+  },
+  "shadow": {
+   "errors": {
+    "name": "名前は最大 {{max}} 文字です。",
+    "source": "実行をコピーする元のデプロイメントを選択してください。",
+    "candidate": "候補のデプロイメントを選択してください。",
+    "same": "候補にはソースとは別のデプロイメントを指定してください。",
+    "sample": "実行の 1 から 100 パーセントをサンプリングしてください。",
+    "ends": "将来の終了日時を選ぶか、空のままにして停止するまで実行してください。"
+   }
+  },
+  "shadowDetail": {
+   "title": "シャドートライアル",
+   "back": "すべてのシャドートライアル",
+   "notFoundTitle": "シャドートライアルが見つかりません",
+   "notFoundBody": "ID を確認するか、一覧からトライアルを開いてください。",
+   "note": "シャドー実行は、ソースの入力を候補で再生します。副作用のあるツールの使用、メッセージの送信、メモリへの書き込み、レポートの提出はできません。ソースの実行には影響しません。",
+   "stopReason": "停止: {{reason}}",
+   "stopTitle": "シャドートライアルを停止",
+   "stopMessage": "{{name}} を停止しますか？これ以上実行はコピーされません。これまでの件数は保持されます。",
+   "kpi": {
+    "compared": "比較済み",
+    "agreed": "一致",
+    "diverged": "相違",
+    "failures": "候補の失敗",
+    "agreement": "一致率"
+   },
+   "comparison": {
+    "text": "正規化したテキスト",
+    "set": "評価セットで比較",
+    "judge": "判定エージェントで比較"
+   },
+   "fields": {
+    "source": "ソース",
+    "candidate": "候補",
+    "samplePercent": "サンプリング率",
+    "comparison": "比較方法",
+    "endsUtc": "終了予定",
+    "createdBy": "開始者",
+    "createdUtc": "開始",
+    "completedUtc": "終了"
+   }
+  },
+  "canary": {
+   "stepOf": "ステップ {{number}}/{{total}}、{{percent}}%",
+   "gateText": "{{name}} が {{score}} 以上",
+   "noGate": "評価ゲートなし",
+   "errors": {
+    "agent": "トラフィックを移すエージェントを選択してください。",
+    "candidate": "候補のデプロイメントを選択してください。",
+    "baseline": "ベースラインのデプロイメントを選択してください。",
+    "same": "候補とベースラインには別々のデプロイメントを指定してください。",
+    "steps": "ステップを 1 つ以上指定してください。最後のステップは 100 パーセントです。",
+    "tooMany": "リリースのステップは最大 {{max}} 個です。",
+    "increasing": "各ステップのパーセントは 1 から 100 で、前のステップより大きくしてください。",
+    "lastStep": "最後のステップは 100 パーセントにしてください。",
+    "errorRate": "エラー率の上限は 0 から 100 パーセントです。",
+    "gate": "評価ゲートには評価セットと最小スコアの両方を指定するか、どちらも指定しないでください。",
+    "score": "最小スコアは 0 から 100 パーセントです。"
+   }
+  },
+  "canaryDetail": {
+   "title": "カナリアリリース",
+   "heading": "{{agent}} のカナリアリリース",
+   "back": "すべてのカナリアリリース",
+   "notFoundTitle": "カナリアリリースが見つかりません",
+   "notFoundBody": "ID を確認するか、一覧からリリースを開いてください。",
+   "rolledBack": "ロールバックしました: {{reason}} 重みは開始前の値に戻りました。",
+   "aborted": "中止しました: {{reason}} 重みは開始前の値に戻りました。",
+   "promoted": "昇格しました。{{candidate}} がすべてのトラフィックを受け持ちます。",
+   "noReason": "理由は記載されていません。",
+   "withWeight": "{{name}} (リリース前の重み {{weight}})",
+   "gate": "最新の評価スコアが {{score}} 以上",
+   "steps": "ステップ",
+   "columns": {
+    "step": "ステップ",
+    "weightPercent": "候補のトラフィック",
+    "minimumRuns": "最小実行数",
+    "minimumMinutes": "最小時間 (分)",
+    "state": "状態"
+   },
+   "stepStates": {
+    "done": "完了",
+    "current": "現在",
+    "stopped": "ここで停止",
+    "pending": "待機中"
+   },
+   "abortTitle": "カナリアリリースを中止",
+   "abortMessage": "リリースを中止しますか？両方のデプロイメントは開始前の重みに戻ります。",
+   "fields": {
+    "agent": "エージェント",
+    "candidate": "候補",
+    "baseline": "ベースライン",
+    "maxErrorRatePercent": "エラー率の上限",
+    "gate": "評価ゲート",
+    "stepStartedUtc": "現在のステップの開始",
+    "createdBy": "開始者",
+    "completedUtc": "終了"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "ケースには入力テキストが必要です。",
+   "UnknownScorer": "完全一致、含む、JSON Schema に適合、判定エージェントのいずれかを使ってください。",
+   "ArgumentRequired": "テキストを入力するか、ケースの期待される出力を入力してください。",
+   "InvalidJsonSchema": "有効な JSON Schema ではありません。",
+   "TooManyCases": "このセットは保持できるケースの上限に達しています。",
+   "EvaluatorIsForAgents": "作成元「エージェントが作成」は、エージェントが作ったセット用です。「人が作成」か「プレイグラウンドから」を選んでください。",
+   "SetRequired": "実行する評価セットを選択してください。",
+   "TargetRequired": "評価する対象を選択してください。",
+   "RecentInputsNeedDeployment": "最近の入力はデプロイメントの実行を再生します。デプロイメントを評価してください。",
+   "NoRecentInputs": "このデプロイメントには、再生できる成功した実行がまだありません。",
+   "EvalSetEmpty": "このバージョンにはケースがありません。",
+   "JudgeAgentRequired": "判定エージェントが必要なケースがありますが、セットに判定エージェントがありません。セットを編集して選んでください。",
+   "DeploymentNotFound": "そのデプロイメントはこのテナントに存在しません。",
+   "SameDeployment": "異なる 2 つのデプロイメントを選択してください。",
+   "DifferentAgent": "両方のデプロイメントが同じエージェントに属している必要があります。",
+   "DeploymentInactive": "そのデプロイメントは無効です。先に有効にしてください。",
+   "AgentMismatch": "エージェントはソースのデプロイメントのエージェントである必要があります。",
+   "EndsInPast": "将来の終了日時を選ぶか、空のままにしてください。",
+   "EvalSetNotFound": "その評価セットはこのテナントに存在しません。",
+   "AgentNotFound": "そのエージェントはこのテナントに存在しません。",
+   "EvalGateIncomplete": "評価ゲートには評価セットと最小スコアの両方を指定するか、どちらも指定しないでください。",
+   "NotIncreasing": "各ステップのパーセントは前のステップより大きくしてください。",
+   "LastStepNotFull": "最後のステップは 100 パーセントにしてください。"
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "評価セット",
+   "subtitle": "エージェントを採点する、バージョン管理されたケースです。バージョンを承認すると、昇格とカナリアリリースのゲートとして使えます。",
+   "add": "評価セットを追加",
+   "create": "評価セットを追加",
+   "edit": "評価セットを編集",
+   "view": "評価セット",
+   "deleteTitle": "下書きのバージョンを削除",
+   "emptyTitle": "評価セットはまだありません",
+   "emptyBody": "ここでセットとケースを追加するか、スタジオのプレイグラウンドのターンを最初のケースとして保存してください。",
+   "filters": {
+    "latestOnly": "バージョン",
+    "newestOnly": "最新バージョンのみ",
+    "allVersions": "すべてのバージョン"
+   },
+   "columns": {
+    "name": "名前",
+    "version": "バージョン",
+    "state": "状態",
+    "origin": "作成元",
+    "caseCount": "ケース",
+    "judgeAgent": "判定エージェント",
+    "tags": "タグ",
+    "authoredByName": "作成者",
+    "approvedByName": "承認者",
+    "description": "説明",
+    "lastUpdateUtc": "最終変更",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名前",
+    "description": "説明",
+    "origin": "作成元",
+    "judgeAgent": "判定エージェント",
+    "tags": "タグ"
+   },
+   "hints": {
+    "name": "1 から {{max}} 文字です。名前はバージョンをまたいで変わりません。",
+    "description": "任意。最大 {{max}} 文字です。",
+    "origin": "「プレイグラウンドから」は、プレイグラウンドのターンから作られたセットを示します。",
+    "judgeAgent": "判定チェック、期待される出力のないケース、最近の入力を採点するエージェントです。",
+    "tags": "任意。1 行に 1 つ、それぞれ最大 {{max}} 文字です。"
+   }
+  },
+  "evalRuns": {
+   "title": "評価実行",
+   "subtitle": "評価セットのバージョンをデプロイメントまたはエージェントのリビジョンに対して実行した記録と、しきい値に対するスコアです。",
+   "add": "セットを実行",
+   "create": "評価セットを実行",
+   "edit": "評価実行",
+   "view": "評価実行",
+   "deleteTitle": "評価実行を削除",
+   "emptyTitle": "評価実行はまだありません",
+   "emptyBody": "評価セットを実行して、リリース前のデプロイメントや下書きのリビジョンを採点しましょう。",
+   "columns": {
+    "setName": "評価セット",
+    "status": "ステータス",
+    "verdict": "判定",
+    "score": "スコア",
+    "threshold": "しきい値",
+    "progress": "進捗",
+    "target": "評価対象",
+    "inputMode": "入力",
+    "costUsd": "コスト",
+    "startedByName": "開始者",
+    "createdUtc": "開始",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "シャドートライアル",
+   "subtitle": "候補のデプロイメントが、本番デプロイメントの入力の一部を何も操作せずに再生し、その出力を比較します。",
+   "add": "シャドートライアルを開始",
+   "create": "シャドートライアルを開始",
+   "edit": "シャドートライアル",
+   "view": "シャドートライアル",
+   "deleteTitle": "シャドートライアルを削除",
+   "emptyTitle": "シャドートライアルはまだありません",
+   "emptyBody": "トライアルを開始すると、候補のデプロイメントがトラフィックを受け持つ前に、実際の入力にどう答えるかを確認できます。",
+   "columns": {
+    "name": "名前",
+    "status": "ステータス",
+    "source": "ソース",
+    "candidate": "候補",
+    "samplePercent": "サンプリング率",
+    "comparedCount": "比較済み",
+    "agreedCount": "一致",
+    "divergedCount": "相違",
+    "candidateFailureCount": "失敗",
+    "agreement": "一致率",
+    "endsUtc": "終了予定",
+    "createdUtc": "開始",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名前",
+    "sourceDeploymentId": "ソースのデプロイメント",
+    "candidateDeploymentId": "候補のデプロイメント",
+    "samplePercent": "サンプリング率 (パーセント)",
+    "endsUtc": "終了予定",
+    "comparisonEvalSetId": "評価セットで比較",
+    "useJudge": "判定エージェントで比較"
+   },
+   "hints": {
+    "name": "任意。最大 {{max}} 文字です。",
+    "sourceDeploymentId": "必須。成功した実行がコピーされます。このデプロイメント自体には影響しません。",
+    "candidateDeploymentId": "必須。同じエージェントの別のデプロイメントです。",
+    "samplePercent": "1 から 100、既定値は 10 です。ソースの実行のうちコピーされる割合です。",
+    "endsUtc": "任意。空の場合は誰かが停止するまで実行されます。",
+    "comparisonEvalSetId": "任意。指定しない場合、出力は正規化したテキストとして比較されます。",
+    "useJudge": "2 つの出力が一致しているかを判定エージェントに尋ねます。"
+   }
+  },
+  "canaryReleases": {
+   "title": "カナリアリリース",
+   "subtitle": "候補のデプロイメントがエージェントのトラフィックを受け持つ割合を段階的に増やし、問題が起きると自動でロールバックします。",
+   "add": "カナリアリリースを開始",
+   "create": "カナリアリリースを開始",
+   "edit": "カナリアリリース",
+   "view": "カナリアリリース",
+   "deleteTitle": "カナリアリリースを削除",
+   "emptyTitle": "カナリアリリースはまだありません",
+   "emptyBody": "リリースを開始すると、トラフィックを新しいデプロイメントへ 1 ステップずつ移せます。",
+   "addStep": "ステップを追加",
+   "columns": {
+    "agent": "エージェント",
+    "status": "ステータス",
+    "candidate": "候補",
+    "baseline": "ベースライン",
+    "step": "ステップ",
+    "maxErrorRatePercent": "エラーの上限",
+    "gate": "評価ゲート",
+    "rollbackReason": "ロールバックの理由",
+    "createdUtc": "開始",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "エージェント",
+    "baselineDeploymentId": "ベースラインのデプロイメント",
+    "candidateDeploymentId": "候補のデプロイメント",
+    "steps": "ステップ",
+    "weightPercent": "候補のトラフィック (パーセント)",
+    "minimumRuns": "最小実行数",
+    "minimumMinutes": "最小時間 (分)",
+    "maxErrorRatePercent": "エラー率の上限 (パーセント)",
+    "evalSetId": "評価ゲートのセット",
+    "minEvalScorePercent": "最小評価スコア (パーセント)"
+   },
+   "hints": {
+    "agentId": "必須。両方のデプロイメントがこのエージェントに属します。",
+    "baselineDeploymentId": "必須。残りのトラフィックを受け持ちます。",
+    "candidateDeploymentId": "必須。リリースするデプロイメントです。",
+    "steps": "1 から {{max}} ステップです。各パーセントは前の値より大きく、最後は 100 です。",
+    "maxErrorRatePercent": "0 から 100、既定値は 5 です。1 つのステップで候補の失敗した実行がこの割合を超えると、リリースはロールバックされます。",
+    "evalSetId": "任意。このセットの最新の評価実行が最小スコアに達した場合にだけ、ステップが進みます。",
+    "minEvalScorePercent": "評価ゲートのセットを指定した場合は必須です。0 から 100 です。"
+   }
+  }
+ }
+});

@@ -1798,3 +1798,33 @@ td.message-subject-cell { display: table-cell; }
 .change-rule-limits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--font-size-sm); }
 .org-proposal-decision { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .org-proposal-rule { min-width: 12rem; }
+
+/* Evaluations (AA9.9, AA9.15): eval set cases and checks, the eval run progress and results with failing cases
+   highlighted, and canary steps. Case inputs, outputs, and notes are data and wrap anywhere. */
+.eval-section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; margin-bottom: var(--spacing-sm); }
+.eval-section-head .section-title { margin: 0; }
+.eval-text, .eval-text-cell, .eval-tags { overflow-wrap: anywhere; }
+.eval-text { white-space: pre-wrap; }
+td.eval-text-cell { min-width: 8rem; max-width: 28rem; }
+.eval-row-actions { justify-content: flex-end; flex-wrap: wrap; }
+.eval-current-row td { font-weight: 600; }
+.eval-current-row td:first-child { box-shadow: inset 4px 0 0 var(--color-primary); padding-left: calc(var(--spacing-sm) + 4px); }
+tr.eval-result-failing td:first-child { font-weight: 600; color: var(--color-danger); }
+tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-danger); padding-left: calc(var(--spacing-sm) + 4px); }
+.eval-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--font-size-sm); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--spacing-sm); margin: 0; max-height: 320px; overflow: auto; }
+.eval-progress-head { display: flex; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; margin-bottom: var(--spacing-xs); }
+.eval-progress { height: 8px; border-radius: var(--radius-sm); background: var(--color-surface-alt); overflow: hidden; }
+.eval-progress-bar { height: 100%; background: var(--color-primary); transition: width 0.3s ease; }
+.eval-checks { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm) var(--spacing-md); margin: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); align-items: flex-start; }
+.eval-checks legend { font-weight: 600; padding: 0 var(--spacing-xs); }
+.eval-checks-none { margin: 0; }
+.eval-check-row { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) 6rem auto; gap: var(--spacing-sm); align-items: start; width: 100%; }
+.eval-check-row .field { min-width: 0; }
+.eval-check-actions { padding-top: 1.6rem; }
+.eval-results-filter { display: inline-flex; align-items: center; gap: var(--spacing-xs); font-size: var(--font-size-sm); }
+@media (max-width: 640px) {
+  .eval-check-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .eval-check-row .eval-check-weight { grid-column: 1; }
+  .eval-check-actions { padding-top: 0; grid-column: 2; grid-row: 1; }
+}
+.eval-error-text { color: var(--color-danger); }

@@ -7322,3 +7322,701 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "Jeux d'évaluation",
+    "tip": "Ensembles versionnés de cas qui notent les agents avant leur mise en service"
+   },
+   "evalRuns": {
+    "label": "Exécutions d'évaluation",
+    "tip": "Exécutions d'un jeu d'évaluation sur un déploiement ou une révision d'agent"
+   },
+   "shadowTrials": {
+    "label": "Essais fantômes",
+    "tip": "Un déploiement candidat rejoue des entrées réelles sans agir"
+   },
+   "canaryReleases": {
+    "label": "Diffusions canari",
+    "tip": "Un déploiement candidat reçoit par étapes une part croissante du trafic"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Jeu d'évaluation",
+   "EvalRun": "Exécution d'évaluation",
+   "ShadowTrial": "Essai fantôme",
+   "CanaryRelease": "Diffusion canari"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "Diffusion canari revenue en arrière"
+  },
+  "runKind": {
+   "Eval": "Cas d'évaluation",
+   "Shadow": "Copie fantôme"
+  },
+  "evalSetState": {
+   "Draft": "Brouillon",
+   "Approved": "Approuvé"
+  },
+  "evalSetOrigin": {
+   "Human": "Écrit par une personne",
+   "Evaluator": "Écrit par un agent",
+   "Playground": "Issu du bac à sable"
+  },
+  "evalScorer": {
+   "ExactMatch": "Correspondance exacte",
+   "Contains": "Contient",
+   "JsonSchemaValid": "JSON Schema valide",
+   "Judge": "Agent juge"
+  },
+  "evalRunStatus": {
+   "Pending": "En attente",
+   "Running": "En cours",
+   "Completed": "Terminée",
+   "Failed": "Échouée",
+   "Cancelled": "Annulée"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "Révision d'agent",
+   "Deployment": "Déploiement"
+  },
+  "evalRunInputMode": {
+   "Cases": "Les cas du jeu",
+   "RecentInputs": "Entrées récentes"
+  },
+  "shadowTrialStatus": {
+   "Running": "En cours",
+   "Completed": "Terminé",
+   "Stopped": "Arrêté",
+   "Failed": "Échoué"
+  },
+  "canaryStatus": {
+   "Running": "En cours",
+   "Promoted": "Promue",
+   "RolledBack": "Revenue en arrière",
+   "Aborted": "Interrompue"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "Un jeu d'évaluation porte déjà ce nom. Ouvrez-le et modifiez-le pour créer sa version suivante.",
+  "AlreadyApproved": "Cette version est déjà approuvée.",
+  "EvalSetEmpty": "Ce jeu d'évaluation n'a encore aucun cas. Ajoutez d'abord un cas.",
+  "EvalSetImmutable": "Cette version est approuvée et reste telle quelle. Modifiez-la pour ouvrir la version suivante, ou supprimez plutôt une version brouillon.",
+  "ApprovalIsPeopleOnly": "Seule une personne peut approuver un jeu d'évaluation. Un agent ne peut pas approuver le jeu qui le note.",
+  "EvalRunFinished": "Cette exécution d'évaluation est déjà terminée.",
+  "ShadowTrialAlreadyRunning": "Ce candidat suit déjà ce déploiement dans un autre essai.",
+  "ShadowTrialNotRunning": "Cet essai fantôme n'est plus en cours.",
+  "CanaryAlreadyRunning": "L'un de ces déploiements fait déjà partie d'une diffusion canari en cours.",
+  "CanaryNotRunning": "Cette diffusion canari n'est plus en cours.",
+  "EvalGateFailed": "La promotion exige une exécution d'évaluation réussie de cette révision avec le jeu d'évaluation approuvé de l'environnement, et il n'y en a pas encore.",
+  "PeopleOnly": "Seules les personnes et les identifiants d'API peuvent faire cela. Un jeton d'exécution ne le peut pas."
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{completed}} cas sur {{total}}, {{passed}} réussis",
+  "noJudge": "Aucun juge",
+  "noSet": "Aucun",
+  "untilStopped": "Jusqu'à l'arrêt",
+  "verdict": {
+   "passed": "Réussie",
+   "failed": "Sous le seuil",
+   "none": "Aucun verdict"
+  },
+  "outcome": {
+   "passed": "Réussi",
+   "failed": "Échoué",
+   "errored": "En erreur"
+  },
+  "target": {
+   "deployment": "Déploiement {{name}}",
+   "revision": "Agent {{agent}}, révision {{revision}}"
+  },
+  "actions": {
+   "runSet": "Exécuter le jeu",
+   "openSet": "Ouvrir le jeu",
+   "cancelRun": "Annuler l'exécution",
+   "stopTrial": "Arrêter l'essai",
+   "abortCanary": "Interrompre la diffusion",
+   "copyId": "Copier l'ID"
+  },
+  "toasts": {
+   "copied": "ID copié.",
+   "approved": "{{name}} v{{version}} approuvé. Il peut désormais conditionner les promotions.",
+   "caseSaved": "Cas enregistré.",
+   "caseSavedNextVersion": "Cas enregistré dans la version {{version}}, un nouveau brouillon.",
+   "caseSavedTo": "Cas enregistré dans {{name}}.",
+   "caseRemoved": "Cas retiré.",
+   "caseRemovedNextVersion": "Cas retiré de la version {{version}}, un nouveau brouillon.",
+   "setSavedNextVersion": "Enregistré comme version {{version}}, un nouveau brouillon.",
+   "runStarted": "Exécution d'évaluation de {{name}} lancée.",
+   "runCancelled": "Exécution d'évaluation annulée.",
+   "trialStopped": "Essai fantôme arrêté.",
+   "canaryAborted": "Diffusion canari interrompue. Les poids initiaux sont rétablis."
+  },
+  "reason": {
+   "label": "Motif",
+   "placeholder": "Facultatif. Il est conservé avec l'enregistrement et dans le journal d'audit."
+  },
+  "form": {
+   "errors": {
+    "name": "Donnez au jeu un nom de 1 à {{max}} caractères.",
+    "description": "La description compte au plus {{max}} caractères.",
+    "judgeAgent": "Le nom de l'agent juge compte au plus {{max}} caractères.",
+    "tags": "Chaque étiquette compte au plus {{max}} caractères."
+   }
+  },
+  "set": {
+   "nextVersion": "Cette version est approuvée : l'enregistrement crée donc la version {{version}} en brouillon. Cette version reste telle quelle."
+  },
+  "case": {
+   "addTitle": "Ajouter un cas à {{name}}",
+   "editTitle": "Modifier le cas {{number}}",
+   "save": "Enregistrer le cas",
+   "nextVersion": "Cette version est approuvée : la modification va donc dans la version {{version}}, un nouveau brouillon. Cette version reste telle quelle.",
+   "fromRun": "Enregistré depuis l'exécution {{id}}.",
+   "fields": {
+    "name": "Nom",
+    "inputText": "Entrée",
+    "expectedText": "Sortie attendue",
+    "hidden": "Masqué aux agents notés",
+    "checks": "Contrôles"
+   },
+   "placeholders": {
+    "name": "Facultatif, par exemple remboursement au-delà de la limite",
+    "inputText": "Le message que reçoit l'agent",
+    "expectedText": "Ce que dit une bonne réponse"
+   },
+   "hints": {
+    "name": "Facultatif, au plus {{max}} caractères.",
+    "inputText": "Obligatoire. Le cas envoie ce texte à l'agent comme entrée.",
+    "expectedText": "Facultatif. Les contrôles Correspondance exacte et Contient s'y comparent quand ils n'ont pas de texte propre ; le juge la lit comme réponse de référence.",
+    "hidden": "Les exécutions d'un agent ne voient que la note d'un cas masqué, jamais son entrée ni sa sortie attendue, pour qu'il ne puisse pas apprendre les réponses."
+   },
+   "checks": {
+    "scorer": "Notation",
+    "weight": "Poids",
+    "add": "Ajouter un contrôle",
+    "remove": "Retirer le contrôle {{number}}",
+    "none": "Aucun contrôle. Le cas est noté par correspondance exacte avec la sortie attendue, ou par l'agent juge s'il n'y a pas de sortie attendue."
+   },
+   "scorerHints": {
+    "ExactMatch": "Réussit quand la sortie est égale au texte, sans tenir compte des espaces autour.",
+    "Contains": "Réussit quand la sortie contient le texte.",
+    "JsonSchemaValid": "Réussit quand la sortie est du JSON conforme au schéma.",
+    "Judge": "L'agent juge du jeu note la sortie selon la grille et la sortie attendue."
+   },
+   "argumentLabels": {
+    "ExactMatch": "Texte exact",
+    "Contains": "Texte à trouver",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "Grille d'évaluation"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "Vide : utilise la sortie attendue",
+    "Contains": "Vide : utilise la sortie attendue",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "Facultatif. Ce qu'une bonne réponse doit faire"
+   },
+   "errors": {
+    "input": "Un cas a besoin d'un texte d'entrée.",
+    "name": "Le nom compte au plus {{max}} caractères.",
+    "weight": "Un poids va de 0 à {{max}}.",
+    "schema": "Saisissez ici un objet JSON Schema.",
+    "argument": "Indiquez le texte ou remplissez la sortie attendue du cas."
+   }
+  },
+  "run": {
+   "title": "Exécuter un jeu d'évaluation",
+   "titleFor": "Exécuter {{name}} v{{version}}",
+   "intro": "Chaque cas s'exécute comme sa propre exécution d'évaluation. Les exécutions sur une révision d'agent utilisent un déploiement temporaire et laissent le trafic réel intact.",
+   "start": "Lancer l'exécution",
+   "starting": "Lancement...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "Choisir un déploiement",
+   "chooseAgent": "Choisir un agent",
+   "fields": {
+    "setId": "Jeu d'évaluation",
+    "targetType": "Évaluer",
+    "deploymentId": "Déploiement",
+    "agentId": "Agent",
+    "agentRevisionId": "Révision",
+    "inputMode": "Entrées",
+    "recentInputCount": "Entrées récentes à rejouer",
+    "thresholdPercent": "Seuil de réussite (pourcentage)",
+    "budgetUsd": "Budget (USD)"
+   },
+   "hints": {
+    "setId": "La version la plus récente de chaque jeu est proposée.",
+    "targetType": "Un déploiement tel qu'il fonctionne aujourd'hui, ou une révision d'agent comme le brouillon qu'exécute le bac à sable de l'atelier.",
+    "agentId": "Obligatoire. Sans révision, c'est la révision brouillon de l'agent qui s'exécute, ou sa dernière révision publiée.",
+    "agentRevisionId": "Facultatif. Un ID de révision d'agent ; vide exécute la révision brouillon.",
+    "inputMode": "Les cas du jeu, ou les dernières entrées réussies du déploiement notées par l'agent juge.",
+    "recentInputCount": "De 1 à {{max}}.",
+    "thresholdPercent": "Facultatif, de 0 à 100. L'exécution réussit quand sa note pondérée l'atteint.",
+    "budgetUsd": "Facultatif. Quand les exécutions des cas et du juge ont dépensé ce montant, les cas restants sont ignorés et l'exécution échoue."
+   },
+   "errors": {
+    "set": "Choisissez le jeu d'évaluation à exécuter.",
+    "deployment": "Choisissez le déploiement à évaluer.",
+    "agent": "Choisissez l'agent à évaluer.",
+    "threshold": "Un seuil va de 0 à 100 pour cent.",
+    "budget": "Un budget va de 0 à {{max}} USD.",
+    "recentInputs": "Rejouez de 1 à {{max}} entrées récentes."
+   }
+  },
+  "save": {
+   "open": "Enregistrer comme cas d'évaluation",
+   "title": "Enregistrer comme cas d'évaluation",
+   "intro": "L'entrée du tour et la réponse de l'agent deviennent un cas. Modifiez la sortie attendue pour qu'elle décrive une bonne réponse, et pas seulement ce que celle-ci a dit.",
+   "set": "Jeu d'évaluation",
+   "newSet": "Nouveau jeu d'évaluation...",
+   "newSetName": "Nom du nouveau jeu",
+   "newSetHint": "Le nouveau jeu commence en brouillon avec l'origine Issu du bac à sable.",
+   "submit": "Enregistrer le cas",
+   "done": "Terminé",
+   "openSet": "Ouvrir le jeu",
+   "runSet": "Exécuter le jeu",
+   "entryAgent": "l'agent d'entrée",
+   "saved": "Cas enregistré dans {{name}} v{{version}}.",
+   "runHint": "Exécuter le jeu évalue la révision brouillon de {{agent}}, celle que ce bac à sable a exécutée.",
+   "errors": {
+    "set": "Choisissez un jeu d'évaluation ou créez-en un nouveau."
+   }
+  },
+  "setDetail": {
+   "title": "Jeu d'évaluation",
+   "back": "Tous les jeux d'évaluation",
+   "notFoundTitle": "Jeu d'évaluation introuvable",
+   "notFoundBody": "C'était peut-être un brouillon que quelqu'un a supprimé. Les versions approuvées sont toujours conservées.",
+   "approve": "Approuver",
+   "approveTitle": "Approuver {{name}} v{{version}}",
+   "approveMessage": "Une version approuvée est conservée exactement telle quelle et peut conditionner les promotions et les diffusions canari. Les modifications ultérieures créent la version suivante en brouillon.",
+   "approvedNote": "Cette version est approuvée et reste telle quelle. Modifier le jeu ou un cas crée la version {{version}} en brouillon.",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "Certains cas sont notés par l'agent juge, mais ce jeu n'en a pas. Modifiez le jeu et choisissez un agent juge avant de l'exécuter.",
+   "editTitle": "Modifier {{name}}",
+   "deleteTitle": "Supprimer la version brouillon",
+   "deleteMessage": "Supprimer {{name}} v{{version}} ? Les versions approuvées ne sont pas concernées.",
+   "cases": "Cas ({{count}})",
+   "addCase": "Ajouter un cas",
+   "noCases": "Aucun cas pour l'instant. Ajoutez-en un ici, ou enregistrez un tour depuis le bac à sable de l'atelier.",
+   "noExpected": "Aucune",
+   "hidden": "Masqué",
+   "removeCaseTitle": "Retirer le cas {{number}}",
+   "removeCaseMessage": "Retirer ce cas du brouillon ?",
+   "removeCaseApproved": "Cette version est approuvée : le cas est donc retiré de la version {{version}}, un nouveau brouillon. Cette version le conserve.",
+   "versions": "Versions",
+   "thisVersion": "v{{version}} (celle-ci)",
+   "runs": "Exécutions d'évaluation récentes",
+   "allRuns": "Toutes les exécutions de cette version",
+   "noRuns": "Cette version n'a pas encore été exécutée.",
+   "fields": {
+    "state": "État",
+    "origin": "Origine",
+    "judgeAgent": "Agent juge",
+    "tags": "Étiquettes",
+    "authoredBy": "Écrit par",
+    "approvedBy": "Approuvé par",
+    "previousVersion": "Version précédente",
+    "lastUpdateUtc": "Dernière modification",
+    "description": "Description"
+   },
+   "columns": {
+    "order": "#",
+    "name": "Nom",
+    "input": "Entrée",
+    "expected": "Sortie attendue",
+    "scorers": "Noté par",
+    "hidden": "Masqué",
+    "source": "Depuis l'exécution"
+   },
+   "versionColumns": {
+    "version": "Version",
+    "state": "État",
+    "caseCount": "Cas",
+    "approvedBy": "Approuvé par",
+    "lastUpdateUtc": "Dernière modification"
+   },
+   "runColumns": {
+    "run": "Exécution d'évaluation",
+    "status": "Statut",
+    "verdict": "Verdict",
+    "score": "Note",
+    "target": "Évalué",
+    "createdUtc": "Lancée"
+   }
+  },
+  "runDetail": {
+   "title": "Exécution d'évaluation",
+   "back": "Toutes les exécutions d'évaluation",
+   "notFoundTitle": "Exécution d'évaluation introuvable",
+   "notFoundBody": "Vérifiez l'ID, ou ouvrez l'exécution depuis son jeu d'évaluation.",
+   "live": "En direct",
+   "polling": "Interrogation",
+   "failure": "L'exécution a échoué : {{reason}}",
+   "progressLabel": "Cas terminés",
+   "kpi": {
+    "score": "Note",
+    "threshold": "Seuil {{threshold}}",
+    "noThreshold": "Aucun seuil",
+    "passed": "Cas réussis",
+    "errored": "Cas en erreur",
+    "cost": "Coût",
+    "budget": "Budget {{budget}}",
+    "noBudget": "Aucun budget"
+   },
+   "fields": {
+    "target": "Évalué",
+    "targetType": "Cible",
+    "inputMode": "Entrées",
+    "startedBy": "Lancée par",
+    "createdUtc": "Lancée",
+    "completedUtc": "Terminée",
+    "studioDraftId": "Brouillon d'atelier"
+   },
+   "recentInputs": "{{count}} entrées récentes",
+   "results": "Résultats des cas ({{count}})",
+   "failingOnly": "Échecs uniquement ({{count}})",
+   "noFailing": "Tous les cas ont réussi.",
+   "noResults": "Cette exécution n'a enregistré aucun résultat de cas.",
+   "waiting": "En attente de la fin du premier cas.",
+   "caseNumber": "Cas {{number}}",
+   "recentInput": "Entrée récente {{number}}",
+   "checksPassed": "{{passed}} sur {{total}} réussis",
+   "open": "Ouvrir",
+   "columns": {
+    "order": "#",
+    "case": "Cas",
+    "outcome": "Résultat",
+    "score": "Note",
+    "checks": "Contrôles",
+    "output": "Sortie"
+   },
+   "resultTitle": "Cas {{number}}",
+   "resultTitleNamed": "Cas {{number}} : {{name}}",
+   "scoreIs": "Note {{score}}",
+   "openCaseRun": "Ouvrir l'exécution du cas",
+   "openSourceRun": "Ouvrir l'exécution source",
+   "hiddenCase": "Ce cas est masqué aux agents notés.",
+   "input": "Entrée",
+   "diff": "Sortie attendue comparée à la sortie",
+   "expected": "Attendu",
+   "output": "Sortie",
+   "noOutput": "Aucune sortie.",
+   "checks": "Contrôles",
+   "noChecks": "Aucun contrôle n'a été noté.",
+   "checkColumns": {
+    "scorer": "Notation",
+    "weight": "Poids",
+    "score": "Note",
+    "outcome": "Résultat",
+    "note": "Remarque de la notation",
+    "judgeRun": "Exécution du juge"
+   },
+   "cancelTitle": "Annuler l'exécution d'évaluation",
+   "cancelMessage": "Annuler cette exécution de {{name}} ? Les cas non terminés sont annulés avec elle."
+  },
+  "shadow": {
+   "errors": {
+    "name": "Le nom compte au plus {{max}} caractères.",
+    "source": "Choisissez le déploiement dont les exécutions sont copiées.",
+    "candidate": "Choisissez le déploiement candidat.",
+    "same": "Le candidat doit être un déploiement différent de la source.",
+    "sample": "Échantillonnez de 1 à 100 pour cent des exécutions.",
+    "ends": "Choisissez une fin dans le futur, ou laissez vide pour continuer jusqu'à l'arrêt."
+   }
+  },
+  "shadowDetail": {
+   "title": "Essai fantôme",
+   "back": "Tous les essais fantômes",
+   "notFoundTitle": "Essai fantôme introuvable",
+   "notFoundBody": "Vérifiez l'ID, ou ouvrez l'essai depuis la liste.",
+   "note": "Les exécutions fantômes rejouent les entrées de la source sur le candidat. Elles ne peuvent pas utiliser d'outils à effet, envoyer de messages, écrire en mémoire ni déposer de rapports, et les exécutions de la source ne sont pas touchées.",
+   "stopReason": "Arrêté : {{reason}}",
+   "stopTitle": "Arrêter l'essai fantôme",
+   "stopMessage": "Arrêter {{name}} ? Plus aucune exécution n'est copiée ; les décomptes actuels sont conservés.",
+   "kpi": {
+    "compared": "Comparées",
+    "agreed": "Concordantes",
+    "diverged": "Divergentes",
+    "failures": "Échecs du candidat",
+    "agreement": "Concordance"
+   },
+   "comparison": {
+    "text": "Texte normalisé",
+    "set": "Avec un jeu d'évaluation",
+    "judge": "Par l'agent juge"
+   },
+   "fields": {
+    "source": "Source",
+    "candidate": "Candidat",
+    "samplePercent": "Échantillon",
+    "comparison": "Comparé par",
+    "endsUtc": "Fin",
+    "createdBy": "Lancé par",
+    "createdUtc": "Lancé",
+    "completedUtc": "Terminé"
+   }
+  },
+  "canary": {
+   "stepOf": "Étape {{number}} sur {{total}} à {{percent}}%",
+   "gateText": "{{name}} à {{score}} ou plus",
+   "noGate": "Aucune condition d'évaluation",
+   "errors": {
+    "agent": "Choisissez l'agent dont le trafic est déplacé.",
+    "candidate": "Choisissez le déploiement candidat.",
+    "baseline": "Choisissez le déploiement de référence.",
+    "same": "Le candidat et la référence doivent être des déploiements différents.",
+    "steps": "Indiquez au moins une étape. La dernière étape est à 100 pour cent.",
+    "tooMany": "Une diffusion compte au plus {{max}} étapes.",
+    "increasing": "Le pourcentage de chaque étape va de 1 à 100 et dépasse celui de l'étape précédente.",
+    "lastStep": "La dernière étape doit être à 100 pour cent.",
+    "errorRate": "Le plafond du taux d'erreur va de 0 à 100 pour cent.",
+    "gate": "Une condition d'évaluation exige à la fois un jeu d'évaluation et une note minimale, ou aucun des deux.",
+    "score": "La note minimale va de 0 à 100 pour cent."
+   }
+  },
+  "canaryDetail": {
+   "title": "Diffusion canari",
+   "heading": "Diffusion canari de {{agent}}",
+   "back": "Toutes les diffusions canari",
+   "notFoundTitle": "Diffusion canari introuvable",
+   "notFoundBody": "Vérifiez l'ID, ou ouvrez la diffusion depuis la liste.",
+   "rolledBack": "Retour en arrière : {{reason}} Les poids initiaux sont rétablis.",
+   "aborted": "Interrompue : {{reason}} Les poids initiaux sont rétablis.",
+   "promoted": "Promue. {{candidate}} reçoit tout le trafic.",
+   "noReason": "aucun motif indiqué.",
+   "withWeight": "{{name}} (poids {{weight}} avant la diffusion)",
+   "gate": "Dernière note d'évaluation de {{score}} ou plus",
+   "steps": "Étapes",
+   "columns": {
+    "step": "Étape",
+    "weightPercent": "Trafic du candidat",
+    "minimumRuns": "Exécutions minimales",
+    "minimumMinutes": "Minutes minimales",
+    "state": "État"
+   },
+   "stepStates": {
+    "done": "Terminée",
+    "current": "En cours",
+    "stopped": "Arrêtée ici",
+    "pending": "En attente"
+   },
+   "abortTitle": "Interrompre la diffusion canari",
+   "abortMessage": "Interrompre la diffusion ? Les deux déploiements reprennent les poids qu'ils avaient avant son lancement.",
+   "fields": {
+    "agent": "Agent",
+    "candidate": "Candidat",
+    "baseline": "Référence",
+    "maxErrorRatePercent": "Plafond du taux d'erreur",
+    "gate": "Condition d'évaluation",
+    "stepStartedUtc": "Début de l'étape en cours",
+    "createdBy": "Lancée par",
+    "completedUtc": "Terminée"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "Un cas a besoin d'un texte d'entrée.",
+   "UnknownScorer": "Utilisez Correspondance exacte, Contient, JSON Schema valide ou Agent juge.",
+   "ArgumentRequired": "Indiquez le texte ou remplissez la sortie attendue du cas.",
+   "InvalidJsonSchema": "Ce n'est pas un JSON Schema valide.",
+   "TooManyCases": "Le jeu contient déjà le nombre maximal de cas autorisé.",
+   "EvaluatorIsForAgents": "L'origine Écrit par un agent est réservée aux jeux créés par un agent. Choisissez Écrit par une personne ou Issu du bac à sable.",
+   "SetRequired": "Choisissez le jeu d'évaluation à exécuter.",
+   "TargetRequired": "Choisissez ce qu'il faut évaluer.",
+   "RecentInputsNeedDeployment": "Les entrées récentes rejouent les exécutions d'un déploiement. Évaluez un déploiement.",
+   "NoRecentInputs": "Le déploiement n'a pas encore d'exécution réussie à rejouer.",
+   "EvalSetEmpty": "Cette version n'a aucun cas.",
+   "JudgeAgentRequired": "Certains cas ont besoin de l'agent juge, mais le jeu n'en a pas. Modifiez le jeu et choisissez-en un.",
+   "DeploymentNotFound": "Ce déploiement n'existe pas dans ce locataire.",
+   "SameDeployment": "Choisissez deux déploiements différents.",
+   "DifferentAgent": "Les deux déploiements doivent appartenir au même agent.",
+   "DeploymentInactive": "Ce déploiement est inactif. Activez-le d'abord.",
+   "AgentMismatch": "L'agent doit être celui du déploiement source.",
+   "EndsInPast": "Choisissez une fin dans le futur, ou laissez vide.",
+   "EvalSetNotFound": "Ce jeu d'évaluation n'existe pas dans ce locataire.",
+   "AgentNotFound": "Cet agent n'existe pas dans ce locataire.",
+   "EvalGateIncomplete": "Une condition d'évaluation exige à la fois un jeu d'évaluation et une note minimale, ou aucun des deux.",
+   "NotIncreasing": "Le pourcentage de chaque étape doit dépasser celui de l'étape précédente.",
+   "LastStepNotFull": "La dernière étape doit être à 100 pour cent."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "Jeux d'évaluation",
+   "subtitle": "Des cas versionnés qui notent un agent. Approuvez une version pour qu'elle puisse conditionner les promotions et les diffusions canari.",
+   "add": "Ajouter un jeu d'évaluation",
+   "create": "Ajouter un jeu d'évaluation",
+   "edit": "Modifier le jeu d'évaluation",
+   "view": "Jeu d'évaluation",
+   "deleteTitle": "Supprimer la version brouillon",
+   "emptyTitle": "Aucun jeu d'évaluation pour l'instant",
+   "emptyBody": "Ajoutez ici un jeu et ses cas, ou enregistrez un tour du bac à sable de l'atelier comme premier cas.",
+   "filters": {
+    "latestOnly": "Versions",
+    "newestOnly": "Version la plus récente uniquement",
+    "allVersions": "Toutes les versions"
+   },
+   "columns": {
+    "name": "Nom",
+    "version": "Version",
+    "state": "État",
+    "origin": "Origine",
+    "caseCount": "Cas",
+    "judgeAgent": "Agent juge",
+    "tags": "Étiquettes",
+    "authoredByName": "Écrit par",
+    "approvedByName": "Approuvé par",
+    "description": "Description",
+    "lastUpdateUtc": "Dernière modification",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Nom",
+    "description": "Description",
+    "origin": "Origine",
+    "judgeAgent": "Agent juge",
+    "tags": "Étiquettes"
+   },
+   "hints": {
+    "name": "De 1 à {{max}} caractères. Le nom reste le même d'une version à l'autre.",
+    "description": "Facultatif, au plus {{max}} caractères.",
+    "origin": "Issu du bac à sable signale les jeux nés de tours du bac à sable.",
+    "judgeAgent": "L'agent qui note les contrôles Agent juge, les cas sans sortie attendue et les entrées récentes.",
+    "tags": "Facultatif, une par ligne, au plus {{max}} caractères chacune."
+   }
+  },
+  "evalRuns": {
+   "title": "Exécutions d'évaluation",
+   "subtitle": "Chaque exécution d'une version de jeu d'évaluation sur un déploiement ou une révision d'agent, avec sa note par rapport au seuil.",
+   "add": "Exécuter le jeu",
+   "create": "Exécuter un jeu d'évaluation",
+   "edit": "Exécution d'évaluation",
+   "view": "Exécution d'évaluation",
+   "deleteTitle": "Supprimer l'exécution d'évaluation",
+   "emptyTitle": "Aucune exécution d'évaluation pour l'instant",
+   "emptyBody": "Exécutez un jeu d'évaluation pour noter un déploiement ou une révision brouillon avant sa mise en service.",
+   "columns": {
+    "setName": "Jeu d'évaluation",
+    "status": "Statut",
+    "verdict": "Verdict",
+    "score": "Note",
+    "threshold": "Seuil",
+    "progress": "Progression",
+    "target": "Évalué",
+    "inputMode": "Entrées",
+    "costUsd": "Coût",
+    "startedByName": "Lancée par",
+    "createdUtc": "Lancée",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "Essais fantômes",
+   "subtitle": "Un déploiement candidat rejoue une part des entrées d'un déploiement en production sans agir, et les sorties sont comparées.",
+   "add": "Lancer un essai fantôme",
+   "create": "Lancer un essai fantôme",
+   "edit": "Essai fantôme",
+   "view": "Essai fantôme",
+   "deleteTitle": "Supprimer l'essai fantôme",
+   "emptyTitle": "Aucun essai fantôme pour l'instant",
+   "emptyBody": "Lancez un essai pour voir comment un déploiement candidat répond à des entrées réelles avant de recevoir du trafic.",
+   "columns": {
+    "name": "Nom",
+    "status": "Statut",
+    "source": "Source",
+    "candidate": "Candidat",
+    "samplePercent": "Échantillon",
+    "comparedCount": "Comparées",
+    "agreedCount": "Concordantes",
+    "divergedCount": "Divergentes",
+    "candidateFailureCount": "Échecs",
+    "agreement": "Concordance",
+    "endsUtc": "Fin",
+    "createdUtc": "Lancé",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Nom",
+    "sourceDeploymentId": "Déploiement source",
+    "candidateDeploymentId": "Déploiement candidat",
+    "samplePercent": "Échantillon (pourcentage)",
+    "endsUtc": "Fin",
+    "comparisonEvalSetId": "Comparer avec un jeu d'évaluation",
+    "useJudge": "Comparer avec l'agent juge"
+   },
+   "hints": {
+    "name": "Facultatif, au plus {{max}} caractères.",
+    "sourceDeploymentId": "Obligatoire. Ses exécutions réussies sont copiées ; il n'est pas touché.",
+    "candidateDeploymentId": "Obligatoire. Un autre déploiement du même agent.",
+    "samplePercent": "De 1 à 100, 10 par défaut. La part des exécutions de la source qui est copiée.",
+    "endsUtc": "Facultatif. Vide : l'essai continue jusqu'à ce que quelqu'un l'arrête.",
+    "comparisonEvalSetId": "Facultatif. Sans jeu, les sorties sont comparées comme texte normalisé.",
+    "useJudge": "Demander à l'agent juge si les deux sorties concordent."
+   }
+  },
+  "canaryReleases": {
+   "title": "Diffusions canari",
+   "subtitle": "Un déploiement candidat reçoit par étapes une part croissante du trafic d'un agent et revient en arrière de lui-même s'il se comporte mal.",
+   "add": "Lancer une diffusion canari",
+   "create": "Lancer une diffusion canari",
+   "edit": "Diffusion canari",
+   "view": "Diffusion canari",
+   "deleteTitle": "Supprimer la diffusion canari",
+   "emptyTitle": "Aucune diffusion canari pour l'instant",
+   "emptyBody": "Lancez une diffusion pour déplacer le trafic vers un nouveau déploiement, une étape à la fois.",
+   "addStep": "Ajouter une étape",
+   "columns": {
+    "agent": "Agent",
+    "status": "Statut",
+    "candidate": "Candidat",
+    "baseline": "Référence",
+    "step": "Étape",
+    "maxErrorRatePercent": "Plafond d'erreurs",
+    "gate": "Condition d'évaluation",
+    "rollbackReason": "Motif du retour en arrière",
+    "createdUtc": "Lancée",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "Agent",
+    "baselineDeploymentId": "Déploiement de référence",
+    "candidateDeploymentId": "Déploiement candidat",
+    "steps": "Étapes",
+    "weightPercent": "Trafic du candidat (pourcentage)",
+    "minimumRuns": "Exécutions minimales",
+    "minimumMinutes": "Minutes minimales",
+    "maxErrorRatePercent": "Plafond du taux d'erreur (pourcentage)",
+    "evalSetId": "Jeu de la condition d'évaluation",
+    "minEvalScorePercent": "Note d'évaluation minimale (pourcentage)"
+   },
+   "hints": {
+    "agentId": "Obligatoire. Les deux déploiements lui appartiennent.",
+    "baselineDeploymentId": "Obligatoire. Il garde le reste du trafic.",
+    "candidateDeploymentId": "Obligatoire. Le déploiement en cours de diffusion.",
+    "steps": "De 1 à {{max}} étapes. Chaque pourcentage dépasse le précédent, et le dernier vaut 100.",
+    "maxErrorRatePercent": "De 0 à 100, 5 par défaut. Au-delà de cette part d'exécutions candidates échouées dans une étape, la diffusion revient en arrière.",
+    "evalSetId": "Facultatif. Une étape n'avance que si la dernière exécution d'évaluation de ce jeu atteint la note minimale.",
+    "minEvalScorePercent": "Obligatoire avec un jeu de condition d'évaluation, de 0 à 100."
+   }
+  }
+ }
+});

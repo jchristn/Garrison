@@ -7296,3 +7296,701 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "Eval sets",
+    "tip": "Versioned sets of cases that grade agents before they ship"
+   },
+   "evalRuns": {
+    "label": "Eval runs",
+    "tip": "Runs of an eval set against a deployment or an agent revision"
+   },
+   "shadowTrials": {
+    "label": "Shadow trials",
+    "tip": "A candidate deployment replays real inputs without acting"
+   },
+   "canaryReleases": {
+    "label": "Canary releases",
+    "tip": "A candidate deployment takes a rising share of traffic in steps"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Eval set",
+   "EvalRun": "Eval run",
+   "ShadowTrial": "Shadow trial",
+   "CanaryRelease": "Canary release"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "Canary rolled back"
+  },
+  "runKind": {
+   "Eval": "Eval case",
+   "Shadow": "Shadow copy"
+  },
+  "evalSetState": {
+   "Draft": "Draft",
+   "Approved": "Approved"
+  },
+  "evalSetOrigin": {
+   "Human": "Written by a person",
+   "Evaluator": "Written by an agent",
+   "Playground": "From the playground"
+  },
+  "evalScorer": {
+   "ExactMatch": "Exact match",
+   "Contains": "Contains",
+   "JsonSchemaValid": "Valid JSON Schema",
+   "Judge": "Judge agent"
+  },
+  "evalRunStatus": {
+   "Pending": "Pending",
+   "Running": "Running",
+   "Completed": "Completed",
+   "Failed": "Failed",
+   "Cancelled": "Cancelled"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "Agent revision",
+   "Deployment": "Deployment"
+  },
+  "evalRunInputMode": {
+   "Cases": "The set's cases",
+   "RecentInputs": "Recent inputs"
+  },
+  "shadowTrialStatus": {
+   "Running": "Running",
+   "Completed": "Completed",
+   "Stopped": "Stopped",
+   "Failed": "Failed"
+  },
+  "canaryStatus": {
+   "Running": "Running",
+   "Promoted": "Promoted",
+   "RolledBack": "Rolled back",
+   "Aborted": "Aborted"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "An eval set with this name already exists. Open it and edit it to make its next version.",
+  "AlreadyApproved": "This version is already approved.",
+  "EvalSetEmpty": "This eval set has no cases yet. Add a case first.",
+  "EvalSetImmutable": "This version is approved and is kept as it is. Edit it to open the next version, or delete a draft version instead.",
+  "ApprovalIsPeopleOnly": "Only a person can approve an eval set. An agent cannot approve the set that grades it.",
+  "EvalRunFinished": "This eval run has already finished.",
+  "ShadowTrialAlreadyRunning": "This candidate is already shadowing that deployment in another trial.",
+  "ShadowTrialNotRunning": "This shadow trial is no longer running.",
+  "CanaryAlreadyRunning": "One of these deployments is already in a running canary release.",
+  "CanaryNotRunning": "This canary release is no longer running.",
+  "EvalGateFailed": "The promotion needs a passing eval run of this revision against the environment's approved eval set, and there is none yet.",
+  "PeopleOnly": "Only people and API credentials can do this. A run token cannot."
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{completed}} of {{total}} cases, {{passed}} passed",
+  "noJudge": "No judge",
+  "noSet": "None",
+  "untilStopped": "Until stopped",
+  "verdict": {
+   "passed": "Passed",
+   "failed": "Below threshold",
+   "none": "No verdict"
+  },
+  "outcome": {
+   "passed": "Passed",
+   "failed": "Failed",
+   "errored": "Errored"
+  },
+  "target": {
+   "deployment": "Deployment {{name}}",
+   "revision": "Agent {{agent}}, revision {{revision}}"
+  },
+  "actions": {
+   "runSet": "Run set",
+   "openSet": "Open set",
+   "cancelRun": "Cancel run",
+   "stopTrial": "Stop trial",
+   "abortCanary": "Abort release",
+   "copyId": "Copy ID"
+  },
+  "toasts": {
+   "copied": "Copied the ID.",
+   "approved": "Approved {{name}} v{{version}}. It can gate promotions now.",
+   "caseSaved": "Saved the case.",
+   "caseSavedNextVersion": "Saved the case to version {{version}}, a new draft.",
+   "caseSavedTo": "Saved the case to {{name}}.",
+   "caseRemoved": "Removed the case.",
+   "caseRemovedNextVersion": "Removed the case from version {{version}}, a new draft.",
+   "setSavedNextVersion": "Saved as version {{version}}, a new draft.",
+   "runStarted": "Started an eval run of {{name}}.",
+   "runCancelled": "Cancelled the eval run.",
+   "trialStopped": "Stopped the shadow trial.",
+   "canaryAborted": "Aborted the canary release. The initial weights are back."
+  },
+  "reason": {
+   "label": "Reason",
+   "placeholder": "Optional. It is kept with the record and in the audit log."
+  },
+  "form": {
+   "errors": {
+    "name": "Give the set a name of 1 to {{max}} characters.",
+    "description": "The description holds at most {{max}} characters.",
+    "judgeAgent": "The judge agent name holds at most {{max}} characters.",
+    "tags": "Each tag holds at most {{max}} characters."
+   }
+  },
+  "set": {
+   "nextVersion": "This version is approved, so saving makes version {{version}} as a draft. This version stays as it is."
+  },
+  "case": {
+   "addTitle": "Add a case to {{name}}",
+   "editTitle": "Edit case {{number}}",
+   "save": "Save case",
+   "nextVersion": "This version is approved, so the change goes to version {{version}}, a new draft. This version stays as it is.",
+   "fromRun": "Saved from run {{id}}.",
+   "fields": {
+    "name": "Name",
+    "inputText": "Input",
+    "expectedText": "Expected output",
+    "hidden": "Hidden from the agents being graded",
+    "checks": "Checks"
+   },
+   "placeholders": {
+    "name": "Optional, for example refund over the limit",
+    "inputText": "The message the agent receives",
+    "expectedText": "What a good answer says"
+   },
+   "hints": {
+    "name": "Optional, at most {{max}} characters.",
+    "inputText": "Required. The case sends this to the agent as its input.",
+    "expectedText": "Optional. Exact match and Contains checks compare against it when they have no text of their own; the judge reads it as the reference answer.",
+    "hidden": "An agent's own runs see only the score of a hidden case, never its input or expected output, so it cannot learn the answers."
+   },
+   "checks": {
+    "scorer": "Scorer",
+    "weight": "Weight",
+    "add": "Add check",
+    "remove": "Remove check {{number}}",
+    "none": "No checks. The case is scored by exact match against the expected output, or by the judge agent when there is no expected output."
+   },
+   "scorerHints": {
+    "ExactMatch": "Passes when the output equals the text, ignoring surrounding whitespace.",
+    "Contains": "Passes when the output contains the text.",
+    "JsonSchemaValid": "Passes when the output is JSON that matches the schema.",
+    "Judge": "The set's judge agent grades the output against the rubric and the expected output."
+   },
+   "argumentLabels": {
+    "ExactMatch": "Exact text",
+    "Contains": "Text to find",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "Rubric"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "Empty uses the expected output",
+    "Contains": "Empty uses the expected output",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "Optional. What a good answer must do"
+   },
+   "errors": {
+    "input": "A case needs input text.",
+    "name": "The name holds at most {{max}} characters.",
+    "weight": "A weight is 0 to {{max}}.",
+    "schema": "Put a JSON Schema object here.",
+    "argument": "Give the text, or fill in the case's expected output."
+   }
+  },
+  "run": {
+   "title": "Run an eval set",
+   "titleFor": "Run {{name}} v{{version}}",
+   "intro": "Each case runs as its own Eval run. Runs against an agent revision use a temporary deployment and leave live traffic alone.",
+   "start": "Start run",
+   "starting": "Starting...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "Choose a deployment",
+   "chooseAgent": "Choose an agent",
+   "fields": {
+    "setId": "Eval set",
+    "targetType": "Evaluate",
+    "deploymentId": "Deployment",
+    "agentId": "Agent",
+    "agentRevisionId": "Revision",
+    "inputMode": "Inputs",
+    "recentInputCount": "Recent inputs to replay",
+    "thresholdPercent": "Pass threshold (percent)",
+    "budgetUsd": "Budget (USD)"
+   },
+   "hints": {
+    "setId": "The newest version of each set is listed.",
+    "targetType": "A deployment as it runs now, or an agent revision such as the draft the studio playground runs.",
+    "agentId": "Required. Without a revision the agent's draft revision runs, or its latest published one.",
+    "agentRevisionId": "Optional. An agent revision ID; empty runs the draft revision.",
+    "inputMode": "The set's cases, or the deployment's latest succeeded inputs graded by the judge agent.",
+    "recentInputCount": "1 to {{max}}.",
+    "thresholdPercent": "Optional, 0 to 100. The run passes when its weighted score reaches it.",
+    "budgetUsd": "Optional. When case and judge runs spend this much, the remaining cases are skipped and the run fails."
+   },
+   "errors": {
+    "set": "Pick the eval set to run.",
+    "deployment": "Pick the deployment to evaluate.",
+    "agent": "Pick the agent to evaluate.",
+    "threshold": "A threshold is 0 to 100 percent.",
+    "budget": "A budget is 0 to {{max}} USD.",
+    "recentInputs": "Replay 1 to {{max}} recent inputs."
+   }
+  },
+  "save": {
+   "open": "Save as eval case",
+   "title": "Save as eval case",
+   "intro": "The turn's input and the agent's answer become a case. Edit the expected output so it says what a good answer is, not only what this one said.",
+   "set": "Eval set",
+   "newSet": "New eval set...",
+   "newSetName": "New set name",
+   "newSetHint": "The new set starts as a draft with origin From the playground.",
+   "submit": "Save case",
+   "done": "Done",
+   "openSet": "Open set",
+   "runSet": "Run set",
+   "entryAgent": "the entry agent",
+   "saved": "Saved the case to {{name}} v{{version}}.",
+   "runHint": "Run set evaluates the draft revision of {{agent}}, the revision this playground ran.",
+   "errors": {
+    "set": "Pick an eval set, or make a new one."
+   }
+  },
+  "setDetail": {
+   "title": "Eval set",
+   "back": "All eval sets",
+   "notFoundTitle": "Eval set not found",
+   "notFoundBody": "It may have been a draft that someone deleted. Approved versions are always kept.",
+   "approve": "Approve",
+   "approveTitle": "Approve {{name}} v{{version}}",
+   "approveMessage": "An approved version is kept exactly as it is and can gate promotions and canary releases. Later edits make the next version as a draft.",
+   "approvedNote": "This version is approved and kept as it is. Editing the set or a case makes version {{version}} as a draft.",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "Some cases are graded by the judge agent, but this set has none. Edit the set and pick a judge agent before you run it.",
+   "editTitle": "Edit {{name}}",
+   "deleteTitle": "Delete draft version",
+   "deleteMessage": "Delete {{name}} v{{version}}? Approved versions are not affected.",
+   "cases": "Cases ({{count}})",
+   "addCase": "Add case",
+   "noCases": "No cases yet. Add one here, or save a turn from the studio playground.",
+   "noExpected": "None",
+   "hidden": "Hidden",
+   "removeCaseTitle": "Remove case {{number}}",
+   "removeCaseMessage": "Remove this case from the draft?",
+   "removeCaseApproved": "This version is approved, so the case is removed from version {{version}}, a new draft. This version keeps it.",
+   "versions": "Versions",
+   "thisVersion": "v{{version}} (this one)",
+   "runs": "Recent eval runs",
+   "allRuns": "All runs of this version",
+   "noRuns": "This version has not been run yet.",
+   "fields": {
+    "state": "State",
+    "origin": "Origin",
+    "judgeAgent": "Judge agent",
+    "tags": "Tags",
+    "authoredBy": "Written by",
+    "approvedBy": "Approved by",
+    "previousVersion": "Previous version",
+    "lastUpdateUtc": "Last changed",
+    "description": "Description"
+   },
+   "columns": {
+    "order": "#",
+    "name": "Name",
+    "input": "Input",
+    "expected": "Expected output",
+    "scorers": "Scored by",
+    "hidden": "Hidden",
+    "source": "From run"
+   },
+   "versionColumns": {
+    "version": "Version",
+    "state": "State",
+    "caseCount": "Cases",
+    "approvedBy": "Approved by",
+    "lastUpdateUtc": "Last changed"
+   },
+   "runColumns": {
+    "run": "Eval run",
+    "status": "Status",
+    "verdict": "Verdict",
+    "score": "Score",
+    "target": "Evaluated",
+    "createdUtc": "Started"
+   }
+  },
+  "runDetail": {
+   "title": "Eval run",
+   "back": "All eval runs",
+   "notFoundTitle": "Eval run not found",
+   "notFoundBody": "Check the ID, or open the run from its eval set.",
+   "live": "Live",
+   "polling": "Polling",
+   "failure": "The run failed: {{reason}}",
+   "progressLabel": "Cases finished",
+   "kpi": {
+    "score": "Score",
+    "threshold": "Threshold {{threshold}}",
+    "noThreshold": "No threshold",
+    "passed": "Cases passed",
+    "errored": "Cases errored",
+    "cost": "Cost",
+    "budget": "Budget {{budget}}",
+    "noBudget": "No budget"
+   },
+   "fields": {
+    "target": "Evaluated",
+    "targetType": "Target",
+    "inputMode": "Inputs",
+    "startedBy": "Started by",
+    "createdUtc": "Started",
+    "completedUtc": "Finished",
+    "studioDraftId": "Studio draft"
+   },
+   "recentInputs": "{{count}} recent inputs",
+   "results": "Case results ({{count}})",
+   "failingOnly": "Failing only ({{count}})",
+   "noFailing": "Every case passed.",
+   "noResults": "This run recorded no case results.",
+   "waiting": "Waiting for the first case to finish.",
+   "caseNumber": "Case {{number}}",
+   "recentInput": "Recent input {{number}}",
+   "checksPassed": "{{passed}} of {{total}} passed",
+   "open": "Open",
+   "columns": {
+    "order": "#",
+    "case": "Case",
+    "outcome": "Outcome",
+    "score": "Score",
+    "checks": "Checks",
+    "output": "Output"
+   },
+   "resultTitle": "Case {{number}}",
+   "resultTitleNamed": "Case {{number}}: {{name}}",
+   "scoreIs": "Score {{score}}",
+   "openCaseRun": "Open case run",
+   "openSourceRun": "Open source run",
+   "hiddenCase": "This case is hidden from the agents being graded.",
+   "input": "Input",
+   "diff": "Expected output against the output",
+   "expected": "Expected",
+   "output": "Output",
+   "noOutput": "No output.",
+   "checks": "Checks",
+   "noChecks": "No checks were scored.",
+   "checkColumns": {
+    "scorer": "Scorer",
+    "weight": "Weight",
+    "score": "Score",
+    "outcome": "Outcome",
+    "note": "Scorer note",
+    "judgeRun": "Judge run"
+   },
+   "cancelTitle": "Cancel eval run",
+   "cancelMessage": "Cancel this run of {{name}}? Cases that have not finished are cancelled with it."
+  },
+  "shadow": {
+   "errors": {
+    "name": "The name holds at most {{max}} characters.",
+    "source": "Pick the deployment whose runs are copied.",
+    "candidate": "Pick the candidate deployment.",
+    "same": "The candidate must be a different deployment from the source.",
+    "sample": "Sample 1 to 100 percent of the runs.",
+    "ends": "Pick an end in the future, or leave it empty to run until stopped."
+   }
+  },
+  "shadowDetail": {
+   "title": "Shadow trial",
+   "back": "All shadow trials",
+   "notFoundTitle": "Shadow trial not found",
+   "notFoundBody": "Check the ID, or open the trial from the list.",
+   "note": "Shadow runs replay the source's inputs on the candidate. They cannot use effectful tools, send messages, write memory, or file reports, and the source runs are not affected.",
+   "stopReason": "Stopped: {{reason}}",
+   "stopTitle": "Stop shadow trial",
+   "stopMessage": "Stop {{name}}? No more runs are copied; the counts so far are kept.",
+   "kpi": {
+    "compared": "Compared",
+    "agreed": "Agreed",
+    "diverged": "Diverged",
+    "failures": "Candidate failures",
+    "agreement": "Agreement"
+   },
+   "comparison": {
+    "text": "Normalized text",
+    "set": "With an eval set",
+    "judge": "By the judge agent"
+   },
+   "fields": {
+    "source": "Source",
+    "candidate": "Candidate",
+    "samplePercent": "Sampled",
+    "comparison": "Compared by",
+    "endsUtc": "Ends",
+    "createdBy": "Started by",
+    "createdUtc": "Started",
+    "completedUtc": "Finished"
+   }
+  },
+  "canary": {
+   "stepOf": "Step {{number}} of {{total}} at {{percent}}%",
+   "gateText": "{{name}} at {{score}} or more",
+   "noGate": "No eval gate",
+   "errors": {
+    "agent": "Pick the agent whose traffic is shifted.",
+    "candidate": "Pick the candidate deployment.",
+    "baseline": "Pick the baseline deployment.",
+    "same": "The candidate and the baseline must be different deployments.",
+    "steps": "List at least one step. The last step is 100 percent.",
+    "tooMany": "A release has at most {{max}} steps.",
+    "increasing": "Each step's percent is 1 to 100 and higher than the step before it.",
+    "lastStep": "The last step must be 100 percent.",
+    "errorRate": "The error rate ceiling is 0 to 100 percent.",
+    "gate": "An eval gate needs both an eval set and a minimum score, or neither.",
+    "score": "The minimum score is 0 to 100 percent."
+   }
+  },
+  "canaryDetail": {
+   "title": "Canary release",
+   "heading": "Canary release of {{agent}}",
+   "back": "All canary releases",
+   "notFoundTitle": "Canary release not found",
+   "notFoundBody": "Check the ID, or open the release from the list.",
+   "rolledBack": "Rolled back: {{reason}} The initial weights are back.",
+   "aborted": "Aborted: {{reason}} The initial weights are back.",
+   "promoted": "Promoted. {{candidate}} takes all of the traffic.",
+   "noReason": "no reason given.",
+   "withWeight": "{{name}} (weight {{weight}} before the release)",
+   "gate": "Latest eval score of {{score}} or more",
+   "steps": "Steps",
+   "columns": {
+    "step": "Step",
+    "weightPercent": "Candidate traffic",
+    "minimumRuns": "Minimum runs",
+    "minimumMinutes": "Minimum minutes",
+    "state": "State"
+   },
+   "stepStates": {
+    "done": "Done",
+    "current": "Current",
+    "stopped": "Stopped here",
+    "pending": "Waiting"
+   },
+   "abortTitle": "Abort canary release",
+   "abortMessage": "Abort the release? Both deployments go back to the weights they had before it started.",
+   "fields": {
+    "agent": "Agent",
+    "candidate": "Candidate",
+    "baseline": "Baseline",
+    "maxErrorRatePercent": "Error rate ceiling",
+    "gate": "Eval gate",
+    "stepStartedUtc": "Current step started",
+    "createdBy": "Started by",
+    "completedUtc": "Finished"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "A case needs input text.",
+   "UnknownScorer": "Use Exact match, Contains, Valid JSON Schema, or Judge agent.",
+   "ArgumentRequired": "Give the text, or fill in the case's expected output.",
+   "InvalidJsonSchema": "This is not a valid JSON Schema.",
+   "TooManyCases": "The set has the most cases a set may hold.",
+   "EvaluatorIsForAgents": "Origin Written by an agent is for sets an agent made. Pick Written by a person or From the playground.",
+   "SetRequired": "Pick the eval set to run.",
+   "TargetRequired": "Pick what to evaluate.",
+   "RecentInputsNeedDeployment": "Recent inputs replay a deployment's runs. Evaluate a deployment.",
+   "NoRecentInputs": "The deployment has no succeeded runs to replay yet.",
+   "EvalSetEmpty": "This version has no cases.",
+   "JudgeAgentRequired": "Some cases need the judge agent, but the set has none. Edit the set and pick one.",
+   "DeploymentNotFound": "That deployment does not exist in this tenant.",
+   "SameDeployment": "Pick two different deployments.",
+   "DifferentAgent": "Both deployments must belong to the same agent.",
+   "DeploymentInactive": "That deployment is inactive. Activate it first.",
+   "AgentMismatch": "The agent must be the source deployment's agent.",
+   "EndsInPast": "Pick an end in the future, or leave it empty.",
+   "EvalSetNotFound": "That eval set does not exist in this tenant.",
+   "AgentNotFound": "That agent does not exist in this tenant.",
+   "EvalGateIncomplete": "An eval gate needs both an eval set and a minimum score, or neither.",
+   "NotIncreasing": "Each step's percent must be higher than the step before it.",
+   "LastStepNotFull": "The last step must be 100 percent."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "Eval sets",
+   "subtitle": "Versioned cases that grade an agent. Approve a version so it can gate promotions and canary releases.",
+   "add": "Add eval set",
+   "create": "Add eval set",
+   "edit": "Edit eval set",
+   "view": "Eval set",
+   "deleteTitle": "Delete draft version",
+   "emptyTitle": "No eval sets yet",
+   "emptyBody": "Add a set and its cases here, or save a turn from the studio playground as the first case.",
+   "filters": {
+    "latestOnly": "Versions",
+    "newestOnly": "Newest version only",
+    "allVersions": "Every version"
+   },
+   "columns": {
+    "name": "Name",
+    "version": "Version",
+    "state": "State",
+    "origin": "Origin",
+    "caseCount": "Cases",
+    "judgeAgent": "Judge agent",
+    "tags": "Tags",
+    "authoredByName": "Written by",
+    "approvedByName": "Approved by",
+    "description": "Description",
+    "lastUpdateUtc": "Last changed",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Description",
+    "origin": "Origin",
+    "judgeAgent": "Judge agent",
+    "tags": "Tags"
+   },
+   "hints": {
+    "name": "1 to {{max}} characters. The name stays the same across versions.",
+    "description": "Optional, at most {{max}} characters.",
+    "origin": "From the playground marks sets that grew out of playground turns.",
+    "judgeAgent": "The agent that grades Judge checks, cases without expected output, and recent inputs.",
+    "tags": "Optional, one per line, at most {{max}} characters each."
+   }
+  },
+  "evalRuns": {
+   "title": "Eval runs",
+   "subtitle": "Each run of an eval set version against a deployment or an agent revision, with its score against the threshold.",
+   "add": "Run set",
+   "create": "Run an eval set",
+   "edit": "Eval run",
+   "view": "Eval run",
+   "deleteTitle": "Delete eval run",
+   "emptyTitle": "No eval runs yet",
+   "emptyBody": "Run an eval set to grade a deployment or a draft revision before it ships.",
+   "columns": {
+    "setName": "Eval set",
+    "status": "Status",
+    "verdict": "Verdict",
+    "score": "Score",
+    "threshold": "Threshold",
+    "progress": "Progress",
+    "target": "Evaluated",
+    "inputMode": "Inputs",
+    "costUsd": "Cost",
+    "startedByName": "Started by",
+    "createdUtc": "Started",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "Shadow trials",
+   "subtitle": "A candidate deployment replays a share of a live deployment's inputs without acting, and the outputs are compared.",
+   "add": "Start shadow trial",
+   "create": "Start a shadow trial",
+   "edit": "Shadow trial",
+   "view": "Shadow trial",
+   "deleteTitle": "Delete shadow trial",
+   "emptyTitle": "No shadow trials yet",
+   "emptyBody": "Start a trial to see how a candidate deployment answers real inputs before it takes any traffic.",
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "source": "Source",
+    "candidate": "Candidate",
+    "samplePercent": "Sampled",
+    "comparedCount": "Compared",
+    "agreedCount": "Agreed",
+    "divergedCount": "Diverged",
+    "candidateFailureCount": "Failures",
+    "agreement": "Agreement",
+    "endsUtc": "Ends",
+    "createdUtc": "Started",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Name",
+    "sourceDeploymentId": "Source deployment",
+    "candidateDeploymentId": "Candidate deployment",
+    "samplePercent": "Sample (percent)",
+    "endsUtc": "Ends",
+    "comparisonEvalSetId": "Compare with eval set",
+    "useJudge": "Compare with the judge agent"
+   },
+   "hints": {
+    "name": "Optional, at most {{max}} characters.",
+    "sourceDeploymentId": "Required. Its succeeded runs are copied; it is not affected.",
+    "candidateDeploymentId": "Required. Another deployment of the same agent.",
+    "samplePercent": "1 to 100, default 10. The share of the source's runs that are copied.",
+    "endsUtc": "Optional. Empty runs until someone stops it.",
+    "comparisonEvalSetId": "Optional. Without one the outputs are compared as normalized text.",
+    "useJudge": "Ask the judge agent whether the two outputs agree."
+   }
+  },
+  "canaryReleases": {
+   "title": "Canary releases",
+   "subtitle": "A candidate deployment takes a rising share of an agent's traffic in steps and rolls back on its own when it misbehaves.",
+   "add": "Start canary release",
+   "create": "Start a canary release",
+   "edit": "Canary release",
+   "view": "Canary release",
+   "deleteTitle": "Delete canary release",
+   "emptyTitle": "No canary releases yet",
+   "emptyBody": "Start a release to move traffic to a new deployment a step at a time.",
+   "addStep": "Add step",
+   "columns": {
+    "agent": "Agent",
+    "status": "Status",
+    "candidate": "Candidate",
+    "baseline": "Baseline",
+    "step": "Step",
+    "maxErrorRatePercent": "Error ceiling",
+    "gate": "Eval gate",
+    "rollbackReason": "Rollback reason",
+    "createdUtc": "Started",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "Agent",
+    "baselineDeploymentId": "Baseline deployment",
+    "candidateDeploymentId": "Candidate deployment",
+    "steps": "Steps",
+    "weightPercent": "Candidate traffic (percent)",
+    "minimumRuns": "Minimum runs",
+    "minimumMinutes": "Minimum minutes",
+    "maxErrorRatePercent": "Error rate ceiling (percent)",
+    "evalSetId": "Eval gate set",
+    "minEvalScorePercent": "Minimum eval score (percent)"
+   },
+   "hints": {
+    "agentId": "Required. Both deployments belong to it.",
+    "baselineDeploymentId": "Required. It keeps the rest of the traffic.",
+    "candidateDeploymentId": "Required. The deployment being released.",
+    "steps": "1 to {{max}} steps. Each percent is higher than the one before, and the last is 100.",
+    "maxErrorRatePercent": "0 to 100, default 5. More failed candidate runs than this in a step rolls the release back.",
+    "evalSetId": "Optional. A step advances only when the latest eval run of this set reaches the minimum score.",
+    "minEvalScorePercent": "Required with an eval gate set, 0 to 100."
+   }
+  }
+ }
+});

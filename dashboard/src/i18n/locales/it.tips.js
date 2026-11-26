@@ -4380,3 +4380,416 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "p3": "Ogni proposta applicata viene registrata come revisione dell'organizzazione, quindi puoi annullarla. Solo le persone scrivono le regole."
  }
 });
+
+// Evaluations (AA9.9, AA9.15): tooltips of the evaluation pages, forms, and the new enums.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "evaluations": "Set di valutazione: casi versionati che valutano un agente, approvati da una persona prima di condizionare una promozione.",
+   "evalRuns": "Esecuzioni di valutazione: ogni esecuzione di un set di valutazione su una distribuzione o una revisione di agente, seguita caso per caso.",
+   "shadowTrials": "Prove in ombra: una distribuzione candidata risponde a copie di input reali senza agire, e gli output vengono confrontati.",
+   "canaryReleases": "Rilasci canary: una distribuzione candidata riceve più traffico passo dopo passo e torna indietro da sola quando si comporta male."
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Set di valutazione e i loro casi. Read permette di vederli; Create e Update di scriverli; solo le persone li approvano.",
+   "EvalRun": "Esecuzioni di valutazione di un set su una distribuzione o una revisione. Execute permette di avviarle e annullarle.",
+   "ShadowTrial": "Prove in ombra che copiano gli input di una distribuzione su una candidata. Create ne avvia una; Update la ferma.",
+   "CanaryRelease": "Rilasci canary che spostano a passi il traffico di un agente. Create ne avvia uno; Update lo interrompe."
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "Un rilascio canary è stato ripristinato perché il tasso di errore o il punteggio di valutazione della candidata è uscito dai limiti."
+  },
+  "runKind": {
+   "Eval": "Un caso di un'esecuzione di valutazione: l'input del caso inviato alla distribuzione o alla revisione da valutare.",
+   "Shadow": "Una copia di un input reale ripetuta sulla candidata di una prova in ombra. Non può agire su nulla."
+  },
+  "evalSetState": {
+   "Draft": "Ancora in scrittura. I casi possono cambiare, e il set non può ancora condizionare una promozione.",
+   "Approved": "Una persona ha approvato questa versione. Resta così com'è e può condizionare promozioni e rilasci canary."
+  },
+  "evalSetOrigin": {
+   "Human": "Una persona ha scritto questo set nella dashboard o tramite l'API.",
+   "Evaluator": "Un agente ha scritto questo set. Fa da requisito solo quando proviene da fuori del sottoalbero dell'agente valutato.",
+   "Playground": "Il set è nato da turni salvati dall'area di prova dello studio."
+  },
+  "evalScorer": {
+   "ExactMatch": "L'output deve essere esattamente uguale al testo, senza contare gli spazi iniziali e finali.",
+   "Contains": "L'output deve contenere il testo da qualche parte.",
+   "JsonSchemaValid": "L'output deve essere JSON conforme al JSON Schema.",
+   "Judge": "L'agente giudice del set legge l'input, la risposta di riferimento e l'output, e assegna un giudizio."
+  },
+  "evalRunStatus": {
+   "Pending": "In attesa di avviare il primo caso.",
+   "Running": "I casi sono in esecuzione ora; la pagina li segue man mano che terminano.",
+   "Completed": "Tutti i casi sono terminati e l'esecuzione ha un punteggio.",
+   "Failed": "L'esecuzione si è fermata prima del tempo, per esempio quando il budget è finito. Il motivo è indicato nell'esecuzione.",
+   "Cancelled": "Una persona ha annullato l'esecuzione prima che tutti i casi terminassero."
+  },
+  "evalRunTarget": {
+   "AgentRevision": "Una revisione di agente gira su una distribuzione temporanea, quindi il traffico reale non viene toccato.",
+   "Deployment": "Una distribuzione esegue i casi con la configurazione attuale."
+  },
+  "evalRunInputMode": {
+   "Cases": "I casi del set con i loro controlli.",
+   "RecentInputs": "Gli input riusciti più recenti della distribuzione, valutati dall'agente giudice."
+  },
+  "shadowTrialStatus": {
+   "Running": "Le esecuzioni dell'origine vengono copiate ora sulla candidata.",
+   "Completed": "La prova ha raggiunto l'ora di fine.",
+   "Stopped": "Una persona ha fermato la prova.",
+   "Failed": "La prova non ha potuto continuare. Il motivo è indicato nella prova."
+  },
+  "canaryStatus": {
+   "Running": "La candidata è su uno dei passi e riceve parte del traffico.",
+   "Promoted": "Tutti i passi sono stati superati, e la candidata riceve tutto il traffico.",
+   "RolledBack": "La candidata è uscita dai limiti, e i pesi sono tornati com'erano.",
+   "Aborted": "Una persona ha interrotto il rilascio, e i pesi sono tornati com'erano."
+  }
+ },
+ "filters": {
+  "state": "Mostra solo i record in questo stato, come bozza o approvato.",
+  "latestOnly": "Mostra solo la versione più recente di ogni set di valutazione, oppure tutte le versioni.",
+  "set": "Mostra solo le esecuzioni di questa versione del set di valutazione."
+ },
+ "evals": {
+  "reason": "Perché lo stai fermando. Facoltativo; viene conservato con il record e nel registro di audit.",
+  "verdict": {
+   "passed": "Il punteggio ponderato ha raggiunto la soglia.",
+   "failed": "Il punteggio ponderato è rimasto sotto la soglia.",
+   "none": "L'esecuzione è ancora in corso, oppure non ha una soglia da superare."
+  },
+  "outcome": {
+   "passed": "Il punteggio ponderato del caso è sufficiente.",
+   "failed": "Il caso è stato eseguito, ma i suoi controlli non sono stati superati.",
+   "errored": "L'esecuzione del caso non è riuscita, quindi il caso ha punteggio zero."
+  },
+  "actions": {
+   "runSet": "Esegui un set di valutazione su una distribuzione o una revisione di agente.",
+   "openSet": "Apri la versione del set di valutazione usata da questa esecuzione.",
+   "cancelRun": "Ferma l'esecuzione e annulla i casi non ancora terminati.",
+   "stopTrial": "Smetti di copiare esecuzioni sulla candidata. I conteggi raccolti finora restano.",
+   "abortCanary": "Ferma il rilascio e riporta entrambe le distribuzioni ai pesi che avevano prima.",
+   "copyId": "Copia l'ID per l'API REST, gli SDK o gli strumenti MCP."
+  },
+  "case": {
+   "name": "Un nome breve per il caso, mostrato nei risultati dell'esecuzione.",
+   "inputText": "Ciò che l'agente riceve come input quando il caso viene eseguito.",
+   "expectedText": "La risposta di riferimento. I controlli senza un testo proprio la usano come confronto.",
+   "hidden": "Nascondi l'input e l'output atteso agli agenti valutati. Le loro esecuzioni vedono solo il punteggio.",
+   "checks": "Come viene valutato l'output. Ogni controllo dà un punteggio da 0 a 1, e il punteggio del caso è la loro media ponderata.",
+   "scorer": "Come questo controllo valuta l'output.",
+   "weight": "Quanto conta questo controllo nel punteggio del caso, da 0 a 100. Zero mostra il controllo senza contarlo.",
+   "argument": {
+    "ExactMatch": "Il testo esatto a cui l'output deve essere uguale. Se vuoto usa l'output atteso del caso.",
+    "Contains": "Il testo che l'output deve contenere. Se vuoto usa l'output atteso del caso.",
+    "JsonSchemaValid": "Il JSON Schema a cui l'output deve essere conforme.",
+    "Judge": "Cosa cerca il giudice, in parole semplici. Facoltativo; il giudice legge anche l'output atteso."
+   },
+   "addCheck": "Aggiungi un altro modo di valutare l'output.",
+   "removeCheck": "Rimuovi questo controllo dal caso.",
+   "save": "Salva il caso in questa versione in bozza.",
+   "saveNextVersion": "Salva il caso. La versione approvata resta così com'è, e la modifica va nella versione successiva."
+  },
+  "run": {
+   "setId": "La versione del set di valutazione da eseguire.",
+   "targetType": "Valuta una distribuzione così come funziona ora, oppure una revisione di agente su una distribuzione temporanea.",
+   "deploymentId": "La distribuzione di cui vengono valutate le risposte.",
+   "agentId": "L'agente di cui viene valutata la revisione.",
+   "agentRevisionId": "Un ID di revisione specifico. Se vuoto usa la revisione in bozza dell'agente.",
+   "inputMode": "Esegui i casi del set, oppure ripeti gli input recenti della distribuzione e falli valutare al giudice.",
+   "recentInputCount": "Quanti degli ultimi input riusciti della distribuzione ripetere.",
+   "thresholdPercent": "Il punteggio che l'esecuzione deve raggiungere per essere superata. Se vuoto l'esecuzione resta senza verdetto.",
+   "budgetUsd": "Il massimo che le esecuzioni dei casi e del giudice possono spendere insieme. Se vuoto non c'è budget.",
+   "start": "Avvia l'esecuzione di valutazione e apri la sua pagina."
+  },
+  "save": {
+   "open": "Salva l'input e la risposta di questo turno come caso di un set di valutazione.",
+   "set": "Il set di valutazione in cui va il caso. Un caso aggiunto a una versione approvata va nella versione successiva.",
+   "newSetName": "Il nome del nuovo set di valutazione. Resta lo stesso in tutte le versioni.",
+   "submit": "Salva il caso con l'esecuzione dell'area di prova come origine.",
+   "done": "Chiudi e resta nell'area di prova.",
+   "openSet": "Apri il set di valutazione con i suoi casi.",
+   "runSet": "Apri il set ed eseguilo sulla revisione in bozza eseguita nell'area di prova."
+  },
+  "setDetail": {
+   "back": "Torna all'elenco dei set di valutazione.",
+   "viewJson": "Vedi questa versione e i suoi casi come li restituisce l'API.",
+   "edit": "Modifica la descrizione, l'agente giudice e i tag.",
+   "editApproved": "Modifica il set. La versione approvata resta così com'è, e la modifica crea la versione successiva.",
+   "delete": "Elimina questa versione in bozza. Le versioni approvate vengono conservate.",
+   "approve": "Approva questa versione perché possa condizionare promozioni e rilasci canary. Solo le persone approvano.",
+   "approveEmpty": "Aggiungi prima un caso. Un set vuoto non può essere approvato.",
+   "runEmpty": "Aggiungi prima un caso. Un set vuoto non ha nulla da eseguire.",
+   "cases": "I casi di questa versione nell'ordine in cui vengono eseguiti.",
+   "addCase": "Aggiungi un caso alla fine di questa bozza.",
+   "addCaseApproved": "Aggiungi un caso. Va nella versione successiva, una nuova bozza, e questa versione resta così com'è.",
+   "editCase": "Modifica l'input, l'output atteso o i controlli di questo caso.",
+   "editCaseApproved": "Modifica questo caso. La modifica va nella versione successiva, una nuova bozza.",
+   "removeCase": "Rimuovi il caso dalla bozza.",
+   "openSourceRun": "Apri l'esecuzione da cui è stato salvato il caso.",
+   "versions": "Tutte le versioni di questo set, dalla più recente.",
+   "openVersion": "Apri questa versione del set.",
+   "runs": "Le ultime esecuzioni di valutazione di questa versione.",
+   "allRuns": "Apri l'elenco delle esecuzioni di valutazione filtrato su questa versione.",
+   "openRun": "Apri l'esecuzione di valutazione con i risultati dei casi.",
+   "fields": {
+    "state": "Bozza mentre è in scrittura; Approvato quando una persona lo ha approvato.",
+    "origin": "Chi o cosa ha scritto il set: una persona, un agente o l'area di prova dello studio.",
+    "judgeAgent": "L'agente che valuta i controlli Giudice, i casi senza output atteso e gli input recenti.",
+    "tags": "Etichette per trovare il set.",
+    "authoredBy": "La persona o l'agente che ha scritto questa versione.",
+    "approvedBy": "La persona che ha approvato questa versione, e quando.",
+    "previousVersion": "La versione da cui è stata creata questa.",
+    "lastUpdateUtc": "Quando questa versione è cambiata l'ultima volta. Passa il puntatore per vedere quanto tempo fa.",
+    "description": "Cosa controlla il set, in parole semplici."
+   },
+   "columns": {
+    "order": "L'ordine in cui vengono eseguiti i casi.",
+    "name": "Il nome del caso.",
+    "input": "Ciò che riceve l'agente. Passa il puntatore per il testo completo.",
+    "expected": "La risposta di riferimento. Passa il puntatore per il testo completo.",
+    "scorers": "I controlli che valutano il caso, oppure quello predefinito quando non ne ha.",
+    "hidden": "I casi nascosti mostrano agli agenti valutati solo il loro punteggio.",
+    "source": "L'esecuzione da cui è stato salvato questo caso, quando viene dall'area di prova."
+   },
+   "versionColumns": {
+    "version": "Il numero di versione.",
+    "state": "Bozza o approvato.",
+    "caseCount": "Quanti casi contiene la versione.",
+    "approvedBy": "La persona che ha approvato la versione.",
+    "lastUpdateUtc": "Quando la versione è cambiata l'ultima volta."
+   },
+   "runColumns": {
+    "run": "L'ID dell'esecuzione di valutazione. Aprila per i risultati dei casi.",
+    "status": "A che punto è l'esecuzione.",
+    "verdict": "Se il punteggio ha raggiunto la soglia.",
+    "score": "Il punteggio ponderato, da 0 a 100 percento.",
+    "target": "La distribuzione o la revisione di agente che è stata valutata.",
+    "createdUtc": "Quando è iniziata l'esecuzione."
+   }
+  },
+  "runDetail": {
+   "back": "Torna all'elenco delle esecuzioni di valutazione.",
+   "viewJson": "Vedi l'esecuzione come la restituisce l'API.",
+   "live": "Gli aggiornamenti arrivano sul canale in diretta man mano che ogni caso termina.",
+   "polling": "Il canale in diretta non è connesso, quindi la pagina cerca aggiornamenti ogni pochi secondi.",
+   "progress": "Casi terminati finora, sul totale dei casi dell'esecuzione.",
+   "results": "Una riga per caso, in ordine. Le righe non superate e in errore sono evidenziate.",
+   "failingOnly": "Mostra solo i casi non superati o in errore.",
+   "open": "Apri il caso con l'output atteso, l'output e tutti i controlli.",
+   "openAgent": "Apri l'agente che è stato valutato.",
+   "openDraft": "Apri la bozza dello studio di cui è stata valutata la revisione.",
+   "openCaseRun": "Apri l'esecuzione che ha risposto a questo caso.",
+   "openSourceRun": "Apri l'esecuzione da cui provengono il caso o l'input recente.",
+   "openJudgeRun": "Apri l'esecuzione dell'agente giudice che ha valutato questo controllo.",
+   "input": "Ciò che l'agente ha ricevuto.",
+   "diff": "Le righe presenti solo nell'output atteso sono segnate con un meno; quelle presenti solo nell'output dell'agente con un più.",
+   "output": "Ciò che l'agente ha risposto.",
+   "checks": "Ogni controllo con il suo valutatore, il peso, il punteggio e la nota del valutatore.",
+   "kpi": {
+    "score": "La media ponderata dei punteggi dei casi, rispetto alla soglia da superare.",
+    "passed": "Casi i cui controlli sono stati superati, sul totale dei casi.",
+    "errored": "Casi la cui esecuzione non è riuscita. Hanno punteggio zero.",
+    "cost": "Quanto hanno speso le esecuzioni dei casi e del giudice, rispetto al budget."
+   },
+   "fields": {
+    "target": "La distribuzione, oppure l'agente e la revisione, che è stata valutata.",
+    "targetType": "Se è stata valutata una distribuzione o una revisione di agente.",
+    "inputMode": "I casi del set, oppure gli input recenti di una distribuzione.",
+    "startedBy": "La persona, la credenziale o l'agente che ha avviato l'esecuzione.",
+    "createdUtc": "Quando è stata avviata l'esecuzione.",
+    "completedUtc": "Quando è terminato l'ultimo caso.",
+    "studioDraftId": "La bozza dello studio per cui un dirigente ha eseguito questa valutazione."
+   },
+   "columns": {
+    "order": "L'ordine in cui è stato eseguito il caso.",
+    "case": "Il nome del caso, oppure il suo numero.",
+    "outcome": "Superato, non superato o in errore.",
+    "score": "Il punteggio ponderato del caso, da 0 a 100 percento.",
+    "checks": "Quanti controlli del caso sono stati superati.",
+    "output": "L'inizio della risposta dell'agente, oppure l'errore. Passa il puntatore per vedere di più.",
+    "open": "Apri un caso per vedere le differenze e le note del valutatore."
+   },
+   "checkColumns": {
+    "scorer": "Come questo controllo ha valutato l'output.",
+    "weight": "Quanto conta il controllo nel punteggio del caso.",
+    "score": "Il punteggio di questo controllo, da 0 a 100 percento.",
+    "outcome": "Se questo controllo è stato superato.",
+    "note": "Cosa ha detto il valutatore sull'output, come il ragionamento del giudice.",
+    "judgeRun": "L'esecuzione dell'agente giudice per questo controllo, quando lo ha valutato un giudice."
+   }
+  },
+  "shadowDetail": {
+   "back": "Torna all'elenco delle prove in ombra.",
+   "viewJson": "Vedi la prova come la restituisce l'API.",
+   "kpi": {
+    "compared": "Esecuzioni copiate il cui output della candidata è stato confrontato con quello dell'origine.",
+    "agreed": "Confronti in cui l'output della candidata corrispondeva a quello dell'origine.",
+    "diverged": "Confronti in cui l'output della candidata era diverso da quello dell'origine.",
+    "failures": "Esecuzioni copiate che non sono riuscite sulla candidata.",
+    "agreement": "Confronti concordi sul totale dei confronti."
+   },
+   "fields": {
+    "source": "La distribuzione di cui vengono copiate le esecuzioni riuscite. Non viene toccata.",
+    "candidate": "La distribuzione che ripete le copie come esecuzioni in ombra.",
+    "samplePercent": "La quota delle esecuzioni dell'origine che viene copiata.",
+    "comparison": "Come vengono confrontati i due output.",
+    "endsUtc": "Quando la prova termina da sola.",
+    "createdBy": "Chi ha avviato la prova.",
+    "createdUtc": "Quando è iniziata la prova.",
+    "completedUtc": "Quando è terminata la prova."
+   }
+  },
+  "canaryDetail": {
+   "back": "Torna all'elenco dei rilasci canary.",
+   "viewJson": "Vedi il rilascio come lo restituisce l'API.",
+   "openAgent": "Apri l'agente di cui il rilascio sposta il traffico.",
+   "steps": "I passi del rilascio in ordine, con quello su cui si trova la candidata.",
+   "columns": {
+    "step": "Il numero del passo.",
+    "weightPercent": "La quota del traffico dell'agente che la candidata riceve durante il passo.",
+    "minimumRuns": "Esecuzioni della candidata che devono terminare prima che il passo possa avanzare.",
+    "minimumMinutes": "Minuti che il passo deve durare prima di poter avanzare.",
+    "state": "Fatto, il passo corrente, il passo su cui si è fermato o ancora da raggiungere."
+   },
+   "stepStates": {
+    "done": "Il passo è stato superato e il rilascio è andato avanti.",
+    "current": "La candidata è su questo passo ora.",
+    "stopped": "Il rilascio è terminato su questo passo.",
+    "pending": "Il rilascio non ha ancora raggiunto questo passo."
+   },
+   "fields": {
+    "agent": "L'agente il cui traffico viene spostato tra le due distribuzioni.",
+    "candidate": "La distribuzione da rilasciare, con il suo peso di prima del rilascio.",
+    "baseline": "La distribuzione che mantiene il resto del traffico, con il suo peso di prima.",
+    "maxErrorRatePercent": "Se in un passo le esecuzioni non riuscite della candidata superano questo valore, il rilascio viene ripristinato.",
+    "gate": "Se impostato, un passo avanza solo finché l'ultimo punteggio di valutazione resta pari o superiore al minimo.",
+    "stepStartedUtc": "Quando è iniziato il passo corrente.",
+    "createdBy": "Chi ha avviato il rilascio.",
+    "completedUtc": "Quando è terminato il rilascio."
+   }
+  },
+  "filters": {
+   "state": "Mostra solo le versioni in bozza oppure solo quelle approvate.",
+   "origin": "Mostra solo i set scritti da persone, da agenti o salvati dall'area di prova."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "add": "Crea la versione 1 di un nuovo set di valutazione. Aggiungi i casi nella pagina del set.",
+   "name": "Il nome del set. Resta lo stesso in tutte le versioni.",
+   "version": "Il numero di versione. Modificare una versione approvata crea la successiva.",
+   "state": "Bozza o approvato. Solo le versioni approvate possono condizionare le promozioni.",
+   "origin": "Scritto da una persona, da un agente o salvato dall'area di prova.",
+   "caseCount": "Quanti casi contiene questa versione.",
+   "judgeAgent": "L'agente che valuta i controlli Giudice e i casi senza output atteso.",
+   "tags": "Etichette per trovare il set.",
+   "authoredByName": "La persona o l'agente che ha scritto questa versione.",
+   "approvedByName": "La persona che ha approvato questa versione. Passa il puntatore per vedere quando.",
+   "description": "Cosa controlla il set. Passa il puntatore per il testo completo.",
+   "lastUpdateUtc": "Quando questa versione è cambiata l'ultima volta. Passa il puntatore per l'ora esatta.",
+   "id": "L'ID della versione del set di valutazione (evs_...), per l'API REST, gli SDK e gli strumenti MCP."
+  },
+  "evalRuns": {
+   "setName": "Il set di valutazione e la versione che sono stati eseguiti.",
+   "status": "A che punto è l'esecuzione: in sospeso, in esecuzione, completata, non riuscita o annullata.",
+   "verdict": "Se il punteggio ha raggiunto la soglia.",
+   "score": "La media ponderata dei punteggi dei casi.",
+   "threshold": "Il punteggio che l'esecuzione doveva raggiungere per essere superata.",
+   "progress": "Casi terminati e superati, sul totale dei casi.",
+   "target": "La distribuzione o la revisione di agente che è stata valutata.",
+   "inputMode": "I casi del set, oppure gli input recenti di una distribuzione.",
+   "costUsd": "Quanto hanno speso le esecuzioni dei casi e del giudice.",
+   "startedByName": "La persona, la credenziale o l'agente che ha avviato l'esecuzione.",
+   "createdUtc": "Quando è iniziata l'esecuzione. Passa il puntatore per l'ora esatta.",
+   "id": "L'ID dell'esecuzione di valutazione (evr_...), per l'API REST, gli SDK e gli strumenti MCP."
+  },
+  "shadowTrials": {
+   "add": "Inizia a copiare una quota delle esecuzioni di una distribuzione su una distribuzione candidata dello stesso agente.",
+   "name": "Un nome breve per la prova.",
+   "status": "In esecuzione, completata, fermata o non riuscita.",
+   "source": "La distribuzione di cui vengono copiate le esecuzioni.",
+   "candidate": "La distribuzione che ripete le copie.",
+   "samplePercent": "La quota delle esecuzioni dell'origine che viene copiata.",
+   "comparedCount": "Copie i cui output sono stati confrontati.",
+   "agreedCount": "Confronti in cui gli output concordavano.",
+   "divergedCount": "Confronti in cui gli output erano diversi.",
+   "candidateFailureCount": "Copie che non sono riuscite sulla candidata.",
+   "agreement": "Confronti concordi sul totale dei confronti.",
+   "endsUtc": "Quando la prova termina da sola, oppure Finché non viene fermata.",
+   "createdUtc": "Quando è iniziata la prova. Passa il puntatore per l'ora esatta.",
+   "id": "L'ID della prova in ombra (shd_...), per l'API REST, gli SDK e gli strumenti MCP.",
+   "sourceDeploymentId": "La distribuzione di cui vengono copiate le esecuzioni riuscite. Le sue esecuzioni non vengono toccate.",
+   "candidateDeploymentId": "Un'altra distribuzione dello stesso agente che risponde alle copie senza agire.",
+   "comparisonEvalSetId": "Un set di valutazione i cui controlli confrontano gli output. Se vuoto confronta il testo normalizzato.",
+   "useJudge": "Chiedi all'agente giudice se la risposta della candidata concorda con quella dell'origine."
+  },
+  "canaryReleases": {
+   "add": "Inizia a spostare a passi il traffico di un agente su una distribuzione candidata.",
+   "agent": "L'agente il cui traffico si sposta tra le due distribuzioni.",
+   "status": "In esecuzione, promosso, ripristinato o interrotto.",
+   "candidate": "La distribuzione da rilasciare.",
+   "baseline": "La distribuzione che mantiene il resto del traffico.",
+   "step": "Il passo su cui si trova il rilascio e la quota di traffico della candidata.",
+   "maxErrorRatePercent": "Il tasso di errore della candidata che fa ripristinare il rilascio.",
+   "gate": "Il set di valutazione e il punteggio minimo di cui un passo ha bisogno per avanzare, se presenti.",
+   "rollbackReason": "Perché il rilascio è stato ripristinato o interrotto. Passa il puntatore per il testo completo.",
+   "createdUtc": "Quando è iniziato il rilascio. Passa il puntatore per l'ora esatta.",
+   "id": "L'ID del rilascio canary (cnr_...), per l'API REST, gli SDK e gli strumenti MCP.",
+   "agentId": "L'agente le cui due distribuzioni si dividono il traffico.",
+   "baselineDeploymentId": "La distribuzione che serve il traffico non preso dalla candidata.",
+   "candidateDeploymentId": "La distribuzione che riceve più traffico a ogni passo.",
+   "steps": "Le quote di traffico che la candidata attraversa, ognuna con un minimo di esecuzioni e di minuti.",
+   "weightPercent": "La quota di traffico della candidata durante questo passo, da 1 a 100.",
+   "minimumRuns": "Esecuzioni della candidata che devono terminare durante il passo prima che possa avanzare.",
+   "minimumMinutes": "Minuti che il passo deve durare prima di poter avanzare.",
+   "evalSetId": "Un set di valutazione la cui ultima esecuzione deve raggiungere il punteggio minimo perché un passo avanzi.",
+   "minEvalScorePercent": "Il punteggio di valutazione più basso, in percentuale, che permette a un passo di avanzare."
+  }
+ }
+});
+
+// Evaluations (AA9.15): the explainers of the evaluation pages.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "evalSets": {
+  "title": "Set di valutazione",
+  "p1": "Un set di valutazione è un elenco di casi: un input, la risposta che ti aspetti e i controlli che danno un punteggio da 0 a 1 all'output dell'agente. Un caso può essere nascosto, così gli agenti valutati ne vedono solo il punteggio.",
+  "p2": "I set hanno versioni. Una persona approva una versione in bozza, e una versione approvata non cambia mai, quindi può condizionare le promozioni verso un ambiente e i rilasci canary. Modificare una versione approvata crea la versione successiva come bozza.",
+  "p3": "Il modo più rapido per iniziare è l'area di prova dello studio: salva come caso un turno che ti piace, poi esegui il set sulla revisione in bozza."
+ },
+ "evalRuns": {
+  "title": "Esecuzioni di valutazione",
+  "p1": "Un'esecuzione di valutazione invia ogni caso di una versione del set a una distribuzione, oppure a una revisione di agente su una distribuzione temporanea, e assegna un punteggio a ogni risposta con i controlli del caso.",
+  "p2": "Il punteggio dell'esecuzione è la media ponderata dei punteggi dei casi, e l'esecuzione è superata quando il punteggio raggiunge la soglia. Un budget ferma l'esecuzione quando le esecuzioni dei casi e del giudice lo hanno speso."
+ },
+ "shadowTrials": {
+  "title": "Prove in ombra",
+  "p1": "Una prova in ombra copia una quota delle esecuzioni riuscite di una distribuzione su una distribuzione candidata dello stesso agente. Le copie girano come esecuzioni in ombra, che non possono usare strumenti con effetti, inviare messaggi, scrivere nella memoria o presentare report.",
+  "p2": "Ogni risposta della candidata viene confrontata con quella dell'origine, come testo normalizzato, con un set di valutazione o tramite l'agente giudice. La prova conta quante volte concordano e quante volte la candidata non riesce."
+ },
+ "canaryReleases": {
+  "title": "Rilasci canary",
+  "p1": "Un rilascio canary sposta a passi il traffico di un agente su una distribuzione candidata. Ogni passo dura un minimo di esecuzioni e di minuti prima di poter avanzare.",
+  "p2": "Finché il tasso di errore della candidata, e l'ultimo punteggio di valutazione quando il rilascio ha un requisito di valutazione, restano entro i limiti, il rilascio avanza e viene promosso dopo l'ultimo passo. Altrimenti torna ai pesi di prima e parte una notifica Rilascio canary ripristinato."
+ }
+});

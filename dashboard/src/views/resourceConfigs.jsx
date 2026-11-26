@@ -84,6 +84,8 @@ export { messagesConfig } from './messageConfigs';
 export { organizationsConfig } from './organizationConfigs';
 // AA8.12: change rules under Autonomy.
 export { changeRulesConfig } from './changeRuleConfigs';
+// AA9.15: eval sets, eval runs, shadow trials, and canary releases under Autonomy.
+export { evalSetsConfig, evalRunsConfig, shadowTrialsConfig, canaryReleasesConfig } from './evaluationConfigs';
 // Agentic apps (AD6.11) too.
 export { appsConfig } from './appConfigs';
 export { architectsConfig } from './architectConfigs';

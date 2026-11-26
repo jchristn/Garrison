@@ -7258,3 +7258,701 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "评估集",
+    "tip": "在智能体上线前为其评分的、带版本的用例集"
+   },
+   "evalRuns": {
+    "label": "评估运行",
+    "tip": "针对部署或智能体修订运行评估集的记录"
+   },
+   "shadowTrials": {
+    "label": "影子试验",
+    "tip": "候选部署重放真实输入，但不执行任何操作"
+   },
+   "canaryReleases": {
+    "label": "金丝雀发布",
+    "tip": "候选部署分步承接越来越多的流量"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "评估集",
+   "EvalRun": "评估运行",
+   "ShadowTrial": "影子试验",
+   "CanaryRelease": "金丝雀发布"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "金丝雀已回滚"
+  },
+  "runKind": {
+   "Eval": "评估用例",
+   "Shadow": "影子副本"
+  },
+  "evalSetState": {
+   "Draft": "草稿",
+   "Approved": "已批准"
+  },
+  "evalSetOrigin": {
+   "Human": "由人编写",
+   "Evaluator": "由智能体编写",
+   "Playground": "来自试验场"
+  },
+  "evalScorer": {
+   "ExactMatch": "完全匹配",
+   "Contains": "包含",
+   "JsonSchemaValid": "符合 JSON Schema",
+   "Judge": "评判智能体"
+  },
+  "evalRunStatus": {
+   "Pending": "待处理",
+   "Running": "运行中",
+   "Completed": "已完成",
+   "Failed": "失败",
+   "Cancelled": "已取消"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "智能体修订",
+   "Deployment": "部署"
+  },
+  "evalRunInputMode": {
+   "Cases": "评估集的用例",
+   "RecentInputs": "最近的输入"
+  },
+  "shadowTrialStatus": {
+   "Running": "运行中",
+   "Completed": "已完成",
+   "Stopped": "已停止",
+   "Failed": "失败"
+  },
+  "canaryStatus": {
+   "Running": "运行中",
+   "Promoted": "已晋升",
+   "RolledBack": "已回滚",
+   "Aborted": "已中止"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "已存在同名的评估集。请打开并编辑它，以生成下一个版本。",
+  "AlreadyApproved": "此版本已获批准。",
+  "EvalSetEmpty": "此评估集还没有用例。请先添加一个用例。",
+  "EvalSetImmutable": "此版本已获批准，将保持原样。请编辑它以生成下一个版本，或改为删除草稿版本。",
+  "ApprovalIsPeopleOnly": "只有人可以批准评估集。智能体不能批准为自己评分的评估集。",
+  "EvalRunFinished": "此评估运行已经结束。",
+  "ShadowTrialAlreadyRunning": "此候选已在另一个试验中为该部署做影子运行。",
+  "ShadowTrialNotRunning": "此影子试验已不在运行。",
+  "CanaryAlreadyRunning": "其中一个部署已在一个运行中的金丝雀发布里。",
+  "CanaryNotRunning": "此金丝雀发布已不在运行。",
+  "EvalGateFailed": "晋升需要此修订针对该环境已批准的评估集有一次通过的评估运行，目前还没有。",
+  "PeopleOnly": "只有人和 API 访问密钥可以执行此操作，运行令牌不行。"
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{total}} 个用例中已完成 {{completed}} 个，通过 {{passed}} 个",
+  "noJudge": "无评判",
+  "noSet": "无",
+  "untilStopped": "直到停止",
+  "verdict": {
+   "passed": "通过",
+   "failed": "低于阈值",
+   "none": "无结论"
+  },
+  "outcome": {
+   "passed": "通过",
+   "failed": "未通过",
+   "errored": "出错"
+  },
+  "target": {
+   "deployment": "部署 {{name}}",
+   "revision": "智能体 {{agent}}，修订 {{revision}}"
+  },
+  "actions": {
+   "runSet": "运行评估集",
+   "openSet": "打开评估集",
+   "cancelRun": "取消运行",
+   "stopTrial": "停止试验",
+   "abortCanary": "中止发布",
+   "copyId": "复制 ID"
+  },
+  "toasts": {
+   "copied": "已复制 ID。",
+   "approved": "已批准 {{name}} v{{version}}。现在它可以作为晋升的关卡。",
+   "caseSaved": "已保存用例。",
+   "caseSavedNextVersion": "已将用例保存到新的草稿版本 {{version}}。",
+   "caseSavedTo": "已将用例保存到 {{name}}。",
+   "caseRemoved": "已移除用例。",
+   "caseRemovedNextVersion": "已从新的草稿版本 {{version}} 中移除用例。",
+   "setSavedNextVersion": "已保存为新的草稿版本 {{version}}。",
+   "runStarted": "已开始 {{name}} 的评估运行。",
+   "runCancelled": "已取消评估运行。",
+   "trialStopped": "已停止影子试验。",
+   "canaryAborted": "已中止金丝雀发布，权重已恢复为初始值。"
+  },
+  "reason": {
+   "label": "原因",
+   "placeholder": "可选。会随记录一起保存，并写入审计日志。"
+  },
+  "form": {
+   "errors": {
+    "name": "请为评估集输入 1 到 {{max}} 个字符的名称。",
+    "description": "描述最多 {{max}} 个字符。",
+    "judgeAgent": "评判智能体名称最多 {{max}} 个字符。",
+    "tags": "每个标记最多 {{max}} 个字符。"
+   }
+  },
+  "set": {
+   "nextVersion": "此版本已获批准，因此保存会生成草稿版本 {{version}}。此版本保持原样。"
+  },
+  "case": {
+   "addTitle": "向 {{name}} 添加用例",
+   "editTitle": "编辑用例 {{number}}",
+   "save": "保存用例",
+   "nextVersion": "此版本已获批准，因此更改会进入新的草稿版本 {{version}}。此版本保持原样。",
+   "fromRun": "从运行 {{id}} 保存。",
+   "fields": {
+    "name": "名称",
+    "inputText": "输入",
+    "expectedText": "预期输出",
+    "hidden": "对被评分的智能体隐藏",
+    "checks": "检查"
+   },
+   "placeholders": {
+    "name": "可选，例如：超出限额的退款",
+    "inputText": "智能体收到的消息",
+    "expectedText": "好的回答应该说什么"
+   },
+   "hints": {
+    "name": "可选，最多 {{max}} 个字符。",
+    "inputText": "必填。用例会把它作为输入发送给智能体。",
+    "expectedText": "可选。完全匹配和包含检查在没有自己的文本时与它比较；评判智能体把它当作参考答案。",
+    "hidden": "智能体自己的运行只能看到隐藏用例的分数，看不到其输入和预期输出，因此无法学到答案。"
+   },
+   "checks": {
+    "scorer": "评分器",
+    "weight": "权重",
+    "add": "添加检查",
+    "remove": "移除检查 {{number}}",
+    "none": "没有检查。该用例按与预期输出的完全匹配评分；没有预期输出时由评判智能体评分。"
+   },
+   "scorerHints": {
+    "ExactMatch": "忽略首尾空白后，输出与文本相同即通过。",
+    "Contains": "输出包含该文本即通过。",
+    "JsonSchemaValid": "输出是符合该架构的 JSON 即通过。",
+    "Judge": "评估集的评判智能体根据评分标准和预期输出为输出评分。"
+   },
+   "argumentLabels": {
+    "ExactMatch": "精确文本",
+    "Contains": "要查找的文本",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "评分标准"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "留空则使用预期输出",
+    "Contains": "留空则使用预期输出",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "可选。好的回答必须做到什么"
+   },
+   "errors": {
+    "input": "用例需要输入文本。",
+    "name": "名称最多 {{max}} 个字符。",
+    "weight": "权重为 0 到 {{max}}。",
+    "schema": "请在此处填写一个 JSON Schema 对象。",
+    "argument": "请填写文本，或填写用例的预期输出。"
+   }
+  },
+  "run": {
+   "title": "运行评估集",
+   "titleFor": "运行 {{name}} v{{version}}",
+   "intro": "每个用例都作为单独的评估运行执行。针对智能体修订的运行使用临时部署，不影响线上流量。",
+   "start": "开始运行",
+   "starting": "正在开始...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "选择部署",
+   "chooseAgent": "选择智能体",
+   "fields": {
+    "setId": "评估集",
+    "targetType": "评估对象",
+    "deploymentId": "部署",
+    "agentId": "智能体",
+    "agentRevisionId": "修订",
+    "inputMode": "输入",
+    "recentInputCount": "要重放的最近输入数",
+    "thresholdPercent": "通过阈值（百分比）",
+    "budgetUsd": "预算（USD）"
+   },
+   "hints": {
+    "setId": "列出每个评估集的最新版本。",
+    "targetType": "当前运行中的部署，或智能体修订，例如工作室试验场运行的草稿。",
+    "agentId": "必填。不指定修订时，运行智能体的草稿修订，或其最新发布的修订。",
+    "agentRevisionId": "可选。智能体修订 ID；留空则运行草稿修订。",
+    "inputMode": "评估集的用例，或部署最近成功的输入，由评判智能体评分。",
+    "recentInputCount": "1 到 {{max}}。",
+    "thresholdPercent": "可选，0 到 100。加权分数达到该值时运行通过。",
+    "budgetUsd": "可选。当用例和评判运行花费达到此金额时，跳过剩余用例，运行判为失败。"
+   },
+   "errors": {
+    "set": "请选择要运行的评估集。",
+    "deployment": "请选择要评估的部署。",
+    "agent": "请选择要评估的智能体。",
+    "threshold": "阈值为 0 到 100 百分比。",
+    "budget": "预算为 0 到 {{max}} USD。",
+    "recentInputs": "请重放 1 到 {{max}} 个最近的输入。"
+   }
+  },
+  "save": {
+   "open": "保存为评估用例",
+   "title": "保存为评估用例",
+   "intro": "这一轮的输入和智能体的回答会成为一个用例。请编辑预期输出，写明好的回答是什么，而不只是这次的回答内容。",
+   "set": "评估集",
+   "newSet": "新建评估集...",
+   "newSetName": "新评估集名称",
+   "newSetHint": "新评估集以草稿开始，来源为“来自试验场”。",
+   "submit": "保存用例",
+   "done": "完成",
+   "openSet": "打开评估集",
+   "runSet": "运行评估集",
+   "entryAgent": "入口智能体",
+   "saved": "已将用例保存到 {{name}} v{{version}}。",
+   "runHint": "“运行评估集”会评估 {{agent}} 的草稿修订，也就是此试验场运行的修订。",
+   "errors": {
+    "set": "请选择一个评估集，或新建一个。"
+   }
+  },
+  "setDetail": {
+   "title": "评估集",
+   "back": "所有评估集",
+   "notFoundTitle": "未找到评估集",
+   "notFoundBody": "它可能是被他人删除的草稿。已批准的版本始终保留。",
+   "approve": "批准",
+   "approveTitle": "批准 {{name}} v{{version}}",
+   "approveMessage": "已批准的版本会完全保持原样，可作为晋升和金丝雀发布的关卡。之后的编辑会生成下一个草稿版本。",
+   "approvedNote": "此版本已获批准并保持原样。编辑评估集或用例会生成草稿版本 {{version}}。",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "部分用例由评判智能体评分，但此评估集没有设置评判智能体。运行前请编辑评估集并选择一个评判智能体。",
+   "editTitle": "编辑 {{name}}",
+   "deleteTitle": "删除草稿版本",
+   "deleteMessage": "要删除 {{name}} v{{version}} 吗？已批准的版本不受影响。",
+   "cases": "用例（{{count}}）",
+   "addCase": "添加用例",
+   "noCases": "还没有用例。可在此添加，或从工作室试验场保存一轮对话。",
+   "noExpected": "无",
+   "hidden": "隐藏",
+   "removeCaseTitle": "移除用例 {{number}}",
+   "removeCaseMessage": "要从草稿中移除此用例吗？",
+   "removeCaseApproved": "此版本已获批准，因此用例会从新的草稿版本 {{version}} 中移除。此版本仍保留该用例。",
+   "versions": "版本",
+   "thisVersion": "v{{version}}（当前版本）",
+   "runs": "最近的评估运行",
+   "allRuns": "此版本的所有运行",
+   "noRuns": "此版本尚未运行。",
+   "fields": {
+    "state": "状态",
+    "origin": "来源",
+    "judgeAgent": "评判智能体",
+    "tags": "标记",
+    "authoredBy": "编写者",
+    "approvedBy": "批准者",
+    "previousVersion": "上一版本",
+    "lastUpdateUtc": "最后更改",
+    "description": "描述"
+   },
+   "columns": {
+    "order": "#",
+    "name": "名称",
+    "input": "输入",
+    "expected": "预期输出",
+    "scorers": "评分方式",
+    "hidden": "隐藏",
+    "source": "来源运行"
+   },
+   "versionColumns": {
+    "version": "版本",
+    "state": "状态",
+    "caseCount": "用例",
+    "approvedBy": "批准者",
+    "lastUpdateUtc": "最后更改"
+   },
+   "runColumns": {
+    "run": "评估运行",
+    "status": "状态",
+    "verdict": "结论",
+    "score": "分数",
+    "target": "评估对象",
+    "createdUtc": "开始时间"
+   }
+  },
+  "runDetail": {
+   "title": "评估运行",
+   "back": "所有评估运行",
+   "notFoundTitle": "未找到评估运行",
+   "notFoundBody": "请检查 ID，或从评估集打开该运行。",
+   "live": "实时",
+   "polling": "轮询中",
+   "failure": "运行失败：{{reason}}",
+   "progressLabel": "已完成的用例",
+   "kpi": {
+    "score": "分数",
+    "threshold": "阈值 {{threshold}}",
+    "noThreshold": "无阈值",
+    "passed": "通过的用例",
+    "errored": "出错的用例",
+    "cost": "费用",
+    "budget": "预算 {{budget}}",
+    "noBudget": "无预算"
+   },
+   "fields": {
+    "target": "评估对象",
+    "targetType": "对象类型",
+    "inputMode": "输入",
+    "startedBy": "发起者",
+    "createdUtc": "开始时间",
+    "completedUtc": "结束时间",
+    "studioDraftId": "工作室草稿"
+   },
+   "recentInputs": "{{count}} 个最近的输入",
+   "results": "用例结果（{{count}}）",
+   "failingOnly": "仅未通过（{{count}}）",
+   "noFailing": "所有用例均已通过。",
+   "noResults": "此运行没有记录用例结果。",
+   "waiting": "正在等待第一个用例完成。",
+   "caseNumber": "用例 {{number}}",
+   "recentInput": "最近的输入 {{number}}",
+   "checksPassed": "{{total}} 个中通过 {{passed}} 个",
+   "open": "打开",
+   "columns": {
+    "order": "#",
+    "case": "用例",
+    "outcome": "结果",
+    "score": "分数",
+    "checks": "检查",
+    "output": "输出"
+   },
+   "resultTitle": "用例 {{number}}",
+   "resultTitleNamed": "用例 {{number}}：{{name}}",
+   "scoreIs": "分数 {{score}}",
+   "openCaseRun": "打开用例运行",
+   "openSourceRun": "打开来源运行",
+   "hiddenCase": "此用例对被评分的智能体隐藏。",
+   "input": "输入",
+   "diff": "预期输出与实际输出对比",
+   "expected": "预期",
+   "output": "输出",
+   "noOutput": "没有输出。",
+   "checks": "检查",
+   "noChecks": "没有已评分的检查。",
+   "checkColumns": {
+    "scorer": "评分器",
+    "weight": "权重",
+    "score": "分数",
+    "outcome": "结果",
+    "note": "评分器说明",
+    "judgeRun": "评判运行"
+   },
+   "cancelTitle": "取消评估运行",
+   "cancelMessage": "要取消 {{name}} 的这次运行吗？尚未完成的用例会一并取消。"
+  },
+  "shadow": {
+   "errors": {
+    "name": "名称最多 {{max}} 个字符。",
+    "source": "请选择要复制其运行的部署。",
+    "candidate": "请选择候选部署。",
+    "same": "候选部署必须与来源部署不同。",
+    "sample": "请抽样 1 到 100 百分比的运行。",
+    "ends": "请选择未来的结束时间，或留空以一直运行到停止。"
+   }
+  },
+  "shadowDetail": {
+   "title": "影子试验",
+   "back": "所有影子试验",
+   "notFoundTitle": "未找到影子试验",
+   "notFoundBody": "请检查 ID，或从列表中打开该试验。",
+   "note": "影子运行会在候选部署上重放来源的输入。它们不能使用有副作用的工具、发送消息、写入记忆或提交报告，来源的运行也不受影响。",
+   "stopReason": "已停止：{{reason}}",
+   "stopTitle": "停止影子试验",
+   "stopMessage": "要停止 {{name}} 吗？之后不再复制运行，目前的计数会保留。",
+   "kpi": {
+    "compared": "已比较",
+    "agreed": "一致",
+    "diverged": "不一致",
+    "failures": "候选失败",
+    "agreement": "一致率"
+   },
+   "comparison": {
+    "text": "规范化文本",
+    "set": "使用评估集",
+    "judge": "由评判智能体"
+   },
+   "fields": {
+    "source": "来源",
+    "candidate": "候选",
+    "samplePercent": "抽样比例",
+    "comparison": "比较方式",
+    "endsUtc": "结束时间",
+    "createdBy": "发起者",
+    "createdUtc": "开始时间",
+    "completedUtc": "完成时间"
+   }
+  },
+  "canary": {
+   "stepOf": "第 {{number}} 步，共 {{total}} 步，{{percent}}%",
+   "gateText": "{{name}} 达到 {{score}} 或以上",
+   "noGate": "无评估关卡",
+   "errors": {
+    "agent": "请选择要转移其流量的智能体。",
+    "candidate": "请选择候选部署。",
+    "baseline": "请选择基线部署。",
+    "same": "候选部署和基线部署必须不同。",
+    "steps": "请至少列出一个步骤。最后一步为 100 百分比。",
+    "tooMany": "一次发布最多 {{max}} 个步骤。",
+    "increasing": "每一步的百分比为 1 到 100，并且要高于前一步。",
+    "lastStep": "最后一步必须为 100 百分比。",
+    "errorRate": "错误率上限为 0 到 100 百分比。",
+    "gate": "评估关卡需要同时设置评估集和最低分数，或者都不设置。",
+    "score": "最低分数为 0 到 100 百分比。"
+   }
+  },
+  "canaryDetail": {
+   "title": "金丝雀发布",
+   "heading": "{{agent}} 的金丝雀发布",
+   "back": "所有金丝雀发布",
+   "notFoundTitle": "未找到金丝雀发布",
+   "notFoundBody": "请检查 ID，或从列表中打开该发布。",
+   "rolledBack": "已回滚：{{reason}} 权重已恢复为初始值。",
+   "aborted": "已中止：{{reason}} 权重已恢复为初始值。",
+   "promoted": "已晋升。{{candidate}} 承接全部流量。",
+   "noReason": "未提供原因。",
+   "withWeight": "{{name}}（发布前权重 {{weight}}）",
+   "gate": "最新评估分数达到 {{score}} 或以上",
+   "steps": "步骤",
+   "columns": {
+    "step": "步骤",
+    "weightPercent": "候选流量",
+    "minimumRuns": "最少运行数",
+    "minimumMinutes": "最少分钟数",
+    "state": "状态"
+   },
+   "stepStates": {
+    "done": "已完成",
+    "current": "当前",
+    "stopped": "在此停止",
+    "pending": "等待中"
+   },
+   "abortTitle": "中止金丝雀发布",
+   "abortMessage": "要中止此发布吗？两个部署都会恢复到发布开始前的权重。",
+   "fields": {
+    "agent": "智能体",
+    "candidate": "候选",
+    "baseline": "基线",
+    "maxErrorRatePercent": "错误率上限",
+    "gate": "评估关卡",
+    "stepStartedUtc": "当前步骤开始时间",
+    "createdBy": "发起者",
+    "completedUtc": "完成时间"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "用例需要输入文本。",
+   "UnknownScorer": "请使用完全匹配、包含、符合 JSON Schema 或评判智能体。",
+   "ArgumentRequired": "请填写文本，或填写用例的预期输出。",
+   "InvalidJsonSchema": "这不是有效的 JSON Schema。",
+   "TooManyCases": "该评估集的用例数已达上限。",
+   "EvaluatorIsForAgents": "来源“由智能体编写”用于智能体创建的评估集。请选择“由人编写”或“来自试验场”。",
+   "SetRequired": "请选择要运行的评估集。",
+   "TargetRequired": "请选择要评估的对象。",
+   "RecentInputsNeedDeployment": "最近的输入会重放部署的运行。请评估一个部署。",
+   "NoRecentInputs": "该部署还没有可重放的成功运行。",
+   "EvalSetEmpty": "此版本没有用例。",
+   "JudgeAgentRequired": "部分用例需要评判智能体，但该评估集没有设置。请编辑评估集并选择一个。",
+   "DeploymentNotFound": "该部署在此租户中不存在。",
+   "SameDeployment": "请选择两个不同的部署。",
+   "DifferentAgent": "两个部署必须属于同一个智能体。",
+   "DeploymentInactive": "该部署未启用。请先启用它。",
+   "AgentMismatch": "智能体必须是来源部署所属的智能体。",
+   "EndsInPast": "请选择未来的结束时间，或留空。",
+   "EvalSetNotFound": "该评估集在此租户中不存在。",
+   "AgentNotFound": "该智能体在此租户中不存在。",
+   "EvalGateIncomplete": "评估关卡需要同时设置评估集和最低分数，或者都不设置。",
+   "NotIncreasing": "每一步的百分比必须高于前一步。",
+   "LastStepNotFull": "最后一步必须为 100 百分比。"
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "评估集",
+   "subtitle": "为智能体评分的带版本用例。批准一个版本后，它即可作为晋升和金丝雀发布的关卡。",
+   "add": "添加评估集",
+   "create": "添加评估集",
+   "edit": "编辑评估集",
+   "view": "评估集",
+   "deleteTitle": "删除草稿版本",
+   "emptyTitle": "还没有评估集",
+   "emptyBody": "可在此添加评估集及其用例，或把工作室试验场中的一轮对话保存为第一个用例。",
+   "filters": {
+    "latestOnly": "版本",
+    "newestOnly": "仅最新版本",
+    "allVersions": "所有版本"
+   },
+   "columns": {
+    "name": "名称",
+    "version": "版本",
+    "state": "状态",
+    "origin": "来源",
+    "caseCount": "用例",
+    "judgeAgent": "评判智能体",
+    "tags": "标记",
+    "authoredByName": "编写者",
+    "approvedByName": "批准者",
+    "description": "描述",
+    "lastUpdateUtc": "最后更改",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名称",
+    "description": "描述",
+    "origin": "来源",
+    "judgeAgent": "评判智能体",
+    "tags": "标记"
+   },
+   "hints": {
+    "name": "1 到 {{max}} 个字符。名称在各版本之间保持不变。",
+    "description": "可选，最多 {{max}} 个字符。",
+    "origin": "“来自试验场”表示由试验场对话轮次形成的评估集。",
+    "judgeAgent": "为评判检查、没有预期输出的用例以及最近的输入评分的智能体。",
+    "tags": "可选，每行一个，每个最多 {{max}} 个字符。"
+   }
+  },
+  "evalRuns": {
+   "title": "评估运行",
+   "subtitle": "评估集版本针对部署或智能体修订的每次运行，以及其分数与阈值的对比。",
+   "add": "运行评估集",
+   "create": "运行评估集",
+   "edit": "评估运行",
+   "view": "评估运行",
+   "deleteTitle": "删除评估运行",
+   "emptyTitle": "还没有评估运行",
+   "emptyBody": "运行一个评估集，在部署或草稿修订上线前为其评分。",
+   "columns": {
+    "setName": "评估集",
+    "status": "状态",
+    "verdict": "结论",
+    "score": "分数",
+    "threshold": "阈值",
+    "progress": "进度",
+    "target": "评估对象",
+    "inputMode": "输入",
+    "costUsd": "费用",
+    "startedByName": "发起者",
+    "createdUtc": "开始时间",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "影子试验",
+   "subtitle": "候选部署在不执行任何操作的情况下重放线上部署的一部分输入，并比较输出。",
+   "add": "开始影子试验",
+   "create": "开始影子试验",
+   "edit": "影子试验",
+   "view": "影子试验",
+   "deleteTitle": "删除影子试验",
+   "emptyTitle": "还没有影子试验",
+   "emptyBody": "开始一个试验，在候选部署承接任何流量之前，看看它如何回答真实输入。",
+   "columns": {
+    "name": "名称",
+    "status": "状态",
+    "source": "来源",
+    "candidate": "候选",
+    "samplePercent": "抽样比例",
+    "comparedCount": "已比较",
+    "agreedCount": "一致",
+    "divergedCount": "不一致",
+    "candidateFailureCount": "失败",
+    "agreement": "一致率",
+    "endsUtc": "结束时间",
+    "createdUtc": "开始时间",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "名称",
+    "sourceDeploymentId": "来源部署",
+    "candidateDeploymentId": "候选部署",
+    "samplePercent": "抽样（百分比）",
+    "endsUtc": "结束时间",
+    "comparisonEvalSetId": "使用评估集比较",
+    "useJudge": "使用评判智能体比较"
+   },
+   "hints": {
+    "name": "可选，最多 {{max}} 个字符。",
+    "sourceDeploymentId": "必填。复制其成功的运行；它本身不受影响。",
+    "candidateDeploymentId": "必填。同一智能体的另一个部署。",
+    "samplePercent": "1 到 100，默认 10。来源运行中被复制的比例。",
+    "endsUtc": "可选。留空则一直运行，直到有人停止。",
+    "comparisonEvalSetId": "可选。不设置时，输出按规范化文本比较。",
+    "useJudge": "让评判智能体判断两个输出是否一致。"
+   }
+  },
+  "canaryReleases": {
+   "title": "金丝雀发布",
+   "subtitle": "候选部署分步承接越来越多的智能体流量，表现异常时会自动回滚。",
+   "add": "开始金丝雀发布",
+   "create": "开始金丝雀发布",
+   "edit": "金丝雀发布",
+   "view": "金丝雀发布",
+   "deleteTitle": "删除金丝雀发布",
+   "emptyTitle": "还没有金丝雀发布",
+   "emptyBody": "开始一次发布，将流量一步一步地转移到新部署。",
+   "addStep": "添加步骤",
+   "columns": {
+    "agent": "智能体",
+    "status": "状态",
+    "candidate": "候选",
+    "baseline": "基线",
+    "step": "步骤",
+    "maxErrorRatePercent": "错误上限",
+    "gate": "评估关卡",
+    "rollbackReason": "回滚原因",
+    "createdUtc": "开始时间",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "智能体",
+    "baselineDeploymentId": "基线部署",
+    "candidateDeploymentId": "候选部署",
+    "steps": "步骤",
+    "weightPercent": "候选流量（百分比）",
+    "minimumRuns": "最少运行数",
+    "minimumMinutes": "最少分钟数",
+    "maxErrorRatePercent": "错误率上限（百分比）",
+    "evalSetId": "评估关卡评估集",
+    "minEvalScorePercent": "最低评估分数（百分比）"
+   },
+   "hints": {
+    "agentId": "必填。两个部署都属于它。",
+    "baselineDeploymentId": "必填。承接其余流量。",
+    "candidateDeploymentId": "必填。要发布的部署。",
+    "steps": "1 到 {{max}} 个步骤。每个百分比都高于前一个，最后一个为 100。",
+    "maxErrorRatePercent": "0 到 100，默认 5。某一步中候选运行的失败比例超过此值时，发布会回滚。",
+    "evalSetId": "可选。仅当此评估集的最新评估运行达到最低分数时，步骤才会推进。",
+    "minEvalScorePercent": "设置评估关卡评估集时必填，0 到 100。"
+   }
+  }
+ }
+});

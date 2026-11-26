@@ -55,6 +55,10 @@ const COLLECTIONS = {
   messages: 'messages',
   organizations: 'organizations',
   changeRules: 'change-rules',
+  evalSets: 'eval-sets',
+  evalRuns: 'eval-runs',
+  shadowTrials: 'shadow-trials',
+  canaryReleases: 'canary-releases',
   audit: 'audit'
 };
 

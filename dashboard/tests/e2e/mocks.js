@@ -3422,6 +3422,8 @@ export function respond(method, url) {
     if (parts[0] === 'messages' || parts[0] === 'message-threads') return messageRoutes(method, url, parts);
     const ruled = changeRuleRoutes(method, url, parts);
     if (ruled !== undefined) return ruled;
+    const evaluated = evaluationRoutes(method, url, parts);
+    if (evaluated !== undefined) return evaluated;
     if (parts[0] === 'organizations') return organizationRoutes(method, url, parts);
     const capable = capabilityRoutes(method, url, parts);
     if (capable !== undefined) return capable;
@@ -3438,6 +3440,429 @@ export function respond(method, url) {
     return {};
   }
   return undefined;
+}
+
+// ---------------------------------------------------------------- evaluations, shadow trials, canaries (AA9.15)
+
+// evs_0001 "refund-answers" v2 is approved (judge echo-agent, three cases, one hidden) and was made from evs_0003, its
+// approved v1. evs_0002 "playground-regressions" v1 is a draft saved from the playground. evr_0001 ran v2 against
+// deployment-1 and stayed below its threshold (one case passed, one failed its judge check, one errored); evr_0002 is
+// running against echo-agent's draft revision. shd_0001 shadows deployment-1 on deployment-2; shd_0002 was stopped.
+// cnr_0001 is on step 2 of 3 with an eval gate; cnr_0002 rolled back at step 1.
+const EVAL_SET_ROWS = [
+  { id: 'evs_0001', name: 'refund-answers', version: 2, state: 'Approved', origin: 'Human', judgeAgent: 'echo-agent', tags: ['refunds'], caseCount: 3, previousVersionId: 'evs_0003', approved: true, description: 'Answers the refund desk must get right.' },
+  { id: 'evs_0002', name: 'playground-regressions', version: 1, state: 'Draft', origin: 'Playground', judgeAgent: null, tags: ['playground'], caseCount: 1, previousVersionId: null, approved: false, description: null },
+  { id: 'evs_0003', name: 'refund-answers', version: 1, state: 'Approved', origin: 'Human', judgeAgent: 'echo-agent', tags: ['refunds'], caseCount: 2, previousVersionId: null, approved: true, description: 'Answers the refund desk must get right.' }
+];
+
+/** One eval set version by row number (1-based), shaped like GET /eval-sets/{id}. */
+export function evalSet(i) {
+  const row = EVAL_SET_ROWS[(i - 1) % EVAL_SET_ROWS.length];
+  return {
+    id: row.id,
+    tenantId: TENANT,
+    name: row.name,
+    description: row.description,
+    version: row.version,
+    previousVersionId: row.previousVersionId,
+    state: row.state,
+    origin: row.origin,
+    approvedById: row.approved ? 'usr_admin' : null,
+    approvedByName: row.approved ? 'admin@garrison' : null,
+    approvedUtc: row.approved ? iso(200 + i) : null,
+    authoringOrgUnitId: null,
+    authoredByType: 'User',
+    authoredById: 'usr_admin',
+    authoredByName: 'admin@garrison',
+    authoredByAgentId: null,
+    judgeAgent: row.judgeAgent,
+    tags: [...row.tags],
+    caseCount: row.caseCount,
+    createdUtc: iso(400 - i * 10),
+    lastUpdateUtc: iso(100 + i)
+  };
+}
+
+const EVAL_CASE_ROWS = [
+  { name: 'Small refund', inputText: 'Refund order 1001 for $20.', expectedText: 'Refund of $20 approved for order 1001.', hidden: false, checks: [{ scorer: 'ExactMatch', argument: null, weight: 1 }] },
+  { name: 'Over the limit', inputText: 'Refund order 1002 for $900.', expectedText: 'This refund needs a manager.', hidden: true, checks: [{ scorer: 'Contains', argument: 'manager', weight: 1 }, { scorer: 'Judge', argument: 'Polite, and names the $500 limit.', weight: 2 }] },
+  { name: null, inputText: 'Return a JSON receipt for order 1003.', expectedText: null, hidden: false, checks: [{ scorer: 'JsonSchemaValid', argument: '{"type":"object","required":["orderId"]}', weight: 1 }] }
+];
+
+/** Case i (1-based) of a set version, shaped like GET /eval-sets/{id}/cases/{caseId}. */
+export function evalCase(setId, i) {
+  const row = EVAL_CASE_ROWS[(i - 1) % EVAL_CASE_ROWS.length];
+  return {
+    id: `evc_${setId.slice(4)}_${i}`,
+    tenantId: TENANT,
+    setId,
+    order: i - 1,
+    name: row.name,
+    inputText: row.inputText,
+    hidden: row.hidden,
+    expectedText: row.expectedText,
+    checks: row.checks.map((c) => ({ ...c })),
+    files: [],
+    sourceRunId: setId === 'evs_0002' ? 'run_0001' : null,
+    createdUtc: iso(300),
+    lastUpdateUtc: iso(300)
+  };
+}
+
+/** The cases of a fixture set version. */
+function evalCasesOf(setId) {
+  const set = EVAL_SET_ROWS.find((s) => s.id === setId) || EVAL_SET_ROWS[0];
+  return Array.from({ length: set.caseCount }, (_, k) => evalCase(set.id, k + 1));
+}
+
+const EVAL_RUN_ROWS = [
+  { status: 'Completed', targetType: 'Deployment', deploymentId: 'dep_0001', score: 0.5, threshold: 0.8, passed: false, completed: 3, passedCases: 1, errored: 1, cost: 0.042, done: true },
+  { status: 'Running', targetType: 'AgentRevision', deploymentId: null, score: null, threshold: 0.9, passed: null, completed: 1, passedCases: 1, errored: 0, cost: 0.011, done: false }
+];
+
+/** One eval run by row number (1-based), shaped like GET /eval-runs/{id}. */
+export function evalRun(i) {
+  const row = EVAL_RUN_ROWS[(i - 1) % EVAL_RUN_ROWS.length];
+  return {
+    id: `evr_${pad(i)}`,
+    tenantId: TENANT,
+    setId: 'evs_0001',
+    setName: 'refund-answers',
+    setVersion: 2,
+    targetType: row.targetType,
+    agentId: 'agt_0001',
+    agentRevisionId: row.targetType === 'Deployment' ? revisionId('agt_0001', 2) : revisionId('agt_0001', 3),
+    deploymentId: row.deploymentId,
+    studioDraftId: null,
+    status: row.status,
+    inputMode: 'Cases',
+    recentInputCount: 20,
+    score: row.score,
+    threshold: row.threshold,
+    passed: row.passed,
+    budgetUsd: 1,
+    costUsd: row.cost,
+    totalCases: 3,
+    completedCases: row.completed,
+    passedCases: row.passedCases,
+    erroredCases: row.errored,
+    failureReason: null,
+    startedByType: 'User',
+    startedById: 'usr_admin',
+    startedByName: 'admin@garrison',
+    originRunId: null,
+    createdUtc: iso(90 - i),
+    startedUtc: iso(89 - i),
+    completedUtc: row.done ? iso(80 - i) : null,
+    lastUpdateUtc: iso(80 - i)
+  };
+}
+
+/** The case result of order (0-based) in an eval run: passed, failed on its judge check, or errored. */
+export function evalCaseResult(evalRunId, order, outcome = ['passed', 'failed', 'errored'][order % 3]) {
+  const caseId = `evc_0001_${order + 1}`;
+  const base = { id: `evx_${evalRunId.slice(4)}_${order}`, tenantId: TENANT, evalRunId, caseId, order, sourceRunId: null, runId: `run_eval_${order + 1}`, costUsd: 0.01, createdUtc: iso(85 - order) };
+  if (outcome === 'passed') return { ...base, outputText: 'Refund of $20 approved for order 1001.', score: 1, passed: true, errorMessage: null, checkResults: [{ scorer: 'ExactMatch', weight: 1, score: 1, passed: true, judgeRunId: null, note: 'The output equals the expected text.' }] };
+  if (outcome === 'failed')
+    return {
+      ...base,
+      outputText: 'Sure, I refunded $900 for order 1002.',
+      score: 0,
+      passed: false,
+      errorMessage: null,
+      costUsd: 0.022,
+      checkResults: [
+        { scorer: 'Contains', weight: 1, score: 0, passed: false, judgeRunId: null, note: 'The output does not contain "manager".' },
+        { scorer: 'Judge', weight: 2, score: 0, passed: false, judgeRunId: 'run_judge_2', note: 'Refunded an amount over the limit without asking a manager.' }
+      ]
+    };
+  return { ...base, outputText: null, score: 0, passed: false, errorMessage: 'The run timed out after 300 seconds.', checkResults: [] };
+}
+
+const SHADOW_ROWS = [
+  { name: 'haiku-vs-sonnet', status: 'Running', compared: 40, agreed: 34, diverged: 4, failures: 2, stopReason: null, useJudge: false, set: null },
+  { name: 'new-prompt-check', status: 'Stopped', compared: 12, agreed: 6, diverged: 6, failures: 0, stopReason: 'Half the answers changed; the prompt needs work.', useJudge: true, set: null }
+];
+
+/** One shadow trial by row number (1-based), shaped like GET /shadow-trials/{id}. */
+export function shadowTrial(i) {
+  const row = SHADOW_ROWS[(i - 1) % SHADOW_ROWS.length];
+  return {
+    id: `shd_${pad(i)}`,
+    tenantId: TENANT,
+    name: row.name,
+    agentId: 'agt_0001',
+    sourceDeploymentId: 'dep_0001',
+    candidateDeploymentId: 'dep_0002',
+    samplePercent: 10,
+    endsUtc: null,
+    comparisonEvalSetId: row.set,
+    useJudge: row.useJudge,
+    status: row.status,
+    stopReason: row.stopReason,
+    comparedCount: row.compared,
+    agreedCount: row.agreed,
+    divergedCount: row.diverged,
+    candidateFailureCount: row.failures,
+    createdByType: 'User',
+    createdById: 'usr_admin',
+    createdByName: 'admin@garrison',
+    createdUtc: iso(500 - i),
+    completedUtc: row.status === 'Running' ? null : iso(60),
+    lastUpdateUtc: iso(30)
+  };
+}
+
+const CANARY_ROWS = [
+  { status: 'Running', step: 1, reason: null, gate: true },
+  { status: 'RolledBack', step: 0, reason: 'Candidate error rate 12.5% exceeded 5% at step 1.', gate: false }
+];
+
+/** One canary release by row number (1-based), shaped like GET /canary-releases/{id}. */
+export function canaryRelease(i) {
+  const row = CANARY_ROWS[(i - 1) % CANARY_ROWS.length];
+  return {
+    id: `cnr_${pad(i)}`,
+    tenantId: TENANT,
+    agentId: 'agt_0001',
+    candidateDeploymentId: 'dep_0002',
+    baselineDeploymentId: 'dep_0001',
+    baselineInitialWeight: 300,
+    candidateInitialWeight: 100,
+    steps: [
+      { weightPercent: 10, minimumRuns: 20, minimumMinutes: 10 },
+      { weightPercent: 50, minimumRuns: 50, minimumMinutes: 30 },
+      { weightPercent: 100, minimumRuns: 0, minimumMinutes: 0 }
+    ],
+    currentStepIndex: row.step,
+    stepStartedUtc: iso(20),
+    maxErrorRatePercent: 5,
+    minEvalScore: row.gate ? 0.8 : null,
+    evalSetId: row.gate ? 'evs_0001' : null,
+    status: row.status,
+    rollbackReason: row.reason,
+    createdByType: 'User',
+    createdById: 'usr_admin',
+    createdByName: 'admin@garrison',
+    createdUtc: iso(700 - i),
+    completedUtc: row.status === 'Running' ? null : iso(40),
+    lastUpdateUtc: iso(20)
+  };
+}
+
+/** Responses for the evaluation, shadow trial, and canary routes, or undefined for other collections. */
+function evaluationRoutes(method, url, parts) {
+  const known = (id, rows, make) => {
+    const i = rows.findIndex((_, k) => make(k + 1).id === id) + 1;
+    return i ? make(i) : { ...make(1), id };
+  };
+  if (parts[0] === 'eval-sets') {
+    if (parts.length === 1) {
+      if (method === 'POST') return { ...evalSet(2), id: 'evs_0099', name: 'new-set', caseCount: 0 };
+      const latest = url.searchParams.get('latestOnly') !== 'false';
+      return pageOf(EVAL_SET_ROWS.map((_, k) => evalSet(k + 1)).filter((s) => !latest || s.id !== 'evs_0003'), url);
+    }
+    const set = known(parts[1], EVAL_SET_ROWS, evalSet);
+    if (parts[2] === 'approve') return { ...set, state: 'Approved', approvedByName: 'admin@garrison', approvedUtc: iso(0) };
+    if (parts[2] === 'cases') {
+      if (parts.length === 3) return method === 'POST' ? { ...evalCase(set.id, 1), id: 'evc_0099', order: set.caseCount } : evalCasesOf(set.id);
+      if (method === 'DELETE') return set;
+      return { ...evalCase(set.id, 1), id: parts[3] };
+    }
+    return set;
+  }
+  if (parts[0] === 'eval-runs') {
+    if (parts.length === 1) return method === 'POST' ? { ...evalRun(2), id: 'evr_0099', status: 'Pending', completedCases: 0, passedCases: 0 } : pageOf(EVAL_RUN_ROWS.map((_, k) => evalRun(k + 1)), url);
+    const run = known(parts[1], EVAL_RUN_ROWS, evalRun);
+    if (parts[2] === 'results') return Array.from({ length: run.completedCases }, (_, k) => evalCaseResult(run.id, k));
+    if (parts[2] === 'cancel') return { ...run, status: 'Cancelled', completedUtc: iso(0) };
+    return run;
+  }
+  if (parts[0] === 'shadow-trials') {
+    if (parts.length === 1) return method === 'POST' ? { ...shadowTrial(1), id: 'shd_0099', comparedCount: 0, agreedCount: 0, divergedCount: 0, candidateFailureCount: 0 } : pageOf(SHADOW_ROWS.map((_, k) => shadowTrial(k + 1)), url);
+    const trial = known(parts[1], SHADOW_ROWS, shadowTrial);
+    if (parts[2] === 'stop') return { ...trial, status: 'Stopped', stopReason: 'Stopped from the dashboard.', completedUtc: iso(0) };
+    return trial;
+  }
+  if (parts[0] === 'canary-releases') {
+    if (parts.length === 1) return method === 'POST' ? { ...canaryRelease(1), id: 'cnr_0099', currentStepIndex: 0 } : pageOf(CANARY_ROWS.map((_, k) => canaryRelease(k + 1)), url);
+    const release = known(parts[1], CANARY_ROWS, canaryRelease);
+    if (parts[2] === 'abort') return { ...release, status: 'Aborted', rollbackReason: 'Aborted from the dashboard.', completedUtc: iso(0) };
+    return release;
+  }
+  return undefined;
+}
+
+/**
+ * A stateful eval set and eval run API for tests that write cases and start runs: sets with versions (an edit or a
+ * new case on an approved version opens the next version as a draft with copied cases), approve, cases, and eval runs
+ * that start Running and that finish(evalRunId, results) completes the way the runner would. handle(method, url, body)
+ * answers { status, body } for these routes and undefined for others; runs and bodies record what the page sent.
+ */
+export function evalStore() {
+  const sets = EVAL_SET_ROWS.map((_, k) => evalSet(k + 1));
+  const cases = Object.fromEntries(sets.map((s) => [s.id, evalCasesOf(s.id)]));
+  const runs = [];
+  const results = {};
+  const bodies = [];
+  let seq = 300;
+  const nextId = (prefix) => `${prefix}_${pad((seq += 1))}`;
+  const notFound = (what) => ({ status: 404, body: { error: 'NotFound', code: 'NotFound', message: `${what} not found.` } });
+  const invalid = (field, code, message) => ({ status: 400, body: { error: 'ValidationFailed', code: 'ValidationFailed', message, fields: { [field]: message }, fieldCodes: { [field]: code } } });
+  const count = (set) => Object.assign(set, { caseCount: (cases[set.id] || []).length, lastUpdateUtc: new Date().toISOString() });
+  const latestOf = (name) => sets.filter((s) => s.name === name).sort((a, b) => b.version - a.version)[0];
+  const draftOf = (set) => {
+    if (set.state !== 'Approved') return set;
+    const newest = latestOf(set.name);
+    if (newest.state === 'Draft') return newest;
+    const draft = { ...set, id: nextId('evs'), version: newest.version + 1, previousVersionId: newest.id, state: 'Draft', approvedById: null, approvedByName: null, approvedUtc: null, createdUtc: new Date().toISOString() };
+    sets.unshift(draft);
+    cases[draft.id] = (cases[newest.id] || []).map((c) => ({ ...c, id: nextId('evc'), setId: draft.id }));
+    return count(draft);
+  };
+  const cleanCase = (body, setId, order, id) => ({
+    id: id || nextId('evc'),
+    tenantId: TENANT,
+    setId,
+    order,
+    name: body.name ?? null,
+    inputText: body.inputText,
+    hidden: !!body.hidden,
+    expectedText: body.expectedText ?? null,
+    checks: (body.checks || []).map((c) => ({ scorer: c.scorer, argument: c.argument ?? null, weight: c.weight ?? 1 })),
+    files: body.files || [],
+    sourceRunId: body.sourceRunId ?? null,
+    createdUtc: new Date().toISOString(),
+    lastUpdateUtc: new Date().toISOString()
+  });
+  const finish = (evalRunId, list, extra = {}) => {
+    const run = runs.find((r) => r.id === evalRunId);
+    results[evalRunId] = list;
+    const passedCases = list.filter((r) => r.passed).length;
+    const score = list.length ? list.reduce((a, r) => a + r.score, 0) / list.length : 0;
+    Object.assign(run, { status: 'Completed', completedCases: list.length, passedCases, erroredCases: list.filter((r) => r.errorMessage).length, score, passed: run.threshold == null ? null : score >= run.threshold, completedUtc: new Date().toISOString(), ...extra });
+    return run;
+  };
+  const handle = (method, url, body) => {
+    const sm = /\/v1\.0\/api\/tenants\/[^/]+\/eval-sets(?:\/([^/]+)(?:\/(approve|cases)(?:\/([^/]+))?)?)?$/.exec(url.pathname);
+    if (sm) {
+      const id = sm[1] ? decodeURIComponent(sm[1]) : null;
+      if (!id) {
+        if (method === 'POST') {
+          bodies.push({ method, path: 'eval-sets', body });
+          const name = String(body?.name || '').trim();
+          if (!name) return invalid('name', 'OutOfRange', 'Give the set a name of 1 to 128 characters.');
+          if (sets.some((s) => s.name === name)) return { status: 409, body: { error: 'EvalSetExists', code: 'EvalSetExists', message: `Eval set ${name} already exists.` } };
+          const set = { ...evalSet(2), id: nextId('evs'), name, description: body.description || null, origin: body.origin || 'Human', judgeAgent: body.judgeAgent || null, tags: body.tags || [], version: 1, previousVersionId: null, state: 'Draft', caseCount: 0, createdUtc: new Date().toISOString() };
+          sets.unshift(set);
+          cases[set.id] = [];
+          return { status: 201, body: set };
+        }
+        const latest = url.searchParams.get('latestOnly') !== 'false';
+        const search = (url.searchParams.get('search') || '').toLowerCase();
+        let rows = sets.filter((s) => !search || s.name.toLowerCase().includes(search));
+        if (latest) rows = rows.filter((s) => latestOf(s.name).id === s.id);
+        return { status: 200, body: pageOf(rows, url) };
+      }
+      const set = sets.find((s) => s.id === id) || latestOf(id);
+      if (!set) return notFound('Eval set');
+      if (sm[2] === 'approve') {
+        if (set.state === 'Approved') return { status: 409, body: { error: 'AlreadyApproved', code: 'AlreadyApproved', message: 'Already approved.' } };
+        Object.assign(set, { state: 'Approved', approvedById: 'usr_admin', approvedByName: 'admin@garrison', approvedUtc: new Date().toISOString() });
+        return { status: 200, body: set };
+      }
+      if (sm[2] === 'cases') {
+        const caseId = sm[3] ? decodeURIComponent(sm[3]) : null;
+        if (!caseId && method === 'GET') return { status: 200, body: cases[set.id] || [] };
+        if (method !== 'GET') bodies.push({ method, path: `eval-sets/${set.id}/cases${caseId ? `/${caseId}` : ''}`, body });
+        if (!caseId) {
+          if (!String(body?.inputText || '').trim()) return invalid('inputText', 'InputRequired', 'A case needs input text.');
+          const draft = draftOf(set);
+          const list = cases[draft.id];
+          const item = cleanCase(body, draft.id, list.length ? Math.max(...list.map((c) => c.order)) + 1 : 0);
+          list.push(item);
+          count(draft);
+          return { status: 201, body: item };
+        }
+        const current = (cases[set.id] || []).find((c) => c.id === caseId);
+        if (!current) return notFound('Case');
+        const draft = draftOf(set);
+        const list = cases[draft.id];
+        const target = list.find((c) => c.order === current.order);
+        if (method === 'DELETE') {
+          list.splice(list.indexOf(target), 1);
+          return { status: 200, body: count(draft) };
+        }
+        if (method === 'PUT') {
+          Object.assign(target, cleanCase(body, draft.id, target.order, target.id));
+          return { status: 200, body: target };
+        }
+        return { status: 200, body: current };
+      }
+      if (method === 'PUT') {
+        bodies.push({ method, path: `eval-sets/${set.id}`, body });
+        const draft = draftOf(set);
+        Object.assign(draft, { description: body.description ?? draft.description, judgeAgent: body.judgeAgent || null, tags: body.tags ?? draft.tags });
+        return { status: 200, body: draft };
+      }
+      if (method === 'DELETE') {
+        if (set.state === 'Approved') return { status: 409, body: { error: 'EvalSetImmutable', code: 'EvalSetImmutable', message: 'Approved versions are kept.' } };
+        sets.splice(sets.indexOf(set), 1);
+        return { status: 204 };
+      }
+      return { status: 200, body: set };
+    }
+    const rm = /\/v1\.0\/api\/tenants\/[^/]+\/eval-runs(?:\/([^/]+)(?:\/(results|cancel))?)?$/.exec(url.pathname);
+    if (!rm) return undefined;
+    const id = rm[1] ? decodeURIComponent(rm[1]) : null;
+    if (!id) {
+      if (method === 'POST') {
+        bodies.push({ method, path: 'eval-runs', body });
+        const set = sets.find((s) => s.id === body?.setId) || latestOf(body?.setId || '');
+        if (!set) return notFound('Eval set');
+        const total = (cases[set.id] || []).length;
+        if (!total) return invalid('setId', 'EvalSetEmpty', `Eval set ${set.name} version ${set.version} has no cases.`);
+        const run = {
+          ...evalRun(2),
+          id: nextId('evr'),
+          setId: set.id,
+          setName: set.name,
+          setVersion: set.version,
+          targetType: body.targetType,
+          deploymentId: body.deploymentId || null,
+          agentId: body.targetType === 'Deployment' ? 'agt_0001' : body.agentId,
+          agentRevisionId: body.agentRevisionId || (body.targetType === 'Deployment' ? revisionId('agt_0001', 2) : 'arv_draft'),
+          inputMode: body.inputMode || 'Cases',
+          threshold: body.threshold ?? null,
+          budgetUsd: body.budgetUsd ?? null,
+          status: 'Running',
+          totalCases: total,
+          completedCases: 0,
+          passedCases: 0,
+          erroredCases: 0,
+          score: null,
+          passed: null,
+          costUsd: 0,
+          createdUtc: new Date().toISOString(),
+          completedUtc: null
+        };
+        runs.unshift(run);
+        results[run.id] = [];
+        return { status: 201, body: run };
+      }
+      const setFilter = url.searchParams.get('set');
+      return { status: 200, body: pageOf(runs.filter((r) => !setFilter || r.setId === setFilter), url) };
+    }
+    const run = runs.find((r) => r.id === id);
+    if (!run) return notFound('Eval run');
+    if (rm[2] === 'results') return { status: 200, body: results[run.id] || [] };
+    if (rm[2] === 'cancel') {
+      if (['Completed', 'Failed', 'Cancelled'].includes(run.status)) return { status: 409, body: { error: 'EvalRunFinished', code: 'EvalRunFinished', message: 'Already finished.' } };
+      Object.assign(run, { status: 'Cancelled', completedUtc: new Date().toISOString() });
+    }
+    return { status: 200, body: run };
+  };
+  return { sets, cases, runs, results, bodies, finish, handle };
 }
 
 /** Install mocks on a Playwright page. */

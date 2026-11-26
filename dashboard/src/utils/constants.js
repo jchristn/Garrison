@@ -154,7 +154,7 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage', 'Organization', 'ChangeRule'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint', 'AgentRevision', 'Promotion', 'AgentAsset', 'ConversationFileSpace', 'Capability', 'FanOutGroup', 'AgenticApp', 'StudioDraft', 'Mandate', 'Escalation', 'Freeze', 'Memory', 'Report', 'AgentMessage', 'Organization', 'ChangeRule', 'EvalSet', 'EvalRun', 'ShadowTrial', 'CanaryRelease'],
   // Agent revisions and promotions (AD1).
   agentRevisionState: ['Draft', 'Published'],
   promotionKind: ['Promote', 'Rollback'],
@@ -196,9 +196,9 @@ export const ENUMS = {
   triggerFireSource: ['Cron', 'Webhook', 'Manual'],
   triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
-  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'Test'],
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'CanaryRolledBack', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
-  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper', 'Message'],
+  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper', 'Message', 'Eval', 'Shadow'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
   mandateStatus: ['Draft', 'Active', 'Paused', 'Frozen', 'CapReached', 'Retired'],
   mandateRevisionState: ['Draft', 'Published'],
@@ -235,6 +235,16 @@ export const ENUMS = {
   // executive over the units below it), and the classes of change a person's change rule can pre-approve.
   managementAccess: ['None', 'Drafts', 'OrgSubtree'],
   changeClass: ['PromptRetune', 'WakeTuning', 'MandateTextEdit', 'AddWorker', 'RemoveWorker', 'ModelChange', 'DeploymentWeight'],
+  // Evaluation, shadow trials, and canary releases (AA9): eval set states and origins, case scorers, eval run status,
+  // target, and input mode, shadow trial status, and canary release status.
+  evalSetState: ['Draft', 'Approved'],
+  evalSetOrigin: ['Human', 'Evaluator', 'Playground'],
+  evalScorer: ['ExactMatch', 'Contains', 'JsonSchemaValid', 'Judge'],
+  evalRunStatus: ['Pending', 'Running', 'Completed', 'Failed', 'Cancelled'],
+  evalRunTarget: ['AgentRevision', 'Deployment'],
+  evalRunInputMode: ['Cases', 'RecentInputs'],
+  shadowTrialStatus: ['Running', 'Completed', 'Stopped', 'Failed'],
+  canaryStatus: ['Running', 'Promoted', 'RolledBack', 'Aborted'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -513,6 +523,34 @@ export const CHANGE_RULE_LIMIT_NAMES = {
   RemoveWorker: ['count'],
   ModelChange: ['count'],
   DeploymentWeight: ['count', 'weight']
+};
+
+/**
+ * Evaluation bounds, mirroring the server (AA9): a set name holds 1 to 128 characters, a description at most 2000, a
+ * judge agent name at most 128, a tag at most 64, a case name at most 256; a check weight is 0 to 100 (default 1); a
+ * threshold and a score are 0 to 1; a budget is 0 to 100000 USD; recent inputs are 1 to 1000 (default 20). A shadow
+ * trial samples 1 to 100 percent (default 10) and its name holds at most 128 characters. A canary release has 1 to 20
+ * steps of 1 to 100 percent (strictly increasing, the last 100), 0 to 1000000 minimum runs (default 20), and 0 to 43200
+ * minimum minutes (default 10), with a maximum error rate of 0 to 100 percent (default 5). Reasons hold at most 2000.
+ */
+export const EVAL_LIMITS = {
+  nameMax: 128,
+  descriptionMax: 2000,
+  judgeAgentMax: 128,
+  tagMax: 64,
+  caseNameMax: 256,
+  weightMax: 100,
+  budgetMax: 100000,
+  recentInputsMax: 1000,
+  recentInputsDefault: 20,
+  samplePercentDefault: 10,
+  stepsMax: 20,
+  minimumRunsMax: 1000000,
+  minimumRunsDefault: 20,
+  minimumMinutesMax: 43200,
+  minimumMinutesDefault: 10,
+  maxErrorRateDefault: 5,
+  reasonMax: 2000
 };
 
 /** Semantic tone for a message urgency pill. */

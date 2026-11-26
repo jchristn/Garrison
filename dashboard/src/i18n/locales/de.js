@@ -7308,3 +7308,701 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Evaluations (AA9.9, AA9.15): the Eval sets, Eval runs, Shadow trials, and Canary releases pages under Autonomy,
+// the case and run forms, the playground's Save as eval case, the new enums, resource types, run kinds, the
+// CanaryRolledBack event, and the error codes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "evaluations": {
+    "label": "Eval-Sets",
+    "tip": "Versionierte Sätze von Testfällen, die Agenten vor dem Ausrollen bewerten"
+   },
+   "evalRuns": {
+    "label": "Eval-Läufe",
+    "tip": "Läufe eines Eval-Sets gegen eine Bereitstellung oder eine Agentenrevision"
+   },
+   "shadowTrials": {
+    "label": "Schattentests",
+    "tip": "Eine Kandidaten-Bereitstellung spielt echte Eingaben nach, ohne zu handeln"
+   },
+   "canaryReleases": {
+    "label": "Canary-Freigaben",
+    "tip": "Eine Kandidaten-Bereitstellung übernimmt schrittweise einen wachsenden Anteil des Datenverkehrs"
+   }
+  }
+ },
+ "enums": {
+  "resourceType": {
+   "EvalSet": "Eval-Set",
+   "EvalRun": "Eval-Lauf",
+   "ShadowTrial": "Schattentest",
+   "CanaryRelease": "Canary-Freigabe"
+  },
+  "notificationEvent": {
+   "CanaryRolledBack": "Canary-Freigabe zurückgesetzt"
+  },
+  "runKind": {
+   "Eval": "Eval-Testfall",
+   "Shadow": "Schattenkopie"
+  },
+  "evalSetState": {
+   "Draft": "Entwurf",
+   "Approved": "Genehmigt"
+  },
+  "evalSetOrigin": {
+   "Human": "Von einer Person geschrieben",
+   "Evaluator": "Von einem Agenten geschrieben",
+   "Playground": "Aus dem Testbereich"
+  },
+  "evalScorer": {
+   "ExactMatch": "Exakte Übereinstimmung",
+   "Contains": "Enthält",
+   "JsonSchemaValid": "Gültiges JSON Schema",
+   "Judge": "Richter-Agent"
+  },
+  "evalRunStatus": {
+   "Pending": "Ausstehend",
+   "Running": "Läuft",
+   "Completed": "Abgeschlossen",
+   "Failed": "Fehlgeschlagen",
+   "Cancelled": "Abgebrochen"
+  },
+  "evalRunTarget": {
+   "AgentRevision": "Agentenrevision",
+   "Deployment": "Bereitstellung"
+  },
+  "evalRunInputMode": {
+   "Cases": "Die Testfälle des Sets",
+   "RecentInputs": "Letzte Eingaben"
+  },
+  "shadowTrialStatus": {
+   "Running": "Läuft",
+   "Completed": "Abgeschlossen",
+   "Stopped": "Gestoppt",
+   "Failed": "Fehlgeschlagen"
+  },
+  "canaryStatus": {
+   "Running": "Läuft",
+   "Promoted": "Hochgestuft",
+   "RolledBack": "Zurückgesetzt",
+   "Aborted": "Abgebrochen"
+  }
+ },
+ "errorCodes": {
+  "EvalSetExists": "Es gibt bereits ein Eval-Set mit diesem Namen. Öffnen und bearbeiten Sie es, um seine nächste Version zu erstellen.",
+  "AlreadyApproved": "Diese Version ist bereits genehmigt.",
+  "EvalSetEmpty": "Dieses Eval-Set hat noch keine Testfälle. Fügen Sie zuerst einen Testfall hinzu.",
+  "EvalSetImmutable": "Diese Version ist genehmigt und bleibt unverändert. Bearbeiten Sie sie, um die nächste Version zu öffnen, oder löschen Sie stattdessen eine Entwurfsversion.",
+  "ApprovalIsPeopleOnly": "Nur eine Person kann ein Eval-Set genehmigen. Ein Agent kann das Set, das ihn bewertet, nicht genehmigen.",
+  "EvalRunFinished": "Dieser Eval-Lauf ist bereits beendet.",
+  "ShadowTrialAlreadyRunning": "Dieser Kandidat begleitet diese Bereitstellung bereits in einem anderen Schattentest.",
+  "ShadowTrialNotRunning": "Dieser Schattentest läuft nicht mehr.",
+  "CanaryAlreadyRunning": "Eine dieser Bereitstellungen ist bereits Teil einer laufenden Canary-Freigabe.",
+  "CanaryNotRunning": "Diese Canary-Freigabe läuft nicht mehr.",
+  "EvalGateFailed": "Die Hochstufung braucht einen bestandenen Eval-Lauf dieser Revision gegen das genehmigte Eval-Set der Umgebung, und es gibt noch keinen.",
+  "PeopleOnly": "Das können nur Personen und API-Zugangsdaten. Ein Lauf-Token kann es nicht."
+ },
+ "evals": {
+  "versionShort": "v{{version}}",
+  "setVersion": "{{name}} v{{version}}",
+  "percent": "{{value}}%",
+  "progress": "{{completed}} von {{total}} Testfällen, {{passed}} bestanden",
+  "noJudge": "Kein Richter",
+  "noSet": "Keines",
+  "untilStopped": "Bis zum Stoppen",
+  "verdict": {
+   "passed": "Bestanden",
+   "failed": "Unter dem Schwellenwert",
+   "none": "Kein Urteil"
+  },
+  "outcome": {
+   "passed": "Bestanden",
+   "failed": "Nicht bestanden",
+   "errored": "Fehler"
+  },
+  "target": {
+   "deployment": "Bereitstellung {{name}}",
+   "revision": "Agent {{agent}}, Revision {{revision}}"
+  },
+  "actions": {
+   "runSet": "Set ausführen",
+   "openSet": "Set öffnen",
+   "cancelRun": "Lauf abbrechen",
+   "stopTrial": "Test stoppen",
+   "abortCanary": "Freigabe abbrechen",
+   "copyId": "ID kopieren"
+  },
+  "toasts": {
+   "copied": "Die ID wurde kopiert.",
+   "approved": "{{name}} v{{version}} genehmigt. Es kann jetzt Hochstufungen absichern.",
+   "caseSaved": "Der Testfall wurde gespeichert.",
+   "caseSavedNextVersion": "Der Testfall wurde in Version {{version}} gespeichert, einem neuen Entwurf.",
+   "caseSavedTo": "Der Testfall wurde in {{name}} gespeichert.",
+   "caseRemoved": "Der Testfall wurde entfernt.",
+   "caseRemovedNextVersion": "Der Testfall wurde aus Version {{version}} entfernt, einem neuen Entwurf.",
+   "setSavedNextVersion": "Als Version {{version}} gespeichert, ein neuer Entwurf.",
+   "runStarted": "Ein Eval-Lauf von {{name}} wurde gestartet.",
+   "runCancelled": "Der Eval-Lauf wurde abgebrochen.",
+   "trialStopped": "Der Schattentest wurde gestoppt.",
+   "canaryAborted": "Die Canary-Freigabe wurde abgebrochen. Die ursprünglichen Gewichtungen gelten wieder."
+  },
+  "reason": {
+   "label": "Grund",
+   "placeholder": "Optional. Er wird beim Datensatz und im Audit-Protokoll gespeichert."
+  },
+  "form": {
+   "errors": {
+    "name": "Geben Sie dem Set einen Namen mit 1 bis {{max}} Zeichen.",
+    "description": "Die Beschreibung umfasst höchstens {{max}} Zeichen.",
+    "judgeAgent": "Der Name des Richter-Agenten umfasst höchstens {{max}} Zeichen.",
+    "tags": "Jedes Schlagwort umfasst höchstens {{max}} Zeichen."
+   }
+  },
+  "set": {
+   "nextVersion": "Diese Version ist genehmigt, daher erstellt das Speichern Version {{version}} als Entwurf. Diese Version bleibt unverändert."
+  },
+  "case": {
+   "addTitle": "Testfall zu {{name}} hinzufügen",
+   "editTitle": "Testfall {{number}} bearbeiten",
+   "save": "Testfall speichern",
+   "nextVersion": "Diese Version ist genehmigt, daher geht die Änderung in Version {{version}}, einen neuen Entwurf. Diese Version bleibt unverändert.",
+   "fromRun": "Aus Lauf {{id}} gespeichert.",
+   "fields": {
+    "name": "Name",
+    "inputText": "Eingabe",
+    "expectedText": "Erwartete Ausgabe",
+    "hidden": "Vor den bewerteten Agenten verborgen",
+    "checks": "Prüfungen"
+   },
+   "placeholders": {
+    "name": "Optional, zum Beispiel Erstattung über dem Limit",
+    "inputText": "Die Nachricht, die der Agent erhält",
+    "expectedText": "Was eine gute Antwort sagt"
+   },
+   "hints": {
+    "name": "Optional, höchstens {{max}} Zeichen.",
+    "inputText": "Erforderlich. Der Testfall sendet dies als Eingabe an den Agenten.",
+    "expectedText": "Optional. Prüfungen mit exakter Übereinstimmung und Enthält vergleichen damit, wenn sie keinen eigenen Text haben; der Richter liest sie als Referenzantwort.",
+    "hidden": "Die eigenen Läufe eines Agenten sehen bei einem verborgenen Testfall nur die Punktzahl, nie Eingabe oder erwartete Ausgabe, damit er die Antworten nicht lernen kann."
+   },
+   "checks": {
+    "scorer": "Bewerter",
+    "weight": "Gewichtung",
+    "add": "Prüfung hinzufügen",
+    "remove": "Prüfung {{number}} entfernen",
+    "none": "Keine Prüfungen. Der Testfall wird per exakter Übereinstimmung mit der erwarteten Ausgabe bewertet oder, wenn es keine erwartete Ausgabe gibt, vom Richter-Agenten."
+   },
+   "scorerHints": {
+    "ExactMatch": "Besteht, wenn die Ausgabe dem Text entspricht, umgebende Leerzeichen nicht mitgezählt.",
+    "Contains": "Besteht, wenn die Ausgabe den Text enthält.",
+    "JsonSchemaValid": "Besteht, wenn die Ausgabe JSON ist, das dem Schema entspricht.",
+    "Judge": "Der Richter-Agent des Sets bewertet die Ausgabe anhand der Bewertungskriterien und der erwarteten Ausgabe."
+   },
+   "argumentLabels": {
+    "ExactMatch": "Exakter Text",
+    "Contains": "Gesuchter Text",
+    "JsonSchemaValid": "JSON Schema",
+    "Judge": "Bewertungskriterien"
+   },
+   "argumentPlaceholders": {
+    "ExactMatch": "Leer verwendet die erwartete Ausgabe",
+    "Contains": "Leer verwendet die erwartete Ausgabe",
+    "JsonSchemaValid": "{\"type\": \"object\", \"required\": [\"answer\"]}",
+    "Judge": "Optional. Was eine gute Antwort leisten muss"
+   },
+   "errors": {
+    "input": "Ein Testfall braucht einen Eingabetext.",
+    "name": "Der Name umfasst höchstens {{max}} Zeichen.",
+    "weight": "Eine Gewichtung liegt zwischen 0 und {{max}}.",
+    "schema": "Geben Sie hier ein JSON-Schema-Objekt ein.",
+    "argument": "Geben Sie den Text an oder füllen Sie die erwartete Ausgabe des Testfalls aus."
+   }
+  },
+  "run": {
+   "title": "Eval-Set ausführen",
+   "titleFor": "{{name}} v{{version}} ausführen",
+   "intro": "Jeder Testfall läuft als eigener Eval-Lauf. Läufe gegen eine Agentenrevision nutzen eine temporäre Bereitstellung und lassen den Live-Datenverkehr unberührt.",
+   "start": "Lauf starten",
+   "starting": "Wird gestartet...",
+   "setOption": "{{name}} v{{version}}",
+   "chooseDeployment": "Bereitstellung wählen",
+   "chooseAgent": "Agent wählen",
+   "fields": {
+    "setId": "Eval-Set",
+    "targetType": "Bewerten",
+    "deploymentId": "Bereitstellung",
+    "agentId": "Agent",
+    "agentRevisionId": "Revision",
+    "inputMode": "Eingaben",
+    "recentInputCount": "Nachzuspielende letzte Eingaben",
+    "thresholdPercent": "Bestehensschwelle (Prozent)",
+    "budgetUsd": "Kostenrahmen (USD)"
+   },
+   "hints": {
+    "setId": "Von jedem Set wird die neueste Version aufgeführt.",
+    "targetType": "Eine Bereitstellung so, wie sie jetzt läuft, oder eine Agentenrevision wie der Entwurf, den der Studio-Testbereich ausführt.",
+    "agentId": "Erforderlich. Ohne Revision läuft die Entwurfsrevision des Agenten oder seine neueste veröffentlichte.",
+    "agentRevisionId": "Optional. Eine Agentenrevisions-ID; leer führt die Entwurfsrevision aus.",
+    "inputMode": "Die Testfälle des Sets oder die letzten erfolgreichen Eingaben der Bereitstellung, bewertet vom Richter-Agenten.",
+    "recentInputCount": "1 bis {{max}}.",
+    "thresholdPercent": "Optional, 0 bis 100. Der Lauf besteht, wenn seine gewichtete Punktzahl diesen Wert erreicht.",
+    "budgetUsd": "Optional. Wenn Testfall- und Richterläufe so viel ausgegeben haben, werden die übrigen Testfälle übersprungen und der Lauf schlägt fehl."
+   },
+   "errors": {
+    "set": "Wählen Sie das auszuführende Eval-Set.",
+    "deployment": "Wählen Sie die zu bewertende Bereitstellung.",
+    "agent": "Wählen Sie den zu bewertenden Agenten.",
+    "threshold": "Ein Schwellenwert liegt zwischen 0 und 100 Prozent.",
+    "budget": "Ein Kostenrahmen liegt zwischen 0 und {{max}} USD.",
+    "recentInputs": "Spielen Sie 1 bis {{max}} letzte Eingaben nach."
+   }
+  },
+  "save": {
+   "open": "Als Eval-Testfall speichern",
+   "title": "Als Eval-Testfall speichern",
+   "intro": "Die Eingabe der Runde und die Antwort des Agenten werden zu einem Testfall. Passen Sie die erwartete Ausgabe so an, dass sie beschreibt, was eine gute Antwort ist, nicht nur, was diese gesagt hat.",
+   "set": "Eval-Set",
+   "newSet": "Neues Eval-Set...",
+   "newSetName": "Name des neuen Sets",
+   "newSetHint": "Das neue Set beginnt als Entwurf mit der Herkunft Aus dem Testbereich.",
+   "submit": "Testfall speichern",
+   "done": "Fertig",
+   "openSet": "Set öffnen",
+   "runSet": "Set ausführen",
+   "entryAgent": "den Einstiegsagenten",
+   "saved": "Der Testfall wurde in {{name}} v{{version}} gespeichert.",
+   "runHint": "Set ausführen bewertet die Entwurfsrevision von {{agent}}, also die Revision, die dieser Testbereich ausgeführt hat.",
+   "errors": {
+    "set": "Wählen Sie ein Eval-Set oder erstellen Sie ein neues."
+   }
+  },
+  "setDetail": {
+   "title": "Eval-Set",
+   "back": "Alle Eval-Sets",
+   "notFoundTitle": "Eval-Set nicht gefunden",
+   "notFoundBody": "Vielleicht war es ein Entwurf, den jemand gelöscht hat. Genehmigte Versionen bleiben immer erhalten.",
+   "approve": "Genehmigen",
+   "approveTitle": "{{name}} v{{version}} genehmigen",
+   "approveMessage": "Eine genehmigte Version bleibt genau so erhalten und kann Hochstufungen und Canary-Freigaben absichern. Spätere Änderungen erstellen die nächste Version als Entwurf.",
+   "approvedNote": "Diese Version ist genehmigt und bleibt unverändert. Wenn Sie das Set oder einen Testfall bearbeiten, entsteht Version {{version}} als Entwurf.",
+   "approvedByAt": "{{name}}, {{when}}",
+   "needsJudge": "Einige Testfälle werden vom Richter-Agenten bewertet, aber dieses Set hat keinen. Bearbeiten Sie das Set und wählen Sie einen Richter-Agenten, bevor Sie es ausführen.",
+   "editTitle": "{{name}} bearbeiten",
+   "deleteTitle": "Entwurfsversion löschen",
+   "deleteMessage": "{{name}} v{{version}} löschen? Genehmigte Versionen sind nicht betroffen.",
+   "cases": "Testfälle ({{count}})",
+   "addCase": "Testfall hinzufügen",
+   "noCases": "Noch keine Testfälle. Fügen Sie hier einen hinzu oder speichern Sie eine Runde aus dem Studio-Testbereich.",
+   "noExpected": "Keine",
+   "hidden": "Verborgen",
+   "removeCaseTitle": "Testfall {{number}} entfernen",
+   "removeCaseMessage": "Diesen Testfall aus dem Entwurf entfernen?",
+   "removeCaseApproved": "Diese Version ist genehmigt, daher wird der Testfall aus Version {{version}} entfernt, einem neuen Entwurf. Diese Version behält ihn.",
+   "versions": "Versionen",
+   "thisVersion": "v{{version}} (diese)",
+   "runs": "Letzte Eval-Läufe",
+   "allRuns": "Alle Läufe dieser Version",
+   "noRuns": "Diese Version wurde noch nicht ausgeführt.",
+   "fields": {
+    "state": "Zustand",
+    "origin": "Herkunft",
+    "judgeAgent": "Richter-Agent",
+    "tags": "Schlagwörter",
+    "authoredBy": "Geschrieben von",
+    "approvedBy": "Genehmigt von",
+    "previousVersion": "Vorherige Version",
+    "lastUpdateUtc": "Zuletzt geändert",
+    "description": "Beschreibung"
+   },
+   "columns": {
+    "order": "#",
+    "name": "Name",
+    "input": "Eingabe",
+    "expected": "Erwartete Ausgabe",
+    "scorers": "Bewertet durch",
+    "hidden": "Verborgen",
+    "source": "Aus Lauf"
+   },
+   "versionColumns": {
+    "version": "Version",
+    "state": "Zustand",
+    "caseCount": "Testfälle",
+    "approvedBy": "Genehmigt von",
+    "lastUpdateUtc": "Zuletzt geändert"
+   },
+   "runColumns": {
+    "run": "Eval-Lauf",
+    "status": "Status",
+    "verdict": "Urteil",
+    "score": "Punktzahl",
+    "target": "Bewertet",
+    "createdUtc": "Gestartet"
+   }
+  },
+  "runDetail": {
+   "title": "Eval-Lauf",
+   "back": "Alle Eval-Läufe",
+   "notFoundTitle": "Eval-Lauf nicht gefunden",
+   "notFoundBody": "Prüfen Sie die ID oder öffnen Sie den Lauf über sein Eval-Set.",
+   "live": "Echtzeit",
+   "polling": "Abfrage",
+   "failure": "Der Lauf ist fehlgeschlagen: {{reason}}",
+   "progressLabel": "Abgeschlossene Testfälle",
+   "kpi": {
+    "score": "Punktzahl",
+    "threshold": "Schwellenwert {{threshold}}",
+    "noThreshold": "Kein Schwellenwert",
+    "passed": "Bestandene Testfälle",
+    "errored": "Testfälle mit Fehler",
+    "cost": "Kosten",
+    "budget": "Kostenrahmen {{budget}}",
+    "noBudget": "Kein Kostenrahmen"
+   },
+   "fields": {
+    "target": "Bewertet",
+    "targetType": "Ziel",
+    "inputMode": "Eingaben",
+    "startedBy": "Gestartet von",
+    "createdUtc": "Gestartet",
+    "completedUtc": "Beendet",
+    "studioDraftId": "Studio-Entwurf"
+   },
+   "recentInputs": "{{count}} letzte Eingaben",
+   "results": "Testfallergebnisse ({{count}})",
+   "failingOnly": "Nur nicht bestandene ({{count}})",
+   "noFailing": "Alle Testfälle haben bestanden.",
+   "noResults": "Dieser Lauf hat keine Testfallergebnisse aufgezeichnet.",
+   "waiting": "Warten, bis der erste Testfall abgeschlossen ist.",
+   "caseNumber": "Testfall {{number}}",
+   "recentInput": "Letzte Eingabe {{number}}",
+   "checksPassed": "{{passed}} von {{total}} bestanden",
+   "open": "Öffnen",
+   "columns": {
+    "order": "#",
+    "case": "Testfall",
+    "outcome": "Ergebnis",
+    "score": "Punktzahl",
+    "checks": "Prüfungen",
+    "output": "Ausgabe"
+   },
+   "resultTitle": "Testfall {{number}}",
+   "resultTitleNamed": "Testfall {{number}}: {{name}}",
+   "scoreIs": "Punktzahl {{score}}",
+   "openCaseRun": "Testfall-Lauf öffnen",
+   "openSourceRun": "Quell-Lauf öffnen",
+   "hiddenCase": "Dieser Testfall ist vor den bewerteten Agenten verborgen.",
+   "input": "Eingabe",
+   "diff": "Erwartete Ausgabe im Vergleich zur Ausgabe",
+   "expected": "Erwartet",
+   "output": "Ausgabe",
+   "noOutput": "Keine Ausgabe.",
+   "checks": "Prüfungen",
+   "noChecks": "Es wurden keine Prüfungen bewertet.",
+   "checkColumns": {
+    "scorer": "Bewerter",
+    "weight": "Gewichtung",
+    "score": "Punktzahl",
+    "outcome": "Ergebnis",
+    "note": "Hinweis des Bewerters",
+    "judgeRun": "Richterlauf"
+   },
+   "cancelTitle": "Eval-Lauf abbrechen",
+   "cancelMessage": "Diesen Lauf von {{name}} abbrechen? Nicht abgeschlossene Testfälle werden mit abgebrochen."
+  },
+  "shadow": {
+   "errors": {
+    "name": "Der Name umfasst höchstens {{max}} Zeichen.",
+    "source": "Wählen Sie die Bereitstellung, deren Läufe kopiert werden.",
+    "candidate": "Wählen Sie die Kandidaten-Bereitstellung.",
+    "same": "Der Kandidat muss eine andere Bereitstellung als die Quelle sein.",
+    "sample": "Wählen Sie eine Stichprobe von 1 bis 100 Prozent der Läufe.",
+    "ends": "Wählen Sie ein Ende in der Zukunft oder lassen Sie das Feld leer, damit der Test bis zum Stoppen läuft."
+   }
+  },
+  "shadowDetail": {
+   "title": "Schattentest",
+   "back": "Alle Schattentests",
+   "notFoundTitle": "Schattentest nicht gefunden",
+   "notFoundBody": "Prüfen Sie die ID oder öffnen Sie den Test aus der Liste.",
+   "note": "Schattenläufe spielen die Eingaben der Quelle auf dem Kandidaten nach. Sie können keine Werkzeuge mit Nebenwirkungen nutzen, keine Nachrichten senden, kein Gedächtnis schreiben und keine Berichte einreichen, und die Läufe der Quelle sind nicht betroffen.",
+   "stopReason": "Gestoppt: {{reason}}",
+   "stopTitle": "Schattentest stoppen",
+   "stopMessage": "{{name}} stoppen? Es werden keine weiteren Läufe kopiert; die bisherigen Zählungen bleiben erhalten.",
+   "kpi": {
+    "compared": "Verglichen",
+    "agreed": "Übereinstimmend",
+    "diverged": "Abweichend",
+    "failures": "Fehler des Kandidaten",
+    "agreement": "Übereinstimmung"
+   },
+   "comparison": {
+    "text": "Normalisierter Text",
+    "set": "Mit einem Eval-Set",
+    "judge": "Durch den Richter-Agenten"
+   },
+   "fields": {
+    "source": "Quelle",
+    "candidate": "Kandidat",
+    "samplePercent": "Stichprobe",
+    "comparison": "Verglichen durch",
+    "endsUtc": "Endet",
+    "createdBy": "Gestartet von",
+    "createdUtc": "Gestartet",
+    "completedUtc": "Beendet"
+   }
+  },
+  "canary": {
+   "stepOf": "Schritt {{number}} von {{total}} bei {{percent}}%",
+   "gateText": "{{name}} mit {{score}} oder mehr",
+   "noGate": "Keine Eval-Schranke",
+   "errors": {
+    "agent": "Wählen Sie den Agenten, dessen Datenverkehr verlagert wird.",
+    "candidate": "Wählen Sie die Kandidaten-Bereitstellung.",
+    "baseline": "Wählen Sie die Basis-Bereitstellung.",
+    "same": "Kandidat und Basis müssen verschiedene Bereitstellungen sein.",
+    "steps": "Geben Sie mindestens einen Schritt an. Der letzte Schritt ist 100 Prozent.",
+    "tooMany": "Eine Freigabe hat höchstens {{max}} Schritte.",
+    "increasing": "Der Prozentwert jedes Schritts liegt zwischen 1 und 100 und über dem des vorherigen Schritts.",
+    "lastStep": "Der letzte Schritt muss 100 Prozent sein.",
+    "errorRate": "Die Fehlerquoten-Obergrenze liegt zwischen 0 und 100 Prozent.",
+    "gate": "Eine Eval-Schranke braucht sowohl ein Eval-Set als auch eine Mindestpunktzahl, oder keines von beiden.",
+    "score": "Die Mindestpunktzahl liegt zwischen 0 und 100 Prozent."
+   }
+  },
+  "canaryDetail": {
+   "title": "Canary-Freigabe",
+   "heading": "Canary-Freigabe von {{agent}}",
+   "back": "Alle Canary-Freigaben",
+   "notFoundTitle": "Canary-Freigabe nicht gefunden",
+   "notFoundBody": "Prüfen Sie die ID oder öffnen Sie die Freigabe aus der Liste.",
+   "rolledBack": "Zurückgesetzt: {{reason}} Die ursprünglichen Gewichtungen gelten wieder.",
+   "aborted": "Abgebrochen: {{reason}} Die ursprünglichen Gewichtungen gelten wieder.",
+   "promoted": "Hochgestuft. {{candidate}} übernimmt den gesamten Datenverkehr.",
+   "noReason": "kein Grund angegeben.",
+   "withWeight": "{{name}} (Gewichtung {{weight}} vor der Freigabe)",
+   "gate": "Letzte Eval-Punktzahl von {{score}} oder mehr",
+   "steps": "Schritte",
+   "columns": {
+    "step": "Schritt",
+    "weightPercent": "Datenverkehr des Kandidaten",
+    "minimumRuns": "Mindestanzahl Läufe",
+    "minimumMinutes": "Mindestdauer in Minuten",
+    "state": "Zustand"
+   },
+   "stepStates": {
+    "done": "Erledigt",
+    "current": "Aktuell",
+    "stopped": "Hier gestoppt",
+    "pending": "Wartet"
+   },
+   "abortTitle": "Canary-Freigabe abbrechen",
+   "abortMessage": "Die Freigabe abbrechen? Beide Bereitstellungen kehren zu den Gewichtungen zurück, die sie vor dem Start hatten.",
+   "fields": {
+    "agent": "Agent",
+    "candidate": "Kandidat",
+    "baseline": "Basis",
+    "maxErrorRatePercent": "Fehlerquoten-Obergrenze",
+    "gate": "Eval-Schranke",
+    "stepStartedUtc": "Aktueller Schritt gestartet",
+    "createdBy": "Gestartet von",
+    "completedUtc": "Beendet"
+   }
+  },
+  "fieldCodes": {
+   "InputRequired": "Ein Testfall braucht einen Eingabetext.",
+   "UnknownScorer": "Verwenden Sie Exakte Übereinstimmung, Enthält, Gültiges JSON Schema oder Richter-Agent.",
+   "ArgumentRequired": "Geben Sie den Text an oder füllen Sie die erwartete Ausgabe des Testfalls aus.",
+   "InvalidJsonSchema": "Dies ist kein gültiges JSON Schema.",
+   "TooManyCases": "Das Set enthält bereits die maximale Anzahl an Testfällen.",
+   "EvaluatorIsForAgents": "Die Herkunft Von einem Agenten geschrieben gilt für Sets, die ein Agent erstellt hat. Wählen Sie Von einer Person geschrieben oder Aus dem Testbereich.",
+   "SetRequired": "Wählen Sie das auszuführende Eval-Set.",
+   "TargetRequired": "Wählen Sie, was bewertet werden soll.",
+   "RecentInputsNeedDeployment": "Letzte Eingaben spielen die Läufe einer Bereitstellung nach. Bewerten Sie eine Bereitstellung.",
+   "NoRecentInputs": "Die Bereitstellung hat noch keine erfolgreichen Läufe zum Nachspielen.",
+   "EvalSetEmpty": "Diese Version hat keine Testfälle.",
+   "JudgeAgentRequired": "Einige Testfälle brauchen den Richter-Agenten, aber das Set hat keinen. Bearbeiten Sie das Set und wählen Sie einen.",
+   "DeploymentNotFound": "Diese Bereitstellung existiert in diesem Mandanten nicht.",
+   "SameDeployment": "Wählen Sie zwei verschiedene Bereitstellungen.",
+   "DifferentAgent": "Beide Bereitstellungen müssen zum selben Agenten gehören.",
+   "DeploymentInactive": "Diese Bereitstellung ist inaktiv. Aktivieren Sie sie zuerst.",
+   "AgentMismatch": "Der Agent muss der Agent der Quell-Bereitstellung sein.",
+   "EndsInPast": "Wählen Sie ein Ende in der Zukunft oder lassen Sie das Feld leer.",
+   "EvalSetNotFound": "Dieses Eval-Set existiert in diesem Mandanten nicht.",
+   "AgentNotFound": "Dieser Agent existiert in diesem Mandanten nicht.",
+   "EvalGateIncomplete": "Eine Eval-Schranke braucht sowohl ein Eval-Set als auch eine Mindestpunktzahl, oder keines von beiden.",
+   "NotIncreasing": "Der Prozentwert jedes Schritts muss über dem des vorherigen Schritts liegen.",
+   "LastStepNotFull": "Der letzte Schritt muss 100 Prozent sein."
+  }
+ },
+ "resources": {
+  "evalSets": {
+   "title": "Eval-Sets",
+   "subtitle": "Versionierte Testfälle, die einen Agenten bewerten. Genehmigen Sie eine Version, damit sie Hochstufungen und Canary-Freigaben absichern kann.",
+   "add": "Eval-Set hinzufügen",
+   "create": "Eval-Set hinzufügen",
+   "edit": "Eval-Set bearbeiten",
+   "view": "Eval-Set",
+   "deleteTitle": "Entwurfsversion löschen",
+   "emptyTitle": "Noch keine Eval-Sets",
+   "emptyBody": "Fügen Sie hier ein Set mit seinen Testfällen hinzu oder speichern Sie eine Runde aus dem Studio-Testbereich als ersten Testfall.",
+   "filters": {
+    "latestOnly": "Versionen",
+    "newestOnly": "Nur neueste Version",
+    "allVersions": "Alle Versionen"
+   },
+   "columns": {
+    "name": "Name",
+    "version": "Version",
+    "state": "Zustand",
+    "origin": "Herkunft",
+    "caseCount": "Testfälle",
+    "judgeAgent": "Richter-Agent",
+    "tags": "Schlagwörter",
+    "authoredByName": "Geschrieben von",
+    "approvedByName": "Genehmigt von",
+    "description": "Beschreibung",
+    "lastUpdateUtc": "Zuletzt geändert",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Beschreibung",
+    "origin": "Herkunft",
+    "judgeAgent": "Richter-Agent",
+    "tags": "Schlagwörter"
+   },
+   "hints": {
+    "name": "1 bis {{max}} Zeichen. Der Name bleibt über alle Versionen gleich.",
+    "description": "Optional, höchstens {{max}} Zeichen.",
+    "origin": "Aus dem Testbereich kennzeichnet Sets, die aus Runden im Testbereich entstanden sind.",
+    "judgeAgent": "Der Agent, der Richter-Prüfungen, Testfälle ohne erwartete Ausgabe und letzte Eingaben bewertet.",
+    "tags": "Optional, eines pro Zeile, je höchstens {{max}} Zeichen."
+   }
+  },
+  "evalRuns": {
+   "title": "Eval-Läufe",
+   "subtitle": "Jeder Lauf einer Eval-Set-Version gegen eine Bereitstellung oder eine Agentenrevision, mit seiner Punktzahl im Vergleich zum Schwellenwert.",
+   "add": "Set ausführen",
+   "create": "Eval-Set ausführen",
+   "edit": "Eval-Lauf",
+   "view": "Eval-Lauf",
+   "deleteTitle": "Eval-Lauf löschen",
+   "emptyTitle": "Noch keine Eval-Läufe",
+   "emptyBody": "Führen Sie ein Eval-Set aus, um eine Bereitstellung oder eine Entwurfsrevision vor dem Ausrollen zu bewerten.",
+   "columns": {
+    "setName": "Eval-Set",
+    "status": "Status",
+    "verdict": "Urteil",
+    "score": "Punktzahl",
+    "threshold": "Schwellenwert",
+    "progress": "Fortschritt",
+    "target": "Bewertet",
+    "inputMode": "Eingaben",
+    "costUsd": "Kosten",
+    "startedByName": "Gestartet von",
+    "createdUtc": "Gestartet",
+    "id": "ID"
+   }
+  },
+  "shadowTrials": {
+   "title": "Schattentests",
+   "subtitle": "Eine Kandidaten-Bereitstellung spielt einen Anteil der Eingaben einer Live-Bereitstellung nach, ohne zu handeln, und die Ausgaben werden verglichen.",
+   "add": "Schattentest starten",
+   "create": "Schattentest starten",
+   "edit": "Schattentest",
+   "view": "Schattentest",
+   "deleteTitle": "Schattentest löschen",
+   "emptyTitle": "Noch keine Schattentests",
+   "emptyBody": "Starten Sie einen Test, um zu sehen, wie eine Kandidaten-Bereitstellung auf echte Eingaben antwortet, bevor sie Datenverkehr übernimmt.",
+   "columns": {
+    "name": "Name",
+    "status": "Status",
+    "source": "Quelle",
+    "candidate": "Kandidat",
+    "samplePercent": "Stichprobe",
+    "comparedCount": "Verglichen",
+    "agreedCount": "Übereinstimmend",
+    "divergedCount": "Abweichend",
+    "candidateFailureCount": "Fehler",
+    "agreement": "Übereinstimmung",
+    "endsUtc": "Endet",
+    "createdUtc": "Gestartet",
+    "id": "ID"
+   },
+   "fields": {
+    "name": "Name",
+    "sourceDeploymentId": "Quell-Bereitstellung",
+    "candidateDeploymentId": "Kandidaten-Bereitstellung",
+    "samplePercent": "Stichprobe (Prozent)",
+    "endsUtc": "Endet",
+    "comparisonEvalSetId": "Mit Eval-Set vergleichen",
+    "useJudge": "Mit dem Richter-Agenten vergleichen"
+   },
+   "hints": {
+    "name": "Optional, höchstens {{max}} Zeichen.",
+    "sourceDeploymentId": "Erforderlich. Ihre erfolgreichen Läufe werden kopiert; sie selbst ist nicht betroffen.",
+    "candidateDeploymentId": "Erforderlich. Eine andere Bereitstellung desselben Agenten.",
+    "samplePercent": "1 bis 100, Standard 10. Der Anteil der Läufe der Quelle, der kopiert wird.",
+    "endsUtc": "Optional. Leer läuft, bis jemand den Test stoppt.",
+    "comparisonEvalSetId": "Optional. Ohne Set werden die Ausgaben als normalisierter Text verglichen.",
+    "useJudge": "Den Richter-Agenten fragen, ob die beiden Ausgaben übereinstimmen."
+   }
+  },
+  "canaryReleases": {
+   "title": "Canary-Freigaben",
+   "subtitle": "Eine Kandidaten-Bereitstellung übernimmt schrittweise einen wachsenden Anteil des Datenverkehrs eines Agenten und wird von selbst zurückgesetzt, wenn sie sich fehlerhaft verhält.",
+   "add": "Canary-Freigabe starten",
+   "create": "Canary-Freigabe starten",
+   "edit": "Canary-Freigabe",
+   "view": "Canary-Freigabe",
+   "deleteTitle": "Canary-Freigabe löschen",
+   "emptyTitle": "Noch keine Canary-Freigaben",
+   "emptyBody": "Starten Sie eine Freigabe, um Datenverkehr Schritt für Schritt auf eine neue Bereitstellung zu verlagern.",
+   "addStep": "Schritt hinzufügen",
+   "columns": {
+    "agent": "Agent",
+    "status": "Status",
+    "candidate": "Kandidat",
+    "baseline": "Basis",
+    "step": "Schritt",
+    "maxErrorRatePercent": "Fehlerobergrenze",
+    "gate": "Eval-Schranke",
+    "rollbackReason": "Grund der Zurücksetzung",
+    "createdUtc": "Gestartet",
+    "id": "ID"
+   },
+   "fields": {
+    "agentId": "Agent",
+    "baselineDeploymentId": "Basis-Bereitstellung",
+    "candidateDeploymentId": "Kandidaten-Bereitstellung",
+    "steps": "Schritte",
+    "weightPercent": "Datenverkehr des Kandidaten (Prozent)",
+    "minimumRuns": "Mindestanzahl Läufe",
+    "minimumMinutes": "Mindestdauer in Minuten",
+    "maxErrorRatePercent": "Fehlerquoten-Obergrenze (Prozent)",
+    "evalSetId": "Set der Eval-Schranke",
+    "minEvalScorePercent": "Mindest-Eval-Punktzahl (Prozent)"
+   },
+   "hints": {
+    "agentId": "Erforderlich. Beide Bereitstellungen gehören zu ihm.",
+    "baselineDeploymentId": "Erforderlich. Sie behält den restlichen Datenverkehr.",
+    "candidateDeploymentId": "Erforderlich. Die Bereitstellung, die freigegeben wird.",
+    "steps": "1 bis {{max}} Schritte. Jeder Prozentwert liegt über dem vorherigen, und der letzte ist 100.",
+    "maxErrorRatePercent": "0 bis 100, Standard 5. Schlagen in einem Schritt mehr Kandidatenläufe fehl, wird die Freigabe zurückgesetzt.",
+    "evalSetId": "Optional. Ein Schritt geht nur weiter, wenn der letzte Eval-Lauf dieses Sets die Mindestpunktzahl erreicht.",
+    "minEvalScorePercent": "Erforderlich mit einem Set der Eval-Schranke, 0 bis 100."
+   }
+  }
+ }
+});

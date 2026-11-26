@@ -30,7 +30,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     // A wake source of keepers (AA1.16); the technical term is used untranslated in these languages.
     'Webhook',
     // The lowest escalation severity (AA2.13), spelled the same in German, French, and Italian.
-    'Info'
+    'Info',
+    // Evaluations (AA9.15): version notation, a name and time pair, the JSON Schema scorer's argument, and its example.
+    'v{{version}}', '{{name}} v{{version}}', '{{name}}, {{when}}', 'JSON Schema', '{"type": "object", "required": ["answer"]}'
   ],
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
@@ -47,6 +49,8 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Normal'
   ],
   fr: [
+    // Evaluations (AA9.15): words French spells the same.
+    'Versions', 'Verdict', 'Budget (USD)', 'Budget {{budget}}',
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',

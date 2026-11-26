@@ -1472,6 +1472,138 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/proposals/${enc(draftId)}/decide`), { body });
   }
 
+  // ------------------------------------------------------------------ evaluations, shadow trials, canaries (AA9)
+
+  /** Eval set versions, newest first. filters: state, origin, tag, latestOnly, search, pageNumber, pageSize. */
+  listEvalSets(tenantId, params) {
+    return this._list(this._t(tenantId, 'eval-sets'), params);
+  }
+
+  /** Read an eval set version by ID, or the newest version of a name. */
+  getEvalSet(tenantId, idOrName) {
+    return this._request('GET', this._t(tenantId, `eval-sets/${enc(idOrName)}`));
+  }
+
+  /**
+   * Create version 1 of an eval set. body: { name, description?, origin? (Human or Playground), judgeAgent?, tags?,
+   * cases? }. 409 EvalSetExists when the name is taken.
+   */
+  createEvalSet(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'eval-sets'), { body });
+  }
+
+  /** Edit a set's description, judge agent, and tags. On an approved version the answer is the next version, a draft. */
+  updateEvalSet(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `eval-sets/${enc(id)}`), { body });
+  }
+
+  /** Delete a draft version (approved versions are kept: 409 EvalSetImmutable). */
+  deleteEvalSet(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `eval-sets/${enc(id)}`));
+  }
+
+  /** Approve a draft version so it can gate promotions (people only). 409 AlreadyApproved or EvalSetEmpty. */
+  approveEvalSet(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `eval-sets/${enc(id)}/approve`));
+  }
+
+  /** A set version's cases in order. */
+  listEvalCases(tenantId, setId) {
+    return this._request('GET', this._t(tenantId, `eval-sets/${enc(setId)}/cases`));
+  }
+
+  /**
+   * Add a case at the end of a set: { name?, inputText, hidden, expectedText?, checks: [{ scorer, argument?, weight }],
+   * files?, sourceRunId? }. On an approved version it lands on the next version; the answer's setId names it.
+   */
+  createEvalCase(tenantId, setId, body) {
+    return this._request('POST', this._t(tenantId, `eval-sets/${enc(setId)}/cases`), { body });
+  }
+
+  /** Replace a case (same body as create); on an approved version the same case of the next version changes. */
+  updateEvalCase(tenantId, setId, caseId, body) {
+    return this._request('PUT', this._t(tenantId, `eval-sets/${enc(setId)}/cases/${enc(caseId)}`), { body });
+  }
+
+  /** Remove a case; answers with the draft version it was removed from. */
+  deleteEvalCase(tenantId, setId, caseId) {
+    return this._request('DELETE', this._t(tenantId, `eval-sets/${enc(setId)}/cases/${enc(caseId)}`));
+  }
+
+  /** Eval runs, newest first. filters: set, deployment, revision, status, pageNumber, pageSize. */
+  listEvalRuns(tenantId, params) {
+    return this._list(this._t(tenantId, 'eval-runs'), params);
+  }
+
+  /**
+   * Start an eval run. body: { setId, setVersion?, targetType (AgentRevision or Deployment), deploymentId? | agentId
+   * and agentRevisionId?, inputMode (Cases or RecentInputs), recentInputCount?, threshold? (0 to 1), budgetUsd? }.
+   */
+  createEvalRun(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'eval-runs'), { body });
+  }
+
+  /** Read an eval run with its score and counts. */
+  getEvalRun(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `eval-runs/${enc(id)}`));
+  }
+
+  /** An eval run's case results in order, each with its output, score, and per-check scores and notes. */
+  getEvalRunResults(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `eval-runs/${enc(id)}/results`));
+  }
+
+  /** Cancel a pending or running eval run. body: { reason? }. 409 EvalRunFinished. */
+  cancelEvalRun(tenantId, id, body = {}) {
+    return this._request('POST', this._t(tenantId, `eval-runs/${enc(id)}/cancel`), { body });
+  }
+
+  /** Shadow trials, newest first. filters: source, candidate, status, pageNumber, pageSize. */
+  listShadowTrials(tenantId, params) {
+    return this._list(this._t(tenantId, 'shadow-trials'), params);
+  }
+
+  /**
+   * Start a shadow trial. body: { name?, sourceDeploymentId, candidateDeploymentId, samplePercent (1 to 100), endsUtc?,
+   * comparisonEvalSetId?, useJudge }. 409 ShadowTrialAlreadyRunning.
+   */
+  createShadowTrial(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'shadow-trials'), { body });
+  }
+
+  /** Read a shadow trial with its compared, agreed, diverged, and failure counts. */
+  getShadowTrial(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `shadow-trials/${enc(id)}`));
+  }
+
+  /** Stop a running shadow trial. body: { reason? }. 409 ShadowTrialNotRunning. */
+  stopShadowTrial(tenantId, id, body = {}) {
+    return this._request('POST', this._t(tenantId, `shadow-trials/${enc(id)}/stop`), { body });
+  }
+
+  /** Canary releases, newest first. filters: agent, status, pageNumber, pageSize. */
+  listCanaryReleases(tenantId, params) {
+    return this._list(this._t(tenantId, 'canary-releases'), params);
+  }
+
+  /**
+   * Start a canary release. body: { agentId, candidateDeploymentId, baselineDeploymentId, steps: [{ weightPercent,
+   * minimumRuns, minimumMinutes }], maxErrorRatePercent, evalSetId? and minEvalScore? (both or neither) }.
+   */
+  createCanaryRelease(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'canary-releases'), { body });
+  }
+
+  /** Read a canary release with its steps, current step, and status. */
+  getCanaryRelease(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `canary-releases/${enc(id)}`));
+  }
+
+  /** Abort a running canary release and restore the initial weights. body: { reason? }. 409 CanaryNotRunning. */
+  abortCanaryRelease(tenantId, id, body = {}) {
+    return this._request('POST', this._t(tenantId, `canary-releases/${enc(id)}/abort`), { body });
+  }
+
   // ------------------------------------------------------------------ triggers (P12.5)
 
   /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */

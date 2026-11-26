@@ -1,6 +1,7 @@
 // Normalizes API errors into localized, operator-facing messages.
 
 import { translateServerText, stripCodePrefix } from './serverText';
+import { EVAL_FIELD_CODES } from './evalErrors';
 
 /**
  * Codes whose translation is generic ("The record was not found."). For these the server's own message is more
@@ -76,7 +77,9 @@ export function isMissingEndpoint(err) {
 /** Field codes the server attaches to 400 ValidationFailed (P9.17); `Invalid` has no translation of its own. */
 export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAllowedValue', 'TooLong', 'UnknownSetting', 'PathRequired', 'OverriddenByEnvironment', 'SettingsFileReadOnly', 'ParameterNotAllowed', 'ParameterInvalid', 'ExpiryInPast', 'InvalidUrl', 'DestinationBlocked', 'EventsRequired', 'InvalidEvent', 'InvalidCron', 'InvalidTimeZone', 'TypeImmutable', 'TargetMismatch', 'PayloadTooLarge', 'SecretUseDenied', 'GrantCeiling', 'ReservedRoleName', 'InvalidAssetPath', 'MacroFormatRefused', 'AssetHasNoFiles', 'AssetTemplateRequired', 'InvalidFilePath', 'InvalidJsonSchema', 'InvalidTags', 'TooManyRequirements', 'InvalidName', 'InvalidSlug', 'UnknownAgent', 'DuplicateMember', 'EntryNotMember', 'EdgeNotMember', 'SelfEdge', 'AppGraphCycle', 'UnreachableMember', 'UnknownEnvironment', 'InvalidEntryDeployment', 'DuplicateEnvironment', 'InvalidColor', 'UnknownAsset', 'Required', 'TooMany',
   // Change rules (AA8.12): explained by the change rule form's fieldErrorSpecial; elsewhere the server text shows.
-  'UnknownLimit', 'ClassNotInRule', 'UnitNotFound', 'Duplicate', 'BoundRequired', 'MinimumAboveMaximum', 'NegativeBound', 'OrganizationNotFound', 'OrganizationNotSettable'];
+  'UnknownLimit', 'ClassNotInRule', 'UnitNotFound', 'Duplicate', 'BoundRequired', 'MinimumAboveMaximum', 'NegativeBound', 'OrganizationNotFound', 'OrganizationNotSettable',
+  // Evaluations, shadow trials, and canaries (AA9.15): explained by evalFieldErrors and the forms' fieldErrorSpecial.
+  ...EVAL_FIELD_CODES];
 
 /**
  * Per-field messages from a validation error: each field's machine code (fieldCodes) translated, falling back to
