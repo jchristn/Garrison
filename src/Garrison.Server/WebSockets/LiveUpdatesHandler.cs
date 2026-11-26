@@ -234,6 +234,12 @@ namespace Garrison.Server.WebSockets
                 return nodes.Permitted ? null : nodes.Reason;
             }
             if (String.IsNullOrEmpty(ctx.TenantId)) return "Subscriptions to runs require a tenant-bound session.";
+            if (channel == "escalations")
+            {
+                // Escalations of the tenant (AA2.11): raised, answered, expired, and the open count for a badge.
+                AuthorizationDecision escalations = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                return escalations.Permitted ? null : escalations.Reason;
+            }
             if (channel == "approvals")
             {
                 AuthorizationDecision approvals = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
@@ -293,7 +299,7 @@ namespace Garrison.Server.WebSockets
                 return null;
             }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -314,6 +320,7 @@ namespace Garrison.Server.WebSockets
                             if (subscription.Key == "runs") await PumpRunsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "nodes") await PumpNodesAsync(session, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "approvals") await PumpApprovalsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key == "escalations") await PumpEscalationsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
@@ -361,6 +368,40 @@ namespace Garrison.Server.WebSockets
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
             await SendAsync(session, sendLock, new { type = "approvals.changed", pending = page.TotalRecords, reviewsPending = reviewsPending, approvals = page.Objects }, token).ConfigureAwait(false);
+        }
+
+        private async Task PumpEscalationsAsync(WebSocketSession session, RequestContext ctx, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // The cursor is "<lastupdateutc ticks>|<id>" of the last change sent. A new subscription starts now and sends the
+            // open count; later passes send one message per changed escalation, in order.
+            long open = await _Context.Database.Escalations.CountOpenAsync(ctx.TenantId!, token).ConfigureAwait(false);
+            if (state.Fingerprint == null)
+            {
+                state.Fingerprint = DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|";
+                await SendAsync(session, sendLock, new { type = "escalations.open", open = open }, token).ConfigureAwait(false);
+                return;
+            }
+            string[] cursor = state.Fingerprint.Split('|');
+            DateTime afterUtc = new DateTime(Int64.Parse(cursor[0], System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            List<Escalation> changed = await _Context.Database.Escalations.ListChangedAsync(ctx.TenantId!, afterUtc, cursor.Length > 1 ? cursor[1] : String.Empty, 100, token).ConfigureAwait(false);
+            foreach (Escalation escalation in changed)
+            {
+                state.Fingerprint = escalation.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + escalation.Id;
+                await SendAsync(session, sendLock, new { type = EscalationChangeType(escalation), open = open, escalation = escalation }, token).ConfigureAwait(false);
+            }
+        }
+
+        private static string EscalationChangeType(Escalation escalation)
+        {
+            // Only state changes move lastUpdateUtc (routing and delivery bookkeeping do not), so every change is an event.
+            switch (escalation.Status)
+            {
+                case EscalationStatusEnum.Answered: return "escalation.answered";
+                case EscalationStatusEnum.Expired: return "escalation.expired";
+                case EscalationStatusEnum.Cancelled: return "escalation.cancelled";
+                case EscalationStatusEnum.Withdrawn: return "escalation.withdrawn";
+                default: return !String.IsNullOrEmpty(escalation.EscalatedToId) ? "escalation.escalated" : "escalation.raised";
+            }
         }
 
         private async Task PumpNodesAsync(WebSocketSession session, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)

@@ -177,6 +177,8 @@ namespace Garrison.Core.Database
                 "mandate_revisions",
                 "mandate_revision_signals",
                 "mandate_ticks",
+                "escalations",
+                "escalation_options",
         };
 
         private readonly SqlDialect _Dialect;

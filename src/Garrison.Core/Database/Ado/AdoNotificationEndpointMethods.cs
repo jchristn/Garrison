@@ -21,7 +21,7 @@ namespace Garrison.Core.Database.Ado
         #region Private-Members
 
         private static readonly HashSet<string> _ReferenceColumns = new HashSet<string>(StringComparer.Ordinal) { "agentid", "deploymentid" };
-        private static readonly string _Columns = "id, tenantid, name, description, url, agentid, deploymentid, includeresulttext, resulttextmaxchars, active, secretencrypted, secretkeyversion, secretlast4, secretrotatedutc, createdutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, name, description, url, agentid, deploymentid, includeresulttext, resulttextmaxchars, escalationminseverity, active, secretencrypted, secretkeyversion, secretlast4, secretrotatedutc, createdutc, lastupdateutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
@@ -100,7 +100,7 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "UPDATE " + _Table + " SET name = @name, description = @description, url = @url, agentid = @agentid, deploymentid = @deploymentid, includeresulttext = @includeresulttext, resulttextmaxchars = @resulttextmaxchars, active = @active, secretencrypted = @secretencrypted, secretkeyversion = @secretkeyversion, secretlast4 = @secretlast4, secretrotatedutc = @secretrotatedutc, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
+                    "UPDATE " + _Table + " SET name = @name, description = @description, url = @url, agentid = @agentid, deploymentid = @deploymentid, includeresulttext = @includeresulttext, resulttextmaxchars = @resulttextmaxchars, escalationminseverity = @escalationminseverity, active = @active, secretencrypted = @secretencrypted, secretkeyversion = @secretkeyversion, secretlast4 = @secretlast4, secretrotatedutc = @secretrotatedutc, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
                     command => Bind(command, obj), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Events + " WHERE endpointid = @id;", command => AdoDatabaseDriver.Add(command, "id", obj.Id), ct).ConfigureAwait(false);
                 await InsertEventsAsync(connection, transaction, obj, ct).ConfigureAwait(false);
@@ -196,6 +196,7 @@ namespace Garrison.Core.Database.Ado
             obj.DeploymentId = AdoConverters.NullableStr(reader, "deploymentid");
             obj.IncludeResultText = AdoConverters.Bool(reader, "includeresulttext");
             obj.ResultTextMaxChars = AdoConverters.Int(reader, "resulttextmaxchars");
+            obj.EscalationMinimumSeverity = AdoConverters.NullableEnum<EscalationSeverityEnum>(reader, "escalationminseverity");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.SecretEncrypted = AdoConverters.NullableStr(reader, "secretencrypted");
             obj.SecretKeyVersion = AdoConverters.Int(reader, "secretkeyversion");
@@ -221,6 +222,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "deploymentid", String.IsNullOrEmpty(obj.DeploymentId) ? null : obj.DeploymentId);
             AdoDatabaseDriver.Add(command, "includeresulttext", obj.IncludeResultText);
             AdoDatabaseDriver.Add(command, "resulttextmaxchars", obj.ResultTextMaxChars);
+            AdoDatabaseDriver.Add(command, "escalationminseverity", obj.EscalationMinimumSeverity?.ToString());
             AdoDatabaseDriver.Add(command, "active", obj.Active);
             AdoDatabaseDriver.Add(command, "secretencrypted", obj.SecretEncrypted);
             AdoDatabaseDriver.Add(command, "secretkeyversion", obj.SecretKeyVersion);

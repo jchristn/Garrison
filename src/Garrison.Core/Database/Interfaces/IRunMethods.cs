@@ -261,6 +261,17 @@ namespace Garrison.Core.Database.Interfaces
         Task<int> PruneChildWaitsAsync(DateTime orphanedBeforeUtc, CancellationToken token = default);
 
         /// <summary>
+        /// Record the Blocking escalation a run waits on (AA2), or clear it with null.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="escalationId">Escalation identifier, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or runId is null or empty.</exception>
+        Task SetEscalationAsync(string tenantId, string runId, string? escalationId, CancellationToken token = default);
+
+        /// <summary>
         /// Conditionally transition a run. Applies only when the run is in one of the from statuses and, when an epoch
         /// and node are supplied, still held by that node at that epoch.
         /// </summary>

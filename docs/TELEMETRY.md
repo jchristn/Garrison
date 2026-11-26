@@ -308,6 +308,8 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 |---|---|---|---|---|---|
 | `garrison_run_tool_calls` | histogram | `agent`, `harness` | server | garrison-agents | Tool calls (MCP tools, shell commands, searches) per run |
 | `garrison_runs_guard_trips_total` | counter | `guard`, `tenant`, `agent`, `harness` | server | garrison-agents | Runs stopped by a guard: repetition, no_progress, output_limit, timeout, blocked |
+| `garrison_escalation_answer_duration_seconds` | histogram, seconds | `target_kind` | server | garrison-autonomy | Time from raising an escalation to its answer, by target kind |
+| `garrison_escalations_total` | counter | `target_kind`, `severity`, `outcome` | server | garrison-autonomy | Escalations by target kind (user, role, agent, manager), severity (info, warning, urgent), and outcome (raised, answered, cancelled, withdrawn, expired, escalated) |
 | `garrison_keeper_interval_seconds` | histogram, seconds | `mode` | server | garrison-autonomy | Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff) |
 | `garrison_keeper_tick_lag_duration_seconds` | histogram, seconds | `source` | server | garrison-autonomy | Time from a keeper wake coming due to the scheduler starting its tick, by wake source |
 | `garrison_keeper_ticks_total` | counter | `outcome`, `source` | server | garrison-autonomy | Keeper ticks, by outcome (quiet, acted, attention, escalated, failed, skipped, unreported) and wake source (timer, manual, message, escalationanswer, webhook, report) |
@@ -595,6 +597,10 @@ Every route registers through the route registrar, which records it in the opera
 | POST | `/v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview"` | `POST /v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/environments` | `route="/v1.0/api/tenants/{tenantId}/environments"` | `GET /v1.0/api/tenants/{tenantId}/environments` | `route=/v1.0/api/tenants/{tenantId}/environments` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/environments` | `route="/v1.0/api/tenants/{tenantId}/environments"` | `PUT /v1.0/api/tenants/{tenantId}/environments` | `route=/v1.0/api/tenants/{tenantId}/environments` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/escalations` | `route="/v1.0/api/tenants/{tenantId}/escalations"` | `GET /v1.0/api/tenants/{tenantId}/escalations` | `route=/v1.0/api/tenants/{tenantId}/escalations` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/escalations/{id}` | `route="/v1.0/api/tenants/{tenantId}/escalations/{id}"` | `GET /v1.0/api/tenants/{tenantId}/escalations/{id}` | `route=/v1.0/api/tenants/{tenantId}/escalations/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/escalations/{id}/answer` | `route="/v1.0/api/tenants/{tenantId}/escalations/{id}/answer"` | `POST /v1.0/api/tenants/{tenantId}/escalations/{id}/answer` | `route=/v1.0/api/tenants/{tenantId}/escalations/{id}/answer` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/escalations/{id}/cancel` | `route="/v1.0/api/tenants/{tenantId}/escalations/{id}/cancel"` | `POST /v1.0/api/tenants/{tenantId}/escalations/{id}/cancel` | `route=/v1.0/api/tenants/{tenantId}/escalations/{id}/cancel` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/fan-out-groups/{id}` | `route="/v1.0/api/tenants/{tenantId}/fan-out-groups/{id}"` | `GET /v1.0/api/tenants/{tenantId}/fan-out-groups/{id}` | `route=/v1.0/api/tenants/{tenantId}/fan-out-groups/{id}` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/fan-out-groups/{id}/cancel` | `route="/v1.0/api/tenants/{tenantId}/fan-out-groups/{id}/cancel"` | `POST /v1.0/api/tenants/{tenantId}/fan-out-groups/{id}/cancel` | `route=/v1.0/api/tenants/{tenantId}/fan-out-groups/{id}/cancel` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/harness-profiles` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles"` | `GET /v1.0/api/tenants/{tenantId}/harness-profiles` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles` | garrison-http |
@@ -806,6 +812,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 <!-- telemetry-coverage:mcp-tools -->
 | Tool | Metric series | Span | Log | Panels |
 |---|---|---|---|---|
+| `garrison_answer_escalation` | `tool="garrison_answer_escalation"` | `mcp garrison_answer_escalation` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_apply_manifest` | `tool="garrison_apply_manifest"` | `mcp garrison_apply_manifest` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_cancel_fan_out` | `tool="garrison_cancel_fan_out"` | `mcp garrison_cancel_fan_out` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_cancel_pipeline_run` | `tool="garrison_cancel_pipeline_run"` | `mcp garrison_cancel_pipeline_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
@@ -828,6 +835,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_delete_pipeline` | `tool="garrison_delete_pipeline"` | `mcp garrison_delete_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_delete_trigger` | `tool="garrison_delete_trigger"` | `mcp garrison_delete_trigger` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_describe_capability` | `tool="garrison_describe_capability"` | `mcp garrison_describe_capability` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_escalate` | `tool="garrison_escalate"` | `mcp garrison_escalate` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_export_manifest` | `tool="garrison_export_manifest"` | `mcp garrison_export_manifest` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_fan_out` | `tool="garrison_fan_out"` | `mcp garrison_fan_out` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_files_delete` | `tool="garrison_files_delete"` | `mcp garrison_files_delete` | `[Mcp]` lines, `tenant=` | garrison-protocols |
@@ -844,6 +852,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_get_approval` | `tool="garrison_get_approval"` | `mcp garrison_get_approval` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_conversation_transcript` | `tool="garrison_get_conversation_transcript"` | `mcp garrison_get_conversation_transcript` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_deployment` | `tool="garrison_get_deployment"` | `mcp garrison_get_deployment` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_escalation` | `tool="garrison_get_escalation"` | `mcp garrison_get_escalation` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_mandate` | `tool="garrison_get_mandate"` | `mcp garrison_get_mandate` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_notification_endpoint` | `tool="garrison_get_notification_endpoint"` | `mcp garrison_get_notification_endpoint` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_pipeline` | `tool="garrison_get_pipeline"` | `mcp garrison_get_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
@@ -862,8 +871,10 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_list_apps` | `tool="garrison_list_apps"` | `mcp garrison_list_apps` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_capabilities` | `tool="garrison_list_capabilities"` | `mcp garrison_list_capabilities` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_deployments` | `tool="garrison_list_deployments"` | `mcp garrison_list_deployments` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_escalations` | `tool="garrison_list_escalations"` | `mcp garrison_list_escalations` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_mandate_ticks` | `tool="garrison_list_mandate_ticks"` | `mcp garrison_list_mandate_ticks` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_mandates` | `tool="garrison_list_mandates"` | `mcp garrison_list_mandates` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_my_escalations` | `tool="garrison_list_my_escalations"` | `mcp garrison_list_my_escalations` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_notification_deliveries` | `tool="garrison_list_notification_deliveries"` | `mcp garrison_list_notification_deliveries` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_notification_endpoints` | `tool="garrison_list_notification_endpoints"` | `mcp garrison_list_notification_endpoints` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_pipeline_reviews` | `tool="garrison_list_pipeline_reviews"` | `mcp garrison_list_pipeline_reviews` | `[Mcp]` lines, `tenant=` | garrison-protocols |
@@ -922,6 +933,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_upload_agent_asset_version` | `tool="garrison_upload_agent_asset_version"` | `mcp garrison_upload_agent_asset_version` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_upload_artifact` | `tool="garrison_upload_artifact"` | `mcp garrison_upload_artifact` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_wake_mandate` | `tool="garrison_wake_mandate"` | `mcp garrison_wake_mandate` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_withdraw_escalation` | `tool="garrison_withdraw_escalation"` | `mcp garrison_withdraw_escalation` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `{mcpToolName}` (agent tools, one per exposed agent) | `tool="agent"` | `mcp agent` | `[Mcp]` lines, `tenant=`, `agent=` | garrison-protocols, garrison-agents |
 <!-- /telemetry-coverage:mcp-tools -->
 

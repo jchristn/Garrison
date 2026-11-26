@@ -77,6 +77,7 @@ namespace Test.Shared
                 suites.AddRange(UpgradeSuite.Build());
                 suites.AddRange(TriggerSuite.Build());
                 suites.AddRange(KeeperSuite.Build());
+                suites.AddRange(EscalationSuite.Build());
                 suites.AddRange(NotificationSuite.Build());
                 suites.AddRange(TranscriptSuite.Build());
                 suites.AddRange(RevisionSuite.Build());

@@ -201,6 +201,20 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Escalation>> ListRaisedEscalationsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<Escalation>();
+            return await KeysetAsync(_Driver.Table("escalations"), "createdutc", null, tenantIds, afterUtc, afterId, untilUtc, limit, AdoEscalationMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Escalation>> ListExpiredEscalationsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
+        {
+            if (tenantIds == null || tenantIds.Count == 0) return new List<Escalation>();
+            return await KeysetAsync(_Driver.Table("escalations"), "lastupdateutc", "status = 'Expired'", tenantIds, afterUtc, afterId, untilUtc, limit, AdoEscalationMethods.Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<PipelineReview>> ListRequestedReviewsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default)
         {
             if (tenantIds == null || tenantIds.Count == 0) return new List<PipelineReview>();

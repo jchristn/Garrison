@@ -65,12 +65,18 @@ namespace Test.Shared.Suites
 
         #region Private-Methods
 
-        private static string T(TestServerHost host)
+        /// <summary>
+        /// The tenant API base path of a host.
+        /// </summary>
+        internal static string T(TestServerHost host)
         {
             return "/v1.0/api/tenants/" + host.TenantId;
         }
 
-        private static MandateRevision Revision(string objective, WakeModeEnum mode = WakeModeEnum.Backoff, int min = 60, int max = 480)
+        /// <summary>
+        /// A mandate revision with test defaults.
+        /// </summary>
+        internal static MandateRevision Revision(string objective, WakeModeEnum mode = WakeModeEnum.Backoff, int min = 60, int max = 480)
         {
             MandateRevision revision = new MandateRevision();
             revision.Objective = objective;
@@ -85,7 +91,10 @@ namespace Test.Shared.Suites
             return revision;
         }
 
-        private static Mandate Body(string name, Agent agent, MandateRevision? revision)
+        /// <summary>
+        /// A mandate on an agent's default deployment.
+        /// </summary>
+        internal static Mandate Body(string name, Agent agent, MandateRevision? revision)
         {
             Mandate mandate = new Mandate();
             mandate.Name = name;
@@ -95,7 +104,10 @@ namespace Test.Shared.Suites
             return mandate;
         }
 
-        private static async Task<TestCluster> ClusterAsync(DatabaseTypeEnum provider, CancellationToken token)
+        /// <summary>
+        /// Start a one-worker cluster whose leader does not sweep keepers, so a test drives the scheduler itself.
+        /// </summary>
+        internal static async Task<TestCluster> ClusterAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
             TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false);
             // Tests drive the scheduler themselves; the leader's own sweep would race with them. Run completion still
@@ -104,7 +116,10 @@ namespace Test.Shared.Suites
             return cluster;
         }
 
-        private static async Task ApplyScriptProfileAsync(TestServerHost host, CancellationToken token)
+        /// <summary>
+        /// Apply the keeper-script harness profile: the fake harness runs up to three MCP calls from deployment parameters step1 to step3.
+        /// </summary>
+        internal static async Task ApplyScriptProfileAsync(TestServerHost host, CancellationToken token)
         {
             string steps = String.Join("\n", Enumerable.Range(1, 3).Select(i =>
                 "    - template: --mcp-invoke\n      condition: \"{{deployment.parameters.step" + i + "}}\"\n    - template: \"{{deployment.parameters.step" + i + "}}\"\n      condition: \"{{deployment.parameters.step" + i + "}}\""));
@@ -150,7 +165,10 @@ spec:
             return "garrison,garrison_keeper_complete_tick," + Serializer.Serialize(new { outcome = outcome, summary = summary });
         }
 
-        private static async Task<MandateTick> WaitTickAsync(TestServerHost host, string tickId, CancellationToken token)
+        /// <summary>
+        /// Wait for a tick to finish.
+        /// </summary>
+        internal static async Task<MandateTick> WaitTickAsync(TestServerHost host, string tickId, CancellationToken token)
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(90);
             while (true)
@@ -162,13 +180,19 @@ spec:
             }
         }
 
-        private static async Task<List<MandateTick>> TicksOfAsync(TestServerHost host, string mandateId, CancellationToken token)
+        /// <summary>
+        /// A mandate's ticks, newest first.
+        /// </summary>
+        internal static async Task<List<MandateTick>> TicksOfAsync(TestServerHost host, string mandateId, CancellationToken token)
         {
             EnumerationResult<MandateTick> page = await HttpTestHelpers.SendAsync<EnumerationResult<MandateTick>>(host.AdminClient, HttpMethod.Get, T(host) + "/mandates/" + mandateId + "/ticks?maxResults=100", null, 200, token).ConfigureAwait(false);
             return page.Objects;
         }
 
-        private static void Code(TestResponse response, int status, string code, string what)
+        /// <summary>
+        /// Assert a response status and error code.
+        /// </summary>
+        internal static void Code(TestResponse response, int status, string code, string what)
         {
             Assert.Equal(status, response.StatusCode, what + " status (" + response.Body + ")");
             Assert.True(response.Body.Contains(code, StringComparison.Ordinal), what + " answers " + code + ": " + response.Body);
@@ -611,7 +635,10 @@ spec:
             }
         }
 
-        private static async Task<string> ReceiveUntilAsync(ClientWebSocket socket, string type, string contains, CancellationToken token)
+        /// <summary>
+        /// Receive WebSocket messages until one contains both texts.
+        /// </summary>
+        internal static async Task<string> ReceiveUntilAsync(ClientWebSocket socket, string type, string contains, CancellationToken token)
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(15);
             byte[] buffer = new byte[262144];
@@ -717,7 +744,10 @@ spec:
             }
         }
 
-        private static async Task<User> UserAsync(TestServerHost host, string email, string role, CancellationToken token)
+        /// <summary>
+        /// Create a user with one role in the host tenant.
+        /// </summary>
+        internal static async Task<User> UserAsync(TestServerHost host, string email, string role, CancellationToken token)
         {
             User user = await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, T(host) + "/users", new UserRequest { Email = email, Password = "password123" }, 201, token).ConfigureAwait(false);
             await HttpTestHelpers.SendAsync<UserRoleAssignment>(host.AdminClient, HttpMethod.Post, T(host) + "/user-role-assignments", new AssignmentRequest { UserId = user.Id, RoleName = role }, 201, token).ConfigureAwait(false);

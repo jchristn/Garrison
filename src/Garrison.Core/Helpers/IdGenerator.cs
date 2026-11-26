@@ -290,6 +290,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New escalation identifier (prefix esc_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewEscalationId()
+        {
+            return New(Constants.EscalationIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

@@ -13,5 +13,7 @@ namespace Garrison.Server.Runtime
         public string SessionId { get; set; } = String.Empty;
         /// <summary>Pinned session contract.</summary>
         public string SessionFormat { get; set; } = String.Empty;
+        /// <summary>Lease epoch the run suspended at.</summary>
+        public long Epoch { get; set; } = 0;
     }
 }

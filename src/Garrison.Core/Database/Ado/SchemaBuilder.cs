@@ -375,6 +375,11 @@ namespace Garrison.Core.Database.Ado
             v46.BuildVersion46();
             migrations.Add(new SchemaMigration(46, "Mandates, mandate revisions, and keeper ticks", v46._Statements, v46._Columns));
 
+            // AA2: escalations and their options, the blocking escalation a run waits on, and a keeper's default target.
+            SchemaBuilder v47 = new SchemaBuilder(catalog, dialect);
+            v47.BuildVersion47();
+            migrations.Add(new SchemaMigration(47, "Escalations", v47._Statements, v47._Columns));
+
             return migrations;
         }
 
@@ -438,6 +443,62 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion47()
+        {
+            SqlDialect d = _Dialect;
+            Column("runs", "escalationid", d.TypeId);
+            Column("mandate_revisions", "escalationtargetkind", "VARCHAR(32)");
+            Column("mandate_revisions", "escalationtargetid", d.TypeId);
+            Column("notification_endpoints", "escalationminseverity", "VARCHAR(32)");
+
+            Table("escalations",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "raisingrunid " + d.TypeId,
+                "leaseepoch " + d.TypeBigInt + " NOT NULL",
+                "agentid " + d.TypeId,
+                "agentname VARCHAR(256)",
+                "mandateid " + d.TypeId,
+                "mandatetickid " + d.TypeId,
+                "targetkind VARCHAR(32) NOT NULL",
+                "targetid " + d.TypeId,
+                "targetname VARCHAR(256)",
+                "severity VARCHAR(32) NOT NULL",
+                "mode VARCHAR(32) NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "question " + d.TypeText + " NOT NULL",
+                "context " + d.TypeText,
+                "defaultanswer " + d.TypeText,
+                "timeoutseconds " + d.TypeInt + " NOT NULL",
+                "expiresutc " + d.TypeTimestamp,
+                "timeoutaction VARCHAR(32) NOT NULL",
+                "parentescalationid " + d.TypeId,
+                "escalatedtoid " + d.TypeId,
+                "routedrunid " + d.TypeId,
+                "answerchoice VARCHAR(64)",
+                "answertext " + d.TypeText,
+                "resolvedby VARCHAR(256)",
+                "resolutionsource VARCHAR(32)",
+                "resolvedutc " + d.TypeTimestamp,
+                "deliveredtickid " + d.TypeId,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("escalations", "tenantstatus", false, "tenantid", "status", "createdutc");
+            Index("escalations", "run", false, "tenantid", "raisingrunid");
+            Index("escalations", "mandate", false, "tenantid", "mandateid");
+            Index("escalations", "target", false, "tenantid", "targetkind", "targetid");
+            Index("escalations", "expiry", false, "status", "expiresutc");
+
+            Table("escalation_options",
+                "escalationid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "optionkey VARCHAR(64) NOT NULL",
+                "label VARCHAR(512)",
+                "PRIMARY KEY (escalationid, position)");
+            Index("escalation_options", "tenant", false, "tenantid", "escalationid");
         }
 
         private void BuildVersion46()

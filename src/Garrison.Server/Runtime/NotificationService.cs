@@ -52,7 +52,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// Event sources the leader sweeps, in order: runs, pipeline_runs, approvals, pipeline_reviews.
         /// </summary>
-        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews" };
+        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries" };
 
         /// <summary>
         /// Resolves a destination host name to addresses when a delivery connects. Default: the system resolver
@@ -575,6 +575,19 @@ namespace Garrison.Server.Runtime
                                 Advance(approval.CreatedUtc, approval.Id, ref lastUtc, ref lastId);
                             }
                             break;
+                        case "escalations":
+                        case "escalation_expiries":
+                            bool expiries = source == "escalation_expiries";
+                            List<Escalation> escalations = expiries
+                                ? await _Database.NotificationDeliveries.ListExpiredEscalationsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false)
+                                : await _Database.NotificationDeliveries.ListRaisedEscalationsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = escalations.Count;
+                            foreach (Escalation escalation in escalations)
+                            {
+                                queued += await QueueEscalationAsync(escalation, expiries, interested, token).ConfigureAwait(false);
+                                Advance(expiries ? escalation.LastUpdateUtc : escalation.CreatedUtc, escalation.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
                         default:
                             List<PipelineReview> reviews = await _Database.NotificationDeliveries.ListRequestedReviewsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
                             read = reviews.Count;
@@ -615,6 +628,10 @@ namespace Garrison.Server.Runtime
                     return source == "pipeline_runs";
                 case NotificationEventEnum.ApprovalRequested:
                     return source == "approvals" || source == "pipeline_reviews";
+                case NotificationEventEnum.EscalationRaised:
+                    return source == "escalations";
+                case NotificationEventEnum.EscalationExpired:
+                    return source == "escalation_expiries";
                 default:
                     return false;
             }
@@ -726,6 +743,39 @@ namespace Garrison.Server.Runtime
                 payload.PipelineRun = summary;
                 string key = "pipeline-run:" + run.Id + ":" + run.Status + ":" + run.CompletedUtc.Value.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 if (await QueueAsync(endpoint, value, key, "PipelineRun", run.Id, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        private async Task<int> QueueEscalationAsync(Escalation escalation, bool expired, List<NotificationEndpoint> endpoints, CancellationToken token)
+        {
+            NotificationEventEnum value = expired ? NotificationEventEnum.EscalationExpired : NotificationEventEnum.EscalationRaised;
+            DateTime occurred = expired ? escalation.LastUpdateUtc : escalation.CreatedUtc;
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                if (!Subscribed(endpoint, escalation.TenantId, value, occurred) || !Matches(endpoint, escalation.AgentId, null)) continue;
+                if (endpoint.EscalationMinimumSeverity.HasValue && escalation.Severity < endpoint.EscalationMinimumSeverity.Value) continue;
+                NotificationEscalationSummary summary = new NotificationEscalationSummary();
+                summary.Id = escalation.Id;
+                summary.RaisingRunId = escalation.RaisingRunId;
+                summary.AgentId = escalation.AgentId;
+                summary.AgentName = escalation.AgentName;
+                summary.MandateId = escalation.MandateId;
+                summary.TargetKind = escalation.TargetKind;
+                summary.TargetId = escalation.TargetId;
+                summary.TargetName = escalation.TargetName;
+                summary.Severity = escalation.Severity;
+                summary.Mode = escalation.Mode;
+                summary.Status = escalation.Status;
+                summary.Question = escalation.Question.Length > 2000 ? escalation.Question.Substring(0, 2000) : escalation.Question;
+                summary.ParentEscalationId = escalation.ParentEscalationId;
+                summary.CreatedUtc = escalation.CreatedUtc;
+                summary.ExpiresUtc = escalation.ExpiresUtc;
+                NotificationPayload payload = NewPayload(endpoint, value, occurred, "/escalations/" + escalation.Id);
+                payload.Escalation = summary;
+                string key = (expired ? "escalation-expired:" : "escalation:") + escalation.Id;
+                if (await QueueAsync(endpoint, value, key, "Escalation", escalation.Id, payload, token).ConfigureAwait(false)) queued++;
             }
             return queued;
         }

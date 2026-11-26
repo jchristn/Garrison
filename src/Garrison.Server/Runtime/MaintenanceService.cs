@@ -169,6 +169,11 @@ namespace Garrison.Server.Runtime
         public KeeperScheduler? Keepers { get; set; } = null;
 
         /// <summary>
+        /// Escalation service (AA2), whose timeout sweep the leader runs every pass; null when not wired.
+        /// </summary>
+        public EscalationService? Escalations { get; set; } = null;
+
+        /// <summary>
         /// Notification service (P12.14). When set, the leader queues notifications for new events on every pass.
         /// </summary>
         public NotificationService? Notifications { get; set; } = null;
@@ -546,6 +551,11 @@ namespace Garrison.Server.Runtime
                             // Firing creates runs; that work is not a pause.
                             _Pause.Touch();
                         }
+                    }
+                    EscalationService? escalations = Escalations;
+                    if (escalations != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        await GarrisonTracing.BackgroundAsync("maintenance", "escalations", escalations.SweepAsync, token).ConfigureAwait(false);
                     }
                     KeeperScheduler? keepers = Keepers;
                     if (keepers != null && await AwakeAsync(token).ConfigureAwait(false))

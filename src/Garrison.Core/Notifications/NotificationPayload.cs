@@ -59,6 +59,11 @@ namespace Garrison.Core.Notifications
         /// </summary>
         public NotificationApprovalSummary? Approval { get; set; } = null;
 
+        /// <summary>
+        /// The escalation, for EscalationRaised and EscalationExpired (AA2.10).
+        /// </summary>
+        public NotificationEscalationSummary? Escalation { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories

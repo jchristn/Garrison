@@ -80,6 +80,17 @@ namespace Garrison.Core.Manifests
         public long? MaxTokensPerTick { get; set; } = null;
 
         /// <summary>
+        /// Default escalation target kind (User, Role, Agent), or null for none (AA2).
+        /// </summary>
+        public EscalationTargetKindEnum? EscalationTargetKind { get; set; } = null;
+
+        /// <summary>
+        /// Default escalation target: a user email or identifier, a role name, or an agent name. Resolved when an escalation
+        /// is raised, so names keep a manifest portable between tenants.
+        /// </summary>
+        public string? EscalationTargetId { get; set; } = null;
+
+        /// <summary>
         /// Why this revision was made.
         /// </summary>
         public string? ChangeNote { get; set; } = null;

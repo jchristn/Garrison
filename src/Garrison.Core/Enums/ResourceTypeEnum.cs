@@ -231,6 +231,11 @@ namespace Garrison.Core.Enums
         /// Mandates (AA1): standing responsibilities bound to a deployment, with versioned revisions and tick history. Execute
         /// pauses, resumes, and wakes a mandate; publishing a revision needs Update.
         /// </summary>
-        Mandate
+        Mandate,
+
+        /// <summary>
+        /// Escalations (AA2): questions a run raises to a person or an agent. Update answers or cancels one.
+        /// </summary>
+        Escalation
     }
 }

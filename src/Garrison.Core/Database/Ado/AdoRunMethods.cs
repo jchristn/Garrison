@@ -745,6 +745,19 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task SetEscalationAsync(string tenantId, string runId, string? escalationId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            await _Driver.NonQueryAsync("UPDATE " + _Table + " SET escalationid = @escalation WHERE id = @id AND tenantid = @tenantid;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "escalation", escalationId);
+                AdoDatabaseDriver.Add(command, "id", runId);
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+            }, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> TransitionAsync(RunTransition transition, CancellationToken token = default)
         {
             if (transition == null) throw new ArgumentNullException(nameof(transition));
@@ -1549,6 +1562,7 @@ namespace Garrison.Core.Database.Ado
             obj.TriggerId = AdoConverters.NullableStr(reader, "triggerid");
             obj.MandateId = AdoConverters.NullableStr(reader, "mandateid");
             obj.MandateTickId = AdoConverters.NullableStr(reader, "mandatetickid");
+            obj.EscalationId = AdoConverters.NullableStr(reader, "escalationid");
         }
 
         private static void MapTelemetry(DbDataReader reader, Run obj)

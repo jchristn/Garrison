@@ -68,6 +68,8 @@ namespace Garrison.Server.Modules
         private KeeperOptions? _KeeperOptions = null;
         private MandateService? _Mandates = null;
         private KeeperScheduler? _Keepers = null;
+        private EscalationOptions? _EscalationOptions = null;
+        private EscalationService? _Escalations = null;
 
         #endregion
 
@@ -181,6 +183,17 @@ namespace Garrison.Server.Modules
             _Keepers = new KeeperScheduler(context.Database, _Runs, new RunAsAuthorization(context.Database, context.Authorization), _KeeperOptions, context.Logging);
             _Maintenance.Keepers = _Keepers;
             _Events.Keepers = _Keepers;
+            _EscalationOptions = new EscalationOptions();
+            _Escalations = new EscalationService(context.Database, context.Audit, _EscalationOptions, _Runs, new RunAsAuthorization(context.Database, context.Authorization), context.Logging);
+            _Escalations.ResumeRunAsync = (tenantId, runId, ct) => continuations.ResumeAsync(tenantId, runId, ct);
+            _Escalations.CancelRunAsync = async (tenantId, runId, ct) =>
+            {
+                Run? blocked = await context.Database.Runs.ReadAsync(tenantId, runId, ct).ConfigureAwait(false);
+                if (blocked != null && !RunService.IsTerminal(blocked.Status)) await runs.CancelAsync(blocked, ct).ConfigureAwait(false);
+            };
+            continuations.Escalations = _Escalations;
+            _Keepers.Escalations = _Escalations;
+            _Maintenance.Escalations = _Escalations;
             if (context.Settings.Archive.Enabled)
             {
                 _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
@@ -209,6 +222,8 @@ namespace Garrison.Server.Modules
             context.Register(_KeeperOptions);
             context.Register(_Mandates);
             context.Register(_Keepers);
+            context.Register(_EscalationOptions);
+            context.Register(_Escalations);
             context.Register(_Notifications);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
@@ -235,6 +250,7 @@ namespace Garrison.Server.Modules
             new PipelineReviewRoutes(context, _Pipelines!).Register(routes);
             new TriggerRoutes(context, _Triggers!).Register(routes);
             new MandateRoutes(context, _Mandates!).Register(routes);
+            new EscalationRoutes(context, _Escalations!).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -398,6 +414,11 @@ namespace Garrison.Server.Modules
                 _KeeperOptions.MaxDueClaimsPerSweep = cluster.GetInt("Autonomy.MaxDueClaimsPerSweep");
                 _KeeperOptions.TickHistoryRetentionDays = cluster.GetInt("Autonomy.TickHistoryRetentionDays");
                 _KeeperOptions.TickInputRecentTicks = cluster.GetInt("Autonomy.TickInputRecentTicks");
+            }
+            if (_EscalationOptions != null)
+            {
+                _EscalationOptions.DefaultTimeoutSeconds = cluster.GetInt("Escalations.DefaultTimeoutSeconds");
+                _EscalationOptions.MaxQuestionBytes = cluster.GetInt("Escalations.MaxQuestionBytes");
             }
             if (_NotificationOptions != null)
             {

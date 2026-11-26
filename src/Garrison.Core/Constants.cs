@@ -126,6 +126,9 @@ namespace Garrison.Core
         /// <summary>Mandate tick identifier prefix (AA1).</summary>
         public const string MandateTickIdPrefix = "mtk_";
 
+        /// <summary>Escalation identifier prefix (AA2).</summary>
+        public const string EscalationIdPrefix = "esc_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

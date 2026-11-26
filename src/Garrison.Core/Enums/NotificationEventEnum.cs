@@ -41,6 +41,16 @@ namespace Garrison.Core.Enums
         ApprovalRequested,
 
         /// <summary>
+        /// A run raised an escalation (AA2), or one was escalated up. Endpoints can require a minimum severity.
+        /// </summary>
+        EscalationRaised,
+
+        /// <summary>
+        /// An escalation's timeout passed with no answer and nowhere left to escalate (AA2).
+        /// </summary>
+        EscalationExpired,
+
+        /// <summary>
         /// A test notification sent by the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

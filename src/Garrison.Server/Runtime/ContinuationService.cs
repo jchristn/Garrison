@@ -32,6 +32,12 @@ namespace Garrison.Server.Runtime
         /// <summary>Revoke externally brokered credentials after the fenced checkpoint commits; null when no provider is configured.</summary>
         public Func<Run, long, CancellationToken, Task>? OnSuspended { get; set; } = null;
 
+        /// <summary>
+        /// Escalation service (AA2.5). A run suspended on a Blocking escalation resumes only once it is resolved, and its
+        /// resume prompt carries the answer. Null when escalations are not wired.
+        /// </summary>
+        public EscalationService? Escalations { get; set; } = null;
+
         /// <summary>Construct continuation coordination.</summary>
         /// <param name="database">Database.</param><param name="artifacts">Artifact service.</param><param name="apiBaseUrl">Worker-reachable REST base URL.</param><param name="signals">Run signals.</param>
         public ContinuationService(DatabaseDriverBase database, ArtifactService artifacts, string apiBaseUrl, RunSignals signals)
@@ -71,7 +77,7 @@ namespace Garrison.Server.Runtime
                     command => { AdoDatabaseDriver.Add(command, "run", run.Id); AdoDatabaseDriver.Add(command, "tenant", run.TenantId); AdoDatabaseDriver.Add(command, "epoch", request.Epoch); AdoDatabaseDriver.Add(command, "node", request.NodeId); AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow); }, ct).ConfigureAwait(false);
                 if (held != 1) throw new ConflictException("StaleLease", "Checkpoint lease no longer belongs to this node.");
                 List<string> boundaries = await AdoDatabaseDriver.QueryAsync(connection, transaction,
-                    "SELECT id FROM " + _Ado.Table("approvals") + " WHERE tenantid=@tenant AND runid=@run AND leaseepoch=@epoch AND (status='Pending' OR decisionsource IN ('User','Timeout')) UNION ALL SELECT w.id FROM " + _Ado.Table("run_child_waits") + " w JOIN " + _Ado.Table("runs") + " p ON p.id=w.parentrunid AND p.tenantid=w.tenantid WHERE w.tenantid=@tenant AND w.parentrunid=@run AND p.leaseepoch=@epoch AND p.leasedutc IS NOT NULL AND w.createdutc>=p.leasedutc;",
+                    "SELECT id FROM " + _Ado.Table("approvals") + " WHERE tenantid=@tenant AND runid=@run AND leaseepoch=@epoch AND (status='Pending' OR decisionsource IN ('User','Timeout')) UNION ALL SELECT w.id FROM " + _Ado.Table("run_child_waits") + " w JOIN " + _Ado.Table("runs") + " p ON p.id=w.parentrunid AND p.tenantid=w.tenantid WHERE w.tenantid=@tenant AND w.parentrunid=@run AND p.leaseepoch=@epoch AND p.leasedutc IS NOT NULL AND w.createdutc>=p.leasedutc UNION ALL SELECT id FROM " + _Ado.Table("escalations") + " WHERE tenantid=@tenant AND raisingrunid=@run AND leaseepoch=@epoch AND mode='Blocking';",
                     command => { AdoDatabaseDriver.Add(command, "run", run.Id); AdoDatabaseDriver.Add(command, "tenant", run.TenantId); AdoDatabaseDriver.Add(command, "epoch", request.Epoch); }, reader => AdoConverters.Str(reader, "id"), ct).ConfigureAwait(false);
                 if (boundaries.Count == 0)
                 {
@@ -181,6 +187,7 @@ namespace Garrison.Server.Runtime
         {
             Run? run = await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
             if (run == null || run.Status != RunStatusEnum.Suspended || run.PendingApprovals > 0 || run.CancelRequested) return false;
+            if (await _Database.Escalations.HasOpenBlockingAsync(tenantId, runId, token).ConfigureAwait(false)) return false;
             List<string> waiting = await _Ado.QueryAsync("SELECT c.id FROM " + _Ado.Table("runs") + " c WHERE c.tenantid = @tenant AND c.parentrunid = @parent AND c.status NOT IN ('Succeeded','Failed','Cancelled','TimedOut','Rejected') " +
                 "AND (c.fanoutgroupid IS NULL OR EXISTS (SELECT 1 FROM " + _Ado.Table("fan_out_groups") + " g WHERE g.id = c.fanoutgroupid AND g.status = 'Running'));",
                 command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "parent", runId); }, reader => AdoConverters.Str(reader, "id"), token).ConfigureAwait(false);
@@ -274,14 +281,31 @@ namespace Garrison.Server.Runtime
                 childFilter.Skip += childRuns.Objects.Count;
             }
             context.Set("continuation.children", children);
-            context.Set("continuation.reason", children.Count > 0 ? "Child run results and approval decisions are available." : "Approval decisions are available.");
-            return TemplateRenderer.Render(template.Content, context, new TemplateRenderOptions { TemplateName = template.Name, AllowSecrets = false });
+            // AA-041: a run that suspended on a Blocking escalation resumes with its answer first.
+            Escalation? escalation = Escalations == null ? null : await SuspendingEscalationAsync(run, token).ConfigureAwait(false);
+            string reason = escalation != null && decisions.Count == 0 && children.Count == 0 ? "The escalation you waited on was resolved."
+                : children.Count > 0 ? "Child run results and approval decisions are available." : "Approval decisions are available.";
+            context.Set("continuation.reason", reason);
+            string resume = TemplateRenderer.Render(template.Content, context, new TemplateRenderOptions { TemplateName = template.Name, AllowSecrets = false });
+            if (escalation == null || Escalations == null) return resume;
+            string answered = await Escalations.RenderAnswersAsync(run.TenantId, new List<Escalation> { escalation }, token).ConfigureAwait(false);
+            return resume + Environment.NewLine + Environment.NewLine + answered;
+        }
+
+        private async Task<Escalation?> SuspendingEscalationAsync(Run run, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(run.EscalationId)) return null;
+            RunCheckpoint? checkpoint = await ReadAsync(run.TenantId, run.Id, token).ConfigureAwait(false);
+            if (checkpoint == null) return null;
+            Escalation? escalation = await _Database.Escalations.ReadAsync(run.TenantId, run.EscalationId, token).ConfigureAwait(false);
+            if (escalation == null || escalation.Status == EscalationStatusEnum.Open || escalation.LeaseEpoch != checkpoint.Epoch) return null;
+            return escalation;
         }
 
         private Task<RunCheckpoint?> ReadAsync(string tenantId, string runId, CancellationToken token)
         {
-            return _Ado.QuerySingleAsync("SELECT runid,artifactid,sessionid,sessionformat FROM " + _Ado.Table("run_checkpoints") + " WHERE tenantid = @tenant AND runid = @run;",
-                command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "run", runId); }, reader => new RunCheckpoint { RunId = AdoConverters.Str(reader, "runid"), ArtifactId = AdoConverters.Str(reader, "artifactid"), SessionId = AdoConverters.Str(reader, "sessionid"), SessionFormat = AdoConverters.Str(reader, "sessionformat") }, token);
+            return _Ado.QuerySingleAsync("SELECT runid,artifactid,sessionid,sessionformat,epoch FROM " + _Ado.Table("run_checkpoints") + " WHERE tenantid = @tenant AND runid = @run;",
+                command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "run", runId); }, reader => new RunCheckpoint { RunId = AdoConverters.Str(reader, "runid"), ArtifactId = AdoConverters.Str(reader, "artifactid"), SessionId = AdoConverters.Str(reader, "sessionid"), SessionFormat = AdoConverters.Str(reader, "sessionformat"), Epoch = AdoConverters.Long(reader, "epoch") }, token);
         }
     }
 }

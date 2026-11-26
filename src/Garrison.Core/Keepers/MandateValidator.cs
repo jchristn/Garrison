@@ -155,7 +155,17 @@ namespace Garrison.Core.Keepers
                 if (signal.Description != null && signal.Description.Length > 2000) errors["signals[" + i + "].description"] = "Signal descriptions are limited to 2000 characters.";
                 signal.Order = i;
             }
-            if (errors.Count > 0) throw new ValidationException("The mandate revision is invalid.", errors);
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            if (revision.EscalationTargetKind.HasValue)
+            {
+                revision.EscalationTargetId = String.IsNullOrWhiteSpace(revision.EscalationTargetId) ? null : revision.EscalationTargetId.Trim();
+                Escalations.EscalationValidator.Target(revision.EscalationTargetKind.Value, revision.EscalationTargetId, "escalationTarget", errors, codes);
+            }
+            else if (!String.IsNullOrWhiteSpace(revision.EscalationTargetId))
+            {
+                errors["escalationTargetKind"] = "Set escalationTargetKind with escalationTargetId.";
+            }
+            if (errors.Count > 0) throw new ValidationException("The mandate revision is invalid.", errors, codes);
         }
 
         /// <summary>

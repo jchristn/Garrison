@@ -154,6 +154,8 @@ namespace Garrison.Server.Services
                 Int("Autonomy.MaxDueClaimsPerSweep", 100, 1, 10000, "Most due mandates the leader starts ticks for in one sweep; the rest wait for the next sweep."),
                 Int("Autonomy.TickHistoryRetentionDays", 30, 1, 3650, "Days finished keeper tick history is retained."),
                 Int("Autonomy.TickInputRecentTicks", 5, 0, 100, "Most recent tick summaries included, newest first, in a keeper tick's input."),
+                Int("Escalations.DefaultTimeoutSeconds", 86400, 60, 2592000, "Timeout in seconds for an escalation raised without one. When it passes, the escalation's timeout action runs: answer with its default answer, cancel it, or escalate it up."),
+                Int("Escalations.MaxQuestionBytes", 8192, 256, 65536, "Most UTF-8 bytes in an escalation's question and context together. Longer escalations are refused."),
                 Bool("Notifications.AllowPrivateDestinations", false, "Whether notification endpoints may deliver to loopback and private addresses (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, 100.64/10, ::1, fc00::/7). Off by default to prevent server-side request forgery. Link-local addresses (169.254.0.0/16, including cloud metadata services, and fe80::/10), multicast, and reserved addresses are always refused."),
                 Int("Notifications.MaxAttempts", 8, 1, 20, "Most delivery attempts for one notification before it is marked Failed."),
                 Int("Notifications.InitialBackoffSeconds", 10, 1, 3600, "Delay before the second attempt of a notification; each later delay doubles, up to Notifications.MaxBackoffSeconds."),

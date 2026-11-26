@@ -408,6 +408,7 @@ namespace Garrison.Server.Protocols
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
                 if (tool.Name.StartsWith("garrison_keeper_", StringComparison.Ordinal) && await KeeperRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
+                if (RunOnlyEscalationTool(tool.Name) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
             }
@@ -864,6 +865,14 @@ namespace Garrison.Server.Protocols
                     case "garrison_keeper_context":
                     case "garrison_keeper_complete_tick":
                         result = await KeeperToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_escalate":
+                    case "garrison_get_escalation":
+                    case "garrison_list_my_escalations":
+                    case "garrison_withdraw_escalation":
+                    case "garrison_answer_escalation":
+                    case "garrison_list_escalations":
+                        result = await EscalationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_memory_read":
                     case "garrison_memory_write":
@@ -1631,6 +1640,150 @@ namespace Garrison.Server.Protocols
                 ? "Recorded " + reported + ". Finish your reply; Garrison schedules your next wake when this run ends."
                 : "This tick already has an outcome (" + (current.Outcome?.ToString() ?? "finished") + "); nothing changed.";
             return result;
+        }
+
+        private static bool RunOnlyEscalationTool(string name)
+        {
+            return name == "garrison_escalate" || name == "garrison_list_my_escalations" || name == "garrison_withdraw_escalation";
+        }
+
+        private async Task<object> EscalationToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            EscalationService escalations = _Context.Get<EscalationService>();
+            McpEscalationArguments arguments = ManagementArguments<McpEscalationArguments>(args);
+            Run? run = null;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                if (String.IsNullOrEmpty(ctx.RunId)) throw ToolError("Forbidden", tool.Name + " needs a run token.");
+                run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false)
+                    ?? throw ToolError("Forbidden", tool.Name + " needs a run token.");
+            }
+            else if (RunOnlyEscalationTool(tool.Name))
+            {
+                throw ToolError("Forbidden", tool.Name + " is available only to runs.");
+            }
+
+            switch (tool.Name)
+            {
+                case "garrison_escalate":
+                {
+                    Escalation request = new Escalation();
+                    request.Question = arguments.Question ?? String.Empty;
+                    request.Context = arguments.Context;
+                    request.Options = arguments.Options ?? new List<EscalationOption>();
+                    request.Severity = ParseOr(arguments.Severity, EscalationSeverityEnum.Warning, "severity");
+                    request.Mode = ParseOr(arguments.Mode, EscalationModeEnum.NonBlocking, "mode");
+                    request.TimeoutAction = ParseOr(arguments.TimeoutAction, EscalationTimeoutActionEnum.EscalateUp, "timeoutAction");
+                    if (!String.IsNullOrWhiteSpace(arguments.TargetKind)) request.TargetKind = ParseOr(arguments.TargetKind, EscalationTargetKindEnum.User, "targetKind");
+                    request.TargetId = arguments.TargetId;
+                    if (!String.IsNullOrWhiteSpace(arguments.TargetKind) && request.TargetKind != EscalationTargetKindEnum.Manager && String.IsNullOrWhiteSpace(arguments.TargetId))
+                        throw ToolError("ValidationFailed", "targetId is required with targetKind " + request.TargetKind + ".");
+                    request.DefaultAnswer = arguments.DefaultAnswer;
+                    request.TimeoutSeconds = arguments.TimeoutSeconds ?? 0;
+                    Escalation raised = await escalations.RaiseAsync(run!, request, token).ConfigureAwait(false);
+                    McpEscalationResult result = new McpEscalationResult();
+                    result.Escalation = raised;
+                    if (raised.Status != EscalationStatusEnum.Open)
+                    {
+                        result.Message = "You already asked this; it is " + raised.Status + ". Read the answer in this escalation.";
+                    }
+                    else if (raised.Mode == EscalationModeEnum.Blocking)
+                    {
+                        result.Message = "Escalation " + raised.Id + " is open. This run suspends until it is answered.";
+                        result.ContinuationInstruction = await _Context.Get<ContinuationService>().WaitInstructionAsync(run!, "Escalation", token).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        result.Message = "Escalation " + raised.Id + " is open. Continue your work; " + (String.IsNullOrEmpty(run!.MandateId)
+                            ? "check for the answer with garrison_get_escalation."
+                            : "the answer wakes you and arrives in your next tick's input.");
+                    }
+                    return result;
+                }
+                case "garrison_get_escalation":
+                {
+                    Escalation escalation = await VisibleEscalationAsync(ctx, tenantId, run, arguments.EscalationId, OperationTypeEnum.Read, token).ConfigureAwait(false);
+                    return escalation;
+                }
+                case "garrison_list_my_escalations":
+                {
+                    int max = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+                    EscalationStatusEnum? status = String.IsNullOrWhiteSpace(arguments.Status) ? null : ParseOr(arguments.Status, EscalationStatusEnum.Open, "status");
+                    List<Escalation> mine = new List<Escalation>();
+                    EscalationFilter raisedFilter = new EscalationFilter { TenantId = tenantId, Status = status, MaxResults = max };
+                    if (!String.IsNullOrEmpty(run!.MandateId)) raisedFilter.MandateId = run.MandateId;
+                    else raisedFilter.RaisingRunId = run.Id;
+                    mine.AddRange((await _Context.Database.Escalations.EnumerateAsync(raisedFilter, token).ConfigureAwait(false)).Objects);
+                    EscalationFilter addressed = new EscalationFilter { TenantId = tenantId, Status = status, TargetKind = EscalationTargetKindEnum.Agent, TargetId = run.AgentId, MaxResults = max };
+                    foreach (Escalation e in (await _Context.Database.Escalations.EnumerateAsync(addressed, token).ConfigureAwait(false)).Objects)
+                        if (!mine.Any(m => m.Id == e.Id)) mine.Add(e);
+                    McpEscalationList list = new McpEscalationList();
+                    list.Escalations = mine.OrderBy(e => e.Status == EscalationStatusEnum.Open ? 0 : 1).ThenByDescending(e => e.CreatedUtc).Take(max).ToList();
+                    list.TotalCount = list.Escalations.Count;
+                    return list;
+                }
+                case "garrison_withdraw_escalation":
+                {
+                    Escalation escalation = await VisibleEscalationAsync(ctx, tenantId, run, arguments.EscalationId, OperationTypeEnum.Update, token).ConfigureAwait(false);
+                    return await escalations.WithdrawAsync(run!, escalation, arguments.Reason, token).ConfigureAwait(false);
+                }
+                case "garrison_answer_escalation":
+                {
+                    if (String.IsNullOrWhiteSpace(arguments.EscalationId)) throw ToolError("ValidationFailed", "escalationId is required.");
+                    Escalation escalation = await _Context.Database.Escalations.ReadAsync(tenantId, arguments.EscalationId, token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "Escalation not found.");
+                    EscalationResolutionSourceEnum source = EscalationResolutionSourceEnum.User;
+                    if (run != null)
+                    {
+                        if (escalation.TargetKind != EscalationTargetKindEnum.Agent || escalation.TargetId != run.AgentId) throw ToolError("NotFound", "Escalation not found.");
+                        source = EscalationResolutionSourceEnum.Agent;
+                        ctx.PrincipalName = run.AgentName;
+                    }
+                    else
+                    {
+                        await Require(ctx, tenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Update, escalation.Id, token).ConfigureAwait(false);
+                    }
+                    EscalationAnswerRequest answer = new EscalationAnswerRequest { Choice = arguments.Choice, Text = arguments.Text };
+                    return await escalations.AnswerAsync(ctx, escalation, answer, source, token).ConfigureAwait(false);
+                }
+                default:
+                {
+                    await Require(ctx, tenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    EscalationFilter filter = new EscalationFilter { TenantId = tenantId, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    if (!String.IsNullOrWhiteSpace(arguments.Status)) filter.Status = ParseOr(arguments.Status, EscalationStatusEnum.Open, "status");
+                    if (!String.IsNullOrWhiteSpace(arguments.Severity)) filter.Severity = ParseOr(arguments.Severity, EscalationSeverityEnum.Warning, "severity");
+                    filter.AgentId = String.IsNullOrWhiteSpace(arguments.Agent) ? null : arguments.Agent.Trim();
+                    filter.MandateId = String.IsNullOrWhiteSpace(arguments.Mandate) ? null : arguments.Mandate.Trim();
+                    Garrison.Core.Enumeration.EnumerationResult<Escalation> page = await _Context.Database.Escalations.EnumerateAsync(filter, token).ConfigureAwait(false);
+                    McpEscalationList list = new McpEscalationList();
+                    list.Escalations = page.Objects;
+                    list.TotalCount = page.TotalRecords;
+                    return list;
+                }
+            }
+        }
+
+        private async Task<Escalation> VisibleEscalationAsync(RequestContext ctx, string tenantId, Run? run, string? escalationId, OperationTypeEnum operation, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(escalationId)) throw ToolError("ValidationFailed", "escalationId is required.");
+            Escalation escalation = await _Context.Database.Escalations.ReadAsync(tenantId, escalationId.Trim(), token).ConfigureAwait(false)
+                ?? throw ToolError("NotFound", "Escalation not found.");
+            if (run == null)
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Escalation, operation, escalation.Id, token).ConfigureAwait(false);
+                return escalation;
+            }
+            bool raised = escalation.RaisingRunId == run.Id || (!String.IsNullOrEmpty(run.MandateId) && escalation.MandateId == run.MandateId);
+            bool addressed = operation == OperationTypeEnum.Read && escalation.TargetKind == EscalationTargetKindEnum.Agent && escalation.TargetId == run.AgentId;
+            if (!raised && !addressed) throw ToolError("NotFound", "Escalation not found.");
+            return escalation;
+        }
+
+        private static T ParseOr<T>(string? value, T fallback, string field) where T : struct, Enum
+        {
+            if (String.IsNullOrWhiteSpace(value)) return fallback;
+            if (Enum.TryParse<T>(value.Trim(), true, out T parsed) && Enum.IsDefined(parsed)) return parsed;
+            throw ToolError("ValidationFailed", field + " must be one of " + String.Join(", ", Enum.GetNames<T>()) + ".");
         }
 
         private async Task<Run?> KeeperRunAsync(RequestContext ctx, CancellationToken token)

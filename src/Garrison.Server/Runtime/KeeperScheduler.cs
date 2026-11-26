@@ -50,6 +50,12 @@ namespace Garrison.Server.Runtime
         public event EventHandler<MandateTick>? TickChanged;
 
         /// <summary>
+        /// Escalation service (AA2.4). When set, a tick's input carries the answers to the keeper's escalations that no
+        /// earlier tick carried, rendered through escalation-answered (AA-042). Null when escalations are not wired.
+        /// </summary>
+        public EscalationService? Escalations { get; set; } = null;
+
+        /// <summary>
         /// Seconds a claimed tick may go without a run before the sweep fails it (the replica that claimed it died before
         /// starting the run). Minimum 30, maximum 3600, default 120.
         /// </summary>
@@ -280,6 +286,19 @@ namespace Garrison.Server.Runtime
                 tick.TemplateName = template.Name;
                 tick.TemplateVersion = template.CurrentVersion;
 
+                List<Escalation> answers = Escalations == null ? new List<Escalation>() : await _Database.Escalations.ListUndeliveredAsync(mandate.TenantId, mandate.Id, token).ConfigureAwait(false);
+                if (answers.Count > 0)
+                {
+                    try
+                    {
+                        input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + await Escalations!.RenderAnswersAsync(mandate.TenantId, answers, token).ConfigureAwait(false);
+                    }
+                    catch (TemplateException e)
+                    {
+                        throw new ConflictException("TemplateRenderFailed", "Template escalation-answered failed to render: " + e.Message);
+                    }
+                }
+
                 RunCreateContext create = new RunCreateContext();
                 create.TenantId = mandate.TenantId;
                 create.Agent = agent;
@@ -297,6 +316,7 @@ namespace Garrison.Server.Runtime
                 Run run = await _Runs.CreateAsync(create, token).ConfigureAwait(false);
                 tick.RunId = run.Id;
                 await _Database.MandateTicks.UpdateAsync(tick, token).ConfigureAwait(false);
+                if (answers.Count > 0) await _Database.Escalations.MarkDeliveredAsync(mandate.TenantId, answers.Select(a => a.Id).ToList(), tick.Id, token).ConfigureAwait(false);
                 await _Database.Mandates.SetActiveRunAsync(mandate.Id, tick.Id, run.Id, token).ConfigureAwait(false);
                 _Logging.Info(_Header + "mandate " + mandate.Id + " (" + mandate.Name + ") tick " + tick.Id + " started run " + run.Id + " (" + tick.WakeSource + ") " + GarrisonTracing.LogFields("tenant", mandate.TenantId, "mandate", mandate.Name));
                 Raise(tick);

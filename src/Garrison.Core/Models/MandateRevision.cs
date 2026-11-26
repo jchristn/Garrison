@@ -129,6 +129,17 @@ namespace Garrison.Core.Models
         public string? Direction { get; set; } = null;
 
         /// <summary>
+        /// Where this keeper's escalations go when the keeper names no target (AA2, AA-043), or null for none. Manager is
+        /// accepted once organizations land (AA7.5).
+        /// </summary>
+        public EscalationTargetKindEnum? EscalationTargetKind { get; set; } = null;
+
+        /// <summary>
+        /// User, role, or agent identifier of the default escalation target, or null. Required with User, Role, and Agent.
+        /// </summary>
+        public string? EscalationTargetId { get; set; } = null;
+
+        /// <summary>
         /// Signals the keeper observes on each tick, in order. At most 50.
         /// </summary>
         public List<MandateRevisionSignal> Signals

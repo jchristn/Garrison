@@ -119,6 +119,12 @@ namespace Garrison.Core.Models
         public bool IncludeResultText { get; set; } = false;
 
         /// <summary>
+        /// Least severe escalation this endpoint is told about (AA2.10), or null for all. Warning skips Info escalations;
+        /// Urgent receives only Urgent ones. Applies to EscalationRaised and EscalationExpired.
+        /// </summary>
+        public EscalationSeverityEnum? EscalationMinimumSeverity { get; set; } = null;
+
+        /// <summary>
         /// Most characters of result text included when includeResultText is true. Default 1000, minimum 1, maximum
         /// 16000. Values outside the range are clamped.
         /// </summary>
