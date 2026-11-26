@@ -67,5 +67,14 @@ namespace Garrison.Server.Protocols
 
         /// <summary>Most seconds to wait, for playground_invoke.</summary>
         public int? WaitSeconds { get; set; } = null;
+
+        /// <summary>Organization name, for the unit graph operations (AA7.10).</summary>
+        public string? Organization { get; set; } = null;
+
+        /// <summary>Unit name, for the unit graph operations.</summary>
+        public string? Unit { get; set; } = null;
+
+        /// <summary>Parent unit name, for graph_operation AddUnit.</summary>
+        public string? Parent { get; set; } = null;
     }
 }

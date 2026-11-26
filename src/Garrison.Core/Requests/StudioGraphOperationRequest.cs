@@ -62,5 +62,20 @@ namespace Garrison.Core.Requests
         /// Canvas Y for MoveNode.
         /// </summary>
         public double Y { get; set; } = 0;
+
+        /// <summary>
+        /// Organization name for the unit operations (AA7.10).
+        /// </summary>
+        public string? Organization { get; set; } = null;
+
+        /// <summary>
+        /// Unit name for AddUnit, RemoveUnit, AddUnitMember, and RemoveUnitMember.
+        /// </summary>
+        public string? Unit { get; set; } = null;
+
+        /// <summary>
+        /// Parent unit name for AddUnit, or null for the root.
+        /// </summary>
+        public string? Parent { get; set; } = null;
     }
 }

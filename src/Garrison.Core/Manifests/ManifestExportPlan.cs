@@ -51,6 +51,7 @@ namespace Garrison.Core.Manifests
         private readonly Dictionary<string, AgenticApp> _Apps = new Dictionary<string, AgenticApp>(StringComparer.Ordinal);
         private readonly Dictionary<string, Trigger> _Triggers = new Dictionary<string, Trigger>(StringComparer.Ordinal);
         private readonly Dictionary<string, Mandate> _Mandates = new Dictionary<string, Mandate>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Organization> _Organizations = new Dictionary<string, Organization>(StringComparer.Ordinal);
         private readonly Dictionary<string, NotificationEndpoint> _Endpoints = new Dictionary<string, NotificationEndpoint>(StringComparer.Ordinal);
         private readonly Dictionary<string, Secret> _Secrets = new Dictionary<string, Secret>(StringComparer.Ordinal);
         private readonly Dictionary<string, ArtifactStore> _Stores = new Dictionary<string, ArtifactStore>(StringComparer.Ordinal);
@@ -110,6 +111,11 @@ namespace Garrison.Core.Manifests
             foreach (AgenticApp item in await AllAsync(q => database.Apps.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Apps[item.Id] = item;
             foreach (Trigger item in await AllAsync(q => database.Triggers.EnumerateAsync(tenantId, null, q, token), token).ConfigureAwait(false)) plan._Triggers[item.Id] = item;
             foreach (Mandate item in await AllAsync(q => database.Mandates.EnumerateAsync(tenantId, null, null, null, q, token), token).ConfigureAwait(false)) plan._Mandates[item.Id] = item;
+            foreach (Organization item in await AllAsync(q => database.Organizations.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false))
+            {
+                item.Units = await database.Organizations.ListUnitsAsync(tenantId, item.Id, token).ConfigureAwait(false);
+                plan._Organizations[item.Id] = item;
+            }
             foreach (NotificationEndpoint item in await AllAsync(q => database.NotificationEndpoints.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Endpoints[item.Id] = item;
             foreach (Secret item in await AllAsync(q => database.Secrets.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Secrets[item.Id] = item;
             foreach (ArtifactStore item in await AllAsync(q => database.ArtifactStores.EnumerateAsync(tenantId, q, token), token).ConfigureAwait(false)) plan._Stores[item.Id] = item;
@@ -123,7 +129,7 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Select every tenant-owned record of a kind.
         /// </summary>
-        /// <param name="kind">Exportable kind (PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, AgentAsset, Agent, Deployment, Pipeline, Trigger, Mandate, NotificationEndpoint).</param>
+        /// <param name="kind">Exportable kind (PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, AgentAsset, Agent, Deployment, Pipeline, Trigger, Mandate, Organization, NotificationEndpoint).</param>
         public void SelectKind(string kind)
         {
             foreach (string id in Ids(kind)) Include(kind, id);
@@ -236,6 +242,19 @@ namespace Garrison.Core.Manifests
                         Mandate kept = _Mandates[id];
                         Include("Agent", kept.AgentId);
                         Include("Deployment", kept.DeploymentId);
+                        break;
+                    case "Organization":
+                        foreach (OrgUnit unit in _Organizations[id].Units ?? new List<OrgUnit>())
+                        {
+                            Include("Agent", unit.LeadAgentId);
+                            Include("Mandate", unit.LeadMandateId);
+                            Include("AgenticApp", unit.AppId);
+                            foreach (OrgUnitMember member in unit.Members)
+                            {
+                                Include("Agent", member.AgentId);
+                                Include("Mandate", member.MandateId);
+                            }
+                        }
                         break;
                     case "NotificationEndpoint":
                         NotificationEndpoint notified = _Endpoints[id];
@@ -351,6 +370,7 @@ namespace Garrison.Core.Manifests
                 case "AgenticApp": return _Apps.Keys.ToList();
                 case "Trigger": return _Triggers.Keys.ToList();
                 case "Mandate": return _Mandates.Keys.ToList();
+                case "Organization": return _Organizations.Keys.ToList();
                 case "NotificationEndpoint": return _Endpoints.Keys.ToList();
                 default: return new List<string>();
             }
@@ -371,6 +391,7 @@ namespace Garrison.Core.Manifests
                 case "AgenticApp": return _Apps.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Trigger": return _Triggers.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "Mandate": return _Mandates.Values.FirstOrDefault(r => r.Name == name)?.Id;
+                case "Organization": return _Organizations.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 case "NotificationEndpoint": return _Endpoints.Values.FirstOrDefault(r => r.Name == name)?.Id;
                 default: return null;
             }
@@ -395,6 +416,7 @@ namespace Garrison.Core.Manifests
                 case "AgenticApp": return _Apps.TryGetValue(id, out AgenticApp? app) ? app : null;
                 case "Trigger": return _Triggers.TryGetValue(id, out Trigger? trigger) ? trigger : null;
                 case "Mandate": return _Mandates.TryGetValue(id, out Mandate? mandate) ? mandate : null;
+                case "Organization": return _Organizations.TryGetValue(id, out Organization? organization) ? organization : null;
                 case "NotificationEndpoint": return _Endpoints.TryGetValue(id, out NotificationEndpoint? endpoint) ? endpoint : null;
                 default: return null;
             }
@@ -489,6 +511,7 @@ namespace Garrison.Core.Manifests
                 case AgenticApp app: return app.Name;
                 case Trigger trigger: return trigger.Name;
                 case Mandate mandate: return mandate.Name;
+                case Organization organization: return organization.Name;
                 case NotificationEndpoint endpoint: return endpoint.Name;
                 default: return String.Empty;
             }

@@ -345,6 +345,17 @@ namespace Garrison.Server.Modules
 
             _Manifests = context.TryGet<ManifestService>();
             if (_Manifests != null && _Mandates != null) _Manifests.MandateRevisionBounds = _Mandates.ApplyBounds;
+            if (_Manifests != null)
+            {
+                FreezeService? freezes = _Freezes;
+                OrgBudgetGuard? budgets = context.TryGet<OrgBudgetGuard>();
+                _Manifests.OrganizationPublishedAsync = (tenantId, organizationId, ct) =>
+                {
+                    freezes?.OrganizationChanged(tenantId);
+                    budgets?.Invalidate();
+                    return Task.CompletedTask;
+                };
+            }
             ClusterSettingsService? cluster = context.TryGet<ClusterSettingsService>();
             if (cluster != null)
             {

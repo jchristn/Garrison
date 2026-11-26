@@ -101,5 +101,10 @@ namespace Garrison.Core.Manifests
         /// For an AgentAsset document: change note of the new version.
         /// </summary>
         public string? AssetChangeNote { get; set; } = null;
+
+        /// <summary>
+        /// For an Organization: who publishes the written tree as a new revision, or null to leave it unpublished (AA7.9).
+        /// </summary>
+        public OrganizationPublishIntent? OrganizationPublish { get; set; } = null;
     }
 }

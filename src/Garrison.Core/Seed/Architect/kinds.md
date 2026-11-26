@@ -65,6 +65,32 @@ spec:
   authMode: AppUsers               # AppUsers, TenantUsers, or Anonymous
 ```
 
+## Organization
+
+```yaml
+kind: Organization
+metadata: { name: support-org }
+spec:
+  mission: Answer every customer within a day.
+  publish: true                      # make the tree live after a person approves the draft
+  units:
+    - name: leadership               # the one root unit; its lead is the CEO
+      lead: support-lead
+      leadTitle: Head of support
+      budgets:
+        - { period: Day, amountUsd: 20 }
+      units:
+        - name: triage
+          lead: triage-lead
+          members:
+            - { agent: classifier, title: Classifier }
+          peers: [billing]           # agents of the two units may message each other
+        - name: billing
+          lead: billing-lead
+```
+
+A unit's members report to its lead, and each lead reports to the lead of the unit above. An agent holds one position in an organization. A child budget may not exceed its parent's. Use the graph operations AddUnit, RemoveUnit, AddUnitMember, RemoveUnitMember, ConnectUnits, and DisconnectUnits with `organization` to change units one at a time.
+
 ## PromptTemplate
 
 ```yaml

@@ -34,6 +34,37 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Place a node on the canvas.
         /// </summary>
-        MoveNode
+        MoveNode,
+
+        /// <summary>
+        /// Add a unit to an organization (AA7.10): organization, unit, optional parent (none for the root), optional agent as
+        /// its lead, and optional role as the lead's title.
+        /// </summary>
+        AddUnit,
+
+        /// <summary>
+        /// Remove a unit without child units from an organization: organization and unit. Peer lines to it go too.
+        /// </summary>
+        RemoveUnit,
+
+        /// <summary>
+        /// Add an agent to a unit as a member: organization, unit, agent, and optional role as its title.
+        /// </summary>
+        AddUnitMember,
+
+        /// <summary>
+        /// Remove a member from a unit: organization, unit, and agent.
+        /// </summary>
+        RemoveUnitMember,
+
+        /// <summary>
+        /// Join two units of an organization with a peer line: organization, from, and to (unit names).
+        /// </summary>
+        ConnectUnits,
+
+        /// <summary>
+        /// Remove the peer line between two units: organization, from, and to.
+        /// </summary>
+        DisconnectUnits
     }
 }

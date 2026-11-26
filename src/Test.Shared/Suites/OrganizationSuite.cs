@@ -14,6 +14,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Models;
     using Garrison.Core.Organizations;
     using Garrison.Core.Requests;
+    using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
@@ -54,6 +55,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "freezes", "An OrgUnit freeze stops its whole subtree and its keepers; an Organization freeze sets Frozen and lifting restores Active (" + provider + ")", ct => FreezesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "awareness", "A member run sees its chart and whoami, a non-member run is refused, org-context carries the manager, and capabilities carry the unit (" + provider + ")", ct => AwarenessAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "REST organizations, units, chart, revisions, publish, rollback, spend, scopes, role grants, and cross-tenant 404 (" + provider + ")", ct => RoutesAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "manifests", "kind Organization with nested units applies and publishes, applies again Unchanged, exports and re-applies after a delete; a studio draft built with unit graph operations applies after approval (" + provider + ")", ct => ManifestsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "An organization subscriber receives org.changed and report.filed; without Organization.Read the channel is refused (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Organizations (" + provider + ")", cases));
             }
@@ -451,6 +453,67 @@ namespace Test.Shared.Suites
                     Assert.Equal(403, (await HttpTestHelpers.SendAsync(viewer, HttpMethod.Post, b, new Organization { Name = "viewer-org" }, token).ConfigureAwait(false)).StatusCode, "A Viewer cannot create");
                     Assert.Equal(201, (await HttpTestHelpers.SendAsync(developer, HttpMethod.Post, b, new Organization { Name = "dev-org" }, token).ConfigureAwait(false)).StatusCode, "An AgentDeveloper creates");
                 }
+            }
+        }
+
+        private static async Task ManifestsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                foreach (string name in new[] { "mf-ceo", "mf-lead", "mf-worker", "mf-seller" }) await AgentAsync(host, name, token).ConfigureAwait(false);
+                Garrison.Core.Manifests.ManifestService manifests = host.Server.Context.Get<Garrison.Core.Manifests.ManifestService>();
+                Garrison.Core.Manifests.ManifestApplyOptions options = new Garrison.Core.Manifests.ManifestApplyOptions { PrincipalName = "admin", PrincipalType = PrincipalTypeEnum.Administrator };
+                string yaml = "apiVersion: garrison/v1\nkind: Organization\nmetadata:\n  name: mf-org\nspec:\n  mission: Ship it.\n  units:\n    - name: root\n      lead: mf-ceo\n      leadTitle: CEO\n      budgets:\n        - { period: Day, amountUsd: 10 }\n      units:\n        - name: ops\n          lead: mf-lead\n          members:\n            - { agent: mf-worker, title: Operator }\n          peers: [sales]\n          budgets:\n            - { period: Day, amountUsd: 5 }\n        - name: sales\n          lead: mf-seller\n";
+                ManifestApply applied = await manifests.ApplyAsync(host.TenantId, yaml, options, token).ConfigureAwait(false);
+                Assert.True(applied.FailedCount == 0 && applied.CreatedCount == 1, "The organization applies: " + Serializer.Serialize(applied.Items));
+                Organization org = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadByNameAsync(host.TenantId, "mf-org", token).ConfigureAwait(false), "Created");
+                Assert.True(org.Status == OrganizationStatusEnum.Active && org.CurrentRevisionNumber == 1, "Applying publishes the tree: " + Serializer.Serialize(org));
+                OrgChart chart = await host.Server.Context.Get<OrganizationService>().ChartAsync(org, token).ConfigureAwait(false);
+                OrgChartUnit ops = chart.Units.Single(u => u.Name == "ops");
+                Assert.True(chart.Units.Count == 3 && ops.ParentUnitId == chart.Units[0].Id && ops.Members.Single().Title == "Operator" && ops.PeerUnitIds.Count == 1 && ops.Budgets.Single().AmountUsd == 5, "The live chart matches the manifest: " + Serializer.Serialize(chart));
+
+                ManifestApply again = await manifests.ApplyAsync(host.TenantId, yaml, options, token).ConfigureAwait(false);
+                Assert.True(again.UnchangedCount == 1 && again.FailedCount == 0, "Applying again changes nothing: " + Serializer.Serialize(again.Items));
+                string invalid = yaml.Replace("amountUsd: 5", "amountUsd: 50", StringComparison.Ordinal);
+                ManifestApply refused = await manifests.ApplyAsync(host.TenantId, invalid, options, token).ConfigureAwait(false);
+                Assert.True(refused.FailedCount == 1 && Serializer.Serialize(refused.Items).Contains("BudgetExceedsParent", StringComparison.Ordinal), "A child budget over its parent's fails: " + Serializer.Serialize(refused.Items));
+
+                Garrison.Core.Manifests.ManifestExportOptions export = new Garrison.Core.Manifests.ManifestExportOptions { FollowReferences = true };
+                export.Resources.Add(new Garrison.Core.Manifests.ManifestResourceReference { Kind = "Organization", Name = "mf-org" });
+                Garrison.Core.Manifests.ManifestExportResult exported = await manifests.ExportAsync(host.TenantId, export, token).ConfigureAwait(false);
+                Assert.True(exported.Yaml.Contains("kind: Organization", StringComparison.Ordinal) && exported.Yaml.Contains("kind: Agent", StringComparison.Ordinal) && exported.Yaml.Contains("mf-worker", StringComparison.Ordinal), "The export carries the organization and its agents");
+                await host.Server.Context.Get<OrganizationService>().DeleteAsync(Admin(host), org, token).ConfigureAwait(false);
+                ManifestApply restored = await manifests.ApplyAsync(host.TenantId, exported.Yaml, options, token).ConfigureAwait(false);
+                Organization back = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadByNameAsync(host.TenantId, "mf-org", token).ConfigureAwait(false), "Re-created from the export");
+                OrgChart roundTrip = await host.Server.Context.Get<OrganizationService>().ChartAsync(back, token).ConfigureAwait(false);
+                Assert.True(restored.FailedCount == 0 && back.Status == OrganizationStatusEnum.Active && roundTrip.Units.Count == 3 && roundTrip.Units.Single(u => u.Name == "ops").Members.Single().AgentId == (await host.Server.Context.Database.Agents.ReadByNameAsync(host.TenantId, "mf-worker", token).ConfigureAwait(false))!.Id, "The bundle round-trips: " + Serializer.Serialize(restored.Items));
+
+                // A studio draft builds a new organization with unit graph operations and applies after approval.
+                string drafts = T(host) + "/studio/drafts";
+                StudioDraft draft = await HttpTestHelpers.SendAsync<StudioDraft>(host.AdminClient, HttpMethod.Post, drafts, new StudioDraftCreateRequest { Title = "New org" }, 201, token).ConfigureAwait(false);
+                int version = draft.Version;
+                async Task<StudioGraph> Op(StudioGraphOperationRequest request)
+                {
+                    request.Version = version;
+                    StudioGraph result = await HttpTestHelpers.SendAsync<StudioGraph>(host.AdminClient, HttpMethod.Post, drafts + "/" + draft.Id + "/graph-operations", request, 200, token).ConfigureAwait(false);
+                    version = result.Version;
+                    return result;
+                }
+                await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.AddUnit, Organization = "draft-org", Unit = "hq", Agent = "mf-ceo", Role = "CEO" }).ConfigureAwait(false);
+                await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.AddUnit, Organization = "draft-org", Unit = "field", Parent = "hq", Agent = "mf-lead" }).ConfigureAwait(false);
+                await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.AddUnit, Organization = "draft-org", Unit = "desk", Parent = "hq", Agent = "mf-seller" }).ConfigureAwait(false);
+                await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.AddUnitMember, Organization = "draft-org", Unit = "field", Agent = "mf-worker", Role = "Runner" }).ConfigureAwait(false);
+                StudioGraph graph = await Op(new StudioGraphOperationRequest { Operation = StudioGraphOperationEnum.ConnectUnits, Organization = "draft-org", From = "field", To = "desk" }).ConfigureAwait(false);
+                Assert.True(graph.Nodes.Any(n => n.Key == "Organization/draft-org" && n.InDraft) && graph.Nodes.Single(n => n.Key == "OrgUnit/draft-org/field").ParentUnit == "hq" && graph.Nodes.Single(n => n.Name == "mf-worker").UnitOf.Contains("draft-org/field") && graph.Edges.Any(e => e.Kind == "Peer" && e.From == "field" && e.To == "desk"), "The canvas shows nested units, members, and the peer line: " + Serializer.Serialize(graph));
+                TestResponse root2 = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, drafts + "/" + draft.Id + "/graph-operations", new StudioGraphOperationRequest { Version = version, Operation = StudioGraphOperationEnum.AddUnit, Organization = "draft-org", Unit = "rogue" }, token).ConfigureAwait(false);
+                KeeperSuite.Code(root2, 400, "OneRoot", "A second root is refused on the canvas");
+                StudioDraftDiff diff = await HttpTestHelpers.SendAsync<StudioDraftDiff>(host.AdminClient, HttpMethod.Post, drafts + "/" + draft.Id + "/validate", null, 200, token).ConfigureAwait(false);
+                Assert.True(diff.Valid && diff.Items.Single(i => i.Kind == "Organization").Change == "Create", "The diff creates the organization: " + Serializer.Serialize(diff));
+                Assert.True((await host.Server.Context.Database.Organizations.ReadByNameAsync(host.TenantId, "draft-org", token).ConfigureAwait(false)) == null, "Nothing changes before approval");
+                Approval approval = await HttpTestHelpers.SendAsync<Approval>(host.AdminClient, HttpMethod.Post, drafts + "/" + draft.Id + "/request-apply", new StudioDraftVersionRequest { Version = version }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + approval.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, token).ConfigureAwait(false);
+                Organization created = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadByNameAsync(host.TenantId, "draft-org", token).ConfigureAwait(false), "The approved draft created the organization");
+                Assert.True(created.Status == OrganizationStatusEnum.Active && (await host.Server.Context.Database.Organizations.ListUnitsAsync(host.TenantId, created.Id, token).ConfigureAwait(false)).Count == 3, "It is live with three units: " + Serializer.Serialize(created));
             }
         }
 

@@ -2671,7 +2671,8 @@ namespace Garrison.Server.Protocols
                         StudioGraphOperationRequest operation = new StudioGraphOperationRequest
                         {
                             Version = version, Operation = arguments.GraphOperation.Value, App = arguments.App, Agent = arguments.Agent, Role = arguments.Role,
-                            From = arguments.From, To = arguments.To, FanOut = arguments.FanOut, NodeKey = arguments.NodeKey, X = arguments.X ?? 0, Y = arguments.Y ?? 0
+                            From = arguments.From, To = arguments.To, FanOut = arguments.FanOut, NodeKey = arguments.NodeKey, X = arguments.X ?? 0, Y = arguments.Y ?? 0,
+                            Organization = arguments.Organization, Unit = arguments.Unit, Parent = arguments.Parent
                         };
                         return await studio.ApplyGraphOperationAsync(tenantId, draft.Id, operation, token).ConfigureAwait(false);
                     default:

@@ -57,5 +57,25 @@ namespace Garrison.Core.Responses
         /// Canvas Y, or null when the node has not been placed.
         /// </summary>
         public double? Y { get; set; } = null;
+
+        /// <summary>
+        /// For an OrgUnit node, its organization; otherwise null (AA7.10).
+        /// </summary>
+        public string? Organization { get; set; } = null;
+
+        /// <summary>
+        /// For an OrgUnit node, its parent unit's name, or null for the root.
+        /// </summary>
+        public string? ParentUnit { get; set; } = null;
+
+        /// <summary>
+        /// For an OrgUnit node, its lead agent's name, or null.
+        /// </summary>
+        public string? Lead { get; set; } = null;
+
+        /// <summary>
+        /// For an Agent node, the units it leads or works in, as organization/unit.
+        /// </summary>
+        public List<string> UnitOf { get; set; } = new List<string>();
     }
 }

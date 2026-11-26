@@ -30,12 +30,12 @@ namespace Garrison.Server.Services
         /// <summary>
         /// Kinds a draft may hold. Secrets are left out: drafts never carry secret values.
         /// </summary>
-        public static readonly IReadOnlyList<string> DraftKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> DraftKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "Organization", "NotificationEndpoint" };
 
         /// <summary>
         /// Kinds a draft may delete.
         /// </summary>
-        public static readonly IReadOnlyList<string> DeletableKinds = new List<string> { "Agent", "Deployment", "Pipeline", "AgenticApp" };
+        public static readonly IReadOnlyList<string> DeletableKinds = new List<string> { "Agent", "Deployment", "Pipeline", "AgenticApp", "Organization" };
 
         /// <summary>
         /// How long a DraftApply approval waits for a decision, in hours. Default 168; minimum 1; maximum 720.
@@ -268,6 +268,41 @@ namespace Garrison.Server.Services
                 if (parsed.Count == 1 && parsed[0].Spec.TryGetValue("capabilities", out object? capabilities) && capabilities is List<object?> names)
                     nodes["Agent/" + item.Name].Capabilities = names.Where(n => n != null).Select(n => TemplateValues.ToText(n)).ToList();
             }
+            foreach (StudioDraftItem item in draft.Items.Where(i => i.Kind == "Organization"))
+            {
+                StudioGraphNode organizationNode = NodeFor("Organization", item.Name);
+                organizationNode.InDraft = true;
+                organizationNode.Deleted = item.Operation == StudioDraftOperationEnum.Delete;
+                if (item.Operation != StudioDraftOperationEnum.Upsert) continue;
+                OrganizationSpec spec = OrgSpec(item.Document);
+                void Walk(List<OrgUnitSpec> level, string? parent)
+                {
+                    foreach (OrgUnitSpec unit in level.Where(u => !String.IsNullOrWhiteSpace(u.Name)))
+                    {
+                        string unitName = unit.Name!.Trim();
+                        StudioGraphNode unitNode = NodeFor("OrgUnit", item.Name + "/" + unitName);
+                        unitNode.InDraft = true;
+                        unitNode.Organization = item.Name;
+                        unitNode.ParentUnit = parent;
+                        unitNode.Lead = String.IsNullOrWhiteSpace(unit.Lead) ? null : unit.Lead.Trim();
+                        List<string> agents = new List<string>();
+                        if (unitNode.Lead != null) agents.Add(unitNode.Lead);
+                        agents.AddRange((unit.Members ?? new List<OrgUnitMemberSpec>()).Where(m => !String.IsNullOrWhiteSpace(m.Agent)).Select(m => m.Agent!.Trim()));
+                        foreach (string agent in agents)
+                        {
+                            StudioGraphNode agentNode = NodeFor("Agent", agent);
+                            string position = item.Name + "/" + unitName;
+                            if (!agentNode.UnitOf.Contains(position)) agentNode.UnitOf.Add(position);
+                        }
+                        foreach (string peer in (unit.Peers ?? new List<string>()).Where(p => !String.IsNullOrWhiteSpace(p)))
+                        {
+                            graph.Edges.Add(new StudioGraphEdge { Kind = "Peer", Organization = item.Name, From = unitName, To = peer.Trim(), FanOut = false, Depth = 0 });
+                        }
+                        Walk(unit.Units ?? new List<OrgUnitSpec>(), unitName);
+                    }
+                }
+                Walk(spec.Units ?? new List<OrgUnitSpec>(), null);
+            }
             foreach (StudioDraftNode position in draft.Layout)
             {
                 if (nodes.TryGetValue(position.NodeKey, out StudioGraphNode? node))
@@ -276,7 +311,7 @@ namespace Garrison.Server.Services
                     node.Y = position.Y;
                 }
             }
-            graph.Nodes = nodes.Values.OrderBy(n => n.Kind == "AgenticApp" ? 0 : 1).ThenBy(n => n.Name, StringComparer.Ordinal).ToList();
+            graph.Nodes = nodes.Values.OrderBy(n => n.Kind == "Organization" ? 0 : n.Kind == "OrgUnit" ? 1 : n.Kind == "AgenticApp" ? 2 : 3).ThenBy(n => n.Name, StringComparer.Ordinal).ToList();
             return graph;
         }
 
@@ -302,6 +337,13 @@ namespace Garrison.Server.Services
                 layout.Add(new StudioDraftNode { NodeKey = request.NodeKey, X = request.X, Y = request.Y });
                 if (!await _Server.Database.StudioDrafts.SetLayoutAsync(tenantId, draft.Id, request.Version, layout, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
                 return Graph(await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false));
+            }
+
+            if (request.Operation == StudioGraphOperationEnum.AddUnit || request.Operation == StudioGraphOperationEnum.RemoveUnit
+                || request.Operation == StudioGraphOperationEnum.AddUnitMember || request.Operation == StudioGraphOperationEnum.RemoveUnitMember
+                || request.Operation == StudioGraphOperationEnum.ConnectUnits || request.Operation == StudioGraphOperationEnum.DisconnectUnits)
+            {
+                return await ApplyUnitOperationAsync(tenantId, draft, request, token).ConfigureAwait(false);
             }
 
             string appName = !String.IsNullOrWhiteSpace(request.App) ? request.App.Trim() : draft.TargetApp ?? throw Invalid("app", "Required", "app is required when the draft has no target app.");
@@ -627,6 +669,162 @@ namespace Garrison.Server.Services
             return deepest;
         }
 
+        private async Task<StudioGraph> ApplyUnitOperationAsync(string tenantId, StudioDraft draft, StudioGraphOperationRequest request, CancellationToken token)
+        {
+            // AA7.10: unit operations rewrite the organization's draft item, starting from the live organization when the
+            // draft does not hold it yet, or from a new one. The manifest dry run validates the result.
+            if (String.IsNullOrWhiteSpace(request.Organization)) throw Invalid("organization", "Required", "organization is required for " + request.Operation + ".");
+            string organizationName = request.Organization.Trim();
+            StudioDraftItem? existing = draft.Items.FirstOrDefault(i => i.Kind == "Organization" && i.Name == organizationName);
+            if (existing != null && existing.Operation == StudioDraftOperationEnum.Delete) throw Invalid("organization", "OrganizationDeleted", "The draft deletes organization " + organizationName + "; put it back first.");
+            ManifestDocument document = existing != null
+                ? ManifestParser.Parse(existing.Document)[0]
+                : await LiveDocumentAsync(tenantId, "Organization", organizationName, token).ConfigureAwait(false)
+                    ?? new ManifestDocument { ApiVersion = "garrison/v1", Kind = "Organization", Metadata = new ManifestMetadata { Name = organizationName } };
+            OrganizationSpec spec = OrgSpec(document);
+            spec.Units ??= new List<OrgUnitSpec>();
+            string Need(string? value, string field)
+            {
+                if (String.IsNullOrWhiteSpace(value)) throw Invalid(field, "Required", field + " is required for " + request.Operation + ".");
+                return value.Trim();
+            }
+            OrgUnitSpec Unit(string name, string field)
+            {
+                return FindUnit(spec.Units, name) ?? throw Invalid(field, "UnitNotFound", "Organization " + organizationName + " has no unit " + name + ".");
+            }
+            switch (request.Operation)
+            {
+                case StudioGraphOperationEnum.AddUnit:
+                    string added = Need(request.Unit, "unit");
+                    if (FindUnit(spec.Units, added) != null) throw Invalid("unit", "UnitNameTaken", "Organization " + organizationName + " already has a unit " + added + ".");
+                    OrgUnitSpec unit = new OrgUnitSpec { Name = added };
+                    if (!String.IsNullOrWhiteSpace(request.Agent)) unit.Lead = request.Agent.Trim();
+                    if (!String.IsNullOrWhiteSpace(request.Role)) unit.LeadTitle = request.Role.Trim();
+                    if (String.IsNullOrWhiteSpace(request.Parent))
+                    {
+                        if (spec.Units.Count > 0) throw Invalid("parent", "OneRoot", "Organization " + organizationName + " already has a root unit; name a parent.");
+                        spec.Units.Add(unit);
+                    }
+                    else
+                    {
+                        OrgUnitSpec parent = Unit(request.Parent.Trim(), "parent");
+                        parent.Units ??= new List<OrgUnitSpec>();
+                        parent.Units.Add(unit);
+                    }
+                    break;
+                case StudioGraphOperationEnum.RemoveUnit:
+                    string removed = Need(request.Unit, "unit");
+                    OrgUnitSpec target = Unit(removed, "unit");
+                    if (target.Units != null && target.Units.Count > 0) throw Invalid("unit", "UnitHasChildren", "Unit " + removed + " has units below it; remove them first.");
+                    RemoveUnit(spec.Units, removed);
+                    foreach (OrgUnitSpec other in AllUnits(spec.Units)) other.Peers?.RemoveAll(p => String.Equals(p?.Trim(), removed, StringComparison.OrdinalIgnoreCase));
+                    break;
+                case StudioGraphOperationEnum.AddUnitMember:
+                    OrgUnitSpec joined = Unit(Need(request.Unit, "unit"), "unit");
+                    string member = Need(request.Agent, "agent");
+                    joined.Members ??= new List<OrgUnitMemberSpec>();
+                    if (!joined.Members.Any(m => m.Agent == member)) joined.Members.Add(new OrgUnitMemberSpec { Agent = member, Title = String.IsNullOrWhiteSpace(request.Role) ? null : request.Role.Trim() });
+                    break;
+                case StudioGraphOperationEnum.RemoveUnitMember:
+                    OrgUnitSpec left = Unit(Need(request.Unit, "unit"), "unit");
+                    string leaving = Need(request.Agent, "agent");
+                    if ((left.Members?.RemoveAll(m => m.Agent == leaving) ?? 0) == 0) throw Invalid("agent", "NotAMember", leaving + " is not a member of unit " + left.Name + ".");
+                    break;
+                case StudioGraphOperationEnum.ConnectUnits:
+                    OrgUnitSpec from = Unit(Need(request.From, "from"), "from");
+                    OrgUnitSpec to = Unit(Need(request.To, "to"), "to");
+                    if (from == to) throw Invalid("to", "PeerNotFound", "A unit has no peer line to itself.");
+                    from.Peers ??= new List<string>();
+                    if (!from.Peers.Contains(to.Name!) && !(to.Peers ?? new List<string>()).Contains(from.Name!)) from.Peers.Add(to.Name!);
+                    break;
+                case StudioGraphOperationEnum.DisconnectUnits:
+                    OrgUnitSpec a = Unit(Need(request.From, "from"), "from");
+                    OrgUnitSpec b = Unit(Need(request.To, "to"), "to");
+                    int dropped = (a.Peers?.RemoveAll(p => p == b.Name) ?? 0) + (b.Peers?.RemoveAll(p => p == a.Name) ?? 0);
+                    if (dropped == 0) throw Invalid("to", "NoSuchPeerLine", "Units " + a.Name + " and " + b.Name + " have no peer line.");
+                    break;
+            }
+            WriteOrgSpec(document, spec);
+            string text = Normalize(document);
+            StudioDraftItem item = new StudioDraftItem { Kind = "Organization", Name = organizationName, Document = text, Operation = StudioDraftOperationEnum.Upsert };
+            item.BaseHash = existing != null ? existing.BaseHash : await LiveHashAsync(tenantId, "Organization", organizationName, token).ConfigureAwait(false);
+            if (!await _Server.Database.StudioDrafts.PutItemAsync(tenantId, draft.Id, request.Version, item, token).ConfigureAwait(false)) throw Moved(await _Server.Database.StudioDrafts.ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false) ?? draft);
+            return Graph(await ReadAsync(tenantId, draft.Id, token).ConfigureAwait(false));
+        }
+
+        private static OrganizationSpec OrgSpec(string documentText)
+        {
+            List<ManifestDocument> documents = ManifestParser.Parse(documentText);
+            return documents.Count == 0 ? new OrganizationSpec() : OrgSpec(documents[0]);
+        }
+
+        private static OrganizationSpec OrgSpec(ManifestDocument document)
+        {
+            return Serializer.Deserialize<OrganizationSpec>(TemplateValues.ToJson(document.Spec)) ?? new OrganizationSpec();
+        }
+
+        private static OrgUnitSpec? FindUnit(List<OrgUnitSpec>? units, string name)
+        {
+            return AllUnits(units).FirstOrDefault(u => String.Equals(u.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static List<OrgUnitSpec> AllUnits(List<OrgUnitSpec>? units)
+        {
+            List<OrgUnitSpec> all = new List<OrgUnitSpec>();
+            foreach (OrgUnitSpec unit in units ?? new List<OrgUnitSpec>())
+            {
+                all.Add(unit);
+                all.AddRange(AllUnits(unit.Units));
+            }
+            return all;
+        }
+
+        private static bool RemoveUnit(List<OrgUnitSpec>? units, string name)
+        {
+            if (units == null) return false;
+            if (units.RemoveAll(u => String.Equals(u.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase)) > 0) return true;
+            return units.Any(u => RemoveUnit(u.Units, name));
+        }
+
+        private static void WriteOrgSpec(ManifestDocument document, OrganizationSpec spec)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, object?> pair in document.Spec)
+            {
+                if (String.Equals(pair.Key, "units", StringComparison.OrdinalIgnoreCase)) continue;
+                tree[pair.Key] = pair.Value;
+            }
+            if (spec.Units != null && spec.Units.Count > 0) tree["units"] = spec.Units.Select(u => (object?)UnitTree(u)).ToList();
+            document.Spec = tree;
+        }
+
+        private static Dictionary<string, object?> UnitTree(OrgUnitSpec unit)
+        {
+            Dictionary<string, object?> row = new Dictionary<string, object?> { ["name"] = unit.Name };
+            if (!String.IsNullOrEmpty(unit.Description)) row["description"] = unit.Description;
+            if (!String.IsNullOrEmpty(unit.Lead)) row["lead"] = unit.Lead;
+            if (!String.IsNullOrEmpty(unit.LeadTitle)) row["leadTitle"] = unit.LeadTitle;
+            if (!String.IsNullOrEmpty(unit.LeadMandate)) row["leadMandate"] = unit.LeadMandate;
+            if (!String.IsNullOrEmpty(unit.App)) row["app"] = unit.App;
+            if (unit.Members != null && unit.Members.Count > 0)
+            {
+                row["members"] = unit.Members.Select(m =>
+                {
+                    Dictionary<string, object?> entry = new Dictionary<string, object?> { ["agent"] = m.Agent };
+                    if (!String.IsNullOrEmpty(m.Title)) entry["title"] = m.Title;
+                    if (!String.IsNullOrEmpty(m.Mandate)) entry["mandate"] = m.Mandate;
+                    return (object?)entry;
+                }).ToList();
+            }
+            if (unit.Peers != null && unit.Peers.Count > 0) row["peers"] = unit.Peers.Select(p => (object?)p).ToList();
+            if (unit.Budgets != null && unit.Budgets.Count > 0)
+            {
+                row["budgets"] = unit.Budgets.Select(b => (object?)new Dictionary<string, object?> { ["period"] = String.IsNullOrEmpty(b.Period) ? "Day" : b.Period, ["amountUsd"] = b.AmountUsd }).ToList();
+            }
+            if (unit.Units != null && unit.Units.Count > 0) row["units"] = unit.Units.Select(c => (object?)UnitTree(c)).ToList();
+            return row;
+        }
+
         private static AgenticAppSpec AppSpec(string documentText)
         {
             List<ManifestDocument> documents = ManifestParser.Parse(documentText);
@@ -769,6 +967,10 @@ namespace Garrison.Server.Services
                 case "Pipeline":
                     Pipeline? pipeline = await _Server.Database.Pipelines.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);
                     if (pipeline != null) await _Server.Database.Pipelines.DeleteAsync(tenantId, pipeline.Id, token).ConfigureAwait(false);
+                    break;
+                case "Organization":
+                    Organization? organization = await _Server.Database.Organizations.ReadByNameAsync(tenantId, item.Name, token).ConfigureAwait(false);
+                    if (organization != null) await _Server.Get<Garrison.Server.Runtime.OrganizationService>().DeleteAsync(ctx, organization, token).ConfigureAwait(false);
                     break;
             }
         }

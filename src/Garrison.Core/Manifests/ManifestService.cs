@@ -12,6 +12,7 @@ namespace Garrison.Core.Manifests
     using Garrison.Core.Helpers;
     using Garrison.Core.Keepers;
     using Garrison.Core.Models;
+    using Garrison.Core.Organizations;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
@@ -35,13 +36,13 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "NotificationEndpoint", "Bundle" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "Organization", "NotificationEndpoint", "Bundle" };
 
         /// <summary>
         /// Kinds an export can select (P12.21), in apply order. Secrets are never exported as documents (only as bundle
         /// requirements), and the Bundle document is written by every export.
         /// </summary>
-        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "NotificationEndpoint" };
+        public static readonly IReadOnlyList<string> ExportableKinds = new List<string> { "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "AgentAsset", "Agent", "Deployment", "Pipeline", "AgenticApp", "Trigger", "Mandate", "Organization", "NotificationEndpoint" };
 
         /// <summary>
         /// Name written to the Bundle document of an export.
@@ -88,6 +89,12 @@ namespace Garrison.Core.Manifests
         /// document's revision (AA1.12). The control plane sets it; with none set, only the revision's own ranges apply.
         /// </summary>
         public Action<MandateRevision>? MandateRevisionBounds { get; set; } = null;
+
+        /// <summary>
+        /// Called after a manifest publishes an organization's tree (AA7.9), so caches that follow live revisions (freezes,
+        /// budgets) refresh. Receives the tenant and organization identifiers. Null to skip.
+        /// </summary>
+        public Func<string, string, CancellationToken, Task>? OrganizationPublishedAsync { get; set; } = null;
 
         #endregion
 
@@ -333,6 +340,7 @@ namespace Garrison.Core.Manifests
             foreach (AgenticApp app in plan.Selected<AgenticApp>()) documents.Add(Wrap("AgenticApp", app.Name, await AppTreeAsync(app, resolver, token).ConfigureAwait(false)));
             foreach (Trigger trigger in plan.Selected<Trigger>()) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
             foreach (Mandate mandate in plan.Selected<Mandate>()) documents.Add(Wrap("Mandate", mandate.Name, await MandateTreeAsync(mandate, null, null, resolver, token).ConfigureAwait(false)));
+            foreach (Organization organization in plan.Selected<Organization>()) documents.Add(Wrap("Organization", organization.Name, await OrganizationTreeAsync(organization, organization.Units ?? new List<OrgUnit>(), null, resolver, token).ConfigureAwait(false)));
             foreach (NotificationEndpoint endpoint in plan.Selected<NotificationEndpoint>()) documents.Add(Wrap("NotificationEndpoint", endpoint.Name, await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false)));
 
             ManifestExportResult result = new ManifestExportResult();
@@ -421,6 +429,9 @@ namespace Garrison.Core.Manifests
                     break;
                 case "mandate":
                     await PlanMandateAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "organization":
+                    await PlanOrganizationAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
                     break;
                 case "notificationendpoint":
                     await PlanNotificationEndpointAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
@@ -1573,6 +1584,311 @@ namespace Garrison.Core.Manifests
             resolver.Add("Mandate", mandate.Name, mandate.Id);
         }
 
+        private async Task PlanOrganizationAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            OrganizationSpec spec = Deserialize<OrganizationSpec>(document);
+            Organization organization = new Organization();
+            organization.TenantId = tenantId;
+            organization.Name = document.Metadata.Name;
+            if (organization.Name.Length > 128) throw new ValidationException("An organization name has at most 128 characters.", new Dictionary<string, string> { { "metadata.name", "At most 128 characters." } });
+            organization.Description = String.IsNullOrWhiteSpace(spec.Description) ? null : spec.Description.Trim();
+            organization.Mission = String.IsNullOrWhiteSpace(spec.Mission) ? null : spec.Mission.Trim();
+
+            Organization? existing = await _Database.Organizations.ReadByNameAsync(tenantId, organization.Name, token).ConfigureAwait(false);
+            List<OrgUnit> existingUnits = existing == null ? new List<OrgUnit>() : await _Database.Organizations.ListUnitsAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            if (existing != null)
+            {
+                if (existing.Status == OrganizationStatusEnum.Retired) throw new ValidationException("Organization " + existing.Name + " is retired; set it Active before applying changes.", new Dictionary<string, string> { { "metadata.name", "The organization is retired." } }, new Dictionary<string, string> { { "metadata.name", "OrganizationRetired" } });
+                organization.Id = existing.Id;
+                organization.Status = existing.Status;
+                organization.RootUnitId = existing.RootUnitId;
+                organization.CurrentRevisionId = existing.CurrentRevisionId;
+                organization.CurrentRevisionNumber = existing.CurrentRevisionNumber;
+                organization.CreatedBy = existing.CreatedBy;
+                organization.CreatedUtc = existing.CreatedUtc;
+            }
+            else
+            {
+                organization.CreatedBy = options.PrincipalName;
+            }
+
+            // First give every unit its identifier (kept by name), so parents and peers resolve in any order.
+            Dictionary<string, string> unitIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            List<OrgUnitSpec> roots = spec.Units ?? new List<OrgUnitSpec>();
+            CollectUnitIds(roots, existingUnits, unitIds, "spec.units");
+            Dictionary<string, string> names = new Dictionary<string, string>(StringComparer.Ordinal);
+            List<OrgUnit> units = new List<OrgUnit>();
+            for (int i = 0; i < roots.Count; i++)
+            {
+                await FlattenUnitAsync(tenantId, roots[i], null, "spec.units[" + i + "]", unitIds, existingUnits, resolver, names, units, token).ConfigureAwait(false);
+            }
+            try
+            {
+                new OrgTreeValidator().Validate(units, units.Count > 0);
+            }
+            catch (ConflictException e)
+            {
+                throw new ValidationException(e.Message, new Dictionary<string, string> { { "spec.units", e.Message } }, new Dictionary<string, string> { { "spec.units", e.Code } });
+            }
+            organization.Units = units;
+            organization.RootUnitId = units.Where(u => String.IsNullOrEmpty(u.ParentUnitId)).Select(u => u.Id).FirstOrDefault();
+
+            Dictionary<string, object?> after = await OrganizationTreeAsync(organization, units, names, resolver, token).ConfigureAwait(false);
+            bool publish = spec.Publish != false && units.Count > 0;
+            bool needsPublish = publish;
+            if (publish && existing != null && !String.IsNullOrEmpty(existing.CurrentRevisionId))
+            {
+                OrgRevision? live = await _Database.Organizations.ReadRevisionAsync(tenantId, existing.CurrentRevisionId, token).ConfigureAwait(false);
+                if (live != null)
+                {
+                    Dictionary<string, object?> liveTree = await OrganizationTreeAsync(existing, live.Units, null, resolver, token).ConfigureAwait(false);
+                    needsPublish = !Same(new Dictionary<string, object?> { { "units", liveTree.TryGetValue("units", out object? lu) ? lu : null } }, new Dictionary<string, object?> { { "units", after.TryGetValue("units", out object? au) ? au : null } });
+                }
+            }
+            bool unchanged = false;
+            if (existing != null)
+            {
+                Dictionary<string, object?> before = await OrganizationTreeAsync(existing, existingUnits, null, resolver, token).ConfigureAwait(false);
+                unchanged = Same(before, after) && !needsPublish;
+                if (!unchanged)
+                {
+                    planned.Changes = Diff(before, after);
+                    if (needsPublish) planned.Changes.Add(new ManifestFieldChange("live", existing.CurrentRevisionNumber > 0 ? "revision " + existing.CurrentRevisionNumber : null, "published"));
+                }
+            }
+            planned.Model = organization;
+            planned.ResourceId = organization.Id;
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            planned.OrganizationPublish = needsPublish && planned.Result != ManifestApplyResultEnum.Unchanged
+                ? new OrganizationPublishIntent { ActorType = options.PrincipalType, ActorId = options.PrincipalId, ActorName = options.PrincipalName }
+                : null;
+            if (existing != null) existing.Units = existingUnits;
+            planned.Previous = existing;
+            resolver.Add("Organization", organization.Name, organization.Id);
+        }
+
+        private static void CollectUnitIds(List<OrgUnitSpec> specs, List<OrgUnit> existing, Dictionary<string, string> ids, string path)
+        {
+            for (int i = 0; i < specs.Count; i++)
+            {
+                string name = (specs[i].Name ?? String.Empty).Trim();
+                string field = path + "[" + i + "].name";
+                if (name.Length < 1 || name.Length > 128) throw new ValidationException("A unit name has 1 to 128 characters.", new Dictionary<string, string> { { field, "1 to 128 characters." } });
+                if (ids.ContainsKey(name)) throw new ValidationException("Two units are named " + name + ".", new Dictionary<string, string> { { field, "Unit names are unique in an organization." } }, new Dictionary<string, string> { { field, "UnitNameTaken" } });
+                OrgUnit? previous = existing.FirstOrDefault(u => String.Equals(u.Name, name, StringComparison.OrdinalIgnoreCase));
+                ids[name] = previous?.Id ?? Garrison.Core.Helpers.IdGenerator.NewOrgUnitId();
+                CollectUnitIds(specs[i].Units ?? new List<OrgUnitSpec>(), existing, ids, path + "[" + i + "].units");
+            }
+        }
+
+        private async Task FlattenUnitAsync(string tenantId, OrgUnitSpec spec, string? parentId, string path, Dictionary<string, string> unitIds, List<OrgUnit> existing, Resolver resolver, Dictionary<string, string> names, List<OrgUnit> units, CancellationToken token)
+        {
+            string name = (spec.Name ?? String.Empty).Trim();
+            OrgUnit unit = new OrgUnit();
+            unit.Id = unitIds[name];
+            unit.TenantId = tenantId;
+            unit.Name = name;
+            unit.ParentUnitId = parentId;
+            unit.Description = String.IsNullOrWhiteSpace(spec.Description) ? null : spec.Description.Trim();
+            OrgUnit? previous = existing.FirstOrDefault(u => u.Id == unit.Id);
+            if (previous != null) unit.CreatedUtc = previous.CreatedUtc;
+            if (!String.IsNullOrWhiteSpace(spec.Lead))
+            {
+                unit.LeadAgentId = await OrgAgentAsync(tenantId, spec.Lead, path + ".lead", resolver, names, token).ConfigureAwait(false);
+                unit.LeadTitle = String.IsNullOrWhiteSpace(spec.LeadTitle) ? null : spec.LeadTitle.Trim();
+                if (!String.IsNullOrWhiteSpace(spec.LeadMandate)) unit.LeadMandateId = await OrgMandateAsync(tenantId, spec.LeadMandate, unit.LeadAgentId, path + ".leadMandate", resolver, names, token).ConfigureAwait(false);
+            }
+            if (!String.IsNullOrWhiteSpace(spec.App))
+            {
+                string app = spec.App.Trim();
+                string? appId = await resolver.TryResolveAsync("AgenticApp", app, token).ConfigureAwait(false) ?? (await _Database.Apps.ReadByNameAsync(tenantId, app, token).ConfigureAwait(false))?.Id;
+                if (appId == null) throw new ValidationException("Reference '" + path + ".app' points to AgenticApp '" + app + "', which does not exist and is not defined earlier in this manifest.", new Dictionary<string, string> { { path + ".app", "Not found." } }, new Dictionary<string, string> { { path + ".app", "ReferenceNotFound" } });
+                unit.AppId = appId;
+                names["AgenticApp/" + appId] = app;
+            }
+            List<OrgUnitMemberSpec> members = spec.Members ?? new List<OrgUnitMemberSpec>();
+            for (int i = 0; i < members.Count; i++)
+            {
+                string field = path + ".members[" + i + "]";
+                OrgUnitMember member = new OrgUnitMember();
+                member.AgentId = await OrgAgentAsync(tenantId, members[i].Agent, field + ".agent", resolver, names, token).ConfigureAwait(false);
+                member.Title = String.IsNullOrWhiteSpace(members[i].Title) ? null : members[i].Title!.Trim();
+                if (!String.IsNullOrWhiteSpace(members[i].Mandate)) member.MandateId = await OrgMandateAsync(tenantId, members[i].Mandate!, member.AgentId, field + ".mandate", resolver, names, token).ConfigureAwait(false);
+                unit.Members.Add(member);
+            }
+            foreach (string peer in spec.Peers ?? new List<string>())
+            {
+                if (String.IsNullOrWhiteSpace(peer)) continue;
+                if (!unitIds.TryGetValue(peer.Trim(), out string? peerId)) throw new ValidationException("Peer unit " + peer + " of unit " + name + " is not a unit of this organization.", new Dictionary<string, string> { { path + ".peers", "Unknown unit " + peer + "." } }, new Dictionary<string, string> { { path + ".peers", "PeerNotFound" } });
+                if (!unit.PeerLines.Any(l => l.PeerUnitId == peerId)) unit.PeerLines.Add(new OrgUnitPeerLine { PeerUnitId = peerId, PeerUnitName = peer.Trim() });
+            }
+            foreach (OrgUnitBudgetSpec budget in spec.Budgets ?? new List<OrgUnitBudgetSpec>())
+            {
+                BudgetPeriodEnum period = BudgetPeriodEnum.Day;
+                if (!String.IsNullOrWhiteSpace(budget.Period) && (!Enum.TryParse(budget.Period.Trim(), true, out period) || !Enum.IsDefined(period)))
+                {
+                    throw new ValidationException("A budget period is Day or Month.", new Dictionary<string, string> { { path + ".budgets", "Day or Month." } });
+                }
+                if (Double.IsNaN(budget.AmountUsd) || budget.AmountUsd <= 0) throw new ValidationException("A budget is more than 0 USD.", new Dictionary<string, string> { { path + ".budgets", "More than 0." } }, new Dictionary<string, string> { { path + ".budgets", "BudgetInvalid" } });
+                unit.Budgets.Add(new OrgUnitBudget { Period = period, AmountUsd = budget.AmountUsd });
+            }
+            units.Add(unit);
+            List<OrgUnitSpec> children = spec.Units ?? new List<OrgUnitSpec>();
+            for (int i = 0; i < children.Count; i++)
+            {
+                await FlattenUnitAsync(tenantId, children[i], unit.Id, path + ".units[" + i + "]", unitIds, existing, resolver, names, units, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<string> OrgAgentAsync(string tenantId, string? reference, string field, Resolver resolver, Dictionary<string, string> names, CancellationToken token)
+        {
+            string name = (reference ?? String.Empty).Trim();
+            string id = await resolver.RequireAsync("Agent", name, field, token).ConfigureAwait(false);
+            Agent? agent = await _Database.Agents.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+            if (agent != null && !agent.Active) throw new ValidationException("Agent " + agent.Name + " is not active; only active agents hold positions in an organization.", new Dictionary<string, string> { { field, "Inactive agent." } }, new Dictionary<string, string> { { field, "AgentInactive" } });
+            names["Agent/" + id] = name;
+            return id;
+        }
+
+        private async Task<string> OrgMandateAsync(string tenantId, string reference, string? agentId, string field, Resolver resolver, Dictionary<string, string> names, CancellationToken token)
+        {
+            string name = reference.Trim();
+            string? id = await resolver.TryResolveAsync("Mandate", name, token).ConfigureAwait(false);
+            Mandate? stored = await _Database.Mandates.ReadByNameAsync(tenantId, name, token).ConfigureAwait(false);
+            id ??= stored?.Id;
+            if (id == null) throw new ValidationException("Reference '" + field + "' points to Mandate '" + name + "', which does not exist and is not defined earlier in this manifest.", new Dictionary<string, string> { { field, "Not found." } }, new Dictionary<string, string> { { field, "ReferenceNotFound" } });
+            if (stored != null && stored.Id == id && stored.AgentId != agentId) throw new ValidationException("Mandate " + name + " belongs to another agent.", new Dictionary<string, string> { { field, "The mandate belongs to another agent." } }, new Dictionary<string, string> { { field, "MandateMismatch" } });
+            names["Mandate/" + id] = name;
+            return id;
+        }
+
+        private async Task<Dictionary<string, object?>> OrganizationTreeAsync(Organization organization, List<OrgUnit> units, Dictionary<string, string>? names, Resolver resolver, CancellationToken token)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (organization.Description != null) tree["description"] = organization.Description;
+            if (organization.Mission != null) tree["mission"] = organization.Mission;
+            Dictionary<string, string> unitNames = units.ToDictionary(u => u.Id, u => u.Name, StringComparer.Ordinal);
+            List<object?> roots = new List<object?>();
+            foreach (OrgUnit root in units.Where(u => String.IsNullOrEmpty(u.ParentUnitId) || !unitNames.ContainsKey(u.ParentUnitId)))
+            {
+                roots.Add(await OrgUnitTreeAsync(organization.TenantId, root, units, unitNames, names, resolver, token).ConfigureAwait(false));
+            }
+            if (roots.Count > 0) tree["units"] = roots;
+            return tree;
+        }
+
+        private async Task<Dictionary<string, object?>> OrgUnitTreeAsync(string tenantId, OrgUnit unit, List<OrgUnit> units, Dictionary<string, string> unitNames, Dictionary<string, string>? names, Resolver resolver, CancellationToken token)
+        {
+            Dictionary<string, object?> item = new Dictionary<string, object?>();
+            item["name"] = unit.Name;
+            if (unit.Description != null) item["description"] = unit.Description;
+            if (!String.IsNullOrEmpty(unit.LeadAgentId)) item["lead"] = await OrgNameAsync(tenantId, "Agent", unit.LeadAgentId, names, resolver, token).ConfigureAwait(false);
+            if (unit.LeadTitle != null) item["leadTitle"] = unit.LeadTitle;
+            if (!String.IsNullOrEmpty(unit.LeadMandateId)) item["leadMandate"] = await OrgNameAsync(tenantId, "Mandate", unit.LeadMandateId, names, resolver, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(unit.AppId)) item["app"] = await OrgNameAsync(tenantId, "AgenticApp", unit.AppId, names, resolver, token).ConfigureAwait(false);
+            if (unit.Members.Count > 0)
+            {
+                List<object?> members = new List<object?>();
+                foreach (OrgUnitMember member in unit.Members)
+                {
+                    Dictionary<string, object?> entry = new Dictionary<string, object?>();
+                    entry["agent"] = await OrgNameAsync(tenantId, "Agent", member.AgentId, names, resolver, token).ConfigureAwait(false);
+                    if (member.Title != null) entry["title"] = member.Title;
+                    if (!String.IsNullOrEmpty(member.MandateId)) entry["mandate"] = await OrgNameAsync(tenantId, "Mandate", member.MandateId, names, resolver, token).ConfigureAwait(false);
+                    members.Add(entry);
+                }
+                item["members"] = members;
+            }
+            if (unit.PeerLines.Count > 0) item["peers"] = unit.PeerLines.Select(l => (object?)(unitNames.TryGetValue(l.PeerUnitId, out string? peer) ? peer : l.PeerUnitId)).ToList();
+            if (unit.Budgets.Count > 0)
+            {
+                List<object?> budgets = new List<object?>();
+                foreach (OrgUnitBudget budget in unit.Budgets.OrderBy(b => b.Period))
+                {
+                    budgets.Add(new Dictionary<string, object?> { { "period", budget.Period.ToString() }, { "amountUsd", budget.AmountUsd } });
+                }
+                item["budgets"] = budgets;
+            }
+            List<object?> children = new List<object?>();
+            foreach (OrgUnit child in units.Where(u => u.ParentUnitId == unit.Id))
+            {
+                children.Add(await OrgUnitTreeAsync(tenantId, child, units, unitNames, names, resolver, token).ConfigureAwait(false));
+            }
+            if (children.Count > 0) item["units"] = children;
+            return item;
+        }
+
+        private async Task<string> OrgNameAsync(string tenantId, string kind, string id, Dictionary<string, string>? names, Resolver resolver, CancellationToken token)
+        {
+            if (names != null && names.TryGetValue(kind + "/" + id, out string? known)) return known;
+            switch (kind)
+            {
+                case "Agent":
+                    return await resolver.NameAsync("Agent", id, token).ConfigureAwait(false) ?? id;
+                case "Mandate":
+                    return (await _Database.Mandates.ReadAsync(tenantId, id, token).ConfigureAwait(false))?.Name ?? id;
+                default:
+                    return (await _Database.Apps.ReadAsync(tenantId, id, token).ConfigureAwait(false))?.Name ?? id;
+            }
+        }
+
+        private async Task WriteOrganizationAsync(string tenantId, Organization organization, bool create, OrganizationPublishIntent? publish, CancellationToken token)
+        {
+            List<OrgUnit> units = organization.Units ?? new List<OrgUnit>();
+            if (create)
+            {
+                organization.Status = OrganizationStatusEnum.Draft;
+                organization.CurrentRevisionId = null;
+                organization.CurrentRevisionNumber = 0;
+                await _Database.Organizations.CreateAsync(organization, token).ConfigureAwait(false);
+            }
+            else
+            {
+                Organization? stored = await _Database.Organizations.ReadAsync(tenantId, organization.Id, token).ConfigureAwait(false);
+                if (stored != null)
+                {
+                    // Status and the live revision may have moved since planning (a freeze, a publish); keep them.
+                    organization.Status = stored.Status;
+                    organization.CurrentRevisionId = stored.CurrentRevisionId;
+                    organization.CurrentRevisionNumber = stored.CurrentRevisionNumber;
+                }
+                await _Database.Organizations.UpdateAsync(organization, token).ConfigureAwait(false);
+            }
+            await _Database.Organizations.ReplaceTreeAsync(organization, units, token).ConfigureAwait(false);
+            if (publish == null) return;
+
+            OrgRevision revision = new OrgRevision();
+            revision.TenantId = tenantId;
+            revision.OrganizationId = organization.Id;
+            revision.Note = "Applied from a manifest.";
+            revision.AuthorType = publish.ActorType;
+            revision.AuthorId = publish.ActorId;
+            revision.AuthorName = publish.ActorName;
+            revision.Units = units;
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string mandateId in units.Select(u => u.LeadMandateId).Concat(units.SelectMany(u => u.Members.Select(m => m.MandateId))).Where(m => !String.IsNullOrEmpty(m)).Select(m => m!))
+            {
+                if (!seen.Add(mandateId)) continue;
+                Mandate? mandate = await _Database.Mandates.ReadAsync(tenantId, mandateId, token).ConfigureAwait(false);
+                if (mandate != null && !String.IsNullOrEmpty(mandate.CurrentRevisionId)) revision.Mandates.Add(new OrgRevisionMandate { MandateId = mandate.Id, MandateRevisionId = mandate.CurrentRevisionId });
+            }
+            await _Database.Organizations.CreateRevisionAsync(revision, token).ConfigureAwait(false);
+            await _Database.Organizations.PublishRevisionAsync(organization, revision, token).ConfigureAwait(false);
+            PromotionRecord record = new PromotionRecord();
+            record.TenantId = tenantId;
+            record.Kind = PromotionKindEnum.Promote;
+            record.OrganizationId = organization.Id;
+            record.OrgRevisionId = revision.Id;
+            record.SourceEnvironment = "draft";
+            record.TargetEnvironment = "live";
+            record.ActorType = publish.ActorType;
+            record.ActorId = publish.ActorId;
+            record.ActorName = publish.ActorName;
+            record.Note = revision.Note;
+            await _Database.Promotions.ApplyAsync(record, token).ConfigureAwait(false);
+            if (OrganizationPublishedAsync != null) await OrganizationPublishedAsync(tenantId, organization.Id, token).ConfigureAwait(false);
+        }
+
         private static MandateRevision MandateRevisionFrom(MandateRevisionSpec spec)
         {
             MandateRevision revision = new MandateRevision();
@@ -1851,6 +2167,10 @@ namespace Garrison.Core.Manifests
                 case Pipeline: return await _Database.Pipelines.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 case Trigger: return await _Database.Triggers.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 case Mandate: return await _Database.Mandates.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                case Organization:
+                    Organization? organization = await _Database.Organizations.ReadAsync(tenantId, id, token).ConfigureAwait(false);
+                    if (organization != null) organization.Units = await _Database.Organizations.ListUnitsAsync(tenantId, id, token).ConfigureAwait(false);
+                    return organization;
                 case NotificationEndpoint: return await _Database.NotificationEndpoints.ReadAsync(tenantId, id, token).ConfigureAwait(false);
                 default: return null;
             }
@@ -1930,6 +2250,15 @@ namespace Garrison.Core.Manifests
                             {
                                 await _Database.Mandates.UpdateAsync(m, CancellationToken.None).ConfigureAwait(false);
                                 await _Database.Mandates.UpdateScheduleAsync(m, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            break;
+                        case Organization:
+                            // A revision the apply published stays in the organization's history; the tree and fields return.
+                            if (created) await _Database.Organizations.DeleteAsync(tenantId, id, CancellationToken.None).ConfigureAwait(false);
+                            else if (prior is Organization o)
+                            {
+                                await _Database.Organizations.UpdateAsync(o, CancellationToken.None).ConfigureAwait(false);
+                                await _Database.Organizations.ReplaceTreeAsync(o, o.Units ?? new List<OrgUnit>(), CancellationToken.None).ConfigureAwait(false);
                             }
                             break;
                         case NotificationEndpoint:
@@ -2038,6 +2367,9 @@ namespace Garrison.Core.Manifests
                     break;
                 case Mandate mandate:
                     await WriteMandateAsync(tenantId, mandate, create, token).ConfigureAwait(false);
+                    break;
+                case Organization organization:
+                    await WriteOrganizationAsync(tenantId, organization, create, planned.OrganizationPublish, token).ConfigureAwait(false);
                     break;
                 case NotificationEndpoint endpoint:
                     await ConfigurationValidator.NotificationEndpointAsync(_Database, tenantId, endpoint, AllowPrivateNotificationDestinations, token).ConfigureAwait(false);
