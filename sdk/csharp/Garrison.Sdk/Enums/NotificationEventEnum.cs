@@ -41,6 +41,16 @@ namespace Garrison.Sdk.Enums
         ApprovalRequested,
 
         /// <summary>
+        /// A run raised an escalation (AA2). Endpoints can skip ones below EscalationMinimumSeverity.
+        /// </summary>
+        EscalationRaised,
+
+        /// <summary>
+        /// An escalation timed out before anyone answered it (AA2).
+        /// </summary>
+        EscalationExpired,
+
+        /// <summary>
         /// A test notification from the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

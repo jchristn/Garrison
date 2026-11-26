@@ -1030,7 +1030,16 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # Notification endpoints. NotificationEndpoint["events"] items (Test is only sent by the test action and cannot be
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
-                       "ApprovalRequested", "Test")
+                       "ApprovalRequested", "EscalationRaised", "EscalationExpired", "Test")
+# Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
+# ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
+# mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
+ESCALATION_STATUSES = ("Open", "Answered", "Expired", "Cancelled", "Withdrawn")
+ESCALATION_SEVERITIES = ("Info", "Warning", "Urgent")
+ESCALATION_MODES = ("NonBlocking", "Blocking")
+ESCALATION_TARGET_KINDS = ("User", "Role", "Agent", "Manager")
+ESCALATION_TIMEOUT_ACTIONS = ("UseDefaultAnswer", "Cancel", "EscalateUp")
+ESCALATION_RESOLUTION_SOURCES = ("User", "Agent", "Timeout", "Raiser", "System")
 NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
 WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
 WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
@@ -2522,6 +2531,40 @@ class Conversations:
                                {"format": "json", "includeThinking": include_thinking})
 
 
+class Escalations:
+    """Escalations: questions runs raise for a person, a role, or another agent (runs raise and withdraw them over MCP).
+    Reading needs Read on Escalation; answering and cancelling need Update on Escalation."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list(self, status: Optional[str] = None, severity: Optional[str] = None, target_kind: Optional[str] = None,
+             target_id: Optional[str] = None, agent_id: Optional[str] = None, mandate_id: Optional[str] = None,
+             raising_run_id: Optional[str] = None, search: Optional[str] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None) -> Dict[str, Any]:
+        """GET /v1.0/api/tenants/{tenantId}/escalations, open first and then newest first. status is one of
+        ESCALATION_STATUSES, severity one of ESCALATION_SEVERITIES, target_kind one of ESCALATION_TARGET_KINDS."""
+        return self._t.request("GET", self._t.tenant_path("/escalations"), {
+            "status": status, "severity": severity, "targetKind": target_kind, "targetId": target_id, "agentId": agent_id,
+            "mandateId": mandate_id, "raisingRunId": raising_run_id, "search": search, "maxResults": max_results, "skip": skip})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        """Read an escalation with its options and answer."""
+        return self._t.request("GET", self._t.tenant_path(f"/escalations/{_seg(id)}"))
+
+    def answer(self, id: str, choice: Optional[str] = None, text: Optional[str] = None) -> Dict[str, Any]:
+        """Answer an open escalation: choice is one of its option keys when it has options, otherwise text is required.
+        A run blocked on it resumes and a keeper that raised it wakes. Raises GarrisonError 409 with code
+        EscalationNotOpen when it was already resolved, or EscalatedUp when it was passed up to another escalation."""
+        body = {k: v for k, v in {"choice": choice, "text": text}.items() if v is not None}
+        return self._t.request("POST", self._t.tenant_path(f"/escalations/{_seg(id)}/answer"), body=body)
+
+    def cancel(self, id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Cancel an open escalation. A run blocked on it is cancelled too."""
+        body = {"reason": reason} if reason is not None else {}
+        return self._t.request("POST", self._t.tenant_path(f"/escalations/{_seg(id)}/cancel"), body=body)
+
+
 class Approvals:
     """Permission approvals: list, read, decide, and evaluate a deployment's approval rules (approval check)."""
 
@@ -2744,6 +2787,7 @@ class GarrisonClient:
         self.pipeline_reviews = PipelineReviews(t)
         self.triggers = Triggers(t, "triggers")
         self.mandates = Mandates(t, "mandates")
+        self.escalations = Escalations(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

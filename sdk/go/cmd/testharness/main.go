@@ -1474,6 +1474,70 @@ func main() {
 		}
 		return nil
 	})
+	check("escalations", func(ctx context.Context) error {
+		// Only runs raise escalations (garrison_escalate over MCP), so this checks the list filters, the 404s for an unknown
+		// escalation, and the escalation fields on keeper revisions and notification endpoints.
+		open, err := client.Escalations.List(ctx, garrison.EscalationFilter{Status: garrison.EscalationStatusOpen, Severity: garrison.EscalationSeverityUrgent, TargetKind: garrison.EscalationTargetUser, MaxResults: 10})
+		if err != nil {
+			return err
+		}
+		for _, e := range open.Objects {
+			if e.Status != garrison.EscalationStatusOpen || e.Severity != garrison.EscalationSeverityUrgent {
+				return fmt.Errorf("list by status and severity returned %s %s", e.Status, e.Severity)
+			}
+		}
+		yes := "yes"
+		reason := "no longer needed"
+		for _, call := range []func() error{
+			func() error { _, err := client.Escalations.Get(ctx, "esc_sdk_missing"); return err },
+			func() error {
+				_, err := client.Escalations.Answer(ctx, "esc_sdk_missing", garrison.EscalationAnswerRequest{Text: &yes})
+				return err
+			},
+			func() error {
+				_, err := client.Escalations.Cancel(ctx, "esc_sdk_missing", garrison.EscalationCancelRequest{Reason: &reason})
+				return err
+			},
+		} {
+			var apiErr *garrison.Error
+			if err := call(); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+				return fmt.Errorf("unknown escalation answers 404: %v", err)
+			}
+		}
+		kind := garrison.EscalationTargetRole
+		target := "TenantAdmin"
+		first := garrison.MandateRevision{Objective: "Ask before restarting the SDK scratch service.", EscalationTargetKind: &kind, EscalationTargetID: &target, MinIntervalSeconds: 3600}
+		keeper, err := client.Mandates.Create(ctx, garrison.Mandate{Name: "sdk-go-escalating-" + suffix, AgentID: agentID, DeploymentID: deploymentID, CurrentRevision: &first})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.Mandates.DeleteForce(ctx, keeper.ID, true) }()
+		rev := keeper.CurrentRevision
+		if rev == nil || rev.EscalationTargetKind == nil || *rev.EscalationTargetKind != garrison.EscalationTargetRole || rev.EscalationTargetID == nil || *rev.EscalationTargetID != target {
+			return errors.New("keeper default escalation target did not round-trip")
+		}
+		userKind := garrison.EscalationTargetUser
+		_, err = client.Mandates.CreateRevision(ctx, keeper.ID, garrison.MandateRevision{Objective: "x", EscalationTargetKind: &userKind})
+		var refused *garrison.Error
+		if !errors.As(err, &refused) || refused.StatusCode != http.StatusBadRequest {
+			return fmt.Errorf("a User target without an identifier is refused: %v", err)
+		}
+		urgent := garrison.EscalationSeverityUrgent
+		var endpoint garrison.NotificationEndpoint
+		if err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-escalations-" + suffix, URL: "https://example.invalid/escalations", Events: []string{garrison.NotificationEventEscalationRaised, garrison.NotificationEventEscalationExpired}, EscalationMinimumSeverity: &urgent}, &endpoint); err != nil {
+			return err
+		}
+		defer func() { _ = client.NotificationEndpoints.Delete(ctx, endpoint.ID) }()
+		var read garrison.NotificationEndpoint
+		if err := client.NotificationEndpoints.Get(ctx, endpoint.ID, &read); err != nil {
+			return err
+		}
+		if read.EscalationMinimumSeverity == nil || *read.EscalationMinimumSeverity != urgent || len(read.Events) != 2 {
+			return errors.New("endpoint escalation events and minimum severity did not round-trip")
+		}
+		return nil
+	})
+
 	check("notification endpoints", func(ctx context.Context) error {
 		var refused garrison.NotificationEndpoint
 		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)

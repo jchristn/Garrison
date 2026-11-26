@@ -179,6 +179,11 @@ namespace Garrison.Sdk
         public MandatesClient Mandates { get; }
 
         /// <summary>
+        /// Escalations (AA2): questions runs raise for a person, a role, or another agent; list, read, answer, and cancel.
+        /// </summary>
+        public EscalationsClient Escalations { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -304,6 +309,7 @@ namespace Garrison.Sdk
             PipelineReviews = new PipelineReviewsClient(Transport);
             Triggers = new TriggersClient(Transport);
             Mandates = new MandatesClient(Transport);
+            Escalations = new EscalationsClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

@@ -81,7 +81,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `Mandates`, `Escalations`, `NotificationEndpoints`, `AgentRevisions`, `AgentAssets`, `FileSpaces`, `Capabilities`, `FanOutGroups`, `Apps`, `StudioDrafts`, `Promotions`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, `Secrets.RevealAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -184,6 +184,22 @@ EnumerationResult<MandateTick> ticks = await client.Mandates.ListTicksAsync(keep
 ```
 
 `Mandates` adds `ListAsync(query, status, agentId, deploymentId)`, `DeleteAsync(id, force)` (`force` cancels a running tick; otherwise 409 `MandateActive`), `ListRevisionsAsync`, `GetRevisionAsync`, `CreateRevisionAsync` (drafts a revision), `PublishRevisionAsync` (makes it current and wakes an active keeper), `PauseAsync`, `ResumeAsync`, `WakeAsync` (the server answers 202 and the tick starts on the next scheduler sweep), `ListTicksAsync` (filter by `TickOutcomeEnum`), and `GetTickAsync`. `UpdateAsync` changes only `Name`, `Description`, and `DeploymentId`. A value the server clamps, such as a `MinIntervalSeconds` below the cluster floor (default 60), comes back in `Warnings` on the mandate or revision. Runs a tick started have `Kind` `Keeper`, `MandateId`, and `MandateTickId`; `RunFilter.MandateId` lists them.
+
+## Escalations
+
+An escalation is a question a run raises for a person, a role, or another agent when it should not decide alone. Runs raise and withdraw escalations over MCP (`garrison_escalate`); the SDK lists, reads, answers, and cancels them. With options, an answer names one option key and may explain it; without options, the answer is text. A run blocked on the escalation resumes when it is answered, and a keeper that raised it wakes with the answer. Answering an escalation that someone already resolved fails with 409 `EscalationNotOpen`; one that was passed up to another escalation fails with 409 `EscalatedUp`, so answer the one in `EscalatedToId` instead.
+
+```csharp
+EnumerationResult<Escalation> open = await client.Escalations.ListAsync(new EscalationFilter { Status = EscalationStatusEnum.Open, Severity = EscalationSeverityEnum.Urgent });
+foreach (Escalation e in open.Objects.Where(e => e.EscalatedToId == null))
+{
+    if (e.Options.Count > 0) await client.Escalations.AnswerAsync(e.Id, new EscalationAnswerRequest { Choice = e.Options[0].Key, Text = "Approved by the on-call lead." });
+    else await client.Escalations.AnswerAsync(e.Id, new EscalationAnswerRequest { Text = "Finance owns enterprise refunds." });
+}
+await client.Escalations.CancelAsync("esc_...", new EscalationCancelRequest { Reason = "No longer needed" });
+```
+
+A keeper revision can name a default target for its escalations with `EscalationTargetKind` and `EscalationTargetId`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `EscalationMinimumSeverity`.
 
 ## Agent revisions and promotion
 

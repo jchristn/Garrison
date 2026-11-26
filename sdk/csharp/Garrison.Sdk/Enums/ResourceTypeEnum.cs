@@ -224,6 +224,16 @@ namespace Garrison.Sdk.Enums
         /// Studio drafts (AD7): manifest bundles designed in the studio before a person approves applying them. Create starts
         /// a draft; Update edits it and requests its apply; applying needs Create on Manifest when the approval is decided.
         /// </summary>
-        StudioDraft
+        StudioDraft,
+
+        /// <summary>
+        /// Keeper mandates (AA1): standing jobs an agent wakes on a schedule to look after, with revisions and ticks.
+        /// </summary>
+        Mandate,
+
+        /// <summary>
+        /// Escalations (AA2): questions runs raise for a person, a role, or another agent. Update answers or cancels one.
+        /// </summary>
+        Escalation
     }
 }

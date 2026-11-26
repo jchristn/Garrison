@@ -102,6 +102,12 @@ namespace Garrison.Sdk.Models
         public int ResultTextMaxChars { get; set; } = 1000;
 
         /// <summary>
+        /// Lowest escalation severity delivered for EscalationRaised and EscalationExpired (AA2), or null for every
+        /// severity. Warning skips Info; Urgent receives only Urgent.
+        /// </summary>
+        public EscalationSeverityEnum? EscalationMinimumSeverity { get; set; } = null;
+
+        /// <summary>
         /// Whether events are delivered. Default true.
         /// </summary>
         public bool Active { get; set; } = true;

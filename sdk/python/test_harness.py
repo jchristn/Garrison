@@ -712,6 +712,43 @@ def t_keepers():
             client.mandates.delete(mandate["id"], force=True)
 
 
+def t_escalations():
+    # Only runs raise escalations (garrison_escalate over MCP), so this checks the list filters, the 404s for an unknown
+    # escalation, and the escalation fields on keeper revisions and notification endpoints.
+    page = client.escalations.list(status="Open", severity="Urgent", target_kind="User", max_results=10)
+    require(all(e["status"] == "Open" and e["severity"] == "Urgent" for e in page["objects"]), "list by status and severity")
+    for call in (lambda: client.escalations.get("esc_sdk_missing"),
+                 lambda: client.escalations.answer("esc_sdk_missing", text="yes"),
+                 lambda: client.escalations.cancel("esc_sdk_missing", reason="no longer needed")):
+        try:
+            call()
+            raise AssertionError("an unknown escalation was found")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"unknown escalation answers 404: {e}")
+    mandate = None
+    endpoint = None
+    try:
+        mandate = client.mandates.create({"name": f"sdk-py-escalating-{SUFFIX}", "agentId": state["agent"], "deploymentId": state["deployment"],
+                                          "currentRevision": {"objective": "Ask before restarting the scratch service.", "escalationTargetKind": "Role",
+                                                              "escalationTargetId": "TenantAdmin", "minIntervalSeconds": 3600}})
+        rev = mandate["currentRevision"]
+        require(rev.get("escalationTargetKind") == "Role" and rev.get("escalationTargetId") == "TenantAdmin", f"keeper default escalation target: {rev}")
+        try:
+            client.mandates.create_revision(mandate["id"], {"objective": "x", "escalationTargetKind": "User"})
+            raise AssertionError("a User target without an identifier was accepted")
+        except GarrisonError as e:
+            require(e.status_code == 400, f"User target without an identifier refused: {e}")
+        endpoint = client.notification_endpoints.create({"name": f"sdk-py-escalations-{SUFFIX}", "url": "https://example.invalid/escalations",
+                                                         "events": ["EscalationRaised", "EscalationExpired"], "escalationMinimumSeverity": "Urgent"})
+        read = client.notification_endpoints.get(endpoint["id"])
+        require("EscalationRaised" in read["events"] and read.get("escalationMinimumSeverity") == "Urgent", f"endpoint minimum severity: {read}")
+    finally:
+        if mandate:
+            client.mandates.delete(mandate["id"], force=True)
+        if endpoint:
+            client.notification_endpoints.delete(endpoint["id"])
+
+
 def t_notifications():
     try:
         client.notification_endpoints.create({"name": f"sdk-py-local-{SUFFIX}", "url": "http://127.0.0.1:9/x", "events": ["RunFailed"]})
@@ -1221,7 +1258,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

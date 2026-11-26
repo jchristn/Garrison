@@ -104,6 +104,18 @@ namespace Garrison.Sdk.Models
         public string? EscalationPolicy { get; set; } = null;
 
         /// <summary>
+        /// Default escalation target kind (AA2): where the keeper's escalations go when it names no target, and where
+        /// timed-out ones are passed up. Null means the principal that saved the revision.
+        /// </summary>
+        public EscalationTargetKindEnum? EscalationTargetKind { get; set; } = null;
+
+        /// <summary>
+        /// Default escalation target identifier: a user ID or email, a role ID or name, or an agent ID or name. Required
+        /// with every kind except Manager.
+        /// </summary>
+        public string? EscalationTargetId { get; set; } = null;
+
+        /// <summary>
         /// Current direction from the author.
         /// </summary>
         public string? Direction { get; set; } = null;

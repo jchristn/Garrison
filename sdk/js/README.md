@@ -143,6 +143,21 @@ const ticks = await client.mandates.listTicks(keeper.id!, { outcome: "Acted" });
 
 `client.mandates` adds `list({ status, agentId, deploymentId })`, `update` (name, description, and deployment only), `delete(id, { force })` (without `force`, a running tick rejects with 409 `MandateActive`; `force` cancels its run), `listRevisions`, `getRevision`, `createRevision` (drafts a revision), `publishRevision` (resolves with the mandate), `pause`, `resume`, `wake`, `listTicks` (filter by outcome), and `getTick`. Values outside the cluster limits are clamped, and the response carries a `warnings` array of `field`, `given`, `stored`, and `message`; for example a `minIntervalSeconds` of 10 is raised to the floor. Runs a tick started have `kind` `Keeper`, `mandateId`, and `mandateTickId`; `client.runs.list({ mandateId })` lists them. Enums are string unions (`MandateStatus`, `MandateRevisionState`, `MandateRevisionSource`, `WakeMode`, `WakeSource`, `TickOutcome`) with matching constants such as `MANDATE_STATUSES` and `TICK_OUTCOMES`.
 
+## Escalations
+
+An escalation is a question a run raises for a person, a role, or another agent when it should not decide alone. Runs raise and withdraw escalations over MCP (`garrison_escalate`); the SDK lists, reads, answers, and cancels them. With options, an answer names one option key and may explain it; without options, the answer is text. A run blocked on the escalation resumes when it is answered, and a keeper that raised it wakes with the answer. Answering an escalation that someone already resolved fails with 409 `EscalationNotOpen`; one that was passed up to another escalation fails with 409 `EscalatedUp`, so answer the one in `escalatedToId` instead.
+
+```ts
+const open = await client.escalations.list({ status: "Open", severity: "Urgent" });
+for (const e of open.objects.filter((x) => !x.escalatedToId)) {
+  if (e.options.length) await client.escalations.answer(e.id, { choice: e.options[0].key, text: "Approved by the on-call lead." });
+  else await client.escalations.answer(e.id, { text: "Finance owns enterprise refunds." });
+}
+await client.escalations.cancel("esc_...", "No longer needed");
+```
+
+A keeper revision can name a default target for its escalations with `escalationTargetKind` and `escalationTargetId`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `escalationMinimumSeverity`.
+
 ## Streaming run events
 
 ```ts

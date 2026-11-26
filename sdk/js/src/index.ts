@@ -865,6 +865,10 @@ export interface MandateRevisionSignal extends Json { name: string; description?
 export interface MandateRevision extends Json {
   id?: string; tenantId?: string; mandateId?: string; number?: number; state?: MandateRevisionState;
   objective: string; healthyDefinition?: string | null; autonomy?: string | null; escalationPolicy?: string | null; direction?: string | null;
+  /** Default escalation target: where the keeper's escalations go when it names no target, and where timed-out ones are passed up. Null means the principal that saved the revision. */
+  escalationTargetKind?: EscalationTargetKind | null;
+  /** A user ID or email, role ID or name, or agent ID or name. Required with every kind except Manager. */
+  escalationTargetId?: string | null;
   signals?: MandateRevisionSignal[];
   /** Fixed or Backoff. Default Backoff. */
   wakeMode?: WakeMode;
@@ -909,8 +913,57 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "Test"] as const;
+
+/** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
+export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
+/** How urgent an escalation is. Default Warning. */
+export type EscalationSeverity = "Info" | "Warning" | "Urgent";
+/** NonBlocking lets the run continue; Blocking suspends it until the escalation is resolved. */
+export type EscalationMode = "NonBlocking" | "Blocking";
+/** Who an escalation is addressed to. Manager is refused until organizations exist. */
+export type EscalationTargetKind = "User" | "Role" | "Agent" | "Manager";
+/** What happens when nobody answers in time. */
+export type EscalationTimeoutAction = "UseDefaultAnswer" | "Cancel" | "EscalateUp";
+/** What resolved an escalation. */
+export type EscalationResolutionSource = "User" | "Agent" | "Timeout" | "Raiser" | "System";
+export const ESCALATION_STATUSES: readonly EscalationStatus[] = ["Open", "Answered", "Expired", "Cancelled", "Withdrawn"] as const;
+export const ESCALATION_SEVERITIES: readonly EscalationSeverity[] = ["Info", "Warning", "Urgent"] as const;
+export const ESCALATION_MODES: readonly EscalationMode[] = ["NonBlocking", "Blocking"] as const;
+export const ESCALATION_TARGET_KINDS: readonly EscalationTargetKind[] = ["User", "Role", "Agent", "Manager"] as const;
+export const ESCALATION_TIMEOUT_ACTIONS: readonly EscalationTimeoutAction[] = ["UseDefaultAnswer", "Cancel", "EscalateUp"] as const;
+export const ESCALATION_RESOLUTION_SOURCES: readonly EscalationResolutionSource[] = ["User", "Agent", "Timeout", "Raiser", "System"] as const;
+
+/** One choice an escalation offers; an answer names it by key. */
+export interface EscalationOption extends Json { key: string; label?: string | null; order?: number; }
+
+/** A question a run raised for a person, a role, or another agent, and the answer once there is one. */
+export interface Escalation extends Json {
+  id: string; tenantId: string; raisingRunId?: string | null; leaseEpoch?: number;
+  agentId?: string | null; agentName?: string | null; mandateId?: string | null; mandateTickId?: string | null;
+  targetKind: EscalationTargetKind; targetId?: string | null; targetName?: string | null;
+  severity: EscalationSeverity; mode: EscalationMode; status: EscalationStatus;
+  question: string; context?: string | null; options: EscalationOption[]; defaultAnswer?: string | null;
+  /** Timeout in seconds, from 60 to 2592000. */
+  timeoutSeconds?: number; expiresUtc?: string | null; timeoutAction?: EscalationTimeoutAction;
+  /** The escalation that timed out and was passed up to this one. */
+  parentEscalationId?: string | null;
+  /** The escalation this one was passed up to; answer that one instead. */
+  escalatedToId?: string | null;
+  routedRunId?: string | null; answerChoice?: string | null; answerText?: string | null;
+  resolvedBy?: string | null; resolutionSource?: EscalationResolutionSource | null; resolvedUtc?: string | null;
+  deliveredTickId?: string | null; createdUtc?: string; lastUpdateUtc?: string;
+}
+
+/** Filter for listing escalations; open ones come first, then the newest. */
+export interface EscalationFilter {
+  status?: EscalationStatus; severity?: EscalationSeverity; targetKind?: EscalationTargetKind; targetId?: string;
+  agentId?: string; mandateId?: string; raisingRunId?: string; search?: string; maxResults?: number; skip?: number;
+}
+
+/** An answer: choice is one of the option keys when the escalation has options, otherwise text is required (at most 8000 characters). */
+export interface EscalationAnswerRequest { choice?: string; text?: string; }
 /** State of a notification delivery. */
 export type NotificationDeliveryStatus = "Pending" | "Delivering" | "Succeeded" | "Failed";
 
@@ -922,6 +975,8 @@ export interface NotificationEndpoint extends Json {
   events: NotificationEvent[];
   agentId?: string | null; deploymentId?: string | null;
   includeResultText?: boolean; resultTextMaxChars?: number; active?: boolean;
+  /** Lowest escalation severity delivered for EscalationRaised and EscalationExpired, or null for every severity. */
+  escalationMinimumSeverity?: EscalationSeverity | null;
   /** Signing secret: present only in the create and rotateSecret responses. */
   signingSecret?: string | null;
   signingSecretLast4?: string | null; signingSecretRotatedUtc?: string | null;
@@ -1337,6 +1392,8 @@ export interface Run extends Json {
   mandateId?: string | null;
   /** Keeper tick that started this run, or null. */
   mandateTickId?: string | null;
+  /** Blocking escalation the run is waiting on, or null. */
+  escalationId?: string | null;
   /** Fan-out group this run is a member of, or null when it was not started by garrison_fan_out. */
   fanOutGroupId?: string | null;
   /** Structured output of the run as a JSON value (any JSON type), or null when there is none. */
@@ -2326,6 +2383,26 @@ export class Approvals {
   }
 }
 
+/** Escalations: list, read, answer, and cancel the questions runs raise (runs raise and withdraw them over MCP). */
+export class Escalations {
+  constructor(private readonly t: Transport) {}
+  /** List escalations, open first and then newest first. */
+  list(filter: EscalationFilter = {}): Promise<EnumerationResult<Escalation>> { return this.t.request("GET", this.t.tenantPath("/escalations"), filter as any); }
+  /** Read an escalation with its options and answer. */
+  get(id: string): Promise<Escalation> { return this.t.request("GET", this.t.tenantPath(`/escalations/${seg(id)}`)); }
+  /**
+   * Answer an open escalation. A run blocked on it resumes and a keeper that raised it wakes. Rejects with GarrisonError 409
+   * (EscalationNotOpen when it was already resolved, EscalatedUp when it was passed up to another escalation).
+   */
+  answer(id: string, request: EscalationAnswerRequest): Promise<Escalation> {
+    return this.t.request("POST", this.t.tenantPath(`/escalations/${seg(id)}/answer`), undefined, request);
+  }
+  /** Cancel an open escalation. A run blocked on it is cancelled too. */
+  cancel(id: string, reason?: string): Promise<Escalation> {
+    return this.t.request("POST", this.t.tenantPath(`/escalations/${seg(id)}/cancel`), undefined, reason === undefined ? {} : { reason });
+  }
+}
+
 /** Pipeline definitions (by identifier or name), start, and prompt preview. */
 export class Pipelines extends Resource<Pipeline> {
   /**
@@ -2576,6 +2653,7 @@ export class GarrisonClient {
   readonly pipelineReviews: PipelineReviews;
   readonly triggers: Triggers;
   readonly mandates: Mandates;
+  readonly escalations: Escalations;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -2623,6 +2701,7 @@ export class GarrisonClient {
     this.pipelineReviews = new PipelineReviews(t);
     this.triggers = new Triggers(t, "triggers");
     this.mandates = new Mandates(t, "mandates");
+    this.escalations = new Escalations(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

@@ -68,17 +68,21 @@ type MandateRevisionSignal struct {
 // apply (minimum interval 900 seconds, maximum 86400, backoff factor 2.0). Warnings is set on create responses only;
 // see FieldWarning (the cluster floor raises a MinIntervalSeconds below it, default 60).
 type MandateRevision struct {
-	ID                string                  `json:"id,omitempty"`
-	TenantID          string                  `json:"tenantId,omitempty"`
-	MandateID         string                  `json:"mandateId,omitempty"`
-	Number            int                     `json:"number,omitempty"`
-	State             string                  `json:"state,omitempty"`
-	Objective         string                  `json:"objective"`
-	HealthyDefinition *string                 `json:"healthyDefinition,omitempty"`
-	Autonomy          *string                 `json:"autonomy,omitempty"`
-	EscalationPolicy  *string                 `json:"escalationPolicy,omitempty"`
-	Direction         *string                 `json:"direction,omitempty"`
-	Signals           []MandateRevisionSignal `json:"signals,omitempty"`
+	ID                string  `json:"id,omitempty"`
+	TenantID          string  `json:"tenantId,omitempty"`
+	MandateID         string  `json:"mandateId,omitempty"`
+	Number            int     `json:"number,omitempty"`
+	State             string  `json:"state,omitempty"`
+	Objective         string  `json:"objective"`
+	HealthyDefinition *string `json:"healthyDefinition,omitempty"`
+	Autonomy          *string `json:"autonomy,omitempty"`
+	EscalationPolicy  *string `json:"escalationPolicy,omitempty"`
+	// EscalationTargetKind and EscalationTargetID set the keeper's default escalation target (EscalationTarget*); nil
+	// means the principal that saved the revision. Every kind except Manager needs an identifier.
+	EscalationTargetKind *string                 `json:"escalationTargetKind,omitempty"`
+	EscalationTargetID   *string                 `json:"escalationTargetId,omitempty"`
+	Direction            *string                 `json:"direction,omitempty"`
+	Signals              []MandateRevisionSignal `json:"signals,omitempty"`
 	// WakeMode is WakeModeFixed or WakeModeBackoff (default when empty).
 	WakeMode           string   `json:"wakeMode,omitempty"`
 	MinIntervalSeconds int      `json:"minIntervalSeconds,omitempty"`

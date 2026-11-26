@@ -369,6 +369,11 @@ namespace Garrison.Sdk.Models
         public string? MandateTickId { get; set; } = null;
 
         /// <summary>
+        /// Blocking escalation the run is waiting on (AA2), or null.
+        /// </summary>
+        public string? EscalationId { get; set; } = null;
+
+        /// <summary>
         /// Fan-out group this run is a member of, or null when it was not started by garrison_fan_out.
         /// </summary>
         public string? FanOutGroupId { get; set; } = null;

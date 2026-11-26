@@ -708,6 +708,8 @@ type Run struct {
 	MandateID *string `json:"mandateId,omitempty"`
 	// MandateTickID is the keeper tick this run executes (Kind Keeper); nil otherwise.
 	MandateTickID *string `json:"mandateTickId,omitempty"`
+	// EscalationID is the Blocking escalation the run is waiting on; nil otherwise.
+	EscalationID *string `json:"escalationId,omitempty"`
 	// FanOutGroupID is the fan-out group this run is a member of; nil when it was not started by garrison_fan_out.
 	FanOutGroupID *string `json:"fanOutGroupId,omitempty"`
 }

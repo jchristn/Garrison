@@ -143,6 +143,23 @@ ticks = client.mandates.list_ticks(keeper["id"], outcome="Acted")
 
 `client.mandates` adds `list(status=..., agent_id=..., deployment_id=...)` (status is one of `MANDATE_STATUSES`), `update` (name, description, and deployment only), `delete(id, force=True)` (without `force`, a running tick raises 409 `MandateActive`; `force` cancels its run), `list_revisions`, `get_revision`, `create_revision` (drafts a revision), `publish_revision` (returns the mandate), `pause`, `resume`, `wake`, `list_ticks` (filter by `TICK_OUTCOMES`), and `get_tick`. Values outside the cluster limits are clamped, and the response carries a `warnings` list of `field`, `given`, `stored`, and `message`; for example a `minIntervalSeconds` of 10 is raised to the floor. Runs a tick started have `kind` `Keeper`, `mandateId`, and `mandateTickId`; `client.runs.list(mandate_id=...)` lists them. The module also exports `MANDATE_REVISION_STATES`, `MANDATE_REVISION_SOURCES`, `WAKE_MODES`, and `WAKE_SOURCES`.
 
+## Escalations
+
+An escalation is a question a run raises for a person, a role, or another agent when it should not decide alone. Runs raise and withdraw escalations over MCP (`garrison_escalate`); the SDK lists, reads, answers, and cancels them. With options, an answer names one option key and may explain it; without options, the answer is text. A run blocked on the escalation resumes when it is answered, and a keeper that raised it wakes with the answer. Answering an escalation that someone already resolved fails with 409 `EscalationNotOpen`; one that was passed up to another escalation fails with 409 `EscalatedUp`, so answer the one in `escalatedToId` instead.
+
+```python
+for e in client.escalations.list(status="Open", severity="Urgent")["objects"]:
+    if e.get("escalatedToId"):
+        continue
+    if e["options"]:
+        client.escalations.answer(e["id"], choice=e["options"][0]["key"], text="Approved by the on-call lead.")
+    else:
+        client.escalations.answer(e["id"], text="Finance owns enterprise refunds.")
+client.escalations.cancel("esc_...", reason="No longer needed")
+```
+
+A keeper revision can name a default target for its escalations with `escalationTargetKind` and `escalationTargetId`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `escalationMinimumSeverity`. The value lists are `ESCALATION_STATUSES`, `ESCALATION_SEVERITIES`, `ESCALATION_TARGET_KINDS`, and friends.
+
 ## Streaming run events
 
 ```python

@@ -48,6 +48,8 @@ const (
 	NotificationEventPipelineCompleted = "PipelineCompleted"
 	NotificationEventPipelineFailed    = "PipelineFailed"
 	NotificationEventApprovalRequested = "ApprovalRequested"
+	NotificationEventEscalationRaised  = "EscalationRaised"
+	NotificationEventEscalationExpired = "EscalationExpired"
 	NotificationEventTest              = "Test"
 )
 
@@ -133,22 +135,25 @@ type TriggerFireRequest struct {
 // destinations need the cluster setting Notifications.AllowPrivateDestinations; link-local addresses are always refused.
 // SigningSecret is returned only by Create and RotateSecret.
 type NotificationEndpoint struct {
-	ID                      string   `json:"id,omitempty"`
-	TenantID                string   `json:"tenantId,omitempty"`
-	Name                    string   `json:"name"`
-	Description             *string  `json:"description,omitempty"`
-	URL                     string   `json:"url"`
-	Events                  []string `json:"events"`
-	AgentID                 *string  `json:"agentId,omitempty"`
-	DeploymentID            *string  `json:"deploymentId,omitempty"`
-	IncludeResultText       bool     `json:"includeResultText,omitempty"`
-	ResultTextMaxChars      int      `json:"resultTextMaxChars,omitempty"`
-	Active                  *bool    `json:"active,omitempty"`
-	SigningSecret           *string  `json:"signingSecret,omitempty"`
-	SigningSecretLast4      *string  `json:"signingSecretLast4,omitempty"`
-	SigningSecretRotatedUTC *string  `json:"signingSecretRotatedUtc,omitempty"`
-	CreatedUTC              string   `json:"createdUtc,omitempty"`
-	LastUpdateUTC           string   `json:"lastUpdateUtc,omitempty"`
+	ID                 string   `json:"id,omitempty"`
+	TenantID           string   `json:"tenantId,omitempty"`
+	Name               string   `json:"name"`
+	Description        *string  `json:"description,omitempty"`
+	URL                string   `json:"url"`
+	Events             []string `json:"events"`
+	AgentID            *string  `json:"agentId,omitempty"`
+	DeploymentID       *string  `json:"deploymentId,omitempty"`
+	IncludeResultText  bool     `json:"includeResultText,omitempty"`
+	ResultTextMaxChars int      `json:"resultTextMaxChars,omitempty"`
+	// EscalationMinimumSeverity is the lowest escalation severity delivered for EscalationRaised and EscalationExpired;
+	// nil delivers every severity.
+	EscalationMinimumSeverity *string `json:"escalationMinimumSeverity,omitempty"`
+	Active                    *bool   `json:"active,omitempty"`
+	SigningSecret             *string `json:"signingSecret,omitempty"`
+	SigningSecretLast4        *string `json:"signingSecretLast4,omitempty"`
+	SigningSecretRotatedUTC   *string `json:"signingSecretRotatedUtc,omitempty"`
+	CreatedUTC                string  `json:"createdUtc,omitempty"`
+	LastUpdateUTC             string  `json:"lastUpdateUtc,omitempty"`
 }
 
 // NotificationDelivery is one notification to one endpoint: the outbox entry and its delivery log record.

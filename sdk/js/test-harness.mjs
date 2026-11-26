@@ -627,6 +627,34 @@ await check("keepers", async () => {
   }
 });
 
+await check("escalations", async () => {
+  // Only runs raise escalations (garrison_escalate over MCP), so this checks the list filters, the 404s for an unknown
+  // escalation, and the escalation fields on keeper revisions and notification endpoints.
+  const open = await client.escalations.list({ status: "Open", severity: "Urgent", targetKind: "User", maxResults: 10 });
+  require(open.objects.every((e) => e.status === "Open" && e.severity === "Urgent"), "list by status and severity");
+  for (const call of [() => client.escalations.get("esc_sdk_missing"), () => client.escalations.answer("esc_sdk_missing", { text: "yes" }), () => client.escalations.cancel("esc_sdk_missing", "no longer needed")]) {
+    let status = 0;
+    try { await call(); } catch (e) { status = e.statusCode; }
+    require(status === 404, `unknown escalation answers 404, got ${status}`);
+  }
+  let mandate;
+  let endpoint;
+  try {
+    mandate = await client.mandates.create({ name: `sdk-js-escalating-${suffix}`, agentId: state.agent, deploymentId: state.deployment,
+      currentRevision: { objective: "Ask before restarting the scratch service.", escalationTargetKind: "Role", escalationTargetId: "TenantAdmin", minIntervalSeconds: 3600 } });
+    require(mandate.currentRevision.escalationTargetKind === "Role" && mandate.currentRevision.escalationTargetId === "TenantAdmin", "keeper default escalation target");
+    let refused = 0;
+    try { await client.mandates.createRevision(mandate.id, { objective: "x", escalationTargetKind: "User" }); } catch (e) { refused = e.statusCode; }
+    require(refused === 400, `a User target without an identifier is refused, got ${refused}`);
+    endpoint = await client.notificationEndpoints.create({ name: `sdk-js-escalations-${suffix}`, url: "https://example.invalid/escalations", events: ["EscalationRaised", "EscalationExpired"], escalationMinimumSeverity: "Urgent" });
+    const read = await client.notificationEndpoints.get(endpoint.id);
+    require(read.events.includes("EscalationRaised") && read.escalationMinimumSeverity === "Urgent", "endpoint minimum severity");
+  } finally {
+    if (mandate) await client.mandates.delete(mandate.id, { force: true });
+    if (endpoint) await client.notificationEndpoints.delete(endpoint.id);
+  }
+});
+
 await check("notification endpoints", async () => {
   let status = 0;
   let codes;

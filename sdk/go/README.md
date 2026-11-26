@@ -157,6 +157,32 @@ ticks, err := client.Mandates.ListTicks(ctx, keeper.Name, garrison.TickOutcomeAc
 
 `client.Mandates` is typed: `List(ctx, opts, status, agentID, deploymentID)`, `Get`, `Create`, `Update` (changes only `Name`, `Description`, and `DeploymentID`), `DeleteForce(ctx, id, force)` (`force` cancels a running tick; otherwise 409 `MandateActive`), `ListRevisions`, `GetRevision`, `CreateRevision` (drafts a revision), `PublishRevision` (makes it current and wakes an active keeper), `Pause`, `Resume`, `Wake` (the server answers 202 and the tick starts on the next scheduler sweep), `ListTicks` (filter by `TickOutcome` constants), and `GetTick`. A value the server clamps, such as a `MinIntervalSeconds` below the cluster floor (default 60), comes back in `Warnings` on the mandate or revision. Runs a tick started have `Kind` `Keeper`, `MandateID`, and `MandateTickID`; `RunFilter.MandateID` lists them.
 
+## Escalations
+
+An escalation is a question a run raises for a person, a role, or another agent when it should not decide alone. Runs raise and withdraw escalations over MCP (`garrison_escalate`); the SDK lists, reads, answers, and cancels them. With options, an answer names one option key and may explain it; without options, the answer is text. A run blocked on the escalation resumes when it is answered, and a keeper that raised it wakes with the answer. Answering an escalation that someone already resolved fails with 409 `EscalationNotOpen`; one that was passed up to another escalation fails with 409 `EscalatedUp`, so answer the one in `EscalatedToID` instead.
+
+```go
+open, err := client.Escalations.List(ctx, garrison.EscalationFilter{Status: garrison.EscalationStatusOpen, Severity: garrison.EscalationSeverityUrgent})
+if err != nil {
+	return err
+}
+for _, e := range open.Objects {
+	if e.EscalatedToID != nil {
+		continue
+	}
+	text := "Approved by the on-call lead."
+	req := garrison.EscalationAnswerRequest{Text: &text}
+	if len(e.Options) > 0 {
+		req.Choice = &e.Options[0].Key
+	}
+	if _, err := client.Escalations.Answer(ctx, e.ID, req); err != nil {
+		return err
+	}
+}
+```
+
+A keeper revision can name a default target for its escalations with `EscalationTargetKind` and `EscalationTargetID`, and a notification endpoint subscribed to `EscalationRaised` or `EscalationExpired` can skip lower severities with `EscalationMinimumSeverity`.
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

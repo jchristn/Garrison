@@ -1006,6 +1006,48 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("escalations", async () =>
+                {
+                    // Only runs raise escalations (garrison_escalate over MCP), so this checks the list filters, the 404s
+                    // for an unknown escalation, and the escalation fields on keeper revisions and notification endpoints.
+                    EnumerationResult<Escalation> open = await client.Escalations.ListAsync(new EscalationFilter { Status = EscalationStatusEnum.Open, Severity = EscalationSeverityEnum.Urgent, TargetKind = EscalationTargetKindEnum.User, MaxResults = 10 }, token).ConfigureAwait(false);
+                    Require(open.Objects.All(e => e.Status == EscalationStatusEnum.Open && e.Severity == EscalationSeverityEnum.Urgent), "list by status and severity");
+                    foreach (Func<Task> call in new List<Func<Task>>
+                    {
+                        () => client.Escalations.GetAsync("esc_sdk_missing", token),
+                        () => client.Escalations.AnswerAsync("esc_sdk_missing", new EscalationAnswerRequest { Text = "yes" }, token),
+                        () => client.Escalations.CancelAsync("esc_sdk_missing", new EscalationCancelRequest { Reason = "no longer needed" }, token)
+                    })
+                    {
+                        int status = 0;
+                        try { await call().ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { status = e.StatusCode; }
+                        Require(status == 404, "an unknown escalation answers 404");
+                    }
+
+                    Mandate? keeper = null;
+                    NotificationEndpoint? endpoint = null;
+                    try
+                    {
+                        MandateRevision first = new MandateRevision { Objective = "Ask before restarting the SDK scratch service.", EscalationTargetKind = EscalationTargetKindEnum.Role, EscalationTargetId = "TenantAdmin", MinIntervalSeconds = 3600 };
+                        keeper = await client.Mandates.CreateAsync(new Mandate { Name = "sdk-cs-escalating-" + suffix, AgentId = agentId!, DeploymentId = deploymentId!, CurrentRevision = first }, token).ConfigureAwait(false);
+                        Require(keeper.CurrentRevision!.EscalationTargetKind == EscalationTargetKindEnum.Role && keeper.CurrentRevision.EscalationTargetId == "TenantAdmin", "keeper default escalation target round-trips");
+                        int refused = 0;
+                        try { await client.Mandates.CreateRevisionAsync(keeper.Id, new MandateRevision { Objective = "x", EscalationTargetKind = EscalationTargetKindEnum.User }, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 400) { refused = e.StatusCode; }
+                        Require(refused == 400, "a User target without an identifier is refused");
+
+                        endpoint = await client.NotificationEndpoints.CreateAsync(new NotificationEndpoint { Name = "sdk-cs-escalations-" + suffix, Url = "https://example.invalid/escalations", Events = new List<NotificationEventEnum> { NotificationEventEnum.EscalationRaised, NotificationEventEnum.EscalationExpired }, EscalationMinimumSeverity = EscalationSeverityEnum.Urgent }, token).ConfigureAwait(false);
+                        NotificationEndpoint readBack = await client.NotificationEndpoints.GetAsync(endpoint.Id, token).ConfigureAwait(false);
+                        Require(readBack.Events.Contains(NotificationEventEnum.EscalationRaised) && readBack.EscalationMinimumSeverity == EscalationSeverityEnum.Urgent, "endpoint escalation events and minimum severity round-trip");
+                    }
+                    finally
+                    {
+                        if (keeper != null) await client.Mandates.DeleteAsync(keeper.Id, true, token).ConfigureAwait(false);
+                        if (endpoint != null) await client.NotificationEndpoints.DeleteAsync(endpoint.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;
