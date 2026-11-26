@@ -135,6 +135,9 @@ namespace Garrison.Core
         /// <summary>Scoped memory entry identifier prefix (AA4).</summary>
         public const string MemoryEntryIdPrefix = "mem_";
 
+        /// <summary>Report identifier prefix (AA5).</summary>
+        public const string ReportIdPrefix = "rpt_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

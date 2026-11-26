@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 49).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 50).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2399,3 +2399,64 @@ CREATE TABLE IF NOT EXISTS "memory_entry_tags" (
 );
 CREATE INDEX IF NOT EXISTS "idx_memory_entry_tags_tag" ON "memory_entry_tags" ("tenantid", "tag");
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 49, 'Scoped memory entries', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 49);
+
+-- Migration 50: Reports
+CREATE TABLE IF NOT EXISTS "reports" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    authoragentid VARCHAR(64),
+    authoragentname VARCHAR(256),
+    runid VARCHAR(64),
+    mandateid VARCHAR(64),
+    mandatetickid VARCHAR(64),
+    orgunitid VARCHAR(64),
+    appid VARCHAR(64),
+    appname VARCHAR(256),
+    audience VARCHAR(32) NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    health VARCHAR(32) NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    body TEXT,
+    periodstartutc TEXT,
+    periodendutc TEXT,
+    filedbyprincipaltype VARCHAR(32) NOT NULL,
+    filedbyprincipalid VARCHAR(64),
+    filedbyname VARCHAR(256),
+    filingkey VARCHAR(64),
+    createdutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_reports_author" ON "reports" ("tenantid", "authoragentid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_reports_orgunit" ON "reports" ("tenantid", "orgunitid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_reports_app" ON "reports" ("tenantid", "appid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_reports_created" ON "reports" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_reports_health" ON "reports" ("health", "createdutc");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_reports_filing" ON "reports" ("tenantid", "filingkey");
+CREATE TABLE IF NOT EXISTS "report_metrics" (
+    reportid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    authoragentid VARCHAR(64),
+    metricname VARCHAR(64) NOT NULL,
+    metricvalue REAL NOT NULL,
+    unit VARCHAR(32),
+    pointutc TEXT NOT NULL,
+    createdutc TEXT NOT NULL,
+    PRIMARY KEY (reportid, position)
+);
+CREATE INDEX IF NOT EXISTS "idx_report_metrics_series" ON "report_metrics" ("tenantid", "authoragentid", "metricname", "pointutc");
+CREATE TABLE IF NOT EXISTS "report_issues" (
+    reportid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    severity VARCHAR(32) NOT NULL,
+    issuetext TEXT NOT NULL,
+    PRIMARY KEY (reportid, position)
+);
+CREATE TABLE IF NOT EXISTS "report_decisions" (
+    reportid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    decisiontext TEXT NOT NULL,
+    PRIMARY KEY (reportid, position)
+);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 50, 'Reports', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 50);

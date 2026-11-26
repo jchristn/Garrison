@@ -8,6 +8,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core;
     using Garrison.Core.Database;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Keepers;
     using Garrison.Core.Models;
@@ -60,6 +61,12 @@ namespace Garrison.Server.Runtime
         /// through memory-recall. Null when agent memory is turned off.
         /// </summary>
         public MemoryService? Memory { get; set; } = null;
+
+        /// <summary>
+        /// Reports (AA5.5). When set, a tick's input carries the reports its agent's subordinates filed since the keeper's
+        /// previous tick started, rendered through report-digest. Null when reports are not wired.
+        /// </summary>
+        public ReportService? Reports { get; set; } = null;
 
         /// <summary>
         /// Freezes (AA3.2). When set, a due wake of a keeper under a freeze or the kill switch is recorded as Skipped and its
@@ -423,6 +430,22 @@ namespace Garrison.Server.Runtime
                     if (recall != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + recall;
                 }
 
+                ReportService? reports = Reports;
+                if (reports != null)
+                {
+                    // AA5.5: subordinates' reports reach the tick only through the report-digest template.
+                    string? digest;
+                    try
+                    {
+                        digest = await reports.RenderDigestAsync(mandate.TenantId, agent.Id, await PreviousTickStartAsync(mandate, tick, token).ConfigureAwait(false), token).ConfigureAwait(false);
+                    }
+                    catch (TemplateException e)
+                    {
+                        throw new ConflictException("TemplateRenderFailed", "Template report-digest failed to render: " + e.Message);
+                    }
+                    if (digest != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + digest;
+                }
+
                 RunCreateContext create = new RunCreateContext();
                 create.TenantId = mandate.TenantId;
                 create.Agent = agent;
@@ -555,6 +578,15 @@ namespace Garrison.Server.Runtime
             if (errorCode != null || run == null) return TickOutcomeEnum.Failed;
             if (run.Status == RunStatusEnum.Failed || run.Status == RunStatusEnum.TimedOut) return TickOutcomeEnum.Failed;
             return TickOutcomeEnum.Unreported;
+        }
+
+        private async Task<DateTime> PreviousTickStartAsync(Mandate mandate, MandateTick tick, CancellationToken token)
+        {
+            // Reports filed since the previous tick that started a run began; the first tick sees those since the mandate
+            // was created.
+            EnumerationResult<MandateTick> recent = await _Database.MandateTicks.EnumerateAsync(mandate.TenantId, mandate.Id, null, new EnumerationQuery { MaxResults = 10 }, token).ConfigureAwait(false);
+            MandateTick? previous = recent.Objects.Where(t => t.Id != tick.Id && !String.IsNullOrEmpty(t.RunId)).OrderByDescending(t => t.StartedUtc).FirstOrDefault();
+            return previous?.StartedUtc ?? mandate.CreatedUtc;
         }
 
         private async Task<string> RenderAsync(Mandate mandate, MandateTick tick, PromptTemplate template, CancellationToken token)

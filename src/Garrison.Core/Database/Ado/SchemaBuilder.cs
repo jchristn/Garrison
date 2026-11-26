@@ -390,6 +390,11 @@ namespace Garrison.Core.Database.Ado
             v49.BuildVersion49();
             migrations.Add(new SchemaMigration(49, "Scoped memory entries", v49._Statements, v49._Columns));
 
+            // AA5: insert-only reports with their metrics, issues, and decisions.
+            SchemaBuilder v50 = new SchemaBuilder(catalog, dialect);
+            v50.BuildVersion50();
+            migrations.Add(new SchemaMigration(50, "Reports", v50._Statements, v50._Columns));
+
             return migrations;
         }
 
@@ -453,6 +458,68 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion50()
+        {
+            SqlDialect d = _Dialect;
+            Table("reports",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "authoragentid " + d.TypeId,
+                "authoragentname VARCHAR(256)",
+                "runid " + d.TypeId,
+                "mandateid " + d.TypeId,
+                "mandatetickid " + d.TypeId,
+                "orgunitid " + d.TypeId,
+                "appid " + d.TypeId,
+                "appname VARCHAR(256)",
+                "audience VARCHAR(32) NOT NULL",
+                "kind VARCHAR(32) NOT NULL",
+                "health VARCHAR(32) NOT NULL",
+                "title VARCHAR(256) NOT NULL",
+                "body " + d.TypeText,
+                "periodstartutc " + d.TypeTimestamp,
+                "periodendutc " + d.TypeTimestamp,
+                "filedbyprincipaltype VARCHAR(32) NOT NULL",
+                "filedbyprincipalid " + d.TypeId,
+                "filedbyname VARCHAR(256)",
+                "filingkey VARCHAR(64)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("reports", "author", false, "tenantid", "authoragentid", "createdutc");
+            Index("reports", "orgunit", false, "tenantid", "orgunitid", "createdutc");
+            Index("reports", "app", false, "tenantid", "appid", "createdutc");
+            Index("reports", "created", false, "tenantid", "createdutc");
+            Index("reports", "health", false, "health", "createdutc");
+            Index("reports", "filing", true, "tenantid", "filingkey");
+
+            Table("report_metrics",
+                "reportid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "authoragentid " + d.TypeId,
+                "metricname VARCHAR(64) NOT NULL",
+                "metricvalue " + d.TypeDouble + " NOT NULL",
+                "unit VARCHAR(32)",
+                "pointutc " + d.TypeTimestamp + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "PRIMARY KEY (reportid, position)");
+            Index("report_metrics", "series", false, "tenantid", "authoragentid", "metricname", "pointutc");
+
+            Table("report_issues",
+                "reportid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "severity VARCHAR(32) NOT NULL",
+                "issuetext " + d.TypeText + " NOT NULL",
+                "PRIMARY KEY (reportid, position)");
+
+            Table("report_decisions",
+                "reportid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "decisiontext " + d.TypeText + " NOT NULL",
+                "PRIMARY KEY (reportid, position)");
         }
 
         private void BuildVersion49()

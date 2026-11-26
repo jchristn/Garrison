@@ -80,6 +80,7 @@ namespace Test.Shared
                 suites.AddRange(EscalationSuite.Build());
                 suites.AddRange(BrakeSuite.Build());
                 suites.AddRange(ScopedMemorySuite.Build());
+                suites.AddRange(ReportSuite.Build());
                 suites.AddRange(NotificationSuite.Build());
                 suites.AddRange(TranscriptSuite.Build());
                 suites.AddRange(RevisionSuite.Build());

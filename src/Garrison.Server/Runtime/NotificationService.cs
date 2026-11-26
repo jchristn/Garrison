@@ -52,7 +52,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// Event sources the leader sweeps, in order: runs, pipeline_runs, approvals, pipeline_reviews.
         /// </summary>
-        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps" };
+        public static readonly IReadOnlyList<string> Sources = new List<string> { "runs", "pipeline_runs", "approvals", "pipeline_reviews", "escalations", "escalation_expiries", "freezes", "mandate_caps", "reports" };
 
         /// <summary>
         /// Resolves a destination host name to addresses when a delivery connects. Default: the system resolver
@@ -597,6 +597,15 @@ namespace Garrison.Server.Runtime
                                 Advance(freeze.CreatedUtc, freeze.Id, ref lastUtc, ref lastId);
                             }
                             break;
+                        case "reports":
+                            List<Report> unhealthy = await _Database.NotificationDeliveries.ListUnhealthyReportsAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
+                            read = unhealthy.Count;
+                            foreach (Report report in unhealthy)
+                            {
+                                queued += await QueueReportAsync(report, interested, token).ConfigureAwait(false);
+                                Advance(report.CreatedUtc, report.Id, ref lastUtc, ref lastId);
+                            }
+                            break;
                         case "mandate_caps":
                             List<MandateTick> caps = await _Database.NotificationDeliveries.ListCapReachedTicksAsync(chunk, afterUtc, afterId, now, _Options.SweepBatchSize, token).ConfigureAwait(false);
                             read = caps.Count;
@@ -654,6 +663,8 @@ namespace Garrison.Server.Runtime
                     return source == "freezes";
                 case NotificationEventEnum.MandateCapReached:
                     return source == "mandate_caps";
+                case NotificationEventEnum.ReportUnhealthy:
+                    return source == "reports";
                 default:
                     return false;
             }
@@ -825,6 +836,32 @@ namespace Garrison.Server.Runtime
                 NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.FreezeApplied, freeze.CreatedUtc, "/freezes/" + freeze.Id);
                 payload.Freeze = summary;
                 if (await QueueAsync(endpoint, NotificationEventEnum.FreezeApplied, "freeze:" + freeze.Id, "Freeze", freeze.Id, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        private async Task<int> QueueReportAsync(Report report, List<NotificationEndpoint> endpoints, CancellationToken token)
+        {
+            // An endpoint filtered to an agent receives reports from that agent only; one filtered to a deployment receives
+            // none, because a report belongs to an agent, not a deployment.
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                if (!Subscribed(endpoint, report.TenantId, NotificationEventEnum.ReportUnhealthy, report.CreatedUtc)) continue;
+                if (!Matches(endpoint, report.AuthorAgentId, null)) continue;
+                NotificationReportSummary summary = new NotificationReportSummary();
+                summary.Id = report.Id;
+                summary.AuthorAgentId = report.AuthorAgentId;
+                summary.AuthorAgentName = report.AuthorAgentName;
+                summary.MandateId = report.MandateId;
+                summary.AppId = report.AppId;
+                summary.Kind = report.Kind;
+                summary.Health = report.Health;
+                summary.Title = report.Title;
+                summary.CreatedUtc = report.CreatedUtc;
+                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.ReportUnhealthy, report.CreatedUtc, "/reports/" + report.Id);
+                payload.Report = summary;
+                if (await QueueAsync(endpoint, NotificationEventEnum.ReportUnhealthy, "report:" + report.Id, "Report", report.Id, payload, token).ConfigureAwait(false)) queued++;
             }
             return queued;
         }

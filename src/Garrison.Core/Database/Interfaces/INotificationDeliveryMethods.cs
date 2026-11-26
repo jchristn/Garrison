@@ -165,6 +165,18 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Freeze>> ListAppliedFreezesAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Reports filed with health Unhealthy in the given tenants, ordered by (createdutc, id), after a position (AA5.7).
+        /// </summary>
+        /// <param name="tenantIds">Tenants; empty returns nothing.</param>
+        /// <param name="afterUtc">Position timestamp (UTC).</param>
+        /// <param name="afterId">Position identifier; empty starts at the timestamp.</param>
+        /// <param name="untilUtc">Upper bound (UTC), inclusive.</param>
+        /// <param name="limit">Most records. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Reports without their metrics, issues, and decisions.</returns>
+        Task<List<Report>> ListUnhealthyReportsAsync(List<string> tenantIds, DateTime afterUtc, string afterId, DateTime untilUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Keeper ticks that recorded a daily cap (error code CapReached) in the given tenants, ordered by (startedutc, id),
         /// after a position (AA3.6).
         /// </summary>

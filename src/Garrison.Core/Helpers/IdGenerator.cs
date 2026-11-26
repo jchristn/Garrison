@@ -317,6 +317,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New report identifier (prefix rpt_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewReportId()
+        {
+            return New(Constants.ReportIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

@@ -277,6 +277,11 @@ namespace Garrison.Core.Database
         public IMemoryEntryMethods MemoryEntries { get; protected set; } = null!;
 
         /// <summary>
+        /// Reports filed upward (AA5). Insert-only.
+        /// </summary>
+        public IReportMethods Reports { get; protected set; } = null!;
+
+        /// <summary>
         /// Notification endpoints (P12.14).
         /// </summary>
         public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;

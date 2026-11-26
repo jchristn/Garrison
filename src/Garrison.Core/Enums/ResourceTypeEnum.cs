@@ -248,6 +248,12 @@ namespace Garrison.Core.Enums
         /// Scoped memory entries (AA4). Read lists and reads entries and their content; Update writes; Delete removes.
         /// Runs reach memory through the access policy of their own agent, never through these permissions.
         /// </summary>
-        Memory
+        Memory,
+
+        /// <summary>
+        /// Reports filed upward by runs and people (AA5). Read lists and reads reports and metric series; Create files a
+        /// report. Runs reach reports through their own visibility rules, never through these permissions.
+        /// </summary>
+        Report
     }
 }

@@ -681,7 +681,7 @@ namespace Garrison.Core.Services
             }
             else if (endpoint.Events.Any(e => e == NotificationEventEnum.Test || !Enum.IsDefined(e)))
             {
-                errors["events"] = "Events are RunSucceeded, RunFailed, RunCancelled, RunTimedOut, PipelineCompleted, PipelineFailed, ApprovalRequested, EscalationRaised, and EscalationExpired.";
+                errors["events"] = "Events are RunSucceeded, RunFailed, RunCancelled, RunTimedOut, PipelineCompleted, PipelineFailed, ApprovalRequested, EscalationRaised, EscalationExpired, FreezeApplied, MandateCapReached, and ReportUnhealthy.";
                 codes["events"] = "InvalidEvent";
             }
             else

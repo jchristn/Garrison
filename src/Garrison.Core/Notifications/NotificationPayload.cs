@@ -74,6 +74,11 @@ namespace Garrison.Core.Notifications
         /// </summary>
         public NotificationMandateCapSummary? MandateCap { get; set; } = null;
 
+        /// <summary>
+        /// The report, for ReportUnhealthy (AA5.7).
+        /// </summary>
+        public NotificationReportSummary? Report { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories

@@ -71,6 +71,7 @@ namespace Garrison.Server.Modules
         private KeeperScheduler? _Keepers = null;
         private EscalationOptions? _EscalationOptions = null;
         private MemoryOptions? _MemoryOptions = null;
+        private ReportOptions? _ReportOptions = null;
         private EscalationService? _Escalations = null;
         private FreezeService? _Freezes = null;
 
@@ -214,6 +215,15 @@ namespace Garrison.Server.Modules
             context.Register(_MemoryOptions);
             context.Register(memory);
             context.Register(new MemoryAccessPolicy(context.Database));
+
+            // AA5: reports filed upward; keeper ticks receive their subordinates' new reports through report-digest.
+            _ReportOptions = new ReportOptions();
+            ReportVisibility reportVisibility = new ReportVisibility(context.Database);
+            ReportService reports = new ReportService(context.Database, context.Audit, _ReportOptions, reportVisibility, context.Logging);
+            _Keepers.Reports = reports;
+            context.Register(_ReportOptions);
+            context.Register(reportVisibility);
+            context.Register(reports);
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -275,6 +285,7 @@ namespace Garrison.Server.Modules
             new EscalationRoutes(context, _Escalations!).Register(routes);
             new FreezeRoutes(context, _Freezes!).Register(routes);
             new MemoryRoutes(context, context.Get<MemoryService>()).Register(routes);
+            new ReportRoutes(context, context.Get<ReportService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -446,6 +457,11 @@ namespace Garrison.Server.Modules
                 _MemoryOptions.ScopedEnabled = cluster.GetBool("Memory.Scoped.Enabled");
                 _MemoryOptions.MaxValueBytes = cluster.GetInt("Memory.Scoped.MaxValueBytes");
                 _MemoryOptions.MaxEntriesPerScope = cluster.GetInt("Memory.Scoped.MaxEntriesPerScope");
+            }
+            if (_ReportOptions != null)
+            {
+                _ReportOptions.MaxBodyBytes = cluster.GetInt("Reports.MaxBodyBytes");
+                _ReportOptions.DigestMaxReports = cluster.GetInt("Reports.DigestMaxReports");
             }
             if (_EscalationOptions != null)
             {

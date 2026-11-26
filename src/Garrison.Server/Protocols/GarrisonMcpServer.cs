@@ -875,6 +875,11 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_escalations":
                         result = await EscalationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_file_report":
+                    case "garrison_list_reports":
+                    case "garrison_get_report":
+                        result = await ReportToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_list_freezes":
                     case "garrison_freeze":
                     case "garrison_lift_freeze":
@@ -1753,6 +1758,96 @@ namespace Garrison.Server.Protocols
         private static bool RunOnlyEscalationTool(string name)
         {
             return name == "garrison_escalate" || name == "garrison_list_my_escalations" || name == "garrison_withdraw_escalation";
+        }
+
+        private async Task<object> ReportToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            // AA5.4: runs file as their own agent and read their own and their subordinates' reports (ReportVisibility);
+            // people need Report.Create or Report.Read and see the whole tenant.
+            ReportService reports = _Context.Get<ReportService>();
+            McpReportArguments arguments;
+            try
+            {
+                arguments = ManagementArguments<McpReportArguments>(args);
+            }
+            catch (ArgumentException e)
+            {
+                throw ToolError("ValidationFailed", e.Message);
+            }
+            Run? run = null;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run)
+            {
+                if (String.IsNullOrEmpty(ctx.RunId)) throw ToolError("Forbidden", tool.Name + " needs a run token.");
+                run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false)
+                    ?? throw ToolError("Forbidden", tool.Name + " needs a run token.");
+            }
+            switch (tool.Name)
+            {
+                case "garrison_file_report":
+                {
+                    Report request = new Report();
+                    try
+                    {
+                        request.Title = arguments.Title ?? String.Empty;
+                    }
+                    catch (ArgumentException e)
+                    {
+                        throw ToolError("ValidationFailed", e.Message);
+                    }
+                    request.Body = arguments.Body ?? String.Empty;
+                    request.Kind = ParseOr(arguments.Kind, ReportKindEnum.Status, "kind");
+                    request.Health = ParseOr(arguments.Health, ReportHealthEnum.Unknown, "health");
+                    request.Audience = ParseOr(arguments.Audience, ReportAudienceEnum.Manager, "audience");
+                    request.PeriodStartUtc = arguments.PeriodStartUtc;
+                    request.PeriodEndUtc = arguments.PeriodEndUtc;
+                    request.Metrics = arguments.Metrics ?? new List<ReportMetric>();
+                    request.Issues = arguments.Issues ?? new List<ReportIssue>();
+                    request.Decisions = arguments.Decisions ?? new List<ReportDecision>();
+                    if (!String.IsNullOrWhiteSpace(arguments.App))
+                        request.AppId = await ReportRoutes.AppIdAsync(_Context.Database, tenantId, arguments.App, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "App " + arguments.App.Trim() + " not found.");
+                    if (run != null)
+                    {
+                        if (!String.IsNullOrWhiteSpace(arguments.Agent) || !String.IsNullOrWhiteSpace(arguments.IdempotencyKey)) throw ToolError("ValidationFailed", "Runs file reports as their own agent; agent and idempotencyKey are for people.");
+                        return await reports.FileFromRunAsync(run, request, token).ConfigureAwait(false);
+                    }
+                    await Require(ctx, tenantId, ResourceTypeEnum.Report, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    if (!String.IsNullOrWhiteSpace(arguments.Agent))
+                        request.AuthorAgentId = await ReportRoutes.AgentIdAsync(_Context.Database, tenantId, arguments.Agent, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Agent " + arguments.Agent.Trim() + " not found.");
+                    return await reports.FileFromPersonAsync(ctx, tenantId, request, arguments.IdempotencyKey, token).ConfigureAwait(false);
+                }
+                case "garrison_get_report":
+                {
+                    if (String.IsNullOrWhiteSpace(arguments.ReportId)) throw ToolError("ValidationFailed", "reportId is required.");
+                    if (run != null) return await reports.ReadForRunAsync(run, arguments.ReportId, token).ConfigureAwait(false);
+                    await Require(ctx, tenantId, ResourceTypeEnum.Report, OperationTypeEnum.Read, arguments.ReportId.Trim(), token).ConfigureAwait(false);
+                    return await _Context.Database.Reports.ReadAsync(tenantId, arguments.ReportId.Trim(), token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "Report not found.");
+                }
+                default:
+                {
+                    ReportFilter filter = new ReportFilter { TenantId = tenantId, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100), Skip = Math.Max(0, arguments.Skip ?? 0), FromUtc = arguments.Since };
+                    if (!String.IsNullOrWhiteSpace(arguments.Kind)) filter.Kind = ParseOr(arguments.Kind, ReportKindEnum.Status, "kind");
+                    if (!String.IsNullOrWhiteSpace(arguments.Health)) filter.Health = ParseOr(arguments.Health, ReportHealthEnum.Unknown, "health");
+                    if (!String.IsNullOrWhiteSpace(arguments.Agent))
+                        filter.AuthorAgentId = await ReportRoutes.AgentIdAsync(_Context.Database, tenantId, arguments.Agent, token).ConfigureAwait(false) ?? arguments.Agent.Trim();
+                    Garrison.Core.Enumeration.EnumerationResult<Report> page;
+                    if (run != null)
+                    {
+                        page = await reports.ListForRunAsync(run, filter, arguments.IncludeOwn ?? true, token).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Require(ctx, tenantId, ResourceTypeEnum.Report, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                        if (!String.IsNullOrWhiteSpace(arguments.App))
+                            filter.AppId = await ReportRoutes.AppIdAsync(_Context.Database, tenantId, arguments.App, token).ConfigureAwait(false) ?? arguments.App.Trim();
+                        page = await reports.ListAsync(filter, token).ConfigureAwait(false);
+                    }
+                    McpReportList list = new McpReportList();
+                    list.Reports = page.Objects;
+                    list.TotalCount = page.TotalRecords;
+                    return list;
+                }
+            }
         }
 
         private async Task<object> FreezeToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

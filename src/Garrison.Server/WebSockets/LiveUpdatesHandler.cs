@@ -246,6 +246,13 @@ namespace Garrison.Server.WebSockets
                 AuthorizationDecision freezes = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
                 return freezes.Permitted ? null : freezes.Reason;
             }
+            if (channel == "reports")
+            {
+                // Reports filed in the tenant (AA5.8): report.filed for each, in order. The organization channel (AA7) will
+                // carry the same event for its members.
+                AuthorizationDecision reports = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Report, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                return reports.Permitted ? null : reports.Reason;
+            }
             if (channel == "approvals")
             {
                 AuthorizationDecision approvals = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
@@ -305,7 +312,7 @@ namespace Garrison.Server.WebSockets
                 return null;
             }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, freezes, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, conversation-files:{id}, fan-out:{id}, studio-draft:{id}, mandate:{id}, approvals, escalations, freezes, reports, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -328,6 +335,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key == "approvals") await PumpApprovalsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "escalations") await PumpEscalationsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "freezes") await PumpFreezesAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key == "reports") await PumpReportsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("conversation-files:", StringComparison.Ordinal)) await PumpConversationFilesAsync(session, ctx, subscription.Key.Substring("conversation-files:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
@@ -420,6 +428,26 @@ namespace Garrison.Server.WebSockets
                 state.Fingerprint = freeze.LastUpdateUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + freeze.Id;
                 string type = freeze.TargetKind == FreezeTargetKindEnum.TenantAutonomy ? "killswitch.changed" : (freeze.Active ? "freeze.applied" : "freeze.lifted");
                 await SendAsync(session, sendLock, new { type = type, active = current.Count, killSwitch = killSwitch, freeze = freeze }, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task PumpReportsAsync(WebSocketSession session, RequestContext ctx, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // Reports are immutable, so the cursor is (createdutc, id). A new subscription starts at now and sends
+            // reports.subscribed; later passes send report.filed for each new report, in order.
+            if (state.Fingerprint == null)
+            {
+                state.Fingerprint = DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|";
+                await SendAsync(session, sendLock, new { type = "reports.subscribed" }, token).ConfigureAwait(false);
+                return;
+            }
+            string[] cursor = state.Fingerprint.Split('|');
+            DateTime afterUtc = new DateTime(Int64.Parse(cursor[0], System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            List<Report> filed = await _Context.Database.Reports.ListFiledAfterAsync(ctx.TenantId!, afterUtc, cursor.Length > 1 ? cursor[1] : String.Empty, 100, token).ConfigureAwait(false);
+            foreach (Report report in filed)
+            {
+                state.Fingerprint = report.CreatedUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + report.Id;
+                await SendAsync(session, sendLock, new { type = "report.filed", report = report }, token).ConfigureAwait(false);
             }
         }
 

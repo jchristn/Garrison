@@ -180,6 +180,33 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public Task<List<string>> AppIdsWithEntryAgentAsync(string tenantId, string agentId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(agentId)) throw new ArgumentNullException(nameof(agentId));
+            return _Driver.QueryAsync("SELECT id FROM " + _Apps + " WHERE tenantid = @tenantid AND entryagentid = @agentid ORDER BY name ASC;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "agentid", agentId);
+            }, reader => AdoConverters.Str(reader, "id"), token);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<string>> MemberAgentIdsAsync(string tenantId, List<string> appIds, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (appIds == null) throw new ArgumentNullException(nameof(appIds));
+            if (appIds.Count == 0) return new List<string>();
+            List<string> names = new List<string>();
+            for (int i = 0; i < appIds.Count; i++) names.Add("@p" + i);
+            return await _Driver.QueryAsync("SELECT DISTINCT m.agentid AS agentid FROM " + _Members + " m JOIN " + _Apps + " a ON a.id = m.appid WHERE a.tenantid = @tenantid AND m.appid IN (" + String.Join(", ", names) + ") ORDER BY m.agentid;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                for (int i = 0; i < appIds.Count; i++) AdoDatabaseDriver.Add(command, "p" + i, appIds[i]);
+            }, reader => AdoConverters.Str(reader, "agentid"), token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> DeleteAsync(string tenantId, string id, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

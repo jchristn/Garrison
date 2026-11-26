@@ -182,6 +182,10 @@ namespace Garrison.Core.Database
                 "freezes",
                 "memory_entries",
                 "memory_entry_tags",
+                "reports",
+                "report_metrics",
+                "report_issues",
+                "report_decisions",
         };
 
         private readonly SqlDialect _Dialect;
