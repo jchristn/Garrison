@@ -306,13 +306,19 @@ Both token inclusion flags default to true. Disable input inclusion for Claude C
 
 ## Daily usage quotas
 
-Operations > Usage Quotas sets run, token, known-cost, and active-concurrency limits for a tenant, agent, or deployment. Each scope/target has one entry. Limits start unlimited; zero disallows usage. Administrators manage limits, and read roles can inspect Daily usage.
+Operations > Usage Quotas sets run, token, known-cost, and active-concurrency limits for a tenant, agent, deployment, or keeper. Each scope/target has one entry. Limits start unlimited; zero disallows usage. Administrators manage limits, and read roles can inspect Daily usage.
 
 Windows reset at midnight UTC. Run counts use admission day; tokens and cost use completion day. Active concurrency spans days. Deleted and archived runs remain in the accounting ledger. Missing cost leaves admissions open and appears as incomplete accounting; known cost still enforces the configured limit.
 
 The compiler lowers `deployment.maxBudgetUsd` to the remaining known allowance. Built-in Claude Code passes it to its CLI; other profiles must support and render that value. In-flight runs can overshoot completed-usage limits. See [REST API](../REST_API.md#usage-quotas) for fields, ranges, permissions, and error handling.
 
 Quota enforcement is optional and off by default: set `enforcementEnabled: true` on an active Usage Quota to enforce its limits. Otherwise it only reports usage and never alters admission, claims, or harness budgets. Existing quotas upgrade to monitoring-only in migration 16. Delegation-tree budgeting is outside the current scope.
+
+A quota can also target one keeper with scope `Mandate`, which counts that keeper's tick runs. A keeper's own `budgetPerDayUsd` is enforced over the same accounting whether or not such a quota exists, and does not need `enforcementEnabled`. See [Brakes](BRAKES.md#spend-caps).
+
+## Brakes
+
+Freezes, keeper spend caps, and the autonomy kill switch have no settings. They are turned on per target through the API, the dashboard, or MCP. A replica trusts its cached list of a tenant's active freezes for 30 seconds when no backplane message arrives, a lifted keeper freeze spreads the keeper's next wake over up to 60 seconds, a capped keeper resumes up to 5 minutes after the next UTC midnight, and one freeze cancels at most 10000 runs. See [Brakes](BRAKES.md).
 
 ## Deployment trust level and the tenant Untrusted policy
 

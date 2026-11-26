@@ -63,7 +63,7 @@ for name in tools:
         missing.append('MCP tool ' + name)
 
 handler = (ROOT / 'src/Garrison.Server/WebSockets/LiveUpdatesHandler.cs').read_text()
-channels = set(re.findall(r'StartsWith\("([a-z-]+):"', handler)) | {'runs', 'nodes', 'approvals', 'escalations'}
+channels = set(re.findall(r'StartsWith\("([a-z-]+):"', handler)) | {'runs', 'nodes', 'approvals', 'escalations', 'freezes'}
 ws_doc = (ROOT / 'WEBSOCKETS_API.md').read_text()
 for channel in sorted(channels):
     if channel not in ws_doc:

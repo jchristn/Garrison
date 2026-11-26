@@ -11,7 +11,7 @@ namespace Garrison.Sdk.Requests
         public bool? Enabled { get; set; } = null;
 
         /// <summary>
-        /// Why, or null. At most 8000 characters. Kept with the switch while it is on.
+        /// Why, or null. At most 2000 characters. Kept with the switch while it is on.
         /// </summary>
         public string? Reason { get; set; } = null;
     }

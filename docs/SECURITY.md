@@ -135,6 +135,8 @@ Denials are audited with the permission that was missing, and the response carri
 
 Triggers and notification endpoints (resource types `Trigger` and `NotificationEndpoint`): `Viewer`, `Auditor`, and `AgentOperator` can read them; `Editor` and `AgentDeveloper` can create, change, and delete them and run their actions (manual fire, test send); `AgentOperator` can also fire triggers by hand. Saving a trigger additionally needs Execute on the agent or pipeline it starts.
 
+Freezes and the autonomy kill switch (resource type `Freeze`, see `BRAKES.md`): `Viewer`, `Auditor`, `AgentDeveloper`, and `AgentOperator` can read them; `Editor`, `AgentOperator` (through its `AgentOperator.Brakes` permission), and `TenantAdmin` can apply and lift freezes and set the kill switch. Run tokens never hold any `Freeze` permission, so an agent cannot lift a freeze on itself or turn the kill switch off. Freezes are checked in the control plane when a run is created and when a keeper wakes, so a frozen agent never reaches a worker.
+
 Permission approvals (resource type `Approval`): `Viewer`, `Auditor`, `AgentDeveloper`, and `AgentOperator` can read them; `Editor`, `AgentOperator`, `ResourceAdmin`, and `TenantAdmin` can decide them (Update on `Approval`). Deciding with `remember`, which adds a rule to the deployment, also needs Update on that deployment.
 
 Built-in roles and permissions cannot be changed. Create custom roles and map permissions to them with `POST .../role-permissions`.

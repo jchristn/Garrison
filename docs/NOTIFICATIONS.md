@@ -35,6 +35,8 @@ An endpoint only ever receives events that happened after it was created. Creati
 | `ApprovalRequested` | A permission approval is waiting for a person, or a pipeline stage review was requested |
 | `EscalationRaised` | A run raised an escalation, or a timed-out one was passed up to a new escalation. See [Escalations](ESCALATIONS.md) |
 | `EscalationExpired` | An escalation timed out with nothing to fall back on: `UseDefaultAnswer` without a default answer, or `EscalateUp` with no target left to pass it to |
+| `FreezeApplied` | Someone froze an agent, deployment, keeper, or app, or turned the autonomy kill switch on. See [Brakes](BRAKES.md) |
+| `MandateCapReached` | A keeper reached its daily spend cap and stopped ticking until the next UTC day |
 
 Every run counts, including delegated child runs and pipeline stage runs, so an endpoint that subscribes to `RunFailed` for a busy agent should expect traffic. `ApprovalRequested` skips permission requests that a deployment rule or the deployment default decided on the spot; those never waited for anyone. The additional value `Test` is used by the test action and cannot be subscribed to.
 
@@ -69,13 +71,17 @@ Most timeouts do not send `EscalationExpired`. With `UseDefaultAnswer` and a def
 }
 ```
 
-Exactly one of `run`, `pipelineRun`, `approval`, or `escalation` is present, except in a test notification, which has none. Fields that are null are left out. `link` is built from `Rest.ExternalBaseUrl` and points at the API resource.
+Exactly one of `run`, `pipelineRun`, `approval`, `escalation`, `freeze`, or `mandateCap` is present, except in a test notification, which has none. Fields that are null are left out. `link` is built from `Rest.ExternalBaseUrl` and points at the API resource.
 
 What the payload leaves out matters as much as what it holds. It never contains secrets, run input, error text, tool input, or run output. The one exception is the run's result text, which is included (as `run.resultText`, with `run.resultTruncated`) only when the endpoint sets `includeResultText`, and is cut to `resultTextMaxChars`. Turn it on only for receivers you would trust with the output itself.
 
 `pipelineRun` carries the pipeline run's identifier, pipeline, status, outcome, stage count, final run, trigger, and timestamps. `approval` carries `kind` (`Permission` or `StageReview`), the approval or review identifier, the run, and either the agent, deployment, and tool name (permission approvals) or the pipeline run, pipeline name, and stage name (stage reviews), plus `requestedUtc` and `expiresUtc`.
 
 `escalation` carries the escalation identifier, the raising run, agent, and keeper (`mandateId`), who it is addressed to (`targetKind`, `targetId`, `targetName`), `severity`, `mode`, `status`, `parentEscalationId` when it was passed up from another one, `createdUtc`, `expiresUtc`, and the `question`, cut to 2000 characters. The question is text the agent wrote, so treat it as untrusted input in the receiver. The escalation's context and answer are never included.
+
+`freeze` carries the freeze identifier, `targetKind`, `targetId`, `targetName`, the `reason` (cut to 2000 characters), `cancelActiveRuns`, `createdByName`, and `createdUtc`. An endpoint filtered to an agent or a deployment receives only freezes of that agent or deployment; the kill switch and keeper, app, and other freezes reach unfiltered endpoints only.
+
+`mandateCap` carries the keeper's `mandateId` and `mandateName`, its `agentId` and `deploymentId`, the `tickId` that recorded the cap, `budgetPerDayUsd`, `reachedUtc`, and `resetsUtc` (when the keeper ticks again). The agent and deployment filters apply as they do for runs. The keeper also raises an `Urgent` escalation to its human default, which sends its own `EscalationRaised`.
 
 ## Headers and verification
 
@@ -105,7 +111,7 @@ def verify(headers, raw_body: bytes, secret: str, tolerance=300) -> bool:
 
 ## Delivery
 
-Delivery is asynchronous and goes through a durable outbox. The control-plane leader runs a sweep on every maintenance pass: for runs, pipeline runs, permission approvals, stage reviews, raised escalations, and expired escalations it reads what finished or appeared since its last position, re-reading `Notifications.SweepOverlapSeconds` (default 30) of already-scanned history so that a row written late by a slow replica or a skewed clock is still seen. For each matching active endpoint it inserts one outbox row, and a unique key per endpoint and event makes the re-read harmless. The sweep is the only producer, so a replica that crashes in the middle of finishing a run cannot lose its notification.
+Delivery is asynchronous and goes through a durable outbox. The control-plane leader runs a sweep on every maintenance pass: for runs, pipeline runs, permission approvals, stage reviews, raised escalations, expired escalations, applied freezes, and keepers that reached their daily cap it reads what finished or appeared since its last position, re-reading `Notifications.SweepOverlapSeconds` (default 30) of already-scanned history so that a row written late by a slow replica or a skewed clock is still seen. For each matching active endpoint it inserts one outbox row, and a unique key per endpoint and event makes the re-read harmless. The sweep is the only producer, so a replica that crashes in the middle of finishing a run cannot lose its notification.
 
 Every replica runs a dispatcher every `Notifications.DispatchIntervalMs` (default 1000). It claims due rows with a compare-and-set that marks them `Delivering` until a claim expiry, sends up to eight at a time, and records the result. If a replica dies while sending, its claim expires and another replica sends the delivery again. Delivery is therefore at least once, and receivers should deduplicate on `X-Garrison-Delivery`. Under normal operation each notification is sent once.
 

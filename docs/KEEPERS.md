@@ -35,7 +35,7 @@ The mandate record says which agent keeps it and where its ticks run. Its revisi
 | `minIntervalSeconds`, `maxIntervalSeconds` | 10 seconds to 30 days; defaults 900 and 86400. The cluster settings `Autonomy.MinIntervalSeconds` and `Autonomy.MaxIntervalSeconds` narrow the range |
 | `backoffFactor` | 1 to 10, default 2. How much the interval grows after a quiet tick |
 | `jitterPercent` | 0 to 50, or null for `Autonomy.DefaultJitterPercent` |
-| `budgetPerTickUsd`, `budgetPerDayUsd`, `maxTokensPerTick` | Spending limits. They are stored and validated now; enforcement arrives with the brakes phase (AA3) |
+| `budgetPerTickUsd`, `budgetPerDayUsd`, `maxTokensPerTick` | Spending limits. The two US dollar budgets are enforced: a tick over its budget is refused or cancelled, and a keeper over its daily budget shows `CapReached` until the next UTC day (see [Brakes](BRAKES.md#spend-caps)). `maxTokensPerTick` is stored and validated but not enforced yet |
 | `changeNote` | Why this revision changes the keeper |
 | `state`, `source`, `author` | `Draft` or `Published`; who wrote it (`Human`, `Board`, `Executive`, `Architect`); the user or credential that saved it |
 
@@ -53,14 +53,14 @@ stateDiagram-v2
     Active --> CapReached: daily budget spent (AA3)
     CapReached --> Active: next UTC day
     Active --> Frozen: freeze (AA3)
-    Frozen --> Active: unfreeze
+    Frozen --> Active: lift the freeze
 ```
 
 Creating a mandate with an inline `currentRevision` publishes that revision as number 1 and makes the mandate `Active` with its first wake due now. Created without one, it stays `Draft` and never wakes until a revision is published.
 
 Changing the job means writing a new revision. `POST .../revisions` saves it as a draft, which changes nothing. Publishing it makes it current, resets the interval to the minimum, makes a `Draft` mandate `Active`, and wakes an `Active` one now. Published revisions never change, so the revision list is a complete history of what the keeper was told to do. Publishing an older draft after a newer revision is current marks it published but leaves the newer one in place.
 
-Pause stops further wakes; a tick in progress finishes. Resume wakes the keeper at once with the interval reset. Wake now starts a tick without waiting for the schedule. `Frozen`, `CapReached`, and `Retired` are set by the brakes and lifecycle phases that follow AA1.
+Pause stops further wakes; a tick in progress finishes. Resume wakes the keeper at once with the interval reset. Wake now starts a tick without waiting for the schedule. `Frozen` and `CapReached` come from the brakes: a freeze on the keeper, or its daily budget running out. A frozen keeper is `Active` again once the freeze is lifted, and a capped one once the next UTC day starts. A freeze on the keeper's agent or deployment, or the autonomy kill switch, also stops its wakes without changing its status; each skipped wake is a `Skipped` tick with code `Frozen` or `KillSwitch`. See [Brakes](BRAKES.md). `Retired` is set by a later lifecycle phase.
 
 ## Who a keeper runs as
 

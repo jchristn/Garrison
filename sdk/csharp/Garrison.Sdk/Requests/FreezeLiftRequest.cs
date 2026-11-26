@@ -6,7 +6,7 @@ namespace Garrison.Sdk.Requests
     public class FreezeLiftRequest
     {
         /// <summary>
-        /// Why it was lifted, or null. At most 8000 characters.
+        /// Why it was lifted, or null. At most 2000 characters.
         /// </summary>
         public string? Reason { get; set; } = null;
     }

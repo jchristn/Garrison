@@ -37,7 +37,7 @@ namespace Garrison.Sdk.Models
         public string? TargetName { get; set; } = null;
 
         /// <summary>
-        /// Why it was frozen, or null. At most 8000 characters.
+        /// Why it was frozen, or null. At most 2000 characters.
         /// </summary>
         public string? Reason { get; set; } = null;
 

@@ -489,6 +489,9 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_wake_mandate` | Mandate.Execute on the resolved ID | `mandate` |
 | `garrison_list_mandate_ticks` | Mandate.Read on the resolved ID | `mandate`; optional `outcome`, `maxResults` |
 | `garrison_list_escalations` | Escalation.Read | none; optional `status`, `severity`, `agent` (raising agent ID), `mandate` (mandate ID), `maxResults` (1 to 100, default 25); open first, then newest first |
+| `garrison_list_freezes` | Freeze.Read | none; optional `targetKind` (`Agent`, `Deployment`, `Mandate`, `App`, `TenantAutonomy`), `target` (target ID), `active`, `maxResults` (1 to 100, default 25); active first, then newest first, with whether the kill switch is on |
+| `garrison_freeze` | Freeze.Create | `targetKind` and `target` (ID or name; not needed for `TenantAutonomy`, which turns the kill switch on); optional `reason` (at most 2000 characters), `cancelActiveRuns`. New runs in scope are refused with `Frozen`. See [docs/BRAKES.md](docs/BRAKES.md) |
+| `garrison_lift_freeze` | Freeze.Update | `freezeId`; optional `reason`. Lifting the `TenantAutonomy` freeze turns the kill switch off |
 | `garrison_list_notification_endpoints` | NotificationEndpoint.Read | none; optional `search`, `maxResults` |
 | `garrison_get_notification_endpoint` | NotificationEndpoint.Read on the resolved ID | `endpoint` (name or ID) |
 | `garrison_create_notification_endpoint` | NotificationEndpoint.Create | `configuration` |

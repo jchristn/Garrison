@@ -2042,7 +2042,7 @@ Usage quotas limit a tenant, an agent across its deployments, or a single deploy
 }
 ```
 
-The target must belong to the tenant. `scope` is `Tenant`, `Agent`, or `Deployment`; a tenant quota with an empty `resourceId` targets the route's tenant. Names and scope/target pairs are unique within a tenant, including inactive entries. Duplicate names answer 409 `NameConflict`, duplicate targets 409 `UsageQuotaExists`, and invalid or cross-tenant targets 404. IDs start with `uqt_`. The record also has `description`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
+The target must belong to the tenant. `scope` is `Tenant`, `Agent`, `Deployment`, or `Mandate` (every tick run of one keeper; a keeper's `budgetPerDayUsd` is tracked through this scope); a tenant quota with an empty `resourceId` targets the route's tenant. Names and scope/target pairs are unique within a tenant, including inactive entries. Duplicate names answer 409 `NameConflict`, duplicate targets 409 `UsageQuotaExists`, and invalid or cross-tenant targets 404. IDs start with `uqt_`. The record also has `description`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
 
 Daily windows begin at midnight UTC. `dailyRunLimit` counts distinct admissions, including delegated children and retries that create a new run; idempotent replays do not consume another admission. Tokens and cost count on the UTC completion day. Tokens are reported input plus output, adding Claude Code's separately reported cache reads. Reasoning already included in output is not counted twice. Negative token counts and negative cost do not reduce usage. Run/token limits accept whole numbers from 0 to 9,007,199,254,740,991; USD limits accept finite values from 0 to 1,000,000,000,000; concurrency accepts 0 to 2,147,483,647.
 
@@ -3883,6 +3883,51 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/escalations/esc_
 #### `POST /v1.0/api/tenants/{tenantId}/escalations/{id}/cancel`
 
 Cancel an open escalation with an optional `EscalationCancelRequest` (`reason`, at most 8000 characters). A run blocked on it is cancelled too. Errors: 404; 409 `EscalationNotOpen`.
+
+### Freezes and the kill switch
+
+A freeze (AA3) stops an agent, a deployment, a keeper, or an app until someone lifts it: new runs in scope are refused with 409 `Frozen` and keepers in scope skip their wakes. The autonomy kill switch stops every keeper in the tenant while ordinary invocations keep working. [docs/BRAKES.md](docs/BRAKES.md) covers scope, spend caps, and how lifting resumes keepers.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /freezes` | Read on `Freeze` | `EnumerationResult<Freeze>`, 200 |
+| `POST /freezes` | Create on `Freeze` | `Freeze`, 201 |
+| `GET /freezes/{id}` | Read on `Freeze` | `Freeze`, 200 |
+| `POST /freezes/{id}/lift` | Update on `Freeze` | `Freeze`, 200 |
+| `GET /autonomy/kill-switch` | Read on `Freeze` | `KillSwitchState`, 200 |
+| `PUT /autonomy/kill-switch` | Update on `Freeze` | `KillSwitchState`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Freezes of another tenant answer 404. Run tokens never hold Freeze permissions.
+
+#### `GET /v1.0/api/tenants/{tenantId}/freezes`
+
+List freezes, active ones first and then newest first, with `maxResults` and `skip` from the [enumeration](#enumeration) parameters and the optional filters `targetKind`, `targetId`, and `active` (`true` for active freezes only, `false` for lifted ones only).
+
+#### `POST /v1.0/api/tenants/{tenantId}/freezes`
+
+Apply a freeze. The body is a `Freeze` with `targetKind` (`Agent`, `Deployment`, `Mandate`, `App`, or `TenantAutonomy`), `targetId` (identifier or name; for `TenantAutonomy`, empty or the tenant identifier), an optional `reason` (at most 2000 characters), and `cancelActiveRuns`. With `cancelActiveRuns`, the runs already in scope are cancelled and the response carries `cancelledRunCount`. A `Mandate` freeze sets the keeper's status to `Frozen`.
+
+| | |
+|---|---|
+| Request body | `Freeze` |
+| Response | `Freeze`, 201 |
+| Errors | 400 `ValidationFailed` (missing target, reason too long); 404 (unknown target); 409 `AlreadyFrozen` (the target already has an active freeze), `OrganizationsUnavailable` (`OrgUnit` or `Organization`) |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/freezes" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"targetKind": "Mandate", "targetId": "payments-keeper", "reason": "Refund loop on order 4411"}'
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/freezes/{id}/lift`
+
+Lift an active freeze with an optional `FreezeLiftRequest` (`reason`, at most 2000 characters). A frozen keeper becomes `Active` again with its next wake spread over up to 60 seconds. Errors: 404; 409 `FreezeLifted` (already lifted).
+
+#### `PUT /v1.0/api/tenants/{tenantId}/autonomy/kill-switch`
+
+Turn the autonomy kill switch on or off with a `KillSwitchRequest`. `enabled` is required. On, it creates a `TenantAutonomy` freeze, which appears in the freeze list; off, it lifts that freeze. Turning it on while it is on returns the current state. Errors: 400 `ValidationFailed` (`enabled` missing, reason too long).
+
+A new run refused by a freeze answers 409 with code `Frozen`; the message names the freeze and its reason. A keeper tick refused at compilation because its budget is spent fails with `MandateBudgetExceeded`.
 
 ### Agent revisions
 
@@ -5785,7 +5830,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`, `Mandate`, `Escalation`, `Freeze`
 
 #### `OperationTypeEnum`
 
@@ -6833,6 +6878,49 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 |---|---|---|
 | `reason` | `string?` | Why it was cancelled; at most 8000 characters. |
 
+#### `Freeze`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`mfz_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `targetKind` | `FreezeTargetKindEnum` | What it stops. |
+| `targetId` | `string` | The frozen resource's identifier; on create, an identifier or a name. The tenant identifier for `TenantAutonomy`. |
+| `targetName` | `string?` | The resource's name when it was frozen. |
+| `reason` | `string?` | Why; at most 2000 characters. |
+| `cancelActiveRuns` | `bool` | Whether applying it cancelled the runs already in scope. Default `false`. |
+| `cancelledRunCount` | `int` | How many runs it cancelled (at most 10000). |
+| `createdById`, `createdByName` | `string?` | Who applied it. |
+| `liftedById`, `liftedByName` | `string?` | Who lifted it; `null` while active. |
+| `liftReason` | `string?` | Why it was lifted. |
+| `liftedUtc` | `DateTime?` | When it was lifted; `null` while active. |
+| `active` | `bool` | `true` until lifted. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+
+#### `FreezeLiftRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `reason` | `string?` | Why it was lifted; at most 2000 characters. |
+
+#### `KillSwitchState`
+
+| Field | Type | Description |
+|---|---|---|
+| `tenantId` | `string` | Tenant identifier. |
+| `enabled` | `bool` | `true` while the switch is on. |
+| `freezeId` | `string?` | The `TenantAutonomy` freeze that holds it on; `null` when off. |
+| `reason` | `string?` | Why it was turned on. |
+| `changedByName` | `string?` | Who turned it on. |
+| `changedUtc` | `DateTime?` | When it was turned on. |
+
+#### `KillSwitchRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `enabled` | `bool?` | Required. `true` stops keeper ticks; `false` lets them resume. |
+| `reason` | `string?` | Why; at most 2000 characters. |
+
 #### `MandateRevision`
 
 | Field | Type | Description |
@@ -6850,7 +6938,7 @@ A standing job an agent keeps on a wake schedule (AA1). See [docs/KEEPERS.md](do
 | `maxIntervalSeconds` | `int` | 10 to 2592000, default 86400; lowered to `Autonomy.MaxIntervalSeconds` and raised to the minimum. |
 | `backoffFactor` | `double` | 1 to 10, default 2. |
 | `jitterPercent` | `int?` | 0 to 50; `null` uses `Autonomy.DefaultJitterPercent`. |
-| `budgetPerTickUsd`, `budgetPerDayUsd` | `double?` | 0 to 1000000, or `null` for no limit. Enforced from AA3. |
+| `budgetPerTickUsd`, `budgetPerDayUsd` | `double?` | 0 to 1000000, or `null` for no limit. A tick over its budget is refused or cancelled; a keeper over its daily budget shows `CapReached` until the next UTC day. See [docs/BRAKES.md](docs/BRAKES.md#spend-caps). |
 | `maxTokensPerTick` | `long?` | 0 to 100000000, or `null` for no limit. Enforced from AA3. |
 | `source` | `MandateRevisionSourceEnum` | Who wrote it. Set by the server. |
 | `author` | `string?` | Principal that saved it. |
@@ -6993,9 +7081,13 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 `User`, `Agent`, `Timeout`, `Raiser`, `System`
 
+#### `FreezeTargetKindEnum`
+
+`Agent`, `Deployment`, `Mandate`, `App`, `OrgUnit` and `Organization` (refused with `OrganizationsUnavailable` until organizations exist), `TenantAutonomy` (the kill switch)
+
 #### `NotificationEventEnum`
 
-`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `Test` (test sends only)
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `Test` (test sends only)
 
 #### `NotificationDeliveryStatusEnum`
 

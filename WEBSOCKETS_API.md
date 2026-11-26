@@ -46,10 +46,11 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `pipeline-run:{pipelineRunId}` | Read on PipelineRun for that pipeline run | `pipeline-run.status` with the whole pipeline run (stages, stage run summaries, and reviews) each time its status, a stage, a stage run, or a review changes |
 | `mandate:{mandateId}` | Read on Mandate for that mandate (a keeper, AA1) | `tick.started` when one of its ticks starts a run, and `tick.completed` when a tick finishes, with the outcome, the interval applied, the next wake, and the mandate's status. Nothing is sent at subscribe time; read the mandate and its ticks over REST for the current state |
 | `escalations` | Read on Escalation in your tenant | `escalations.open` with the number waiting for an answer at subscribe time, then one message per change: `escalation.raised`, `escalation.answered`, `escalation.expired`, `escalation.cancelled`, `escalation.withdrawn`, or `escalation.escalated` (passed up), each with the whole `escalation` and the new `open` count. See [docs/ESCALATIONS.md](docs/ESCALATIONS.md) |
+| `freezes` | Read on Freeze in your tenant | `freezes.active` with the number of active freezes and whether the kill switch is on at subscribe time, then one message per change: `freeze.applied`, `freeze.lifted`, or `killswitch.changed`, each with the whole `freeze`, the new `active` count, and `killSwitch`. See [docs/BRAKES.md](docs/BRAKES.md) |
 
-A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `escalations` sends the open count, `pipeline-run:{pipelineRunId}` sends the pipeline run, `conversation-files:{conversationId}` sends every current file as changed, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
+A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `escalations` sends the open count, `freezes` sends the active count and the kill switch, `pipeline-run:{pipelineRunId}` sends the pipeline run, `conversation-files:{conversationId}` sends every current file as changed, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
 
-The `runs`, `run:{runId}`, `pipeline-run:{pipelineRunId}`, `approvals`, and `escalations` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
+The `runs`, `run:{runId}`, `pipeline-run:{pipelineRunId}`, `approvals`, `escalations`, and `freezes` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
 
 The `approvals` channel is the push side of the approvals inbox: subscribe to it to show a badge or to notify someone (a chat hook, for example) when a harness is waiting for a decision. Pipeline stage reviews share the inbox, so the message also carries `reviewsPending`, the number of stage reviews waiting for a person; the dashboard's Approvals badge is `pending` plus `reviewsPending`. The reviews themselves are not in the message; list them with `GET .../pipeline-reviews?status=Pending`. Decide over REST or MCP.
 
@@ -73,6 +74,13 @@ The `escalations` channel drives the dashboard's Autonomy badge. `open` counts e
 ```json
 {"type":"escalations.open","open":2}
 {"type":"escalation.answered","open":1,"escalation":{"id":"esc_mx0b7q1d_Rk2LwT7xZb3VmRnPq","agentName":"payments-keeper","severity":"Urgent","status":"Answered","question":"Refund order 4411 for $1,250?","answerChoice":"refund","resolvedBy":"admin@garrison", ...}}
+```
+
+The `freezes` channel drives the dashboard's frozen banners and kill switch. `active` counts active freezes, the kill switch's included. `killswitch.changed` carries the `TenantAutonomy` freeze: `active` true when the switch turned on, false when it turned off. Like `escalations`, it polls the database, so changes made on any replica arrive.
+
+```json
+{"type":"freezes.active","active":1,"killSwitch":false}
+{"type":"freeze.applied","active":2,"killSwitch":false,"freeze":{"id":"mfz_mx2c9h4k_Lw8RtQ3pZk7NvBd2Hs","targetKind":"Mandate","targetId":"mdt_mx1a2b3c_Qw7ErT9yUi2OpAs4Df","targetName":"payments-keeper","reason":"Refund loop on order 4411","active":true, ...}}
 ```
 
 Follow a pipeline run with `pipeline-run:{pipelineRunId}`. Each message is the whole `PipelineRun` as `GET .../pipeline-runs/{id}` returns it; to see a stage's output as it is produced, subscribe to `run:{runId}` for the stage's `currentRunId` as well.
@@ -109,6 +117,8 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `tick.completed` | `mandateId`, `tickId`, `runId`, `outcome`, `appliedIntervalSeconds`, `nextWakeUtc`, `status` |
 | `escalations.open` | `open` |
 | `escalation.raised`, `escalation.answered`, `escalation.expired`, `escalation.cancelled`, `escalation.withdrawn`, `escalation.escalated` | `open`, `escalation` |
+| `freezes.active` | `active`, `killSwitch` |
+| `freeze.applied`, `freeze.lifted`, `killswitch.changed` | `active`, `killSwitch`, `freeze` |
 | `fan-out.status` | `fanOutGroup` |
 | `studio-draft.changed` | `draftId`, `version`, `status`, `changed`, `graph` |
 | `files.changed` | `conversationId`, `fileSpaceId`, `changed` (each `path`, `version`, `deleted`, `sha256`, `sizeBytes`) |
