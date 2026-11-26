@@ -262,7 +262,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA2 | Escalations | AA1 | Done | 16 / 16 |
 | AA3 | Brakes I: freezes, spend caps, kill switch | AA1 | Done | 11 / 11 |
 | AA4 | Scoped memory: private and collective | AA1 | Done | 15 / 15 |
-| AA5 | Reports | AA1 | In progress | 12 / 13 |
+| AA5 | Reports | AA1 | Done | 13 / 13 |
 | AA6 | Mailboxes and wake-on-message | AA1, AA3 | Not started | 0 / 16 |
 | AA7 | Organizations | AA2, AA4, AA5, AA6 | Not started | 0 / 18 |
 | AA8 | Executive authority and pre-authorized change | AA7 | Not started | 0 / 14 |
@@ -783,7 +783,7 @@ Touches: models, schema, MCP, compiler, routes, dashboard, SDKs, Postman, docs, 
 - [x] AA5.7 Notifications: an `Unhealthy` report can notify (new event `ReportUnhealthy`).  Accept: signed delivery received.  | claude 2026-11-26 ReportUnhealthy notification from the reports source, with the agent filter. notifications case verifies signed deliveries
 - [x] AA5.8 WebSocket `report.filed` on the organization channel (AA7) and on a tenant `reports` channel now.  Accept: event received.  | claude 2026-11-26 tenant reports channel sends report.filed; the organization channel waits for AA7. channel case
 - [x] AA5.9 Telemetry `garrison.reports`.  Accept: coverage suite.  | claude 2026-11-26 garrison.reports (kind, health) with a Reports row on both Autonomy dashboards; docs/TELEMETRY.md regenerated. telemetry suite passes
-- [ ] AA5.10 Dashboard `ReportsView` and `ReportDetailView` (health badge, metrics table, issues, decisions), metric chart per author over time; i18n; tests; QA.  Accept: e2e opens a report and its chart; QA recorded.
+- [x] AA5.10 Dashboard `ReportsView` and `ReportDetailView` (health badge, metrics table, issues, decisions), metric chart per author over time; i18n; tests; QA.  Accept: e2e opens a report and its chart; QA recorded.  | claude 2026-11-26 Autonomy > Reports tab (filters, health badges, File report modal), report page at /dashboard/reports/{id} (metrics table, issues, decisions, plain-text body), metric chart per author on TimeSeriesChart; 9 locales; ReportUnhealthy in notification events. reports vitest 18/18, e2e reports.spec 5/5 opens a report and its chart; QA axe scans clean in light and dark, no horizontal scroll at 1280, 768, 390 (26194d5)
 - [x] AA5.11 SDKs (four).  Accept: harnesses pass.  | claude 2026-11-26 a Reports client in C#, Python, JS, and Go (list with filters, get, metric series, file with idempotency key), the ReportUnhealthy event, a reports harness case and README section in each. Harnesses pass: C# 61, Python 60, JS 62, Go 61
 - [x] AA5.12 Postman folder Reports.  Accept: Newman passes.  | claude 2026-11-26 Postman Reports folder: file as a person, idempotent refile, missing title, an Unhealthy Incident over MCP, list by author and health, read, metric series, unknown 404. Newman on Auth, Agents, MCP, and Reports: every Reports request passes (8 requests, 15 assertions)
 - [x] AA5.13 Docs `docs/REPORTS.md`, API docs, `docs/PROMPTS.md`, index, changelog; `ReportSuite` registered.  Accept: docs check; suite passes on both providers.  | claude 2026-11-26 docs/REPORTS.md; REST_API (Reports section and models), MCP_API, WEBSOCKETS_API, NOTIFICATIONS, CONFIGURATION, PROMPTS, KEEPERS, SECURITY, docs index; ReportSuite registered and passing on both providers. API docs check: 247 REST paths, 125 MCP tools
