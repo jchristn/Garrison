@@ -82,6 +82,16 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<string>> AppsWithMemberAsync(string tenantId, string agentId, CancellationToken token = default);
 
         /// <summary>
+        /// Identifiers of the tenant's apps that have an agent as a member (AA4: the App memory scopes its runs may use).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agentId">Agent identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>App identifiers, ordered by app name.</returns>
+        /// <exception cref="System.ArgumentNullException">Thrown when tenantId or agentId is null or empty.</exception>
+        Task<List<string>> AppIdsWithMemberAsync(string tenantId, string agentId, CancellationToken token = default);
+
+        /// <summary>
         /// Delete an app with its children and revisions.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

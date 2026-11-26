@@ -314,6 +314,7 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_keeper_interval_seconds` | histogram, seconds | `mode` | server | garrison-autonomy | Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff) |
 | `garrison_keeper_tick_lag_duration_seconds` | histogram, seconds | `source` | server | garrison-autonomy | Time from a keeper wake coming due to the scheduler starting its tick, by wake source |
 | `garrison_keeper_ticks_total` | counter | `outcome`, `source` | server | garrison-autonomy | Keeper ticks, by outcome (quiet, acted, attention, escalated, failed, skipped, unreported) and wake source (timer, manual, message, escalationanswer, webhook, report) |
+| `garrison_memory_operations_total` | counter | `scope_kind`, `operation`, `outcome` | server | garrison-autonomy | Scoped memory operations by scope kind (agent, app, orgunit, organization), operation (read, write, delete, list, search, expire, recall), and outcome (ok, not_found, conflict, denied, refused, failed) |
 | `garrison_spend_cap_hits_total` | counter | `scope` | server | garrison-autonomy | Spend caps reached, by scope (mandate_tick for a tick over its per-tick budget, mandate_day for a keeper over its daily budget) |
 | `garrison_background_duration_seconds` | histogram, seconds | `service`, `operation`, `result` | server, worker | garrison-control-plane | Duration of one iteration of a background service (scheduler, maintenance steps, leader election, retention, gauges, settings refresh, ...) |
 | `garrison_background_iterations_total` | counter | `service`, `operation`, `result` | server, worker | garrison-control-plane | Background service iterations by result (ok, idle, error) |
@@ -641,6 +642,11 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}"` | `GET /v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test"` | `POST /v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/memory/entries` | `route="/v1.0/api/tenants/{tenantId}/memory/entries"` | `GET /v1.0/api/tenants/{tenantId}/memory/entries` | `route=/v1.0/api/tenants/{tenantId}/memory/entries` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/memory/entries/{id}` | `route="/v1.0/api/tenants/{tenantId}/memory/entries/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/memory/entries/{id}` | `route=/v1.0/api/tenants/{tenantId}/memory/entries/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/memory/entries/{id}` | `route="/v1.0/api/tenants/{tenantId}/memory/entries/{id}"` | `GET /v1.0/api/tenants/{tenantId}/memory/entries/{id}` | `route=/v1.0/api/tenants/{tenantId}/memory/entries/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/memory/entries/{id}/content` | `route="/v1.0/api/tenants/{tenantId}/memory/entries/{id}/content"` | `GET /v1.0/api/tenants/{tenantId}/memory/entries/{id}/content` | `route=/v1.0/api/tenants/{tenantId}/memory/entries/{id}/content` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/memory/scopes` | `route="/v1.0/api/tenants/{tenantId}/memory/scopes"` | `GET /v1.0/api/tenants/{tenantId}/memory/scopes` | `route=/v1.0/api/tenants/{tenantId}/memory/scopes` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/model-prices` | `route="/v1.0/api/tenants/{tenantId}/model-prices"` | `GET /v1.0/api/tenants/{tenantId}/model-prices` | `route=/v1.0/api/tenants/{tenantId}/model-prices` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/model-prices` | `route="/v1.0/api/tenants/{tenantId}/model-prices"` | `POST /v1.0/api/tenants/{tenantId}/model-prices` | `route=/v1.0/api/tenants/{tenantId}/model-prices` | garrison-http |
 | DELETE | `/v1.0/api/tenants/{tenantId}/model-prices/{id}` | `route="/v1.0/api/tenants/{tenantId}/model-prices/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/model-prices/{id}` | `route=/v1.0/api/tenants/{tenantId}/model-prices/{id}` | garrison-http |
@@ -895,7 +901,9 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_list_trigger_fires` | `tool="garrison_list_trigger_fires"` | `mcp garrison_list_trigger_fires` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_triggers` | `tool="garrison_list_triggers"` | `mcp garrison_list_triggers` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_memory_delete` | `tool="garrison_memory_delete"` | `mcp garrison_memory_delete` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_memory_list` | `tool="garrison_memory_list"` | `mcp garrison_memory_list` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_memory_read` | `tool="garrison_memory_read"` | `mcp garrison_memory_read` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_memory_search` | `tool="garrison_memory_search"` | `mcp garrison_memory_search` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_memory_write` | `tool="garrison_memory_write"` | `mcp garrison_memory_write` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_pause_mandate` | `tool="garrison_pause_mandate"` | `mcp garrison_pause_mandate` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_permission_prompt` | `tool="garrison_permission_prompt"` | `mcp garrison_permission_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |

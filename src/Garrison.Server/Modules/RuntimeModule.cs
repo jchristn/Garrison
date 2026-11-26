@@ -6,6 +6,7 @@ namespace Garrison.Server.Modules
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
     using Garrison.Core.Manifests;
+    using Garrison.Core.Memory;
     using Garrison.Core.Services;
     using Garrison.Server.Leases;
     using Garrison.Core.Models;
@@ -69,6 +70,7 @@ namespace Garrison.Server.Modules
         private MandateService? _Mandates = null;
         private KeeperScheduler? _Keepers = null;
         private EscalationOptions? _EscalationOptions = null;
+        private MemoryOptions? _MemoryOptions = null;
         private EscalationService? _Escalations = null;
         private FreezeService? _Freezes = null;
 
@@ -202,6 +204,16 @@ namespace Garrison.Server.Modules
             _Freezes.CancelRunAsync = cancelRun;
             _Runs.Freezes = _Freezes;
             _Keepers.Freezes = _Freezes;
+            _MemoryOptions = new MemoryOptions();
+            MemoryService memory = new MemoryService(context.Database, () => context.TryGet<IScopedMemoryStore>(), context.Audit, _MemoryOptions, context.Logging);
+            if (context.Settings.AgentMemory.Enabled)
+            {
+                _Maintenance.Memory = memory;
+                _Keepers.Memory = memory;
+            }
+            context.Register(_MemoryOptions);
+            context.Register(memory);
+            context.Register(new MemoryAccessPolicy(context.Database));
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -262,6 +274,7 @@ namespace Garrison.Server.Modules
             new MandateRoutes(context, _Mandates!).Register(routes);
             new EscalationRoutes(context, _Escalations!).Register(routes);
             new FreezeRoutes(context, _Freezes!).Register(routes);
+            new MemoryRoutes(context, context.Get<MemoryService>()).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -427,6 +440,12 @@ namespace Garrison.Server.Modules
                 _KeeperOptions.MaxDueClaimsPerSweep = cluster.GetInt("Autonomy.MaxDueClaimsPerSweep");
                 _KeeperOptions.TickHistoryRetentionDays = cluster.GetInt("Autonomy.TickHistoryRetentionDays");
                 _KeeperOptions.TickInputRecentTicks = cluster.GetInt("Autonomy.TickInputRecentTicks");
+            }
+            if (_MemoryOptions != null)
+            {
+                _MemoryOptions.ScopedEnabled = cluster.GetBool("Memory.Scoped.Enabled");
+                _MemoryOptions.MaxValueBytes = cluster.GetInt("Memory.Scoped.MaxValueBytes");
+                _MemoryOptions.MaxEntriesPerScope = cluster.GetInt("Memory.Scoped.MaxEntriesPerScope");
             }
             if (_EscalationOptions != null)
             {

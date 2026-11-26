@@ -60,8 +60,21 @@ namespace Test.Shared.Infrastructure
         /// <returns>Cluster.</returns>
         public static async Task<TestCluster> StartAsync(DatabaseTypeEnum provider = DatabaseTypeEnum.Sqlite, int workers = 1, CancellationToken token = default)
         {
+            return await StartAsync(provider, workers, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Start a cluster with server settings changed before the server starts.
+        /// </summary>
+        /// <param name="provider">Database provider.</param>
+        /// <param name="workers">Number of workers (0 to 8).</param>
+        /// <param name="configureServer">Changes to the server settings, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Cluster.</returns>
+        public static async Task<TestCluster> StartAsync(DatabaseTypeEnum provider, int workers, Action<Garrison.Server.Settings.ServerSettings>? configureServer, CancellationToken token)
+        {
             EnsureFakeHarnessOnPath();
-            TestServerHost server = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false);
+            TestServerHost server = await TestServerHost.StartAsync(provider, configureServer, token).ConfigureAwait(false);
             TestCluster cluster = new TestCluster(server);
             for (int i = 0; i < Math.Clamp(workers, 0, 8); i++) await cluster.AddWorkerAsync("test-worker-" + i + "-" + Guid.NewGuid().ToString("N").Substring(0, 4), token).ConfigureAwait(false);
             return cluster;

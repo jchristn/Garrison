@@ -56,6 +56,12 @@ namespace Garrison.Server.Runtime
         public EscalationService? Escalations { get; set; } = null;
 
         /// <summary>
+        /// Scoped memory (AA4.8). When set, a tick's input carries the agent's own entries tagged for recall, rendered
+        /// through memory-recall. Null when agent memory is turned off.
+        /// </summary>
+        public MemoryService? Memory { get; set; } = null;
+
+        /// <summary>
         /// Freezes (AA3.2). When set, a due wake of a keeper under a freeze or the kill switch is recorded as Skipped and its
         /// next wake moves on by one interval. Null when freezes are not wired.
         /// </summary>
@@ -399,6 +405,22 @@ namespace Garrison.Server.Runtime
                     {
                         throw new ConflictException("TemplateRenderFailed", "Template escalation-answered failed to render: " + e.Message);
                     }
+                }
+
+                MemoryService? memory = Memory;
+                if (memory != null)
+                {
+                    // AA4.8: the agent's entries tagged for recall reach the tick only through the memory-recall template.
+                    string? recall;
+                    try
+                    {
+                        recall = await memory.RenderRecallAsync(mandate.TenantId, agent.Id, token).ConfigureAwait(false);
+                    }
+                    catch (TemplateException e)
+                    {
+                        throw new ConflictException("TemplateRenderFailed", "Template memory-recall failed to render: " + e.Message);
+                    }
+                    if (recall != null) input = input.TrimEnd() + Environment.NewLine + Environment.NewLine + recall;
                 }
 
                 RunCreateContext create = new RunCreateContext();

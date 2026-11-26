@@ -18,6 +18,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Manifests;
+    using Garrison.Core.Memory;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
@@ -882,6 +883,8 @@ namespace Garrison.Server.Protocols
                     case "garrison_memory_read":
                     case "garrison_memory_write":
                     case "garrison_memory_delete":
+                    case "garrison_memory_list":
+                    case "garrison_memory_search":
                         result = await MemoryAsync(ctx, tenantId, tool.Name, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_get_agent":
@@ -1498,50 +1501,150 @@ namespace Garrison.Server.Protocols
         private async Task<object> MemoryAsync(RequestContext ctx, string tenantId, string tool, RpcParameters? args, CancellationToken token)
         {
             if (!_Context.Settings.AgentMemory.Enabled) throw ToolError("MemoryDisabled", "Agent memory is disabled on this server.");
-            string? reference = args?.GetString("agent");
-            Agent agent;
+            McpMemoryArguments arguments = ManagementArguments<McpMemoryArguments>(args);
+            MemoryService memory = _Context.Get<MemoryService>();
+            MemoryAccessPolicy policy = _Context.Get<MemoryAccessPolicy>();
+            string operation = tool.Substring("garrison_memory_".Length);
+            bool mutation = operation == "write" || operation == "delete";
+            MemoryScopeKindEnum kind = MemoryScopeKindEnum.Agent;
+            if (!String.IsNullOrWhiteSpace(arguments.Scope))
+            {
+                if (!Enum.TryParse<MemoryScopeKindEnum>(arguments.Scope.Trim(), true, out kind) || !Enum.IsDefined(kind)) throw ToolError("ValidationFailed", "scope must be Agent, App, OrgUnit, or Organization.");
+            }
+            if (kind == MemoryScopeKindEnum.OrgUnit || kind == MemoryScopeKindEnum.Organization)
+                throw ToolError("OrganizationsUnavailable", kind + " memory scopes arrive with organizations; use the Agent or App scope instead.");
+            if (kind != MemoryScopeKindEnum.Agent && !memory.Options.ScopedEnabled)
+                throw ToolError("ScopedMemoryDisabled", "Shared memory scopes are turned off on this server (Memory.Scoped.Enabled).");
+
+            string scopeId;
+            MemoryWriter writer = new MemoryWriter();
             if (ctx.PrincipalType == PrincipalTypeEnum.Run)
             {
                 Run? run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId!, token).ConfigureAwait(false);
                 if (run == null) throw ToolError("NotFound", "The active run was not found.");
-                agent = await _Context.Database.Agents.ReadAsync(tenantId, run.AgentId, token).ConfigureAwait(false)
+                Agent agent = await _Context.Database.Agents.ReadAsync(tenantId, run.AgentId, token).ConfigureAwait(false)
                     ?? throw ToolError("NotFound", "The run agent was not found.");
-                if (reference != null && reference != agent.Id && reference != agent.Name) throw ToolError("Forbidden", "Run memory is scoped to its own agent.");
-            }
-            else
-            {
-                if (String.IsNullOrWhiteSpace(reference)) throw ToolError("BadRequest", "An agent is required for user memory calls.");
-                agent = await _Invoker.ResolveAgentAsync(tenantId, reference, token).ConfigureAwait(false);
-                await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
-            }
-            string? key = args?.GetString("key");
-            if (String.IsNullOrWhiteSpace(key) || key.Length > 256) throw ToolError("BadRequest", "Memory key must contain 1 to 256 characters.");
-            Garrison.Core.Memory.IAgentMemoryStore store = _Context.Get<Garrison.Core.Memory.IAgentMemoryStore>();
-            return await ApplicationOperation.MeasureAsync("memory", tool.Substring("garrison_memory_".Length), async ct =>
-            {
-                Garrison.Core.Memory.AgentMemoryResult result = new Garrison.Core.Memory.AgentMemoryResult { Key = key };
-                if (tool == "garrison_memory_read")
+                if (arguments.Agent != null && arguments.Agent != agent.Id && arguments.Agent != agent.Name) throw ToolError("Forbidden", "Run memory is scoped to its own agent.");
+                if (kind == MemoryScopeKindEnum.Agent)
                 {
-                    result.Value = await store.ReadAsync(tenantId, agent.Id, key, ct).ConfigureAwait(false);
-                    result.Found = result.Value != null;
-                }
-                else if (tool == "garrison_memory_write")
-                {
-                    string? value = args?.GetString("value");
-                    if (value == null || Encoding.UTF8.GetByteCount(value) > _Context.Settings.AgentMemory.MaxValueBytes)
-                        throw ToolError("BadRequest", "A memory value within the configured UTF-8 byte limit is required.");
-                    await store.WriteAsync(tenantId, agent.Id, key, value, ct).ConfigureAwait(false);
-                    result.Found = true;
+                    string? named = arguments.ScopeId;
+                    if (named != null && named != agent.Id && named != agent.Name) throw ToolError("Forbidden", "A run uses only its own agent's Agent scope.");
+                    scopeId = agent.Id;
                 }
                 else
                 {
-                    await store.DeleteAsync(tenantId, agent.Id, key, ct).ConfigureAwait(false);
-                    result.Found = true;
+                    scopeId = await RunAppScopeAsync(tenantId, agent, arguments.ScopeId, token).ConfigureAwait(false);
                 }
-                if (tool != "garrison_memory_read")
-                    await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "AgentMemory", agent.Id, tool, tenantId, ct).ConfigureAwait(false);
-                return result;
-            }, token).ConfigureAwait(false);
+                MemoryAccessDecision decision = await policy.CheckRunAsync(tenantId, agent.Id, kind, scopeId, mutation, memory.Options.ScopedEnabled, token).ConfigureAwait(false);
+                if (!decision.Permitted) throw ToolError(decision.Code, decision.Reason);
+                writer.PrincipalType = PrincipalTypeEnum.Run;
+                writer.PrincipalId = run.Id;
+                writer.Name = agent.Name;
+                writer.AgentId = agent.Id;
+                writer.RunId = run.Id;
+            }
+            else
+            {
+                if (kind == MemoryScopeKindEnum.Agent)
+                {
+                    string? reference = arguments.Agent ?? arguments.ScopeId;
+                    if (String.IsNullOrWhiteSpace(reference)) throw ToolError("BadRequest", "An agent is required for user memory calls.");
+                    Agent agent = await _Invoker.ResolveAgentAsync(tenantId, reference, token).ConfigureAwait(false);
+                    await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
+                    scopeId = agent.Id;
+                }
+                else
+                {
+                    if (String.IsNullOrWhiteSpace(arguments.ScopeId)) throw ToolError("ValidationFailed", "scopeId is required for the App scope: the app identifier or name.");
+                    AgenticApp app = await _Context.Database.Apps.ReadAsync(tenantId, arguments.ScopeId.Trim(), token).ConfigureAwait(false)
+                        ?? await _Context.Database.Apps.ReadByNameAsync(tenantId, arguments.ScopeId.Trim(), token).ConfigureAwait(false)
+                        ?? throw ToolError("NotFound", "App " + arguments.ScopeId + " not found.");
+                    scopeId = app.Id;
+                }
+                await Require(ctx, tenantId, ResourceTypeEnum.Memory, MemoryAccessPolicy.PermissionFor(operation), null, token).ConfigureAwait(false);
+                writer.PrincipalType = ctx.PrincipalType;
+                writer.PrincipalId = ctx.PrincipalId;
+                writer.Name = ctx.PrincipalName;
+            }
+
+            if (operation == "list")
+            {
+                MemoryEntryFilter filter = new MemoryEntryFilter { TenantId = tenantId, ScopeKind = kind, ScopeId = scopeId };
+                filter.Category = String.IsNullOrWhiteSpace(arguments.Category) ? null : arguments.Category.Trim();
+                filter.Tag = String.IsNullOrWhiteSpace(arguments.Tag) ? null : arguments.Tag.Trim();
+                filter.Search = String.IsNullOrWhiteSpace(arguments.Query) ? null : arguments.Query.Trim();
+                filter.KeyPrefix = String.IsNullOrEmpty(arguments.KeyPrefix) ? null : arguments.KeyPrefix;
+                filter.Skip = Math.Max(0, arguments.Skip ?? 0);
+                filter.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+                Garrison.Core.Enumeration.EnumerationResult<MemoryEntry> page = await memory.ListAsync(filter, token).ConfigureAwait(false);
+                McpMemoryList list = new McpMemoryList();
+                list.Scope = kind.ToString();
+                list.ScopeId = scopeId;
+                list.Entries = page.Objects;
+                list.TotalCount = page.TotalRecords;
+                return list;
+            }
+            if (operation == "search")
+            {
+                if (String.IsNullOrWhiteSpace(arguments.Query)) throw ToolError("ValidationFailed", "query is required: the keyword to look for.");
+                McpMemorySearchResult found = new McpMemorySearchResult();
+                found.Scope = kind.ToString();
+                found.ScopeId = scopeId;
+                found.Hits = await memory.SearchAsync(tenantId, kind, scopeId, arguments.Query, Math.Clamp(arguments.MaxResults ?? 25, 1, 100), token).ConfigureAwait(false);
+                return found;
+            }
+
+            string? key = arguments.Key;
+            if (String.IsNullOrWhiteSpace(key) || key.Length > 256) throw ToolError("BadRequest", "Memory key must contain 1 to 256 characters.");
+            AgentMemoryResult result = new AgentMemoryResult { Key = key, Scope = kind.ToString(), ScopeId = scopeId };
+            if (operation == "read")
+            {
+                MemoryReadResult read = await memory.ReadAsync(tenantId, kind, scopeId, key, token).ConfigureAwait(false);
+                result.Found = read.Found;
+                result.Value = read.Value;
+                result.Entry = read.Entry;
+                result.Version = read.Entry?.Version ?? 0;
+            }
+            else if (operation == "write")
+            {
+                if (arguments.Value == null) throw ToolError("BadRequest", "A memory value within the configured UTF-8 byte limit is required.");
+                MemoryWriteRequest request = new MemoryWriteRequest();
+                request.TenantId = tenantId;
+                request.ScopeKind = kind;
+                request.ScopeId = scopeId;
+                request.Key = key;
+                request.Value = arguments.Value;
+                request.Category = arguments.Category;
+                request.Tags = arguments.Tags;
+                request.TtlSeconds = arguments.TtlSeconds;
+                request.ExpectedVersion = arguments.ExpectedVersion;
+                MemoryEntry entry = await memory.WriteAsync(request, writer, token).ConfigureAwait(false);
+                result.Found = true;
+                result.Entry = entry;
+                result.Version = entry.Version;
+            }
+            else
+            {
+                await memory.DeleteAsync(tenantId, kind, scopeId, key, arguments.ExpectedVersion, writer, token).ConfigureAwait(false);
+                result.Found = true;
+            }
+            return result;
+        }
+
+        private async Task<string> RunAppScopeAsync(string tenantId, Agent agent, string? named, CancellationToken token)
+        {
+            List<string> apps = await _Context.Database.Apps.AppIdsWithMemberAsync(tenantId, agent.Id, token).ConfigureAwait(false);
+            if (String.IsNullOrWhiteSpace(named))
+            {
+                if (apps.Count == 1) return apps[0];
+                throw ToolError("ValidationFailed", apps.Count == 0
+                    ? "Your agent is not a member of any app, so it has no App scope."
+                    : "Your agent is a member of " + apps.Count + " apps; pass scopeId with the app's identifier or name.");
+            }
+            string trimmed = named.Trim();
+            if (apps.Contains(trimmed)) return trimmed;
+            AgenticApp? app = await _Context.Database.Apps.ReadByNameAsync(tenantId, trimmed, token).ConfigureAwait(false);
+            return app?.Id ?? trimmed;
         }
 
         private async Task<object> MandateToolAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

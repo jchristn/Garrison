@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 48).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 49).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2361,3 +2361,41 @@ CREATE INDEX IF NOT EXISTS "idx_run_usage_mandate" ON "run_usage" ("tenantid", "
 DROP VIEW "quota_usage_source";
 CREATE VIEW "quota_usage_source" AS SELECT runid, tenantid, agentid, deploymentid, mandateid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "run_usage" UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.mandateid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM "runs" r WHERE NOT EXISTS (SELECT 1 FROM "run_usage" u WHERE u.runid = r.id);
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 48, 'Freezes and mandate spend caps', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 48);
+
+-- Migration 49: Scoped memory entries
+CREATE TABLE IF NOT EXISTS "memory_entries" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    scopekind VARCHAR(32) NOT NULL,
+    scopeid VARCHAR(64) NOT NULL,
+    memorykey VARCHAR(256) NOT NULL,
+    keyhash VARCHAR(64) NOT NULL,
+    legacy BOOLEAN NOT NULL,
+    category VARCHAR(128),
+    bytes BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    contentid VARCHAR(128) NOT NULL,
+    version BIGINT NOT NULL,
+    writeragentid VARCHAR(64),
+    writerrunid VARCHAR(64),
+    writerprincipaltype VARCHAR(32),
+    writerprincipalid VARCHAR(64),
+    writername VARCHAR(256),
+    lastreadutc TIMESTAMPTZ,
+    expiresutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_memory_entries_key" ON "memory_entries" ("tenantid", "scopekind", "scopeid", "memorykey");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_memory_entries_keyhash" ON "memory_entries" ("tenantid", "scopekind", "scopeid", "keyhash");
+CREATE INDEX IF NOT EXISTS "idx_memory_entries_category" ON "memory_entries" ("tenantid", "category");
+CREATE INDEX IF NOT EXISTS "idx_memory_entries_writer" ON "memory_entries" ("tenantid", "writeragentid");
+CREATE INDEX IF NOT EXISTS "idx_memory_entries_expires" ON "memory_entries" ("expiresutc");
+CREATE TABLE IF NOT EXISTS "memory_entry_tags" (
+    entryid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    tag VARCHAR(64) NOT NULL,
+    PRIMARY KEY (entryid, tag)
+);
+CREATE INDEX IF NOT EXISTS "idx_memory_entry_tags_tag" ON "memory_entry_tags" ("tenantid", "tag");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 49, 'Scoped memory entries', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 49);

@@ -151,6 +151,9 @@ namespace Garrison.Server.Services
         {
             if (existing == null) throw new ArgumentNullException(nameof(existing));
             await _Server.Database.Apps.DeleteAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            // AA4.9: the app's shared memory goes with it, metadata and content.
+            Garrison.Server.Runtime.MemoryService? memory = _Server.TryGet<Garrison.Server.Runtime.MemoryService>();
+            if (memory != null) await memory.DeleteScopeAsync(tenantId, MemoryScopeKindEnum.App, existing.Id, token).ConfigureAwait(false);
             await AuditAsync(ctx, tenantId, existing.Id, "Deleted app " + existing.Name + ".", token).ConfigureAwait(false);
         }
 

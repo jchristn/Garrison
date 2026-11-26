@@ -174,6 +174,12 @@ namespace Garrison.Server.Runtime
         public EscalationService? Escalations { get; set; } = null;
 
         /// <summary>
+        /// Scoped memory (AA4), whose expiry, import, and orphan sweep the leader runs every pass (the service limits how
+        /// often it does work); null when agent memory is turned off.
+        /// </summary>
+        public MemoryService? Memory { get; set; } = null;
+
+        /// <summary>
         /// Notification service (P12.14). When set, the leader queues notifications for new events on every pass.
         /// </summary>
         public NotificationService? Notifications { get; set; } = null;
@@ -556,6 +562,19 @@ namespace Garrison.Server.Runtime
                     if (escalations != null && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         await GarrisonTracing.BackgroundAsync("maintenance", "escalations", escalations.SweepAsync, token).ConfigureAwait(false);
+                    }
+                    MemoryService? memory = Memory;
+                    if (memory != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "memory", memory.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Reading content for the orphan sweep can take a while; that work is not a pause.
+                            _Pause.Touch();
+                        }
                     }
                     KeeperScheduler? keepers = Keepers;
                     if (keepers != null && await AwakeAsync(token).ConfigureAwait(false))

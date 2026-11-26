@@ -39,6 +39,12 @@ namespace Garrison.Server.Services
         /// </summary>
         public Func<string, CancellationToken, Task>? TenantCreated { get; set; } = null;
 
+        /// <summary>
+        /// Called after a tenant and its rows are deleted, for cleanup outside the database such as memory content (AA4.9).
+        /// Null for none.
+        /// </summary>
+        public Func<string, CancellationToken, Task>? TenantDeletedAsync { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories
@@ -148,6 +154,8 @@ namespace Garrison.Server.Services
             Tenant tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false) ?? throw new NotFoundException("Tenant not found.");
             if (tenant.IsProtected) throw new ConflictException("Protected", "The protected tenant cannot be deleted.");
             int deleted = await _Database.Tenants.DeleteCascadeAsync(tenantId, token).ConfigureAwait(false);
+            Func<string, CancellationToken, Task>? tenantDeleted = TenantDeletedAsync;
+            if (tenantDeleted != null) await tenantDeleted(tenantId, token).ConfigureAwait(false);
             _Authorization.Invalidate();
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Tenant", tenantId, "Tenant deleted with " + deleted + " rows.", null, token).ConfigureAwait(false);
             return deleted;

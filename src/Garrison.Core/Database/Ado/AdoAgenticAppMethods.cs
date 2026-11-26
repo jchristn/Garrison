@@ -168,6 +168,18 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public Task<List<string>> AppIdsWithMemberAsync(string tenantId, string agentId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(agentId)) throw new ArgumentNullException(nameof(agentId));
+            return _Driver.QueryAsync("SELECT a.id AS id, MIN(a.name) AS name FROM " + _Apps + " a JOIN " + _Members + " m ON m.appid = a.id WHERE a.tenantid = @tenantid AND m.agentid = @agentid GROUP BY a.id ORDER BY MIN(a.name) ASC;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoDatabaseDriver.Add(command, "agentid", agentId);
+            }, reader => AdoConverters.Str(reader, "id"), token);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> DeleteAsync(string tenantId, string id, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

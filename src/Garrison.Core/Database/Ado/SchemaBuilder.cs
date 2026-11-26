@@ -385,6 +385,11 @@ namespace Garrison.Core.Database.Ado
             v48.BuildVersion48();
             migrations.Add(new SchemaMigration(48, "Freezes and mandate spend caps", v48._Statements, v48._Columns));
 
+            // AA4: scoped memory metadata with tags; the content lives in the IScopedMemoryStore provider.
+            SchemaBuilder v49 = new SchemaBuilder(catalog, dialect);
+            v49.BuildVersion49();
+            migrations.Add(new SchemaMigration(49, "Scoped memory entries", v49._Statements, v49._Columns));
+
             return migrations;
         }
 
@@ -448,6 +453,45 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion49()
+        {
+            SqlDialect d = _Dialect;
+            Table("memory_entries",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "scopekind VARCHAR(32) NOT NULL",
+                "scopeid " + d.TypeId + " NOT NULL",
+                "memorykey VARCHAR(256) NOT NULL",
+                "keyhash VARCHAR(64) NOT NULL",
+                "legacy " + d.TypeBool + " NOT NULL",
+                "category VARCHAR(128)",
+                "bytes " + d.TypeBigInt + " NOT NULL",
+                "sha256 VARCHAR(64) NOT NULL",
+                "contentid VARCHAR(128) NOT NULL",
+                "version " + d.TypeBigInt + " NOT NULL",
+                "writeragentid " + d.TypeId,
+                "writerrunid " + d.TypeId,
+                "writerprincipaltype VARCHAR(32)",
+                "writerprincipalid " + d.TypeId,
+                "writername VARCHAR(256)",
+                "lastreadutc " + d.TypeTimestamp,
+                "expiresutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("memory_entries", "key", true, "tenantid", "scopekind", "scopeid", "memorykey");
+            Index("memory_entries", "keyhash", true, "tenantid", "scopekind", "scopeid", "keyhash");
+            Index("memory_entries", "category", false, "tenantid", "category");
+            Index("memory_entries", "writer", false, "tenantid", "writeragentid");
+            Index("memory_entries", "expires", false, "expiresutc");
+
+            Table("memory_entry_tags",
+                "entryid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "tag VARCHAR(64) NOT NULL",
+                "PRIMARY KEY (entryid, tag)");
+            Index("memory_entry_tags", "tag", false, "tenantid", "tag");
         }
 
         private void BuildVersion48()

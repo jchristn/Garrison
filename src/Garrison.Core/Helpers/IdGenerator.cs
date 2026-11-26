@@ -308,6 +308,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// New scoped memory entry identifier (prefix mem_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewMemoryEntryId()
+        {
+            return New(Constants.MemoryEntryIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a mandate identifier (prefix mdt_).
         /// </summary>
         /// <returns>Identifier.</returns>

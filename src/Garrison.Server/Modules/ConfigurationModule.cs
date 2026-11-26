@@ -52,8 +52,13 @@ namespace Garrison.Server.Modules
             options.McpBaseUrl = String.IsNullOrWhiteSpace(context.Settings.Mcp.PublicUrl) ? "http://127.0.0.1:" + context.Settings.Mcp.Port : context.Settings.Mcp.PublicUrl!.TrimEnd('/');
             options.McpPath = context.Settings.Mcp.Path;
             options.AgentMemoryEnabled = context.Settings.AgentMemory.Enabled;
+            // AA4: scoped memory keeps metadata in the database and text in IScopedMemoryStore. The default store shares
+            // the agent memory root, and the default IAgentMemoryStore reads and writes the Agent scope through it. A module
+            // may register either interface first to replace it.
+            if (context.Settings.AgentMemory.Enabled && context.TryGet<Garrison.Core.Memory.IScopedMemoryStore>() == null)
+                context.Register<Garrison.Core.Memory.IScopedMemoryStore>(new Garrison.Core.Memory.FilesystemScopedMemoryStore(context.Settings.AgentMemory.RootDirectory, context.Settings.AgentMemory.MaxValueBytes));
             if (context.Settings.AgentMemory.Enabled && context.TryGet<Garrison.Core.Memory.IAgentMemoryStore>() == null)
-                context.Register<Garrison.Core.Memory.IAgentMemoryStore>(new Garrison.Core.Memory.FilesystemAgentMemoryStore(context.Settings.AgentMemory.RootDirectory, context.Settings.AgentMemory.MaxValueBytes));
+                context.Register<Garrison.Core.Memory.IAgentMemoryStore>(new Garrison.Server.Runtime.ScopedAgentMemoryStore(() => context.Get<Garrison.Server.Runtime.MemoryService>()));
             options.ApiBaseUrl = ApiBaseUrl(context);
             options.ArtifactCollection.MaxFileBytes = context.Settings.Artifacts.MaxFileBytes;
             options.ArtifactCollection.MaxTotalBytes = context.Settings.Artifacts.MaxTotalBytes;
@@ -122,6 +127,7 @@ namespace Garrison.Server.Modules
             ArchitectService architect = context.Get<ArchitectService>();
             IdentityService? identity = context.TryGet<IdentityService>();
             if (identity != null) identity.TenantCreated = (tenantId, ct) => architect.SeedTenantAsync(tenantId, ct);
+            if (identity != null) identity.TenantDeletedAsync = (tenantId, ct) => context.TryGet<Garrison.Server.Runtime.MemoryService>()?.DeleteTenantContentAsync(tenantId, ct) ?? Task.CompletedTask;
             await architect.SeedAllAsync(token).ConfigureAwait(false);
         }
 

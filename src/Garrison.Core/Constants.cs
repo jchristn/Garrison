@@ -132,6 +132,9 @@ namespace Garrison.Core
         /// <summary>Freeze identifier prefix (AA3).</summary>
         public const string FreezeIdPrefix = "mfz_";
 
+        /// <summary>Scoped memory entry identifier prefix (AA4).</summary>
+        public const string MemoryEntryIdPrefix = "mem_";
+
         /// <summary>Prefix of app session tokens (AD6.5), so they are easy to tell apart from management tokens.</summary>
         public const string AppSessionTokenPrefix = "gas_";
 

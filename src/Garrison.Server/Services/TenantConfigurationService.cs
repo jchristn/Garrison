@@ -153,6 +153,9 @@ namespace Garrison.Server.Services
             foreach (Deployment deployment in deployments)
                 if (await _Server.Database.Deployments.DeleteAsync(deployment.Id, token).ConfigureAwait(false)) cascaded++;
             bool deleted = await _Server.Database.Agents.DeleteAsync(existing.Id, token).ConfigureAwait(false);
+            // AA4.9: the agent's private memory goes with it, metadata and content.
+            Garrison.Server.Runtime.MemoryService? memory = _Server.TryGet<Garrison.Server.Runtime.MemoryService>();
+            if (deleted && memory != null) await memory.DeleteScopeAsync(tenantId, MemoryScopeKindEnum.Agent, existing.Id, token).ConfigureAwait(false);
             await AuditAsync(ctx, tenantId, "Agent", existing.Id, "Deleted agent " + existing.Name + " and " + cascaded + " deployment(s).", token).ConfigureAwait(false);
             return deleted;
         }

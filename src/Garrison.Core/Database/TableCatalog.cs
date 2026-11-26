@@ -180,6 +180,8 @@ namespace Garrison.Core.Database
                 "escalations",
                 "escalation_options",
                 "freezes",
+                "memory_entries",
+                "memory_entry_tags",
         };
 
         private readonly SqlDialect _Dialect;
