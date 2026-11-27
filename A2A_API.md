@@ -53,9 +53,9 @@ One renderer builds every card: this route, `GET /v1.0/a2a/{tenantId}`, and `GET
 
 ## Authentication
 
-The card advertises bearer authentication, and that is what most A2A clients send, but the JSON-RPC endpoint accepts every scheme REST accepts: session tokens, `x-access-key` and `x-secret-key`, signed requests, the administrator API key, and run tokens. Sending a message needs Execute on Agent; reading, listing, and subscribing need Read on Run; cancelling needs Update on Run. A refusal is JSON-RPC error `-32007`.
+The card advertises bearer authentication, and that is what most A2A clients send, but the JSON-RPC endpoint accepts every scheme REST accepts: session tokens, `x-access-key` and `x-secret-key`, signed requests, the administrator API key, and run tokens. Sending a message needs Execute on Agent; reading, listing, and subscribing need Read on Run; cancelling needs Update on Run. A refusal is JSON-RPC error `-32007` with the same `data.code` REST sends: `AuthorizationDenied`, or one of the codes below.
 
-The token of a `Shadow` or `Eval` run can read but not act (AA-027, AA-074): `SendMessage`, `SendStreamingMessage`, and `CancelTask` with it answer `-32007`, and the message explains that the run is a shadow or eval run. `GetTask`, `ListTasks`, and `SubscribeToTask` still work. REST refuses the same token with 403 and `ShadowRunRefused` or `EvalRunRefused` (see `docs/EVALS.md`).
+The token of a `Shadow` or `Eval` run can read but not act (AA-027, AA-074): `SendMessage`, `SendStreamingMessage`, and `CancelTask` with it answer `-32007` with `data.code` `ShadowRunRefused` or `EvalRunRefused`, the codes REST sends with its 403, and the message explains that the run is a shadow or eval run. `GetTask`, `ListTasks`, and `SubscribeToTask` still work (see `docs/EVALS.md`).
 
 ## Methods
 
@@ -191,7 +191,7 @@ A task can also fail on its own when a worker run guard stops it: the status mes
 | `-32602` | Invalid parameters: missing input, a parameter the deployment does not allow, or another validation failure |
 | `-32001` | The agent or task was not found |
 | `-32002` | The task already finished and cannot be cancelled |
-| `-32007` | The caller does not have the needed permission |
+| `-32007` | The caller does not have the needed permission (`data.code` `AuthorizationDenied`), or is a shadow or eval run that may not act (`ShadowRunRefused`, `EvalRunRefused`) |
 | `-32603` | The database had no free connections (`data.code` `DatabaseBusy`) or could not be reached (`DatabaseUnavailable`). Sent with HTTP 503 and a `Retry-After` header; retry after that many seconds |
 
 Conflicts that REST reports as 409, such as an inactive agent, an agent with no active deployment, or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `NoActiveDeployment: Agent docs-echo has no active deployment with a weight above zero, so it cannot run. ...`. A message to a frozen agent or deployment answers `Frozen` the same way, and starts no task (see `docs/BRAKES.md`). The same applies to `QuotaExceeded` and to `DelegationCapacityExhausted`, which REST reports as 429: a run that sends a blocking or streaming message to another agent is recorded as waiting on the child task first, and the message fails with that code when waiting could leave no capacity to run the child (see `docs/SCALING.md`). A `SendMessage` with `returnImmediately` is never refused this way. JSON-RPC errors are sent with HTTP 200, except a reused `messageId` with different content, which is sent with HTTP 409, and database failures, which are sent with HTTP 503.

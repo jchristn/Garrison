@@ -5,6 +5,7 @@ namespace Test.Shared.Suites
     using System.Linq;
     using System.Net.Http;
     using System.Net.Http.Headers;
+    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
@@ -203,6 +204,18 @@ namespace Test.Shared.Suites
                         await ExpectRefusedAsync(client, HttpMethod.Post, T(host) + "/runs", new RunCreateRequest { AgentId = helper.Id, Input = "Start this." }, code, kind + " run start", token).ConfigureAwait(false);
                         await ExpectRefusedAsync(client, HttpMethod.Post, T(host) + "/runs/" + target.Id + "/cancel", null, code, kind + " run cancel", token).ConfigureAwait(false);
 
+                        string a2a = "/v1.0/a2a/" + host.TenantId + "/" + helper.Name;
+                        string send = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\",\"params\":{\"message\":{\"role\":\"ROLE_USER\",\"messageId\":\"" + Guid.NewGuid().ToString("N") + "\",\"parts\":[{\"text\":\"Act on this.\"}]}}}";
+                        string stream = send.Replace("\"SendMessage\"", "\"SendStreamingMessage\"", StringComparison.Ordinal);
+                        string cancel = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"CancelTask\",\"params\":{\"id\":\"" + target.Id + "\"}}";
+                        string get = "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"GetTask\",\"params\":{\"id\":\"" + target.Id + "\"}}";
+                        await ExpectA2ARefusedAsync(client, a2a, send, code, kind + " A2A SendMessage", token).ConfigureAwait(false);
+                        await ExpectA2ARefusedAsync(client, a2a, stream, code, kind + " A2A SendStreamingMessage", token).ConfigureAwait(false);
+                        await ExpectA2ARefusedAsync(client, a2a, cancel, code, kind + " A2A CancelTask", token).ConfigureAwait(false);
+                        TestResponse got = await RawPostAsync(client, a2a, get, token).ConfigureAwait(false);
+                        A2ARpcReply? gotReply = Serializer.Deserialize<A2ARpcReply>(got.Body);
+                        Assert.True(got.StatusCode == 200 && gotReply != null && gotReply.Error == null && got.Body.Contains(target.Id, StringComparison.Ordinal), kind + " run token still reads a task over A2A: " + got.Body);
+
                         Run read = await HttpTestHelpers.SendAsync<Run>(client, HttpMethod.Get, T(host) + "/runs/" + run.Id, null, 200, token).ConfigureAwait(false);
                         Assert.Equal(run.Id, read.Id, kind + " run token still reads its run");
                         Assert.Equal(200, (await HttpTestHelpers.SendAsync(client, HttpMethod.Get, T(host) + "/agents/" + helper.Id, null, token).ConfigureAwait(false)).StatusCode, kind + " run token still reads an agent");
@@ -241,6 +254,26 @@ namespace Test.Shared.Suites
             run.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5);
             run.CallerType = PrincipalTypeEnum.Administrator;
             return await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+        }
+
+        private static async Task ExpectA2ARefusedAsync(HttpClient client, string path, string json, string code, string label, CancellationToken token)
+        {
+            TestResponse response = await RawPostAsync(client, path, json, token).ConfigureAwait(false);
+            A2ARpcReply? reply = Serializer.Deserialize<A2ARpcReply>(response.Body);
+            Assert.True(reply != null && reply.Error != null && reply.Error.Code == -32007, label + " is refused with -32007: " + response.Body);
+            Assert.True(reply!.Error!.Data != null && reply.Error.Data.Code == code, label + " carries data.code " + code + ": " + response.Body);
+        }
+
+        private static async Task<TestResponse> RawPostAsync(HttpClient client, string path, string json, CancellationToken token)
+        {
+            using (StringContent content = new StringContent(json, Encoding.UTF8, "application/json"))
+            using (HttpResponseMessage response = await client.PostAsync(path, content, token).ConfigureAwait(false))
+            {
+                TestResponse result = new TestResponse();
+                result.StatusCode = (int)response.StatusCode;
+                result.Body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                return result;
+            }
         }
 
         private static async Task ExpectRefusedAsync(HttpClient client, HttpMethod method, string path, object? body, string code, string label, CancellationToken token)

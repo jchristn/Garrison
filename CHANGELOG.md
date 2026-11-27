@@ -158,6 +158,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 - `scripts/run-sdk-harnesses.bat` now matches the shell script (AA13.8): it honors `GARRISON_SDK_SKIP`, runs the SDK console smoke checks, refuses a REST port already in use, turns worker telemetry off, and passes `GOFLAGS=-mod=mod` to the Go harness in Docker.
 
 - Dashboard: empty lists, panels, and tabs (an agent's Inbox, revisions, eval cases, report sections, studio panels, and about 70 others) showed a bare line of muted text; they now share one boxed empty state. Compact tables, the Studio playground transcript, the MCP worker test form, and a usage quota warning had classes with no styles and are styled.
+- A2A: a refusal (`-32007`) carries `data.code` like the other Garrison errors: `AuthorizationDenied`, or `ShadowRunRefused` and `EvalRunRefused` for a shadow or eval run's token, the codes REST sends with its 403. Before, an A2A client had to read the message to tell a shadow refusal from a missing permission.
 - Dashboard: publishing an agent revision that matches the latest one showed the keeper message "the keeper did not wake". The shared `RevisionUnchanged` text no longer names keepers; the keeper and board dialogs keep their own wording.
 
 ### Changed

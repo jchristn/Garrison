@@ -207,8 +207,11 @@ namespace Garrison.Server.Routes
                 }
                 catch (A2AAccessException e)
                 {
+                    // The same code REST sends in its error body (AuthorizationDenied, ShadowRunRefused, EvalRunRefused).
+                    JsonRpcError error = Error(e.Code, e.Message);
+                    if (e.ErrorCode != null) error.Data = new A2AErrorData { Code = e.ErrorCode };
                     result = "error";
-                    await SendRpcErrorAsync(context, id, Error(e.Code, e.Message)).ConfigureAwait(false);
+                    await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
                 }
                 catch (NotFoundException e)
                 {
@@ -488,7 +491,7 @@ namespace Garrison.Server.Routes
         private async Task RequireAsync(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, HttpContextBase context)
         {
             AuthorizationDecision decision = await _Context.Authorization.AuthorizeAsync(ctx, tenantId, resourceType, operation, resourceId, context.Token).ConfigureAwait(false);
-            if (!decision.Permitted) throw new A2AAccessException(-32007, "Not permitted: " + decision.Reason);
+            if (!decision.Permitted) throw new A2AAccessException(-32007, decision.Code ?? "AuthorizationDenied", "Not permitted: " + decision.Reason);
         }
 
         private async Task<AgentCard> BuildCardAsync(HttpContextBase context, string tenantId, Agent agent)
