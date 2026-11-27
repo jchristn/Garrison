@@ -269,7 +269,7 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA9 | Evaluation, shadow, and canary (absorbs AD11) | AA1, AA3 (AA9.10 needs AA8) | Done | 18 / 18 |
 | AA10 | The board | AA7 (AA10.4 needs AA8 and AA9) | Done | 12 / 12 |
 | AA11 | Performance signals and org-scale brakes | AA7, AA9 | Done | 10 / 10 |
-| AA12 | Reference examples, trials, and validation | AA1 to AA11 | In progress | 6 / 8 |
+| AA12 | Reference examples, trials, and validation | AA1 to AA11 | In progress | 7 / 8 |
 | AA13 | Release (last) | every other phase | In progress | 4 / 16 |
 
 Total tasks: 191.
