@@ -1,0 +1,543 @@
+{
+  "schemaVersion": 1,
+  "kind": "scheduler",
+  "dataset": "autonomy-workload",
+  "label": "ba2-sqlite-claims2500",
+  "deterministic": false,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-11-27T03:18:26.75012Z",
+    "finishedUtc": "2026-11-27T03:23:48.068103Z",
+    "sutUrl": "http://127.0.0.1:37800",
+    "sutVersion": "0.3.0",
+    "stack": "local",
+    "stackDetails": "local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots",
+    "productCommit": "5344feead4a8754faf155bd8cbdd6d2acf309bc6-dirty",
+    "productDirtyFiles": 25,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "1c55d9b8a6bafc0d8509fa24056dade0a005e078-dirty",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.14",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "autonomy-workload",
+    "datasetSha256": "3ad2f90916049c41d40651fbb8e531455b8258ff6e2dfe744618adf4e4c1a422",
+    "datasetPath": "benchmarks/config/autonomy-workload.yaml",
+    "commandLine": "Garrison.Benchmark scheduler --url http://127.0.0.1:37800 --stack local --fake-harness <repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll --stack-details \"local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots\" --levels 10000 --window-seconds 90 --label ba2-sqlite-claims2500",
+    "seed": 42
+  },
+  "options": {
+    "agent": "keeper-bench",
+    "concurrency": "16",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "deployment": "keeper-bench-fake",
+    "deterministic": "false",
+    "interval-seconds": "60",
+    "kubeconfig": "(unset)",
+    "label": "ba2-sqlite-claims2500",
+    "levels": "10000",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "(unset)",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "window-seconds": "90",
+    "workload": "benchmarks/config/autonomy-workload.yaml"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 4,
+      "passed": 4,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 4,
+        "indicative": true
+      },
+      "timings": {},
+      "byType": [
+        {
+          "key": "create",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "first-wake",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "single-flight",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "tick-runs",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "n10000",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-first-wake",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "first-wake",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "10000 of 10000 mandates ticked by the window end",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-single-flight",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "single-flight",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "10660 started ticks, 0 overlapping",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-tick-runs",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "tick-runs",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "10660 started ticks linked to runs",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "create",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "10000 of 10000 created",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "autonomyPhases": [
+    {
+      "scenario": "scheduler",
+      "name": "n10000",
+      "level": 10000,
+      "operations": 10691,
+      "succeeded": 10660,
+      "failed": 0,
+      "censored": 31,
+      "windowSeconds": 172.674298,
+      "throughput": 61.73472325337035,
+      "timings": {
+        "createLatencyMs": {
+          "count": 10000,
+          "mean": 132.0370823999997,
+          "stdDev": 130.02787466982156,
+          "min": 5.8846,
+          "p50": 97.0083,
+          "p90": 301.9621,
+          "p95": 374.3279,
+          "p99": 563.8662,
+          "max": 1467.701,
+          "p50Ci": {
+            "estimate": 97.0083,
+            "lower": 91.2172,
+            "upper": 101.5199,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 374.3279,
+            "lower": 368.5719,
+            "upper": 382.1644,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          }
+        },
+        "firstWakeLagMs": {
+          "count": 10000,
+          "mean": 19958.65879560998,
+          "stdDev": 8954.412891871718,
+          "min": 319.1178,
+          "p50": 20416.6505,
+          "p90": 31024.1925,
+          "p95": 31780.834,
+          "p99": 32189.3002,
+          "max": 35685.8569,
+          "p50Ci": {
+            "estimate": 20416.6505,
+            "lower": 20054.0052,
+            "upper": 20752.2541,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 31780.834,
+            "lower": 31731.6375,
+            "upper": 31824.4292,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          }
+        },
+        "startedTickLagMs": {
+          "count": 10660,
+          "mean": 19882.254923311422,
+          "stdDev": 9209.780111640133,
+          "min": 319.1178,
+          "p50": 20432.8897,
+          "p90": 31082.0738,
+          "p95": 31795.0587,
+          "p99": 34315.3047,
+          "max": 35685.8569,
+          "p50Ci": {
+            "estimate": 20432.8897,
+            "lower": 20148.0952,
+            "upper": 20904.0254,
+            "level": 0.95,
+            "n": 10660,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 31795.0587,
+            "lower": 31761.337,
+            "upper": 31848.3418,
+            "level": 0.95,
+            "n": 10660,
+            "indicative": false
+          }
+        },
+        "tickLagMs": {
+          "count": 10691,
+          "mean": 19832.289917453912,
+          "stdDev": 9243.539908204079,
+          "min": 51.361,
+          "p50": 20420.56,
+          "p90": 31081.3392,
+          "p95": 31794.2565,
+          "p99": 34315.3047,
+          "max": 35685.8569,
+          "p50Ci": {
+            "estimate": 20420.56,
+            "lower": 20064.7648,
+            "upper": 20883.5952,
+            "level": 0.95,
+            "n": 10691,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 31794.2565,
+            "lower": 31761.337,
+            "upper": 31847.2529,
+            "level": 0.95,
+            "n": 10691,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {
+        "createFailed": 0,
+        "deleteFailed": 0,
+        "mandates": 10000,
+        "mandatesWithoutTick": 0,
+        "tickReadFailures": 0,
+        "ticksFailed": 0,
+        "ticksRunningAtWindowEnd": 9211,
+        "ticksStarted": 10660,
+        "wakesHandled": 10660,
+        "wakesPendingAtWindowEnd": 31
+      }
+    }
+  ],
+  "stages": [
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"none\",stage=\"total\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 9382,
+      "total": 1799589834.0000076,
+      "mean": 191813.0285653387,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_keeper_tick_lag_duration_seconds{source=\"timer\"}",
+      "count": 11220,
+      "total": 214452158.92049962,
+      "mean": 19113.38314799462,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 1838,
+      "total": 201046198.00000036,
+      "mean": 109383.13275299258,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"queue\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 1838,
+      "total": 200026975.0000001,
+      "mean": 108828.6044613711,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_keeper_interval_seconds{mode=\"fixed\"}",
+      "count": 2009,
+      "total": 120540000,
+      "mean": 60000,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"none\",stage=\"queue\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 293,
+      "total": 62137708.00000003,
+      "mean": 212074.08873720147,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_write_lock_wait_seconds{provider=\"sqlite\"}",
+      "count": 277382,
+      "total": 5779391.555796082,
+      "mean": 20.835496015588905,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_application_operation_duration_seconds{component=\"run\",operation=\"admission\",result=\"ok\"}",
+      "count": 11220,
+      "total": 2517972.089200005,
+      "mean": 224.4181897682714,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+      "count": 220368,
+      "total": 2426291.7730999845,
+      "mean": 11.01018193703253,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 127560,
+      "total": 2403017.249699981,
+      "mean": 18.838329019284892,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"DELETE\",route=\"/v1.0/api/tenants/{tenantId}/mandates/{id}\",status_class=\"2xx\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 9993,
+      "total": 1928167.330000007,
+      "mean": 192.95179925948236,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_application_operation_duration_seconds{component=\"run\",operation=\"cancel\",result=\"ok\"}",
+      "count": 9457,
+      "total": 1577377.7989999934,
+      "mean": 166.79473395368439,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/mandates\",status_class=\"2xx\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 9998,
+      "total": 1298775.0699999968,
+      "mean": 129.9034876975392,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 1676,
+      "total": 1232552.940000002,
+      "mean": 735.413448687352,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"upsert\",provider=\"sqlite\",result=\"ok\",table=\"run_database_usage\"}",
+      "count": 41036,
+      "total": 1021117.703299997,
+      "mean": 24.883460944049055,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
+      "count": 32,
+      "total": 640091.4458999999,
+      "mean": 20002.857684374998,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"assigned\"}",
+      "count": 1646,
+      "total": 589410.0633999995,
+      "mean": 358.08630826245417,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"conversation_file_spaces\"}",
+      "count": 11220,
+      "total": 587988.9776999978,
+      "mean": 52.40543473262013,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"update\",provider=\"sqlite\",result=\"ok\",table=\"mandates\"}",
+      "count": 34566,
+      "total": 563035.9990999998,
+      "mean": 16.288722996586234,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"aborted\",tenant=\"default\"}",
+      "count": 1379,
+      "total": 465990.5599999994,
+      "mean": 337.91918781725843,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
+      "count": 1646,
+      "total": 459975.4182999995,
+      "mean": 279.45043639125123,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"update\",provider=\"sqlite\",result=\"ok\",table=\"mandate_ticks\"}",
+      "count": 13207,
+      "total": 445656.8336999997,
+      "mean": 33.74398680245322,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"execution\",tenant=\"ten_mwyew3bp_O96tWQtmT9jmNKRnZvv\"}",
+      "count": 1838,
+      "total": 326276,
+      "mean": 177.51686615886834,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"mandate_ticks\"}",
+      "count": 11220,
+      "total": 322998.0176999994,
+      "mean": 28.78770211229941,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"update\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+      "count": 23860,
+      "total": 320096.8581999998,
+      "mean": 13.415626915339471,
+      "unit": "ms"
+    }
+  ],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": [
+    "Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 1000, Autonomy.SchedulerSweepConcurrency 32, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, SchedulerSweepConcurrency at a time, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, less when the database cannot start that many runs in the time; mandates beyond that rate times the interval build a backlog.",
+    "tickLagMs covers every handled wake (started or skipped) plus censored pending wakes; startedTickLagMs covers only wakes that started a run; firstWakeLagMs is each mandate's first wake, due at creation.",
+    "Wake times are server timestamps; the window end is the harness clock, which is the same clock on the local stack."
+  ]
+}

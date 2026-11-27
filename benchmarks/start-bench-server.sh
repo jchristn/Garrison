@@ -7,7 +7,12 @@
 #
 #   benchmarks/start-bench-server.sh                      # 1 alpha + 1 beta worker, 4 slots each
 #   LOCAL_ALPHA_WORKERS=2 WORKER_SLOTS=8 benchmarks/start-bench-server.sh
+#   LOCAL_DB=postgresql LOCAL_PG_PORT=55432 LOCAL_PG_PASSWORD=... benchmarks/start-bench-server.sh
 #   benchmarks/stop-bench-server.sh
+#
+# LOCAL_DB=postgresql runs the server on PostgreSQL instead of Sqlite: LOCAL_PG_HOST (127.0.0.1), LOCAL_PG_PORT (5432),
+# LOCAL_PG_USER (postgres), LOCAL_PG_PASSWORD (required), LOCAL_PG_DATABASE (garrison_bench). The database is dropped and
+# created empty on every start (psql must be on PATH) unless LOCAL_PG_RESET=0, in which case it must already exist.
 source "$(dirname "$0")/common.sh"
 need dotnet
 need curl
@@ -22,6 +27,34 @@ DOTNET="$(command -v dotnet)"
 rm -rf "${LOCAL_DIR}"
 mkdir -p "${LOCAL_DIR}/server" "${LOCAL_DIR}/bin"
 cp "${BENCH_DIR}/config/garrison-bench.json" "${LOCAL_DIR}/server/garrison.json"
+if [ "$(local_db)" = "postgresql" ]; then
+  need python3
+  [ -n "${LOCAL_PG_PASSWORD:-}" ] || fail "LOCAL_DB=postgresql needs LOCAL_PG_PASSWORD"
+  if [ "${LOCAL_PG_RESET:-1}" = "1" ]; then
+    need psql
+    log "recreating database ${LOCAL_PG_DATABASE:-garrison_bench} on ${LOCAL_PG_HOST:-127.0.0.1}:${LOCAL_PG_PORT:-5432}"
+    PGPASSWORD="${LOCAL_PG_PASSWORD}" psql -q -h "${LOCAL_PG_HOST:-127.0.0.1}" -p "${LOCAL_PG_PORT:-5432}" -U "${LOCAL_PG_USER:-postgres}" -d postgres \
+      -c "DROP DATABASE IF EXISTS \"${LOCAL_PG_DATABASE:-garrison_bench}\" WITH (FORCE);" -c "CREATE DATABASE \"${LOCAL_PG_DATABASE:-garrison_bench}\";" \
+      || fail "could not recreate the PostgreSQL database"
+  fi
+  # Only the Database section changes; the rest of the committed bench settings stay as they are.
+  python3 -I - "${LOCAL_DIR}/server/garrison.json" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+with open(path) as f:
+    settings = json.load(f)
+settings["Database"] = {
+    "Type": "Postgresql",
+    "Host": os.environ.get("LOCAL_PG_HOST", "127.0.0.1"),
+    "Port": int(os.environ.get("LOCAL_PG_PORT", "5432")),
+    "DatabaseName": os.environ.get("LOCAL_PG_DATABASE", "garrison_bench"),
+    "Username": os.environ.get("LOCAL_PG_USER", "postgres"),
+    "Password": os.environ["LOCAL_PG_PASSWORD"],
+}
+with open(path, "w") as f:
+    json.dump(settings, f, indent=2)
+PY
+fi
 
 # The fake harness is the only harness the workers can find: PATH is this bin directory plus the system directories.
 cat > "${LOCAL_DIR}/bin/garrison-fake-harness" <<WRAP

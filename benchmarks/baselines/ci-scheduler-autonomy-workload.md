@@ -4,12 +4,12 @@
 
 | Field | Value |
 |---|---|
-| Started (UTC) | 2026-11-27 01:12:44 |
-| Finished (UTC) | 2026-11-27 01:13:04 |
+| Started (UTC) | 2026-11-27 03:26:33 |
+| Finished (UTC) | 2026-11-27 03:26:54 |
 | System under test | http://127.0.0.1 (bench stack) (server 0.3.0) |
 | Stack | local |
-| Product commit | 71ea9abc40b475c984a1a4c252638b25d255a9f1 |
-| Harness | Garrison.Benchmark 1.0.0, commit 78891d4e22928d95b3bf7b221d0a10b5f541b91b |
+| Product commit | 5344feead4a8754faf155bd8cbdd6d2acf309bc6-dirty (29 changed or untracked paths) |
+| Harness | Garrison.Benchmark 1.0.0, commit 1c55d9b8a6bafc0d8509fa24056dade0a005e078-dirty |
 | Machine | scrubbed, macOS 26.6.0 (Arm64), Apple M5 Max (Arm64), 18 logical processors |
 | Runtime | .NET 10.0.14 |
 | HTTP client | SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s |
@@ -43,16 +43,16 @@ Censored values are lower bounds (a wake or message still waiting when the windo
 
 | Scenario | Phase | Size | Operations | Succeeded | Failed | Censored | Window (s) | Throughput (ops/s) |
 |---|---|---|---|---|---|---|---|---|
-| scheduler | n5 | 5 | 5 | 5 | 0 | 0 | 20.0 | 0.25 |
+| scheduler | n5 | 5 | 5 | 5 | 0 | 0 | 20.1 | 0.25 |
 
 ### Distributions (ms)
 
 | Phase | Measure | n | mean | p50 [95% CI] | p95 [95% CI] | p99 | max |
 |---|---|---|---|---|---|---|---|
-| n5 | createLatencyMs | 5 | 42.9 | 42.9 [42.9, 42.9] (indicative) | 42.9 [42.9, 42.9] (indicative) | 42.9 | 42.9 |
-| n5 | firstWakeLagMs | 5 | 339.5 | 339.5 [339.2, 339.7] (indicative) | 339.7 [339.5, 339.7] (indicative) | 339.7 | 339.7 |
-| n5 | startedTickLagMs | 5 | 339.5 | 339.5 [339.2, 339.7] (indicative) | 339.7 [339.5, 339.7] (indicative) | 339.7 | 339.7 |
-| n5 | tickLagMs | 5 | 339.5 | 339.5 [339.2, 339.7] (indicative) | 339.7 [339.5, 339.7] (indicative) | 339.7 | 339.7 |
+| n5 | createLatencyMs | 5 | 50.0 | 49.9 [49.9, 50.0] (indicative) | 50.0 [49.9, 50.0] (indicative) | 50.0 | 50.0 |
+| n5 | firstWakeLagMs | 5 | 335.5 | 335.6 [335.3, 335.6] (indicative) | 335.6 [335.6, 335.6] (indicative) | 335.6 | 335.6 |
+| n5 | startedTickLagMs | 5 | 335.5 | 335.6 [335.3, 335.6] (indicative) | 335.6 [335.6, 335.6] (indicative) | 335.6 | 335.6 |
+| n5 | tickLagMs | 5 | 335.5 | 335.6 [335.3, 335.6] (indicative) | 335.6 [335.6, 335.6] (indicative) | 335.6 | 335.6 |
 
 ### Counts
 
@@ -76,20 +76,20 @@ From /metrics before and after; server-wide, so concurrent traffic and several r
 | Series | Count | Total | Mean | Unit |
 |---|---|---|---|---|
 | garrison_keeper_interval_seconds{mode="fixed"} | 5 | 300000.0 | 60000.00 | ms |
-| garrison_http_request_duration_seconds{method="POST",route="/v1.0/api/node/lease",status_class="2xx",tenant="default"} | 5 | 42418.5 | 8483.69 | ms |
-| garrison_scheduler_lease_wait_duration_seconds{result="empty"} | 2 | 39996.3 | 19998.17 | ms |
-| garrison_scheduler_lease_wait_duration_seconds{result="assigned"} | 3 | 2355.0 | 784.99 | ms |
-| garrison_keeper_tick_lag_duration_seconds{source="timer"} | 5 | 1697.4 | 339.47 | ms |
-| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="total",tenant="ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1"} | 5 | 1608.0 | 321.60 | ms |
-| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="execution",tenant="ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1"} | 5 | 347.0 | 69.40 | ms |
-| voltaic_server_session_duration_seconds{voltaic_protocol="mcp",voltaic_reason="deleted",voltaic_transport="http"} | 5 | 346.4 | 69.27 | ms |
-| garrison_outbound_duration_seconds{operation="post",result="2xx",service="mcp_internal"} | 15 | 328.9 | 21.92 | ms |
-| voltaic_http_server_request_duration_seconds{http_request_method="POST",http_response_status_code="200",http_route="/mcp",voltaic_outcome="success",voltaic_protocol="mcp"} | 10 | 313.5 | 31.35 | ms |
-| garrison_scheduler_claim_duration_seconds{result="empty"} | 164 | 230.9 | 1.41 | ms |
-| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="startup",tenant="ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1"} | 5 | 219.0 | 43.80 | ms |
-| garrison_http_request_duration_seconds{method="POST",route="/v1.0/api/tenants/{tenantId}/mandates",status_class="2xx",tenant="ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1"} | 5 | 212.0 | 42.40 | ms |
-| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="first_token",tenant="ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1"} | 5 | 178.0 | 35.60 | ms |
-| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="first_token_excl_delegation",tenant="ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1"} | 5 | 178.0 | 35.60 | ms |
+| garrison_http_request_duration_seconds{method="POST",route="/v1.0/api/node/lease",status_class="2xx",tenant="default"} | 4 | 42567.5 | 10641.86 | ms |
+| garrison_scheduler_lease_wait_duration_seconds{result="empty"} | 2 | 39997.5 | 19998.77 | ms |
+| garrison_scheduler_lease_wait_duration_seconds{result="assigned"} | 2 | 2508.8 | 1254.41 | ms |
+| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="total",tenant="ten_mwyf6j79_oE0dVEFfnZey1etk4RY"} | 5 | 2456.0 | 491.20 | ms |
+| garrison_keeper_tick_lag_duration_seconds{source="timer"} | 5 | 1677.5 | 335.51 | ms |
+| voltaic_server_session_duration_seconds{voltaic_protocol="mcp",voltaic_reason="deleted",voltaic_transport="http"} | 5 | 509.2 | 101.85 | ms |
+| garrison_outbound_duration_seconds{operation="post",result="2xx",service="mcp_internal"} | 15 | 492.5 | 32.83 | ms |
+| voltaic_http_server_request_duration_seconds{http_request_method="POST",http_response_status_code="200",http_route="/mcp",voltaic_outcome="success",voltaic_protocol="mcp"} | 10 | 470.7 | 47.07 | ms |
+| garrison_scheduler_claim_duration_seconds{result="empty"} | 162 | 412.1 | 2.54 | ms |
+| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="startup",tenant="ten_mwyf6j79_oE0dVEFfnZey1etk4RY"} | 5 | 402.0 | 80.40 | ms |
+| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="execution",tenant="ten_mwyf6j79_oE0dVEFfnZey1etk4RY"} | 5 | 394.0 | 78.80 | ms |
+| garrison_db_operation_duration_seconds{operation="select",provider="sqlite",result="ok",table="none"} | 164 | 348.2 | 2.12 | ms |
+| garrison_run_stage_duration_seconds{agent="keeper-bench",deployment="keeper-bench-fake",harness="Generic",model="fake-model",stage="queue",tenant="ten_mwyf6j79_oE0dVEFfnZey1etk4RY"} | 5 | 294.0 | 58.80 | ms |
+| voltaic_rpc_server_duration_seconds{rpc_method="tools/list",voltaic_outcome="success",voltaic_protocol="mcp",voltaic_transport="http"} | 5 | 254.5 | 50.89 | ms |
 
 ## Published and prior baselines
 
@@ -99,7 +99,7 @@ From /metrics before and after; server-wide, so concurrent traffic and several r
 
 ## Notes
 
-- Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 100, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, and mandates beyond that rate times the interval build a backlog.
+- Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 2500, Autonomy.SchedulerSweepConcurrency 32, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, SchedulerSweepConcurrency at a time, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, less when the database cannot start that many runs in the time; mandates beyond that rate times the interval build a backlog.
 - tickLagMs covers every handled wake (started or skipped) plus censored pending wakes; startedTickLagMs covers only wakes that started a run; firstWakeLagMs is each mandate's first wake, due at creation.
 - Wake times are server timestamps; the window end is the harness clock, which is the same clock on the local stack.
 

@@ -622,6 +622,10 @@ namespace Garrison.Server.Runtime
 
         private async Task<MessageDelivery?> ClaimAsync(string tenantId, string agentId, int max, bool render, CancellationToken token)
         {
+            // Most ticks find no mail. Looking first is a read, so an empty inbox never waits for a write (on Sqlite every
+            // UPDATE takes the database's one write lock, even when it matches nothing); the claim below stays the
+            // compare-and-set that decides which run gets the messages.
+            if (await QueuedCountAsync(tenantId, agentId, token).ConfigureAwait(false) < 1) return null;
             string claim = "dlv_" + Guid.NewGuid().ToString("N");
             List<AgentMessage> messages = await _Database.AgentMessages.ClaimQueuedAsync(tenantId, agentId, claim, max, Now(), token).ConfigureAwait(false);
             if (messages.Count == 0) return null;

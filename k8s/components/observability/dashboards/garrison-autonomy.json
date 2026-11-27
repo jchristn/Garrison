@@ -539,7 +539,7 @@
     {
       "type": "timeseries",
       "title": "Tick start lag",
-      "description": "Time from a wake coming due to the scheduler starting its tick (p50, p95, p99). Rising lag means the sweep is behind: raise Autonomy.MaxDueClaimsPerSweep or lower Autonomy.SchedulerSweepSeconds.",
+      "description": "Time from a wake coming due to the scheduler starting its tick (p50, p95, p99). Rising lag means the sweep is behind: raise Autonomy.MaxDueClaimsPerSweep when sweeps hit the claim limit, raise Autonomy.SchedulerSweepConcurrency when each sweep takes long, or lower Autonomy.SchedulerSweepSeconds.",
       "datasource": {
         "type": "prometheus",
         "uid": "garrison-prometheus"

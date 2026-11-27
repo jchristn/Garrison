@@ -6,15 +6,15 @@
   "deterministic": true,
   "incomplete": false,
   "provenance": {
-    "startedUtc": "2026-11-27T01:12:44.569186Z",
-    "finishedUtc": "2026-11-27T01:13:04.791717Z",
+    "startedUtc": "2026-11-27T03:26:33.898274Z",
+    "finishedUtc": "2026-11-27T03:26:54.2002Z",
     "sutUrl": "http://127.0.0.1 (bench stack)",
     "sutVersion": "0.3.0",
     "stack": "local",
-    "productCommit": "71ea9abc40b475c984a1a4c252638b25d255a9f1",
-    "productDirtyFiles": 0,
+    "productCommit": "5344feead4a8754faf155bd8cbdd6d2acf309bc6-dirty",
+    "productDirtyFiles": 29,
     "harnessVersion": "1.0.0",
-    "harnessCommit": "78891d4e22928d95b3bf7b221d0a10b5f541b91b",
+    "harnessCommit": "1c55d9b8a6bafc0d8509fa24056dade0a005e078-dirty",
     "machineName": "scrubbed",
     "os": "macOS 26.6.0 (Arm64)",
     "cpu": "Apple M5 Max (Arm64)",
@@ -223,31 +223,31 @@
       "succeeded": 5,
       "failed": 0,
       "censored": 0,
-      "windowSeconds": 20.048971,
-      "throughput": 0.24938935768823245,
+      "windowSeconds": 20.057485,
+      "throughput": 0.24928349690900928,
       "timings": {
         "createLatencyMs": {
           "count": 5,
-          "mean": 42.87482,
-          "stdDev": 0.04041419305145205,
-          "min": 42.8525,
-          "p50": 42.8556,
-          "p90": 42.9463,
-          "p95": 42.9463,
-          "p99": 42.9463,
-          "max": 42.9463,
+          "mean": 49.95176,
+          "stdDev": 0.025802964945912013,
+          "min": 49.9236,
+          "p50": 49.9484,
+          "p90": 49.9808,
+          "p95": 49.9808,
+          "p99": 49.9808,
+          "max": 49.9808,
           "p50Ci": {
-            "estimate": 42.8556,
-            "lower": 42.8525,
-            "upper": 42.9463,
+            "estimate": 49.9484,
+            "lower": 49.9236,
+            "upper": 49.9808,
             "level": 0.95,
             "n": 5,
             "indicative": true
           },
           "p95Ci": {
-            "estimate": 42.9463,
-            "lower": 42.8556,
-            "upper": 42.9463,
+            "estimate": 49.9808,
+            "lower": 49.9484,
+            "upper": 49.9808,
             "level": 0.95,
             "n": 5,
             "indicative": true
@@ -255,26 +255,26 @@
         },
         "firstWakeLagMs": {
           "count": 5,
-          "mean": 339.47259999999994,
-          "stdDev": 0.2280752068945598,
-          "min": 339.177,
-          "p50": 339.475,
-          "p90": 339.716,
-          "p95": 339.716,
-          "p99": 339.716,
-          "max": 339.716,
+          "mean": 335.50726,
+          "stdDev": 0.13337542127394206,
+          "min": 335.3177,
+          "p50": 335.5793,
+          "p90": 335.6234,
+          "p95": 335.6234,
+          "p99": 335.6234,
+          "max": 335.6234,
           "p50Ci": {
-            "estimate": 339.475,
-            "lower": 339.177,
-            "upper": 339.716,
+            "estimate": 335.5793,
+            "lower": 335.3177,
+            "upper": 335.6234,
             "level": 0.95,
             "n": 5,
             "indicative": true
           },
           "p95Ci": {
-            "estimate": 339.716,
-            "lower": 339.475,
-            "upper": 339.716,
+            "estimate": 335.6234,
+            "lower": 335.5793,
+            "upper": 335.6234,
             "level": 0.95,
             "n": 5,
             "indicative": true
@@ -282,26 +282,26 @@
         },
         "startedTickLagMs": {
           "count": 5,
-          "mean": 339.47259999999994,
-          "stdDev": 0.2280752068945598,
-          "min": 339.177,
-          "p50": 339.475,
-          "p90": 339.716,
-          "p95": 339.716,
-          "p99": 339.716,
-          "max": 339.716,
+          "mean": 335.50726,
+          "stdDev": 0.13337542127394206,
+          "min": 335.3177,
+          "p50": 335.5793,
+          "p90": 335.6234,
+          "p95": 335.6234,
+          "p99": 335.6234,
+          "max": 335.6234,
           "p50Ci": {
-            "estimate": 339.475,
-            "lower": 339.177,
-            "upper": 339.716,
+            "estimate": 335.5793,
+            "lower": 335.3177,
+            "upper": 335.6234,
             "level": 0.95,
             "n": 5,
             "indicative": true
           },
           "p95Ci": {
-            "estimate": 339.716,
-            "lower": 339.475,
-            "upper": 339.716,
+            "estimate": 335.6234,
+            "lower": 335.5793,
+            "upper": 335.6234,
             "level": 0.95,
             "n": 5,
             "indicative": true
@@ -309,26 +309,26 @@
         },
         "tickLagMs": {
           "count": 5,
-          "mean": 339.47259999999994,
-          "stdDev": 0.2280752068945598,
-          "min": 339.177,
-          "p50": 339.475,
-          "p90": 339.716,
-          "p95": 339.716,
-          "p99": 339.716,
-          "max": 339.716,
+          "mean": 335.50726,
+          "stdDev": 0.13337542127394206,
+          "min": 335.3177,
+          "p50": 335.5793,
+          "p90": 335.6234,
+          "p95": 335.6234,
+          "p99": 335.6234,
+          "max": 335.6234,
           "p50Ci": {
-            "estimate": 339.475,
-            "lower": 339.177,
-            "upper": 339.716,
+            "estimate": 335.5793,
+            "lower": 335.3177,
+            "upper": 335.6234,
             "level": 0.95,
             "n": 5,
             "indicative": true
           },
           "p95Ci": {
-            "estimate": 339.716,
-            "lower": 339.475,
-            "upper": 339.716,
+            "estimate": 335.6234,
+            "lower": 335.5793,
+            "upper": 335.6234,
             "level": 0.95,
             "n": 5,
             "indicative": true
@@ -359,170 +359,170 @@
     },
     {
       "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
-      "count": 5,
-      "total": 42418.47,
-      "mean": 8483.694,
+      "count": 4,
+      "total": 42567.45000000001,
+      "mean": 10641.862500000003,
       "unit": "ms"
     },
     {
       "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
       "count": 2,
-      "total": 39996.3488,
-      "mean": 19998.1744,
+      "total": 39997.533,
+      "mean": 19998.7665,
       "unit": "ms"
     },
     {
       "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"assigned\"}",
-      "count": 3,
-      "total": 2354.9754999999996,
-      "mean": 784.9918333333331,
+      "count": 2,
+      "total": 2508.8153,
+      "mean": 1254.40765,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
+      "count": 5,
+      "total": 2456,
+      "mean": 491.2,
       "unit": "ms"
     },
     {
       "series": "garrison_keeper_tick_lag_duration_seconds{source=\"timer\"}",
       "count": 5,
-      "total": 1697.363,
-      "mean": 339.4726,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
-      "count": 5,
-      "total": 1608,
-      "mean": 321.6,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"execution\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
-      "count": 5,
-      "total": 347.00000000000006,
-      "mean": 69.4,
+      "total": 1677.5363,
+      "mean": 335.50726,
       "unit": "ms"
     },
     {
       "series": "voltaic_server_session_duration_seconds{voltaic_protocol=\"mcp\",voltaic_reason=\"deleted\",voltaic_transport=\"http\"}",
       "count": 5,
-      "total": 346.355792,
-      "mean": 69.2711584,
+      "total": 509.23600000000005,
+      "mean": 101.84720000000002,
       "unit": "ms"
     },
     {
       "series": "garrison_outbound_duration_seconds{operation=\"post\",result=\"2xx\",service=\"mcp_internal\"}",
       "count": 15,
-      "total": 328.86339999999996,
-      "mean": 21.924226666666662,
+      "total": 492.49080000000004,
+      "mean": 32.83272,
       "unit": "ms"
     },
     {
       "series": "voltaic_http_server_request_duration_seconds{http_request_method=\"POST\",http_response_status_code=\"200\",http_route=\"/mcp\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\"}",
       "count": 10,
-      "total": 313.4817520000001,
-      "mean": 31.348175200000007,
+      "total": 470.732709,
+      "mean": 47.0732709,
       "unit": "ms"
     },
     {
       "series": "garrison_scheduler_claim_duration_seconds{result=\"empty\"}",
+      "count": 162,
+      "total": 412.0604000000002,
+      "mean": 2.543582716049384,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"startup\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
+      "count": 5,
+      "total": 402,
+      "mean": 80.4,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"execution\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
+      "count": 5,
+      "total": 394,
+      "mean": 78.8,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
       "count": 164,
-      "total": 230.9097,
-      "mean": 1.407985975609756,
+      "total": 348.19489999999985,
+      "mean": 2.1231396341463404,
       "unit": "ms"
     },
     {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"startup\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"queue\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
       "count": 5,
-      "total": 219,
-      "mean": 43.8,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/mandates\",status_class=\"2xx\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
-      "count": 5,
-      "total": 211.97999999999996,
-      "mean": 42.395999999999994,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
-      "count": 5,
-      "total": 178.00000000000003,
-      "mean": 35.60000000000001,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token_excl_delegation\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
-      "count": 5,
-      "total": 178,
-      "mean": 35.6,
+      "total": 294.00000000000006,
+      "mean": 58.80000000000001,
       "unit": "ms"
     },
     {
       "series": "voltaic_rpc_server_duration_seconds{rpc_method=\"tools/list\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\",voltaic_transport=\"http\"}",
       "count": 5,
-      "total": 171.601792,
-      "mean": 34.320358399999996,
+      "total": 254.475,
+      "mean": 50.894999999999996,
       "unit": "ms"
     },
     {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"queue\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/mandates\",status_class=\"2xx\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
       "count": 5,
-      "total": 168,
-      "mean": 33.6,
+      "total": 247.64000000000001,
+      "mean": 49.528000000000006,
       "unit": "ms"
     },
     {
-      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
-      "count": 170,
-      "total": 149.40619999999998,
-      "mean": 0.8788599999999999,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"streaming\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
       "count": 5,
-      "total": 135.99999999999997,
-      "mean": 27.199999999999996,
+      "total": 217,
+      "mean": 43.4,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token_excl_delegation\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
+      "count": 5,
+      "total": 217,
+      "mean": 43.4,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_application_operation_duration_seconds{component=\"scheduler\",operation=\"candidate_query\",result=\"ok\"}",
+      "count": 82,
+      "total": 188.82279999999997,
+      "mean": 2.302717073170731,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_application_operation_duration_seconds{component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\"}",
+      "count": 82,
+      "total": 162.48369999999994,
+      "mean": 1.981508536585365,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
+      "count": 2,
+      "total": 155.6453,
+      "mean": 77.82265,
       "unit": "ms"
     },
     {
       "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/runs/{runId}/complete\",status_class=\"2xx\",tenant=\"default\"}",
       "count": 5,
-      "total": 110.15999999999998,
-      "mean": 22.031999999999996,
+      "total": 130.36,
+      "mean": 26.072000000000003,
       "unit": "ms"
     },
     {
-      "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
-      "count": 3,
-      "total": 89.8355,
-      "mean": 29.945166666666665,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_application_operation_duration_seconds{component=\"scheduler\",operation=\"candidate_query\",result=\"ok\"}",
-      "count": 85,
-      "total": 84.3939,
-      "mean": 0.9928694117647059,
-      "unit": "ms"
-    },
-    {
-      "series": "garrison_application_operation_duration_seconds{component=\"run\",operation=\"complete\",result=\"ok\"}",
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"streaming\",tenant=\"ten_mwyf6j79_oE0dVEFfnZey1etk4RY\"}",
       "count": 5,
-      "total": 77.13210000000001,
-      "mean": 15.426420000000002,
+      "total": 127,
+      "mean": 25.4,
       "unit": "ms"
     },
     {
-      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"none\",stage=\"compile\",tenant=\"ten_mwyaefq8_bHl9GwFmxJ1fx8IqCK1\"}",
+      "series": "garrison_application_operation_duration_seconds{component=\"run\",operation=\"admission\",result=\"ok\"}",
       "count": 5,
-      "total": 72.44670000000002,
-      "mean": 14.489340000000004,
+      "total": 114.1665,
+      "mean": 22.8333,
       "unit": "ms"
     },
     {
-      "series": "garrison_application_operation_duration_seconds{component=\"scheduler\",operation=\"delegated_candidate_query\",result=\"ok\"}",
-      "count": 85,
-      "total": 72.3983,
-      "mean": 0.851744705882353,
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+      "count": 213,
+      "total": 111.62270000000005,
+      "mean": 0.5240502347417842,
       "unit": "ms"
     }
   ],
@@ -535,7 +535,7 @@
     }
   ],
   "notes": [
-    "Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 100, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, and mandates beyond that rate times the interval build a backlog.",
+    "Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 2500, Autonomy.SchedulerSweepConcurrency 32, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, SchedulerSweepConcurrency at a time, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, less when the database cannot start that many runs in the time; mandates beyond that rate times the interval build a backlog.",
     "tickLagMs covers every handled wake (started or skipped) plus censored pending wakes; startedTickLagMs covers only wakes that started a run; firstWakeLagMs is each mandate's first wake, due at creation.",
     "Wake times are server timestamps; the window end is the harness clock, which is the same clock on the local stack."
   ]

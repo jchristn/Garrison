@@ -582,6 +582,7 @@ namespace Garrison.Server.Modules
                 _KeeperOptions.MaxIntervalSeconds = cluster.GetInt("Autonomy.MaxIntervalSeconds");
                 _KeeperOptions.DefaultJitterPercent = cluster.GetInt("Autonomy.DefaultJitterPercent");
                 _KeeperOptions.MaxDueClaimsPerSweep = cluster.GetInt("Autonomy.MaxDueClaimsPerSweep");
+                _KeeperOptions.SchedulerSweepConcurrency = cluster.GetInt("Autonomy.SchedulerSweepConcurrency");
                 _KeeperOptions.TickHistoryRetentionDays = cluster.GetInt("Autonomy.TickHistoryRetentionDays");
                 _KeeperOptions.TickInputRecentTicks = cluster.GetInt("Autonomy.TickInputRecentTicks");
             }

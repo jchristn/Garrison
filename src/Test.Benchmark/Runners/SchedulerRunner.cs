@@ -74,7 +74,7 @@ namespace Garrison.Benchmark.Runners
 
             PrometheusSnapshot after = PrometheusSnapshot.Parse(await context.Client.GetMetricsTextAsync(token).ConfigureAwait(false));
             report.Stages = after.Since(before, 25);
-            report.Notes.Add("Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 100, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, and mandates beyond that rate times the interval build a backlog.");
+            report.Notes.Add("Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 2500, Autonomy.SchedulerSweepConcurrency 32, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, SchedulerSweepConcurrency at a time, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, less when the database cannot start that many runs in the time; mandates beyond that rate times the interval build a backlog.");
             report.Notes.Add("tickLagMs covers every handled wake (started or skipped) plus censored pending wakes; startedTickLagMs covers only wakes that started a run; firstWakeLagMs is each mandate's first wake, due at creation.");
             report.Notes.Add("Wake times are server timestamps; the window end is the harness clock, which is the same clock on the local stack.");
             await RunnerSupport.FinishAsync(context, report, AutonomyWorkload.DatasetName, workload.Sha256, workload.Path, startedUtc, null, token).ConfigureAwait(false);

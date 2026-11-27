@@ -1,0 +1,77 @@
+name: Benchmark gate
+
+# Manual only: the benchmark gate is not run on pushes or pull requests (CI policy, docs/CI.md). Start it from the
+# Actions tab or with `gh workflow run benchmark-gate.yaml`. See benchmarks/README.md, "CI gate".
+on:
+  workflow_dispatch:
+    inputs:
+      database:
+        description: Database the local stack's server runs on
+        type: choice
+        options:
+          - sqlite
+          - postgresql
+        default: sqlite
+      jobs:
+        description: Gate jobs to run, comma-separated as <kind>-<dataset> (empty runs all of them)
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: garrison
+        ports:
+          - 55432:5432
+        options: >-
+          --shm-size 256m
+          --health-cmd 'pg_isready -U postgres -d postgres'
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+      LOCAL_DB: ${{ inputs.database }}
+      LOCAL_PG_HOST: 127.0.0.1
+      LOCAL_PG_PORT: '55432'
+      LOCAL_PG_USER: postgres
+      LOCAL_PG_PASSWORD: garrison
+      GATE_JOBS: ${{ inputs.jobs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Benchmark gate
+        run: |
+          if [ -n "${GATE_JOBS}" ]; then
+            bash benchmarks/ci-gate.sh --jobs "${GATE_JOBS}"
+          else
+            bash benchmarks/ci-gate.sh
+          fi
+      - name: Upload gate reports and stack logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-gate-${{ inputs.database }}
+          path: |
+            benchmarks/results/
+            benchmarks/.run/local/*.log
+            benchmarks/.run/build-*.log
+          if-no-files-found: warn
+          retention-days: 14

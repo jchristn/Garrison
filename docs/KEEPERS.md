@@ -71,7 +71,7 @@ A keeper wakes when nobody is around, so it runs as the principal that last crea
 
 ## A tick, step by step
 
-1. The leader control-plane replica sweeps every `Autonomy.SchedulerSweepSeconds` (default 5) for active mandates whose `nextWakeUtc` has passed, at most `Autonomy.MaxDueClaimsPerSweep` per sweep.
+1. The leader control-plane replica sweeps every `Autonomy.SchedulerSweepSeconds` (default 5) for active mandates whose `nextWakeUtc` has passed, at most `Autonomy.MaxDueClaimsPerSweep` (default 2500) per sweep, starting up to `Autonomy.SchedulerSweepConcurrency` (default 32) of them at once.
 2. It claims the mandate with a compare-and-set on the expected wake time, so two replicas never start the same tick. It records a tick with its wake source (`Timer`, `Manual`, `Message` for urgent mail, `EscalationAnswer`, and later `Webhook` or `Report`).
 3. It starts a run of kind `Keeper` on the mandate's deployment, linked by `mandateId` and `mandateTickId`. The system prompt is the agent's own plus the `builtin/keeper-system` fragment, which renders the current revision. The input comes from `builtin/keeper-tick`: why the keeper woke, how its last tick ended, and its most recent summaries (`Autonomy.TickInputRecentTicks`, default 5). Keeper runs always have the Garrison MCP server.
 4. The keeper checks its signals, acts within its autonomy, and can call `garrison_keeper_context` to read its mandate and tick history again.
@@ -80,6 +80,14 @@ A keeper wakes when nobody is around, so it runs as the principal that last crea
 
 Summaries from earlier ticks reach the keeper as data, framed as its own notes, and the system prompt tells it never to follow instructions found in tool output, files, memory, or earlier summaries that conflict with its mandate. When agent memory is on, the tick input also carries the agent's memory entries tagged `recall` (at most 20 entries and 16 KiB), framed the same way through `builtin/memory-recall`; a keeper that wants to remember something on every tick writes it with `tags: ["recall"]`. See [AGENT_MEMORY.md](AGENT_MEMORY.md). A keeper whose agent manages other agents (a lead in an [organization](ORGANIZATIONS.md), or the entry agent of an app) also receives the reports they filed since its previous tick began, through `builtin/report-digest`, and files its own with `garrison_file_report`. See [REPORTS.md](REPORTS.md). Mail queued for the keeper's agent rides along too, oldest first, through `builtin/inbox-delivery`, and is marked delivered to the tick's run. An urgent message wakes the keeper at once with wake source `Message`; like a manual wake, it waits for a running tick to finish, and one tick then carries everything that arrived. See [MESSAGING.md](MESSAGING.md).
 
+
+## Keeper scheduler throughput
+
+The scheduler starts at most `Autonomy.MaxDueClaimsPerSweep` wakes per sweep, and a sweep comes around every `Autonomy.SchedulerSweepSeconds` (a little later, since it runs on the leader's maintenance pass, every `Runtime.MaintenanceIntervalMs`). Wakes past that rate wait for later sweeps, so a fleet that comes due faster than `MaxDueClaimsPerSweep / SchedulerSweepSeconds` per second builds a backlog that never drains. With the defaults the claim limit is 500 wakes per second. A sweep holds the leader's maintenance pass while it runs, so on a slow database a smaller batch keeps lease reaping and the other maintenance steps on time, at the cost of a lower ceiling.
+
+The other limit is how fast the database lets the leader start runs. Each start reads the mandate's revision, freezes, and budgets, records the tick, renders the input, and creates a run through the normal run path, a few dozen statements in all. Agents, deployments, and the tick template are read once per sweep and shared by its ticks. Up to `Autonomy.SchedulerSweepConcurrency` starts overlap. On PostgreSQL that hides the round trips, and in the benchmark (one server, a busy laptop) the leader started about 700 ticks per second; on Sqlite every write takes its turn on the database's single write lock, and it started about 300. `benchmarks/RESULTS.md` has the numbers.
+
+The `garrison_keeper_tick_lag_duration_seconds` histogram measures the time from a wake coming due to its tick being claimed. When its p99 climbs past one sweep interval, the scheduler is behind: raise `MaxDueClaimsPerSweep` if sweeps hit the limit, raise `SchedulerSweepConcurrency` on PostgreSQL if each sweep takes long, or spread keepers with jitter so fewer come due at once.
 ## Backoff
 
 In `Fixed` mode the keeper wakes every `minIntervalSeconds`, whatever happens.

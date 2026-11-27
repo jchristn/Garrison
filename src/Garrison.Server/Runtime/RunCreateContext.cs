@@ -159,6 +159,14 @@ namespace Garrison.Server.Runtime
         public string? ShadowTrialId { get; set; } = null;
 
         /// <summary>
+        /// The deployment named by <see cref="DeploymentId"/>, already read by the caller, or null (the default) to read
+        /// it. The keeper scheduler reads a deployment once per sweep and passes it to every tick it starts on it. It is
+        /// used only when its identifier, tenant, and agent match the request; it is checked like a deployment read here
+        /// (it must be active) and is not changed.
+        /// </summary>
+        public Deployment? Deployment { get; set; } = null;
+
+        /// <summary>
         /// Identifier to give the new run, or null (the default) to generate one. The delegation wait handshake (P12.38)
         /// records the parent's wait on this identifier before the run exists. An idempotent retry still returns the
         /// existing run with its own identifier.

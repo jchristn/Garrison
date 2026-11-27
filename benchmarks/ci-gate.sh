@@ -12,7 +12,7 @@ trap '"${BENCH_DIR}/stop-bench-server.sh"' EXIT
 NO_BUILD=1 build_harness
 code=0
 harness ci-gate --url "${LOCAL_URL}" --stack local --fake-harness "${FAKE_DLL}" \
-  --stack-details "local processes from the working tree: 1 server (Sqlite), ${LOCAL_ALPHA_WORKERS:-1} alpha + ${LOCAL_BETA_WORKERS:-1} beta workers x ${WORKER_SLOTS:-4} slots" "$@" || code=$?
+  --stack-details "$(local_stack_details)" "$@" || code=$?
 if [ "${code}" != "0" ]; then
   log "ci-gate exited ${code}; server and worker logs are in ${LOCAL_DIR}"
   tail -20 "${LOCAL_DIR}/server.log" || true

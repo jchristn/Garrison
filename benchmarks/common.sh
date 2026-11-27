@@ -59,6 +59,15 @@ FAKE_DLL="${BUILD_DIR}/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-ha
 # Development mode: benchmark servers use the public default keys and credentials (SR-08).
 export GARRISON_ALLOW_INSECURE_DEFAULTS=true
 
+# The local stack's database: sqlite (default) or postgresql (LOCAL_DB, see start-bench-server.sh).
+local_db() { printf '%s' "${LOCAL_DB:-sqlite}" | tr '[:upper:]' '[:lower:]'; }
+# The local stack's description for reports.
+local_stack_details() {
+  local db="Sqlite"
+  if [ "$(local_db)" = "postgresql" ]; then db="PostgreSQL"; fi
+  printf 'local processes from the working tree: 1 server (%s), %s alpha + %s beta workers x %s slots' "${db}" "${LOCAL_ALPHA_WORKERS:-1}" "${LOCAL_BETA_WORKERS:-1}" "${WORKER_SLOTS:-4}"
+}
+
 log() { printf '[bench %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 fail() { printf '[bench] error: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || fail "$1 is required but was not found on PATH"; }
@@ -90,7 +99,7 @@ harness() { dotnet "${HARNESS_DLL}" "$@"; }
 stack_args() {
   if [ "${BENCH_STACK:-k3d}" = "local" ]; then
     printf '%s\n' --url "${LOCAL_URL}" --stack local --fake-harness "${FAKE_DLL}" \
-      --stack-details "local processes from the working tree: 1 server (Sqlite), ${LOCAL_ALPHA_WORKERS:-1} alpha + ${LOCAL_BETA_WORKERS:-1} beta workers x ${WORKER_SLOTS:-4} slots"
+      --stack-details "$(local_stack_details)"
   else
     printf '%s\n' --url "${K3D_URL}" --stack k3d --kubeconfig "${KUBECONFIG_FILE}" --context "${CONTEXT}" --fake-harness "${FAKE_DLL}" \
       --stack-details "k3d ${CLUSTER_NAME} (rancher/k3s:v1.31.4-k3s1, 3 GB node): $(kcn get deployment garrison-server -o jsonpath='{.spec.replicas}' 2>/dev/null || echo '?') server(s) on PostgreSQL 17, $(kcn get statefulset garrison-worker -o jsonpath='{.spec.replicas}' 2>/dev/null || echo '?') alpha + $(kcn get statefulset garrison-worker-beta -o jsonpath='{.spec.replicas}' 2>/dev/null || echo '?') beta workers x 4 slots"

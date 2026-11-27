@@ -20,6 +20,7 @@ namespace Test.Shared.Suites
     using Garrison.ProviderHarness;
     using Garrison.Server.Protocols;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using Test.Shared.Infrastructure;
     using Touchstone.Core;
 
@@ -44,6 +45,7 @@ namespace Test.Shared.Suites
             List<TestCaseDescriptor> unit = new List<TestCaseDescriptor>();
             unit.Add(new TestCaseDescriptor("keeper-unit", "intervals", "Interval math: ten quiet ticks reach the maximum, Acted and Unreported keep, Attention resets, Fixed mode, requested wakes clamped, and jitter bounds", IntervalsAsync));
             unit.Add(new TestCaseDescriptor("keeper-unit", "models", "Revision clamps report ValueClamped warnings and enums round-trip by name", ModelsAsync));
+            unit.Add(new TestCaseDescriptor("keeper-unit", "sweep-options", "Scheduler sweep options: defaults (5 s, 2500 claims, 32 at a time) and clamps at their minimums and maximums", SweepOptionsAsync));
             suites.Add(new TestSuiteDescriptor("keeper-unit", "Keepers (unit)", unit));
 
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
@@ -53,6 +55,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "crud", "Mandate CRUD by id and name, revisions and publish, pause, resume, wake, validation codes, settings bounds, RBAC and the agent check, reference guards, forced delete, and tenant isolation (" + provider + ")", ct => CrudAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "ticks", "Scripted keeper ticks: Quiet reported once (first report wins), backoff, summaries in the next input, the keeper system fragment and template versions, runs filtered by mandate, and Unreported runs (" + provider + ")", ct => TicksAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "single-flight", "A timer wake during a tick is Skipped and deferred, a manual wake waits for the tick, and an interrupted claim is failed and freed (" + provider + ")", ct => SingleFlightAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "sweep-settings", "Autonomy.SchedulerSweepSeconds, MaxDueClaimsPerSweep, and SchedulerSweepConcurrency: registered defaults and bounds, out-of-range values refused, in-range values applied live, a sweep one at a time and a sweep 16 at a time each start one tick per due mandate, and the claim batch limits a sweep (" + provider + ")", ct => SweepSettingsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "replicas", "Three replicas sweeping 50 due mandates at once start exactly 50 ticks (" + provider + ")", ct => ReplicasAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifest kind Mandate: dry run, apply, unchanged re-apply, a changed revision publishes the next one, paused, agent immutability, export, and a studio draft with a mandate item validates (" + provider + ")", ct => ManifestsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "A mandate:{id} subscriber receives tick.started when a tick's run starts and tick.completed with the outcome and next wake when it ends (" + provider + ")", ct => ChannelAsync(provider, ct)));
@@ -589,6 +592,113 @@ spec:
                 MandateTick done = await WaitTickAsync(host, manual.Id, token).ConfigureAwait(false);
                 Assert.Equal(TickOutcomeEnum.Unreported, done.Outcome ?? TickOutcomeEnum.Failed, "The manual tick ran");
             }
+        }
+
+        private static Task SweepOptionsAsync(CancellationToken token)
+        {
+            KeeperOptions options = new KeeperOptions();
+            Assert.True(options.SchedulerSweepSeconds == 5 && options.MaxDueClaimsPerSweep == 2500 && options.SchedulerSweepConcurrency == 32, "Defaults: 5 s, 2500 claims, 32 at a time");
+            options.SchedulerSweepSeconds = 0;
+            options.MaxDueClaimsPerSweep = 0;
+            options.SchedulerSweepConcurrency = 0;
+            Assert.True(options.SchedulerSweepSeconds == 1 && options.MaxDueClaimsPerSweep == 1 && options.SchedulerSweepConcurrency == 1, "Values below the minimums clamp to 1");
+            options.SchedulerSweepSeconds = 61;
+            options.MaxDueClaimsPerSweep = 10001;
+            options.SchedulerSweepConcurrency = 65;
+            Assert.True(options.SchedulerSweepSeconds == 60 && options.MaxDueClaimsPerSweep == 10000 && options.SchedulerSweepConcurrency == 64, "Values above the maximums clamp to 60, 10000, and 64");
+            return Task.CompletedTask;
+        }
+
+        private static async Task SweepSettingsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await ClusterAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                KeeperScheduler scheduler = host.Server.Context.Get<KeeperScheduler>();
+                ClusterSettingsService settings = host.Server.Context.Get<ClusterSettingsService>();
+                string[] keys = new[] { "Autonomy.SchedulerSweepSeconds", "Autonomy.MaxDueClaimsPerSweep", "Autonomy.SchedulerSweepConcurrency" };
+                string[] defaults = new[] { "5", "2500", "32" };
+                long[] minimums = new long[] { 1, 1, 1 };
+                long[] maximums = new long[] { 60, 10000, 64 };
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    ClusterSettingDefinition definition = Assert.NotNull(settings.Definitions.FirstOrDefault(d => d.Key == keys[i]), keys[i] + " is registered");
+                    Assert.True(definition.DefaultValue == defaults[i] && definition.Minimum == minimums[i] && definition.Maximum == maximums[i], keys[i] + " default and bounds: " + Serializer.Serialize(definition));
+                    foreach (long outside in new[] { minimums[i] - 1, maximums[i] + 1 })
+                    {
+                        bool refused = false;
+                        try
+                        {
+                            await settings.SetAsync(keys[i], outside.ToString(System.Globalization.CultureInfo.InvariantCulture), "test", token).ConfigureAwait(false);
+                        }
+                        catch (Garrison.Core.Services.ValidationException)
+                        {
+                            refused = true;
+                        }
+                        Assert.True(refused, keys[i] + " refuses " + outside);
+                    }
+                }
+                Assert.True(scheduler.Options.SchedulerSweepSeconds == 5 && scheduler.Options.MaxDueClaimsPerSweep == 2500 && scheduler.Options.SchedulerSweepConcurrency == 32, "Refused values leave the defaults in place");
+
+                Agent agent = await cluster.CreateAgentAsync("sweep-keeper", "builtin/fake", null, token).ConfigureAwait(false);
+                int round = 0;
+                foreach (string concurrency in new[] { "1", "16" })
+                {
+                    round++;
+                    await settings.SetAsync("Autonomy.SchedulerSweepConcurrency", concurrency, "test", token).ConfigureAwait(false);
+                    Assert.Equal(Int32.Parse(concurrency, System.Globalization.CultureInfo.InvariantCulture), scheduler.Options.SchedulerSweepConcurrency, "SchedulerSweepConcurrency applies live");
+                    List<string> ids = new List<string>();
+                    for (int i = 0; i < 6; i++)
+                    {
+                        Mandate created = await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", Body("sweep-" + round + "-" + i, agent, Revision("Sweep keeper " + i + ".")), 201, token).ConfigureAwait(false);
+                        ids.Add(created.Id);
+                    }
+                    Assert.True(await scheduler.SweepAsync(DateTime.UtcNow.AddSeconds(2), token).ConfigureAwait(false), "The sweep starts ticks with concurrency " + concurrency);
+                    foreach (string id in ids)
+                    {
+                        List<MandateTick> ticks = await TicksOfAsync(host, id, token).ConfigureAwait(false);
+                        Assert.True(ticks.Count == 1 && ticks[0].RunId != null, "Mandate " + id + " has one tick with a run at concurrency " + concurrency + ": " + Serializer.Serialize(ticks));
+                    }
+                    await WaitIdleAsync(host, ids, token).ConfigureAwait(false);
+                }
+
+                // The claim batch bounds one sweep: with 2 per sweep, 5 due mandates need three sweeps.
+                await settings.SetAsync("Autonomy.MaxDueClaimsPerSweep", "2", "test", token).ConfigureAwait(false);
+                Assert.Equal(2, scheduler.Options.MaxDueClaimsPerSweep, "MaxDueClaimsPerSweep applies live");
+                List<string> batch = new List<string>();
+                for (int i = 0; i < 5; i++)
+                {
+                    Mandate created = await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", Body("batch-" + i, agent, Revision("Batch keeper " + i + ".")), 201, token).ConfigureAwait(false);
+                    batch.Add(created.Id);
+                }
+                DateTime at = DateTime.UtcNow.AddSeconds(2);
+                int[] expected = new[] { 2, 4, 5 };
+                for (int sweep = 0; sweep < expected.Length; sweep++)
+                {
+                    await scheduler.SweepAsync(at, token).ConfigureAwait(false);
+                    int ticked = 0;
+                    foreach (string id in batch) ticked += (await TicksOfAsync(host, id, token).ConfigureAwait(false)).Count;
+                    Assert.Equal(expected[sweep], ticked, "Ticks after sweep " + (sweep + 1) + " with MaxDueClaimsPerSweep 2");
+                }
+            }
+        }
+
+        private static async Task WaitIdleAsync(TestServerHost host, List<string> mandateIds, CancellationToken token)
+        {
+            // Wait for the ticks to finish so the next round's sweep sees only its own due mandates.
+            DateTime deadline = DateTime.UtcNow.AddSeconds(60);
+            while (DateTime.UtcNow < deadline)
+            {
+                bool busy = false;
+                foreach (string id in mandateIds)
+                {
+                    Mandate? mandate = await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, id, token).ConfigureAwait(false);
+                    if (mandate != null && !String.IsNullOrEmpty(mandate.ActiveTickId)) busy = true;
+                }
+                if (!busy) return;
+                await Task.Delay(200, token).ConfigureAwait(false);
+            }
+            throw new TimeoutException("The ticks of " + mandateIds.Count + " mandates did not finish within 60 seconds.");
         }
 
         private static async Task ReplicasAsync(DatabaseTypeEnum provider, CancellationToken token)

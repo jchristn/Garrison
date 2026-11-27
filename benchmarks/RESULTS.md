@@ -187,6 +187,35 @@ Lag counts every handled wake plus the censored ones at their lag so far, so the
 
 What it shows: a sweep runs about every 6 s (the 5 s `Autonomy.SchedulerSweepSeconds` plus the maintenance pass that hosts it) and claims at most `Autonomy.MaxDueClaimsPerSweep` (100) wakes, so the scheduler's ceiling is about 17 wakes per second on this stack. Below the ceiling, lag is the sweep phase: p50 about 3.5 s and p99 about 6 s. At 1000 mandates created together, the first wakes take 10 sweeps to drain (first-wake p95 64 s), and steady state (16.7 wakes per second) sits just under the ceiling, which is why 100 wakes were still pending at the window end. At 10000 mandates demand is about ten times the ceiling: 7800 mandates had not ticked once after two minutes, and the backlog grows without bound. A deployment with thousands of keepers on a 60 s interval needs a larger `MaxDueClaimsPerSweep` or a shorter sweep; the benchmark did not change either, so how far they stretch is not measured yet.
 
+### Keeper scheduler after BA-2 (labels `ba2-sqlite`, `ba2-postgresql`, 2026-11-27)
+
+The same command and stack, rerun on Sqlite and on PostgreSQL 17 (the `garrison-test-pg` container, through `LOCAL_DB=postgresql`), after the scheduler changes below. Server defaults throughout except where a row says otherwise. The machine was busier than in the first round (load average 30 to 60 on 18 logical processors from other agent sessions), so the numbers are again indicative. Reports are in `benchmarks/evidence/aa12/` (`*-ba2-*`).
+
+| Database | Mandates | Wakes handled | Censored | Tick lag p50 | p95 | p99 | First-wake lag p95 |
+|---|---|---|---|---|---|---|---|
+| Sqlite | 1 | 2 | 0 | 0.25 s | 5.8 s | 5.8 s | 0.25 s |
+| Sqlite | 100 | 200 | 0 | 0.50 s | 5.5 s | 5.8 s | 0.46 s |
+| Sqlite | 1000 | 2000 | 0 | 2.9 s | 5.9 s | 6.4 s | 5.6 s |
+| Sqlite | 10000, claims 1000 | 11087 | 71 | 23.5 s | 44.5 s | 50.5 s | 44.5 s |
+| Sqlite | 10000, claims 2500 (90 s window) | 10660 | 31 | 20.4 s | 31.8 s | 34.3 s | 31.8 s |
+| PostgreSQL | 1 | 2 | 0 | 0.26 s | 5.8 s | 5.8 s | 5.8 s |
+| PostgreSQL | 100 | 200 | 0 | 1.1 s | 5.6 s | 5.9 s | 1.2 s |
+| PostgreSQL | 1000 | 1576 | 57 | 3.1 s | 5.8 s | 6.3 s | 5.8 s |
+| PostgreSQL | 10000, claims 1000 | 10669 | 46 | 19.5 s | 47.6 s | 49.2 s | 47.7 s |
+| PostgreSQL | 10000, claims 2500 (90 s window) | 10388 | 33 | 11.2 s | 14.1 s | 14.6 s | 14.1 s |
+
+The four-level runs used `Autonomy.MaxDueClaimsPerSweep` 1000, the value first chosen; the two "claims 2500" rows repeat the 10000 level with the default that shipped. Levels up to 1000 never fill a 1000-wake batch, so the higher default does not change them. At every level every probe held: no tick failed, none overlapped, and every started tick had a run. On PostgreSQL at 1000 fewer second-round wakes fell inside the window because the next wake counts from when a tick's run finishes, and 1000 runs queue for the stack's 8 worker slots.
+
+What the profile found. The first round's ceiling was the claim limit, but raising it alone would not have helped much: a sweep started its wakes one at a time, about 10 ms each on Sqlite and over 100 ms each on PostgreSQL on this machine, so 1000 claims per sweep would have taken 10 s or more. Timing each step of a wake showed run creation as the biggest part (about 60%), then the agent and deployment reads (a deployment is a row plus 14 child tables), the inbox claim, and the tick and mandate writes. Every step is a database round trip, and none of them depends on another mandate's. The scheduler now:
+
+- starts up to `Autonomy.SchedulerSweepConcurrency` (new, default 32) wakes of a sweep at once; each still claims its mandate with its own compare-and-set, and the sweep still runs only on the leader;
+- reads each agent, deployment, and tenant tick template once per sweep instead of once per tick (`KeeperSweepCache`), and hands the deployment to `RunService` so the run path does not read it again;
+- looks for queued mail with a read before claiming it, so an empty inbox no longer takes Sqlite's write lock;
+- claims up to `Autonomy.MaxDueClaimsPerSweep` 2500 wakes per sweep (was 100), so the claim ceiling is about 500 wakes per second;
+- stamps each tick with the time it was claimed rather than the time the sweep began. Before this, every tick of a long sweep carried the sweep's start time, so the tick lag metric hid the time spent inside the sweep.
+
+The result: at 1000 mandates p99 tick lag fell from 63.9 s to 6.4 s on Sqlite and 6.3 s on PostgreSQL, the same as at 1 and 100 mandates. That is the floor set by the sweep period, about 6 s with the 5 s `Autonomy.SchedulerSweepSeconds` and the 2 s maintenance pass that hosts it. At 10000 mandates, all created within seconds and so due together, the first round used to leave 7800 mandates unticked after two minutes. Now every mandate ticks: the first-wake p99 is 34 s on Sqlite and 15 s on PostgreSQL, and the 46 to 71 censored wakes at the end are second-round wakes that came due seconds before the window closed. With claims at 1000 both databases drained the burst at exactly the claim ceiling, 200 wakes per second, so the limit was the batch, not the database. At 2500, PostgreSQL started about 700 ticks per second and Sqlite about 300, where the single write lock becomes the limit. A fleet whose wakes are spread over the interval (the default 10% jitter does that) needs only about 170 wakes per second for 10000 keepers on a 60 s interval, well under either.
+
 ### Messaging (`messaging`, 25 recipients with a keeper each, 500 normal and 75 urgent messages over 3 rounds)
 
 | Phase | Count | p50 | p95 | p99 | Throughput |
@@ -225,8 +254,8 @@ Every one of the 920 calls returned the right answer. Throughput is not reported
 ### Follow-ups
 
 - BA-1 (resolved): Voltaic keys a client by principal and address, and a run token's principal is its run, so runs on one node do not share a budget. The limit is now the `Mcp.ToolCallsPerSecond` setting (default 100, 0 to 1000000, 0 turns it off, applied at startup).
-- BA-2: measure the scheduler with `Autonomy.MaxDueClaimsPerSweep` raised (500, 1000) to see whether the ceiling moves with it or the database becomes the limit, and repeat the 10000 level on PostgreSQL.
-- The CI gate now runs the three autonomy commands at small sizes (`benchmarks/ci-gate.sh`), locally as before: automatic benchmark runs are still off in GitHub Actions under the CI policy.
+- BA-2 (resolved): the ceiling moved with the claim limit only after wakes inside a sweep ran in parallel; see "Keeper scheduler after BA-2" above. New setting `Autonomy.SchedulerSweepConcurrency` (default 32), `Autonomy.MaxDueClaimsPerSweep` default 2500 (was 100). p99 tick lag at 1000 mandates is 6.4 s on Sqlite and 6.3 s on PostgreSQL (was 63.9 s); at 10000 every mandate ticks within 34 s on Sqlite and 15 s on PostgreSQL (7800 never ticked before).
+- The CI gate now runs the three autonomy commands at small sizes (`benchmarks/ci-gate.sh`). Automatic benchmark runs are still off in GitHub Actions under the CI policy; the manual **Benchmark gate** workflow runs the gate on Sqlite or PostgreSQL and uploads the reports (`benchmarks/README.md`, "CI gate").
 
 ## Defects found by the benchmarks
 

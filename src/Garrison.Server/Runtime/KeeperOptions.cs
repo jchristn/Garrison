@@ -75,8 +75,10 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Most due mandates the leader claims in one sweep; the rest wait for the next sweep. Minimum 1, maximum 10000,
-        /// default 100. Cluster setting Autonomy.MaxDueClaimsPerSweep.
+        /// Most due mandates the leader claims in one sweep; the rest wait for the next sweep. Also bounds how many ticks
+        /// whose run ended one sweep finishes. Minimum 1, maximum 10000, default 2500. Together with
+        /// <see cref="SchedulerSweepSeconds"/> it caps the wake rate at about MaxDueClaimsPerSweep / SchedulerSweepSeconds
+        /// per second. Cluster setting Autonomy.MaxDueClaimsPerSweep.
         /// </summary>
         public int MaxDueClaimsPerSweep
         {
@@ -87,6 +89,24 @@ namespace Garrison.Server.Runtime
             set
             {
                 _MaxDueClaimsPerSweep = Math.Clamp(value, 1, 10000);
+            }
+        }
+
+        /// <summary>
+        /// How many due wakes (and ended ticks) one sweep handles at the same time. Each wake claims its mandate with a
+        /// compare-and-set and starts its run independently, so the order inside a sweep does not matter. 1 handles them
+        /// one after another. Higher values start a large batch sooner but hold that many database connections during
+        /// the sweep. Minimum 1, maximum 64, default 32. Cluster setting Autonomy.SchedulerSweepConcurrency.
+        /// </summary>
+        public int SchedulerSweepConcurrency
+        {
+            get
+            {
+                return _SchedulerSweepConcurrency;
+            }
+            set
+            {
+                _SchedulerSweepConcurrency = Math.Clamp(value, 1, 64);
             }
         }
 
@@ -130,7 +150,8 @@ namespace Garrison.Server.Runtime
         private int _MinIntervalSeconds = 60;
         private int _MaxIntervalSeconds = 604800;
         private int _DefaultJitterPercent = 10;
-        private int _MaxDueClaimsPerSweep = 100;
+        private int _MaxDueClaimsPerSweep = 2500;
+        private int _SchedulerSweepConcurrency = 32;
         private int _TickHistoryRetentionDays = 30;
         private int _TickInputRecentTicks = 5;
 

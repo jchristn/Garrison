@@ -2,6 +2,7 @@ namespace Garrison.Server.Runtime
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Globalization;
     using System.Linq;
     using System.Threading;
@@ -28,7 +29,9 @@ namespace Garrison.Server.Runtime
     /// <item>records a Skipped tick and moves the next wake by one interval when a timer wake comes due while the previous
     /// tick still runs (single-flight). A manual or message wake waits and starts as soon as that tick finishes.</item>
     /// </list>
-    /// Run completion also finishes the tick at once through <see cref="OnRunFinishedAsync"/>. Thread-safe.
+    /// Up to Autonomy.SchedulerSweepConcurrency mandates of a sweep are handled at the same time; each claim stays a
+    /// compare-and-set on its own mandate. Run completion also finishes the tick at once through
+    /// <see cref="OnRunFinishedAsync"/>. Thread-safe.
     /// </summary>
     public class KeeperScheduler
     {
@@ -214,18 +217,20 @@ namespace Garrison.Server.Runtime
                 changed = true;
             }
 
+            // Each mandate is finished or claimed with its own compare-and-set, so a batch can run in parallel
+            // (Autonomy.SchedulerSweepConcurrency) without changing what any one wake does.
             List<Mandate> active = await _Database.Mandates.ListWithActiveTickAsync(_Options.MaxDueClaimsPerSweep, token).ConfigureAwait(false);
-            foreach (Mandate mandate in active)
-            {
-                token.ThrowIfCancellationRequested();
-                if (await ReconcileAsync(mandate, nowUtc, token).ConfigureAwait(false)) changed = true;
-            }
+            // A wake late in a large batch is handled later than the sweep began; the sweep's clock moves on with it, so
+            // a tick's startedUtc (and the tick lag metric) is when the tick was claimed, not when the sweep started.
+            long started = Stopwatch.GetTimestamp();
+            if (await ForEachAsync(active, (mandate, ct) => ReconcileAsync(mandate, nowUtc + Stopwatch.GetElapsedTime(started), ct), token).ConfigureAwait(false)) changed = true;
 
             List<Mandate> due = await _Database.Mandates.ListDueAsync(nowUtc, _Options.MaxDueClaimsPerSweep, token).ConfigureAwait(false);
-            foreach (Mandate mandate in due)
+            if (due.Count > 0)
             {
-                token.ThrowIfCancellationRequested();
-                if (await WakeDueAsync(mandate, nowUtc, token).ConfigureAwait(false)) changed = true;
+                // Agents, deployments, and tick templates are read once per sweep for all of its ticks.
+                KeeperSweepCache cache = new KeeperSweepCache(_Database, _Templates);
+                if (await ForEachAsync(due, (mandate, ct) => WakeDueAsync(mandate, nowUtc + Stopwatch.GetElapsedTime(started), cache, ct), token).ConfigureAwait(false)) changed = true;
             }
 
             if ((nowUtc - _LastPruneUtc).TotalHours >= 1)
@@ -289,7 +294,33 @@ namespace Garrison.Server.Runtime
 
         #region Private-Methods
 
-        private async Task<bool> WakeDueAsync(Mandate mandate, DateTime nowUtc, CancellationToken token)
+        private async Task<bool> ForEachAsync(List<Mandate> mandates, Func<Mandate, CancellationToken, Task<bool>> work, CancellationToken token)
+        {
+            if (mandates.Count < 1) return false;
+            int concurrency = Math.Min(_Options.SchedulerSweepConcurrency, mandates.Count);
+            if (concurrency <= 1)
+            {
+                bool any = false;
+                foreach (Mandate mandate in mandates)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (await work(mandate, token).ConfigureAwait(false)) any = true;
+                }
+                return any;
+            }
+
+            int changed = 0;
+            ParallelOptions options = new ParallelOptions();
+            options.MaxDegreeOfParallelism = concurrency;
+            options.CancellationToken = token;
+            await Parallel.ForEachAsync(mandates, options, async (mandate, ct) =>
+            {
+                if (await work(mandate, ct).ConfigureAwait(false)) Interlocked.Exchange(ref changed, 1);
+            }).ConfigureAwait(false);
+            return Interlocked.CompareExchange(ref changed, 0, 0) == 1;
+        }
+
+        private async Task<bool> WakeDueAsync(Mandate mandate, DateTime nowUtc, KeeperSweepCache cache, CancellationToken token)
         {
             if (!mandate.NextWakeUtc.HasValue) return false;
             DateTime expected = mandate.NextWakeUtc.Value;
@@ -344,7 +375,7 @@ namespace Garrison.Server.Runtime
             await _Database.MandateTicks.CreateAsync(tick, token).ConfigureAwait(false);
             GarrisonMetrics.Observe(GarrisonMetricCatalog.KeeperTickLag, Math.Max(0, (nowUtc - expected).TotalSeconds), "source", Label(source));
             mandate.ActiveTickId = tick.Id;
-            await StartAsync(mandate, tick, nowUtc, token).ConfigureAwait(false);
+            await StartAsync(mandate, tick, nowUtc, cache, token).ConfigureAwait(false);
             return true;
         }
 
@@ -401,20 +432,20 @@ namespace Garrison.Server.Runtime
             return true;
         }
 
-        private async Task StartAsync(Mandate mandate, MandateTick tick, DateTime nowUtc, CancellationToken token)
+        private async Task StartAsync(Mandate mandate, MandateTick tick, DateTime nowUtc, KeeperSweepCache cache, CancellationToken token)
         {
             string? code = null;
             string? message = null;
             MessageDelivery? delivery = null;
             try
             {
-                Agent agent = await _Database.Agents.ReadAsync(mandate.TenantId, mandate.AgentId, token).ConfigureAwait(false)
+                Agent agent = await cache.AgentAsync(mandate.TenantId, mandate.AgentId, token).ConfigureAwait(false)
                     ?? throw new ConflictException("AgentNotFound", "Agent " + mandate.AgentId + " of mandate " + mandate.Name + " no longer exists.");
                 string? denied = await _RunAs.DeniedAsync(mandate.TenantId, mandate.RunAsType, mandate.RunAsId, mandate.RunAsName, agent.Id, "Mandate " + mandate.Name, token).ConfigureAwait(false);
                 if (denied != null) throw new ConflictException("RunAsNotAuthorized", denied);
                 if (String.IsNullOrEmpty(mandate.CurrentRevisionId)) throw new ConflictException("NoPublishedRevision", "Mandate " + mandate.Name + " has no published revision.");
 
-                PromptTemplate template = await _Templates.ResolveAsync(mandate.TenantId, KeeperTemplateResolver.TickTemplateName, PromptTemplateKindEnum.Task, token).ConfigureAwait(false);
+                PromptTemplate template = await cache.TickTemplateAsync(mandate.TenantId, token).ConfigureAwait(false);
                 string input;
                 try
                 {
@@ -504,6 +535,7 @@ namespace Garrison.Server.Runtime
                 create.TenantId = mandate.TenantId;
                 create.Agent = agent;
                 create.DeploymentId = mandate.DeploymentId;
+                create.Deployment = String.IsNullOrEmpty(mandate.DeploymentId) ? null : await cache.DeploymentAsync(mandate.TenantId, mandate.DeploymentId, token).ConfigureAwait(false);
                 create.Input = input;
                 create.InputContentType = "text/plain";
                 create.Kind = RunKindEnum.Keeper;

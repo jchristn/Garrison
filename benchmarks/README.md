@@ -40,7 +40,7 @@ The k3d and local stacks serve the regular rounds. A third, the scale stack, exi
 
 | | k3d stack (`stack-up.sh`) | local stack (`start-bench-server.sh`) |
 |---|---|---|
-| What runs | K3S v1.31.4 in Docker (k3d), the shipped Kustomize base with in-cluster PostgreSQL 17, 1 server, 2 workers on lane `alpha` and 1 on lane `beta`, 4 slots each | `Garrison.Server` (Release, Sqlite) and worker processes (1 alpha, 1 beta, 4 slots each) from the working tree |
+| What runs | K3S v1.31.4 in Docker (k3d), the shipped Kustomize base with in-cluster PostgreSQL 17, 1 server, 2 workers on lane `alpha` and 1 on lane `beta`, 4 slots each | `Garrison.Server` (Release, Sqlite, or PostgreSQL with `LOCAL_DB=postgresql`) and worker processes (1 alpha, 1 beta, 4 slots each) from the working tree |
 | Images | Built from the working tree as `jchristn77/garrison-{server,worker}:bench-local`; `postgres:17`, `busybox:1.36`, `curlimages/curl:8.10.1` as the base pins them | None |
 | URL | `http://127.0.0.1:37870` (MCP 37871, Kubernetes API 37443) | `http://127.0.0.1:37800` (MCP 37801, Prometheus 37464, worker health 37811 and up, worker metrics 37821 and up) |
 | Use it for | Rounds: everything, including scale-out and resilience | The CI gate and quick checks |
@@ -67,8 +67,11 @@ The cluster has its own kubeconfig in `benchmarks/.run/kubeconfig`; the scripts 
 ```bash
 benchmarks/start-bench-server.sh             # builds in Release, wipes benchmarks/.run/local, starts, waits
 LOCAL_ALPHA_WORKERS=2 WORKER_SLOTS=8 benchmarks/start-bench-server.sh
+LOCAL_DB=postgresql LOCAL_PG_PORT=55432 LOCAL_PG_PASSWORD=garrison benchmarks/start-bench-server.sh
 benchmarks/stop-bench-server.sh
 ```
+
+The local stack runs on Sqlite unless `LOCAL_DB=postgresql` points it at a PostgreSQL server you already have: `LOCAL_PG_HOST` (default `127.0.0.1`), `LOCAL_PG_PORT` (5432), `LOCAL_PG_USER` (`postgres`), `LOCAL_PG_PASSWORD` (required), and `LOCAL_PG_DATABASE` (`garrison_bench`). The start drops and recreates that database with `psql` every time, so give it one of its own; `LOCAL_PG_RESET=0` keeps it instead. Reports name the database in their stack line. The `.bat` scripts run Sqlite only.
 
 The server gets a fresh Sqlite database and a fresh copy of `config/garrison-bench.json` on every start. That file turns agent memory on (`AgentMemory.Enabled`, text under the server's working directory), which the `memory` command needs. The k3d stack does not turn memory on, so run `memory` against the local stack or set `GARRISON_AGENT_MEMORY_ENABLE` on the k3d server.
 
@@ -229,7 +232,18 @@ After changing code on the load path (manifest apply), pass a new `--workspace-s
 
 ## CI gate
 
-`ci-gate.sh` remains available locally. Automatic benchmark execution was removed on 2026-10-12 to conserve GitHub Actions minutes (see [CI policy](../docs/CI.md)). It starts the local stack, runs the deterministic subset, compares each report with its committed baseline, writes reports under `benchmarks/results/` and retains stack logs locally, and exits nonzero on any regression or incomplete run.
+`ci-gate.sh` starts the local stack, runs the deterministic subset, compares each report with its committed baseline, writes reports under `benchmarks/results/` and retains stack logs locally, and exits nonzero on any regression or incomplete run. Automatic benchmark execution was removed on 2026-10-12 to conserve GitHub Actions minutes (see [CI policy](../docs/CI.md)), so nothing runs it on a push or a pull request.
+
+To run the gate on GitHub, start the **Benchmark gate** workflow (`.github/workflows/benchmark-gate.yaml`) by hand, from the Actions tab or with the GitHub CLI:
+
+```bash
+gh workflow run benchmark-gate.yaml --ref feature/autonomous-agents
+gh workflow run benchmark-gate.yaml -f database=postgresql -f jobs=scheduler-autonomy-workload,messaging-autonomy-workload
+gh run watch                                   # follow it; then download the artifact
+gh run download --name benchmark-gate-sqlite   # or benchmark-gate-postgresql
+```
+
+It runs `ci-gate.sh` on an Ubuntu runner with .NET 10. The `database` input picks Sqlite (the default) or a PostgreSQL 17 service container, and `jobs` limits the run to some gate jobs (empty runs them all). The gate reports, the server and worker logs, and the build logs are uploaded as the artifact `benchmark-gate-<database>`, kept for 14 days, whether the gate passes or not. The baselines are the committed ones; the workflow never updates them. GitHub offers a manual workflow only once its file is on the default branch; after that, `--ref` runs it against any branch that has it.
 
 | Gate job | What has to hold |
 |---|---|

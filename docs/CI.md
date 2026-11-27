@@ -18,6 +18,7 @@ Additional targeted workflows:
 | Recorded session compatibility | Filtered pull requests and manual dispatch | Build pinned candidate worker images with and without Gemini; installed CLI readers resume sanitized recordings without external network or provider credentials | 30 minutes per variant |
 | Effect safety: effect boundaries | Filtered pull requests, weekly schedule and manual dispatch | .NET 10 suites across SQLite and disposable PostgreSQL | 15 minutes |
 | Effect safety: cluster effects | Weekly schedule and manual dispatch | Disposable Kubernetes external-effect policy matrix and actual worker loss | 40 minutes |
+| Benchmark gate | Manual dispatch only | `benchmarks/ci-gate.sh` on the local stack (Sqlite or a PostgreSQL service), gate reports and logs uploaded as an artifact | 45 minutes |
 
 Backend smoke results are retained for three days; effect-safety artifacts for 30 days. Dedicated workflows build images or start PostgreSQL/Kubernetes where listed. There is no general .NET 8/10 framework matrix, full backend suite, full browser suite, SDK harness run or capacity benchmark on every push. Passing a smoke or targeted workflow does not imply full regression coverage. Workflow-built images are not published by these checks.
 
