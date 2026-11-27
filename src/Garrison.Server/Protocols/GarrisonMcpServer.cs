@@ -915,6 +915,7 @@ namespace Garrison.Server.Protocols
                     case "garrison_send_message":
                     case "garrison_reply_message":
                     case "garrison_read_inbox":
+                    case "garrison_read_thread":
                     case "garrison_ack_message":
                         result = await MessageToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
@@ -1930,7 +1931,7 @@ namespace Garrison.Server.Protocols
 
         private static bool RunOnlyMessageTool(string name)
         {
-            return name == "garrison_reply_message" || name == "garrison_ack_message";
+            return name == "garrison_reply_message" || name == "garrison_ack_message" || name == "garrison_read_thread";
         }
 
         private async Task<bool> OrgMemberRunAsync(RequestContext ctx, CancellationToken token)
@@ -2444,6 +2445,11 @@ namespace Garrison.Server.Protocols
                     request.ParentMessageId = arguments.ParentMessageId;
                     request.IdempotencyKey = arguments.IdempotencyKey;
                     return await messages.SendFromPersonAsync(ctx, tenantId, request, token).ConfigureAwait(false);
+                }
+                case "garrison_read_thread":
+                {
+                    // AA12.7: earlier messages of the run's own agent, framed as data by message-history. Read only.
+                    return await messages.ReadHistoryForRunAsync(run!, arguments.ThreadId, arguments.MessageId, arguments.MaxResults, token).ConfigureAwait(false);
                 }
                 case "garrison_ack_message":
                 {

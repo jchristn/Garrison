@@ -915,6 +915,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | Tool | Metric series | Span | Log | Panels |
 |---|---|---|---|---|
 | `garrison_abort_canary` | `tool="garrison_abort_canary"` | `mcp garrison_abort_canary` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_read_thread` | `tool="garrison_read_thread"` | `mcp garrison_read_thread` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_ack_message` | `tool="garrison_ack_message"` | `mcp garrison_ack_message` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_answer_escalation` | `tool="garrison_answer_escalation"` | `mcp garrison_answer_escalation` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_apply_manifest` | `tool="garrison_apply_manifest"` | `mcp garrison_apply_manifest` | `[Mcp]` lines, `tenant=` | garrison-protocols |

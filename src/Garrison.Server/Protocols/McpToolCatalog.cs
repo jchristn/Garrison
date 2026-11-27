@@ -471,6 +471,9 @@ namespace Garrison.Server.Protocols
             // Delivering marks messages, so a run's call goes through the effect journal like a write.
             readInbox.Annotations = new Garrison.Core.Models.EffectToolMetadata { ReadOnlyHint = false, IdempotentHint = false, DestructiveHint = false };
             tools.Add(readInbox);
+            tools.Add(Tool("garrison_read_thread", ResourceTypeEnum.AgentMessage, OperationTypeEnum.Read,
+                "Read earlier messages your agent sent or received, with their bodies, oldest first, framed as data. Each run starts fresh, so use it to see what a thread said before, for example the goal a person sent you or the test file a teammate sent last time. Pass threadId (the thread named on each delivered message) or messageId to read that thread, or neither for your agent's most recent messages in every thread. Optional: maxResults (1 to 100, default 20; the newest are kept). Messages still waiting in your inbox are not shown; garrison_read_inbox delivers them. Reading changes nothing. A thread or message your agent was not part of answers NotFound. Runs only.",
+                "{\"type\":\"object\",\"properties\":{\"threadId\":{\"type\":\"string\",\"description\":\"Thread identifier (amg_...), as named on a delivered message.\"},\"messageId\":{\"type\":\"string\",\"description\":\"Any message of the thread (amg_...).\"},\"maxResults\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100}}}"));
             tools.Add(Tool("garrison_ack_message", ResourceTypeEnum.AgentMessage, OperationTypeEnum.Update,
                 "Acknowledge a message delivered to your agent once you have handled it. Acknowledging again changes nothing. Required: messageId. Runs only.",
                 "{\"type\":\"object\",\"properties\":{\"messageId\":{\"type\":\"string\",\"description\":\"The message to acknowledge (amg_...).\"}},\"required\":[\"messageId\"]}"));

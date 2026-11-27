@@ -6,6 +6,9 @@ namespace Garrison.Server.Protocols
     /// <summary>Typed arguments of the message tools (AA6.6). Tenant identity comes from the authenticated caller.</summary>
     public class McpMessageArguments
     {
+        /// <summary>Thread identifier (read thread).</summary>
+        public string? ThreadId { get; set; } = null;
+
         /// <summary>Recipient agent, by identifier or name (send).</summary>
         public string? Recipient { get; set; } = null;
 

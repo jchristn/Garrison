@@ -15,6 +15,7 @@ Message {{this.id}} carries escalation {{this.escalationId}}. Read its options w
 {{/if}}
 {{/each}}
 You cannot see the senders' workspaces or files, only what a message holds. When a message mentions a file, a test, or an attachment whose contents are not in it, do not look for it on disk: reply with garrison_reply_message and ask the sender to send the contents in the body.
+Earlier messages of a thread, including ones delivered to your earlier runs, can be read again with garrison_read_thread and the thread named above.
 Reply to a message with garrison_reply_message and its messageId, and acknowledge each message you have handled with garrison_ack_message.
 {{#if inbox.more}}
 More messages are waiting than fit here. Call garrison_read_inbox to receive the rest.

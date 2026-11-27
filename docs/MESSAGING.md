@@ -33,13 +33,14 @@ People and API credentials with Create on AgentMessage may write to any agent. T
 
 ## Sending and reading
 
-A run uses four MCP tools:
+A run uses five MCP tools:
 
 | Tool | What it does |
 |---|---|
 | `garrison_send_message` | Writes to `recipient` (an agent identifier or name) with a `subject`, and optionally a `body`, `urgency`, `artifactIds`, and `ttlSeconds` |
 | `garrison_reply_message` | Replies to a message its agent received (`messageId`, `body`). The reply goes to the original sender, in the same thread, with the subject `Re:` and the original's unless you give one |
 | `garrison_read_inbox` | Receives the agent's queued messages, oldest first, at most `Messaging.MaxMessagesPerDelivery`, marks them delivered to this run, and says how many still wait |
+| `garrison_read_thread` | Rereads earlier messages its agent sent or received, with their bodies, oldest first: one thread (`threadId`, or any `messageId` in it), or the agent's most recent messages across threads. Each run starts fresh, so this is how a later run sees the goal a person sent or what a teammate said last time. Read only: it changes nothing, is not journaled, and shadow and eval runs may use it. Messages still queued for the agent are left to `garrison_read_inbox`; a thread the agent was not part of answers `NotFound`. The text comes through `builtin/message-history`, framed like inbox delivery (AA12.7) |
 | `garrison_ack_message` | Marks a delivered message handled. Acknowledging again changes nothing |
 
 ```json

@@ -312,6 +312,49 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Earlier messages a run's agent sent or received (garrison_read_thread, AA12.7), rendered through message-history.
+        /// With a thread or a message, that thread's messages; with neither, the agent's most recent messages across its
+        /// threads. Messages still queued for the agent are left out (garrison_read_inbox delivers them), and so are messages
+        /// between other agents in the same thread. Reading changes nothing.
+        /// </summary>
+        /// <param name="run">The reading run.</param>
+        /// <param name="threadId">Thread identifier, or null.</param>
+        /// <param name="messageId">A message whose thread to read, or null.</param>
+        /// <param name="maxResults">Most messages, 1 to 100, default 20; the newest are kept.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The rendered history.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        /// <exception cref="NotFoundException">Thrown when the message, or every message of the thread, belongs to other agents or another tenant.</exception>
+        /// <exception cref="TemplateException">Thrown when message-history does not render.</exception>
+        public async Task<MessageHistory> ReadHistoryForRunAsync(Run run, string? threadId, string? messageId, int? maxResults, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            string? thread = String.IsNullOrWhiteSpace(threadId) ? null : threadId.Trim();
+            if (!String.IsNullOrWhiteSpace(messageId))
+            {
+                AgentMessage anchor = await ReadForRunAsync(run, messageId, token).ConfigureAwait(false);
+                thread = anchor.ThreadId;
+            }
+            int max = Math.Clamp(maxResults ?? 20, 1, 100);
+            AgentMessageFilter filter = new AgentMessageFilter { TenantId = run.TenantId, AgentId = run.AgentId, ThreadId = thread, Skip = 0, MaxResults = 100 };
+            EnumerationResult<AgentMessage> page = await _Database.AgentMessages.EnumerateAsync(filter, token).ConfigureAwait(false);
+            List<AgentMessage> visible = page.Objects
+                .Where(m => !(m.Status == MessageStatusEnum.Queued && m.RecipientAgentId == run.AgentId))
+                .OrderByDescending(m => m.CreatedUtc).ThenByDescending(m => m.Id, StringComparer.Ordinal)
+                .ToList();
+            if (thread != null && visible.Count == 0) throw new NotFoundException("Thread not found.");
+            bool more = visible.Count > max || page.TotalRecords > page.Objects.Count;
+            List<AgentMessage> shown = visible.Take(max).OrderBy(m => m.CreatedUtc).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
+            PromptTemplate template = await _Templates.ResolveAsync(run.TenantId, MessageHistoryRenderer.TemplateName, PromptTemplateKindEnum.Fragment, token).ConfigureAwait(false);
+            MessageHistory history = new MessageHistory();
+            history.ThreadId = thread;
+            history.Count = shown.Count;
+            history.More = more;
+            history.Text = MessageHistoryRenderer.Render(template.Content, template.Name, run.AgentId, thread, shown, more);
+            return history;
+        }
+
+        /// <summary>
         /// Read a message addressed to a run's agent or sent by it.
         /// </summary>
         /// <param name="run">The reading run.</param>
