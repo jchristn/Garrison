@@ -2,6 +2,7 @@ package garrison
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -80,19 +81,22 @@ type OrgUnit struct {
 // is read; it is nil on lists. The server sets Status (OrganizationStatus constants), RootUnitID, and the current
 // revision; an update may set Status to Retired or back to Active.
 type Organization struct {
-	ID                    string    `json:"id,omitempty"`
-	TenantID              string    `json:"tenantId,omitempty"`
-	Name                  string    `json:"name"`
-	Description           *string   `json:"description,omitempty"`
-	Mission               *string   `json:"mission,omitempty"`
-	Status                string    `json:"status,omitempty"`
-	RootUnitID            *string   `json:"rootUnitId,omitempty"`
-	CurrentRevisionID     *string   `json:"currentRevisionId,omitempty"`
-	CurrentRevisionNumber int       `json:"currentRevisionNumber,omitempty"`
-	CreatedBy             *string   `json:"createdBy,omitempty"`
-	Units                 []OrgUnit `json:"units,omitempty"`
-	CreatedUTC            string    `json:"createdUtc,omitempty"`
-	LastUpdateUTC         string    `json:"lastUpdateUtc,omitempty"`
+	ID                    string  `json:"id,omitempty"`
+	TenantID              string  `json:"tenantId,omitempty"`
+	Name                  string  `json:"name"`
+	Description           *string `json:"description,omitempty"`
+	Mission               *string `json:"mission,omitempty"`
+	Status                string  `json:"status,omitempty"`
+	RootUnitID            *string `json:"rootUnitId,omitempty"`
+	CurrentRevisionID     *string `json:"currentRevisionId,omitempty"`
+	CurrentRevisionNumber int     `json:"currentRevisionNumber,omitempty"`
+	CreatedBy             *string `json:"createdBy,omitempty"`
+	// BudgetFreezeMarginPercent is how far past a unit budget, in percent (0 to 100, default 10), the subtree may spend
+	// before the budget guard freezes the unit; 0 freezes at the cap. nil leaves the server default or current value.
+	BudgetFreezeMarginPercent *int      `json:"budgetFreezeMarginPercent,omitempty"`
+	Units                     []OrgUnit `json:"units,omitempty"`
+	CreatedUTC                string    `json:"createdUtc,omitempty"`
+	LastUpdateUTC             string    `json:"lastUpdateUtc,omitempty"`
 }
 
 // OrgRevisionMandate is the mandate revision an organization revision pins.
@@ -178,10 +182,39 @@ type OrgUnitSpend struct {
 	WindowEndUTC   string   `json:"windowEndUtc"`
 }
 
-// OrgRollbackRequest names the revision to return to (empty for the one live before the current one) and a note.
+// Rollback options for ticks in flight (OrgRollbackRequest.ActiveTicks).
+const (
+	// RollbackActiveTicksFinish (the default) lets ticks in flight complete without moving any mandate off the restored
+	// revisions.
+	RollbackActiveTicksFinish = "Finish"
+	// RollbackActiveTicksCancel cancels the runs of ticks in flight before the restore.
+	RollbackActiveTicksCancel = "Cancel"
+)
+
+// OrgRollbackRequest names the revision to return to (empty for the one live before the current one), a note, and
+// what to do with ticks in flight (a RollbackActiveTicks* value; empty uses the server default, Finish).
 type OrgRollbackRequest struct {
-	RevisionID string `json:"revisionId,omitempty"`
-	Note       string `json:"note,omitempty"`
+	RevisionID  string `json:"revisionId,omitempty"`
+	Note        string `json:"note,omitempty"`
+	ActiveTicks string `json:"activeTicks,omitempty"`
+}
+
+// CascadeCancelRequest is the body of a cascade cancel: Reason is at most 1024 characters.
+type CascadeCancelRequest struct {
+	Reason *string `json:"reason,omitempty"`
+}
+
+// CascadeCancelResult is what a cascade cancel of a unit stopped. RunIDs lists the cancelled runs.
+type CascadeCancelResult struct {
+	OrganizationID       string   `json:"organizationId"`
+	UnitID               string   `json:"unitId"`
+	UnitName             string   `json:"unitName"`
+	RunsCancelled        int      `json:"runsCancelled"`
+	TicksCancelled       int      `json:"ticksCancelled"`
+	EscalationsWithdrawn int      `json:"escalationsWithdrawn"`
+	MessagesExpired      int      `json:"messagesExpired"`
+	RunIDs               []string `json:"runIds"`
+	CompletedUTC         string   `json:"completedUtc"`
 }
 
 // OrganizationsClient manages organizations: trees of org units with a mission, per-unit budgets, and revisions. An
@@ -325,6 +358,21 @@ func (o *OrganizationsClient) Publish(ctx context.Context, organization, revisio
 func (o *OrganizationsClient) Rollback(ctx context.Context, organization string, request OrgRollbackRequest) (*OrgRevision, error) {
 	var out OrgRevision
 	if err := o.c.Do(ctx, http.MethodPost, o.item(organization)+"/rollback", nil, request, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CancelAll cancels everything active in a unit's subtree of the live tree in one audited action: queued and running
+// runs (running runs go to Cancelling), in-flight ticks, open escalations its agents raised, and queued or undelivered
+// messages addressed to them. It does not freeze the unit. It needs Execute on Organization, answers 404 for a unit
+// outside the organization, and 409 OrganizationNotLive without a live revision.
+func (o *OrganizationsClient) CancelAll(ctx context.Context, orgID, unitID string, request CascadeCancelRequest) (*CascadeCancelResult, error) {
+	if request.Reason != nil && len(*request.Reason) > 1024 {
+		return nil, fmt.Errorf("garrison: cascade cancel reason must be at most 1024 characters; got %d", len(*request.Reason))
+	}
+	var out CascadeCancelResult
+	if err := o.c.Do(ctx, http.MethodPost, o.item(orgID)+"/units/"+url.PathEscape(unitID)+"/cancel-all", nil, request, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

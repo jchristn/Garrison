@@ -103,12 +103,15 @@ The board view shows the brakes, and the board pulls them through the same route
 |---|---|
 | Stop one unit and everything below it | `POST /freezes` with `targetKind` `OrgUnit` and the unit |
 | Stop the whole organization | `POST /freezes` with `targetKind` `Organization`; `status` becomes `Frozen` |
+| Cancel what is running in a unit right now | `POST /organizations/{id}/units/{unitId}/cancel-all`, which cancels runs and ticks, withdraws escalations, and expires messages in the subtree without freezing it |
 | Start them again | `POST /freezes/{id}/lift` |
-| Undo the last structural change | `POST /organizations/{id}/rollback`, which also reverts what executives applied ([EXECUTIVES.md](EXECUTIVES.md#revisions-revert-drafts-and-rollback)) |
+| Undo the last structural change | `POST /organizations/{id}/rollback`, which also reverts what executives applied ([EXECUTIVES.md](EXECUTIVES.md#revisions-revert-drafts-and-rollback)). `activeTicks` `Cancel` stops ticks in flight first |
 | Stop every keeper in the tenant | `PUT /autonomy/kill-switch` with `enabled: true` |
 | Refuse an executive's change | `POST /organizations/{id}/proposals/{draftId}/decide` with `allow: false` |
 
 Freezes and the kill switch are described in [BRAKES.md](BRAKES.md). A freeze shows up in the board view's `freezes` at once, and every frozen unit's `frozen` flag turns true.
+
+Some freezes the board does not pull itself. When a unit's subtree overruns its budget by more than the organization's `budgetFreezeMarginPercent`, the budget guard freezes the unit with `createdByName` "Garrison budget guard" and sends the `OrgBudgetFrozen` notification with the unit, spend, budget, and freeze. On the board it looks like any other freeze, with the unit both frozen and over budget, and it stays until someone on the board lifts it, usually after raising the budget or finding the runaway. Subscribe a notification endpoint to `OrgBudgetFrozen` to hear about it without watching the board. See [Automatic freeze on a budget breach](BRAKES.md#automatic-freeze-on-a-budget-breach).
 
 ## The BoardMember role
 

@@ -838,6 +838,67 @@ await check("board", async () => {
     if (mandate) await client.mandates.delete(mandate.id, { force: true });
   }
 });
+await check("performance and org brakes", async () => {
+  // Performance reads, a cascade cancel, a rollback with the ticks option, a scheduled check, and the freeze margin.
+  // The organization may have no runs, so only shapes are asserted.
+  let org = null;
+  let checkSet = null;
+  let trigger = null;
+  const statusOf = async (fn) => { try { await fn(); return 0; } catch (e) { if (e instanceof GarrisonError) return e.statusCode; throw e; } };
+  try {
+    org = await client.organizations.create({ name: `sdk-js-perf-${suffix}`, mission: "Exercise JavaScript SDK performance.", budgetFreezeMarginPercent: 15 });
+    require(org.budgetFreezeMarginPercent === 15, `budgetFreezeMarginPercent round-trips on create: ${JSON.stringify(org)}`);
+    const root = await client.organizations.createUnit(org.id, { name: "board", leadAgentId: state.agent, leadTitle: "CEO" });
+    const first = await client.organizations.createRevision(org.id, "First");
+    await client.organizations.publish(org.id, first.id);
+
+    const perf = await client.performance.get(org.id);
+    require(perf.organizationId === org.id && perf.fromUtc && perf.toUtc && Array.isArray(perf.agents) && Array.isArray(perf.checks)
+      && perf.units.some((u) => u.unitId === root.id && u.metrics), `read performance over the default window: ${JSON.stringify(perf)}`);
+    require(perf.agents.every((a) => a.metrics.runs >= 0 && Array.isArray(a.metrics.sampleRunIds) && a.metrics.sampleRunIds.length <= 5), "agent metrics shape");
+
+    const end = new Date();
+    const windowed = await client.performance.get(org.name, { fromUtc: new Date(end.getTime() - 86400000), toUtc: end, unitId: root.id });
+    require(windowed.units.length >= 1 && windowed.units[0].unitId === root.id, `read performance over an explicit window and unit: ${JSON.stringify(windowed)}`);
+    const spanStatus = await statusOf(() => client.performance.get(org.id, { fromUtc: new Date(end.getTime() - 91 * 86400000), toUtc: end }));
+    require(spanStatus === 400, `a span over 90 days is refused (${spanStatus})`);
+
+    const result = await client.organizations.cancelAll(org.id, root.id, { reason: "SDK harness cascade cancel" });
+    require(result.unitId === root.id && ["runsCancelled", "ticksCancelled", "escalationsWithdrawn", "messagesExpired"].every((k) => result[k] >= 0)
+      && result.runIds.length === result.runsCancelled, `cancel everything in a unit: ${JSON.stringify(result)}`);
+    const missingStatus = await statusOf(() => client.organizations.cancelAll(org.id, "oun_sdk_missing"));
+    require(missingStatus === 404, `cascade cancel of an unknown unit is 404 (${missingStatus})`);
+
+    const second = await client.organizations.createRevision(org.id, "Second");
+    await client.organizations.publish(org.id, second.id);
+    const rolled = await client.organizations.rollback(org.id, { note: "Cancel ticks and go back", activeTicks: "Cancel" });
+    require(rolled.rollbackOfRevisionId === first.id && rolled.state === "Published", `roll back with activeTicks Cancel: ${JSON.stringify(rolled)}`);
+
+    const current = await client.organizations.get(org.id);
+    const updated = await client.organizations.update(org.id, { ...current, budgetFreezeMarginPercent: 0 });
+    require(updated.budgetFreezeMarginPercent === 0, `update the freeze margin: ${JSON.stringify(updated)}`);
+    const marginStatus = await statusOf(() => client.organizations.update(org.id, { ...current, budgetFreezeMarginPercent: 101 }));
+    require(marginStatus === 400, `a margin over 100 is refused (${marginStatus})`);
+
+    checkSet = await client.evalSets.create({ name: `sdk-js-check-${suffix}`, cases: [{ name: "first", inputText: "check alpha", checks: [{ scorer: "Contains", argument: "alpha" }] }] });
+    checkSet = await client.evalSets.approve(checkSet.id);
+    try {
+      trigger = await client.triggers.create({ name: `sdk-js-check-${suffix}`, type: "Cron", targetType: "EvalSet", evalSetId: checkSet.id, deploymentId: state.deployment,
+        evalRecentInputCount: 5, cronExpression: "0 6 * * *", active: false });
+      require(trigger.targetType === "EvalSet" && trigger.evalSetId === checkSet.id && trigger.evalRecentInputCount === 5, `create a scheduled check: ${JSON.stringify(trigger)}`);
+    } catch (e) {
+      // A scheduled check runs as a user; the harness signs in with an access key, so its run-as principal is a credential.
+      if (!(e instanceof GarrisonError) || e.statusCode !== 400) throw e;
+      console.log(`  (scheduled check refused for a credential caller: ${e.message})`);
+    }
+    const noDeploymentStatus = await statusOf(() => client.triggers.create({ name: `sdk-js-check-bad-${suffix}`, type: "Cron", targetType: "EvalSet", evalSetId: checkSet.id, cronExpression: "0 6 * * *" }));
+    require(noDeploymentStatus === 400, `a check without a deployment is refused (${noDeploymentStatus})`);
+  } finally {
+    if (trigger) await client.triggers.delete(trigger.id);
+    if (checkSet) { try { await client.evalSets.delete(checkSet.id); } catch (e) { if (!(e instanceof GarrisonError)) throw e; } }
+    if (org) await client.organizations.delete(org.id);
+  }
+});
 await check("eval sets, eval runs, shadow trials, and canary releases", async () => {
   // Grade a deployment on the fake harness with an approved eval set, then shadow and canary a second deployment of the same agent.
   let agent = null;

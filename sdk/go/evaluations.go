@@ -193,38 +193,40 @@ type EvalRunRequest struct {
 // EvalRun is one run of an eval set against a target. ID has the prefix evr_. Status is an EvalRunStatus constant;
 // Score (0 to 1) is the check-weighted mean of case scores, and Passed is Score >= Threshold once Completed.
 type EvalRun struct {
-	ID               string         `json:"id"`
-	TenantID         string         `json:"tenantId"`
-	SetID            string         `json:"setId"`
-	SetName          string         `json:"setName"`
-	SetVersion       int            `json:"setVersion"`
-	TargetType       string         `json:"targetType"`
-	AgentID          *string        `json:"agentId,omitempty"`
-	AgentRevisionID  *string        `json:"agentRevisionId,omitempty"`
-	DeploymentID     *string        `json:"deploymentId,omitempty"`
-	StudioDraftID    *string        `json:"studioDraftId,omitempty"`
-	Status           string         `json:"status"`
-	InputMode        string         `json:"inputMode"`
-	RecentInputCount int            `json:"recentInputCount"`
-	Score            *float64       `json:"score,omitempty"`
-	Threshold        *float64       `json:"threshold,omitempty"`
-	Passed           *bool          `json:"passed,omitempty"`
-	BudgetUsd        *float64       `json:"budgetUsd,omitempty"`
-	CostUsd          float64        `json:"costUsd"`
-	TotalCases       int            `json:"totalCases"`
-	CompletedCases   int            `json:"completedCases"`
-	PassedCases      int            `json:"passedCases"`
-	ErroredCases     int            `json:"erroredCases"`
-	FailureReason    *string        `json:"failureReason,omitempty"`
-	StartedByType    string         `json:"startedByType,omitempty"`
-	StartedByID      *string        `json:"startedById,omitempty"`
-	StartedByName    *string        `json:"startedByName,omitempty"`
-	OriginRunID      *string        `json:"originRunId,omitempty"`
-	Warnings         []FieldWarning `json:"warnings,omitempty"`
-	CreatedUTC       string         `json:"createdUtc,omitempty"`
-	StartedUTC       *string        `json:"startedUtc,omitempty"`
-	CompletedUTC     *string        `json:"completedUtc,omitempty"`
-	LastUpdateUTC    string         `json:"lastUpdateUtc,omitempty"`
+	ID               string   `json:"id"`
+	TenantID         string   `json:"tenantId"`
+	SetID            string   `json:"setId"`
+	SetName          string   `json:"setName"`
+	SetVersion       int      `json:"setVersion"`
+	TargetType       string   `json:"targetType"`
+	AgentID          *string  `json:"agentId,omitempty"`
+	AgentRevisionID  *string  `json:"agentRevisionId,omitempty"`
+	DeploymentID     *string  `json:"deploymentId,omitempty"`
+	StudioDraftID    *string  `json:"studioDraftId,omitempty"`
+	Status           string   `json:"status"`
+	InputMode        string   `json:"inputMode"`
+	RecentInputCount int      `json:"recentInputCount"`
+	Score            *float64 `json:"score,omitempty"`
+	Threshold        *float64 `json:"threshold,omitempty"`
+	Passed           *bool    `json:"passed,omitempty"`
+	BudgetUsd        *float64 `json:"budgetUsd,omitempty"`
+	CostUsd          float64  `json:"costUsd"`
+	TotalCases       int      `json:"totalCases"`
+	CompletedCases   int      `json:"completedCases"`
+	PassedCases      int      `json:"passedCases"`
+	ErroredCases     int      `json:"erroredCases"`
+	FailureReason    *string  `json:"failureReason,omitempty"`
+	StartedByType    string   `json:"startedByType,omitempty"`
+	StartedByID      *string  `json:"startedById,omitempty"`
+	StartedByName    *string  `json:"startedByName,omitempty"`
+	OriginRunID      *string  `json:"originRunId,omitempty"`
+	// TriggerID is the EvalSet trigger that started the run as a scheduled check, or nil.
+	TriggerID     *string        `json:"triggerId,omitempty"`
+	Warnings      []FieldWarning `json:"warnings,omitempty"`
+	CreatedUTC    string         `json:"createdUtc,omitempty"`
+	StartedUTC    *string        `json:"startedUtc,omitempty"`
+	CompletedUTC  *string        `json:"completedUtc,omitempty"`
+	LastUpdateUTC string         `json:"lastUpdateUtc,omitempty"`
 }
 
 // EvalCaseCheckResult is the outcome of one check on a case's output: Score 0 to 1, Passed, the judge run for a

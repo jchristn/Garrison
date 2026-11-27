@@ -125,6 +125,7 @@ type Client struct {
 	ShadowTrials               *ShadowTrialsClient
 	CanaryReleases             *CanaryReleasesClient
 	Board                      *BoardClient
+	Performance                *PerformanceClient
 	NotificationEndpoints      *NotificationEndpointsClient
 	Environments               *EnvironmentsClient
 	Promotions                 *PromotionsClient
@@ -187,6 +188,7 @@ func NewClient(baseURL string) *Client {
 	c.ShadowTrials = &ShadowTrialsClient{c: c}
 	c.CanaryReleases = &CanaryReleasesClient{c: c}
 	c.Board = &BoardClient{c: c}
+	c.Performance = &PerformanceClient{c: c}
 	c.NotificationEndpoints = &NotificationEndpointsClient{Resource{c: c, segment: "notification-endpoints"}}
 	c.Environments = &EnvironmentsClient{c: c}
 	c.Promotions = &PromotionsClient{c: c}

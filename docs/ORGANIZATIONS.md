@@ -12,6 +12,7 @@ An organization has:
 | `description` | For people, at most 2000 characters |
 | `mission` | What the organization exists to do, at most 8000 characters. Member runs see it through `builtin/org-context` |
 | `status` | `Draft` until the first publish, then `Active`. `Frozen` while an Organization freeze holds it. `Retired` when a person retires it |
+| `budgetFreezeMarginPercent` | How far past a unit budget, in percent, a subtree may spend before the budget guard freezes the unit. 0 to 100, default 10; 0 freezes at the cap ([Budgets](#budgets)) |
 | `rootUnitId` | The root unit of the working tree. Set by the server |
 | `currentRevisionId`, `currentRevisionNumber` | The live revision, or none before the first publish. Set by the server |
 
@@ -75,6 +76,8 @@ Field errors (a name that is too long, an agent, mandate, or app that does not e
 Publishing a draft makes it live. The previous live revision becomes `Superseded`, an organization in `Draft` becomes `Active`, and each pinned mandate revision becomes its mandate's current revision again if something else replaced it in the meantime. A mandate that was still `Draft` becomes `Active`, and an active one wakes under the restored revision with its interval reset. Publishing a revision that is already published answers 409 `RevisionPublished`; a revision of another organization answers 409 `RevisionMismatch`.
 
 `POST .../rollback` returns to an earlier live revision: the one you name in `revisionId`, or by default the one that was live most recently before the current one. Garrison writes a new revision that copies the earlier snapshot, with `rollbackOfRevisionId` pointing at it, publishes the copy, restores its pinned mandate revisions, and replaces the working tree with the earlier units. Revision numbers only grow, so rolling revision 3 back to revision 1 produces revision 4. A revision that was never live answers 409 `RevisionNeverPublished`, the live revision answers `AlreadyLive`, and an organization with nothing earlier answers `NothingToRollBack`.
+
+A rollback can land while keepers are mid-tick. `activeTicks` chooses `Finish` (the default: the tick completes, but its mandate is already back on the restored revision) or `Cancel` (Garrison cancels those tick runs first). Either way no mandate is left on a revision outside the restored snapshot. See [Rolling back while ticks are in flight](BRAKES.md#rolling-back-while-ticks-are-in-flight).
 
 A revision can also come from an [executive](EXECUTIVES.md). Every executive draft that applies, whether change rules or a person let it through, publishes a new revision with `draftId` (the draft) and `revertDraftId` (an `Undo:` draft holding the records it changed, as they were). A rollback past such revisions restores the tree as usual and then applies their revert drafts, newest first, so the agents, deployments, mandates, templates, and assets the executive changed go back too. See [Revisions, revert drafts, and rollback](EXECUTIVES.md#revisions-revert-drafts-and-rollback).
 
@@ -152,6 +155,8 @@ The capped unit's manager hears about it: Garrison raises an `Urgent`, non-block
 
 Spend is cached for 15 seconds per subtree, so a run that finishes inside that window can push a subtree a little past its budget. To raise a budget, change it in the working tree and publish. A usage quota with scope `OrgUnit` cannot be created by hand (400, field `scope`); unit budgets live on the organization. `GET .../spend` reports every unit's spend against its budgets in the current windows.
 
+Because running runs keep spending after the cap, a subtree can still go past its budget. The organization's `budgetFreezeMarginPercent` (0 to 100, default 10) sets how far: once a subtree's spend in a window reaches the budget plus that margin, the budget guard freezes the unit and cancels its active runs, and the freeze stays until a person lifts it. See [Automatic freeze on a budget breach](BRAKES.md#automatic-freeze-on-a-budget-breach).
+
 The keeper budgets in [BRAKES.md](BRAKES.md#spend-caps) still apply. A keeper in a unit with room left still stops at its own daily cap.
 
 ## What members know
@@ -171,14 +176,50 @@ Every such run also gets `builtin/org-context` appended to its system prompt, wh
 
 Where an agent belongs to several organizations, `builtin/org-context`, the capability placement, a report's `orgUnitId`, and the `Manager` escalation target use the oldest of them. Lines, report visibility, memory, freezes, and budgets consider all of them.
 
+## Performance
+
+`GET /organizations/{id}/performance` tells you how the organization's agents have been doing. It reads the live revision and returns one entry per unit in chart order, each covering the unit's whole subtree, one entry per agent with a position, and the [scheduled checks](TRIGGERS.md#scheduled-checks) on their deployments. Nothing is stored; the server computes it on each read.
+
+The window defaults to the last 7 days ending now. Pass `fromUtc` and `toUtc` (ISO 8601) to choose another; a span longer than 90 days answers 400 `ValidationFailed`. Pass `unitId` to restrict the response to that unit's subtree. A unit that is not in the organization answers 404.
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/performance?unitId=dependencies&fromUtc=2026-11-19T00:00:00Z&toUtc=2026-11-26T00:00:00Z" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Each unit and agent carries the same `metrics`, over the runs its agents created in the window. Eval, shadow, and playground runs are left out, the same as in run analytics, so trying a candidate does not drag a unit's numbers down.
+
+| Field | Meaning |
+|---|---|
+| `runs`, `succeeded`, `failed`, `cancelled` | Run counts by outcome |
+| `successRate` | `succeeded / (succeeded + failed)`, 0 to 1. Cancelled runs do not count against it. Null when no run finished |
+| `costUsd` | Known cost of the runs |
+| `latencyP50Ms`, `latencyP95Ms`, `latencyP99Ms` | Over finished runs; null when none finished |
+| `escalationsRaised`, `escalationRate` | Escalations the agents raised in the window, and that count over `runs` (null with no runs) |
+| `loopGuardRejections` | Message sends and wakes the [loop guards](MESSAGING.md#loop-guards) refused |
+| `evalScore`, `evalRuns` | Mean score (0 to 1) of completed eval runs against the scope's deployments, scheduled checks included, and how many there were |
+| `sampleRunIds` | Up to 5 runs to look at: the newest failures first, then the newest successes |
+
+A unit's numbers include every unit below it, so the root's metrics are the whole organization's. An agent's own entry has `isLead` set when it leads its unit. `checks` lists each scheduled check whose deployment belongs to an agent in scope, with its schedule, its next fire, and the newest eval run's status, score, and pass.
+
+Reading performance needs Read on Organization. The dashboard's Performance view, reached from the organization page and the Autonomy navigation, draws the same response as tables and a chart.
+
+### What a unit lead sees
+
+A lead manages its subtree, so it needs these numbers too. A run whose agent leads a unit in a live organization gets the run MCP tool `garrison_subordinate_performance`, with optional `unitId`, `fromUtc`, and `toUtc`. It answers the same `OrgPerformance`, restricted to the lead's own subtree, or to `unitId` when that unit is inside it.
+
+The tool is read-only and only looks down the tree. A run whose agent leads no unit gets the error code `NotAUnitLead`. A `unitId` outside the lead's subtree gets `OutsideSubtree`, whether or not the unit exists, so a lead cannot probe the rest of the chart through it. In the example, `dependency-keeper` can read `dependencies` but not `latency` or `reliability`.
+
+A lead sees scheduled check results but cannot change them. The checks are triggers and eval runs that only people can create, cancel, or edit, so an agent that is graded by a check cannot rewrite its own grade.
+
 ## REST
 
 | Route | What it does |
 |---|---|
 | `GET /organizations` | Organizations by name. `search`, `maxResults`, `skip` |
-| `POST /organizations` | Create one (`name`, `description`, `mission`). It starts `Draft` with no units |
+| `POST /organizations` | Create one (`name`, `description`, `mission`, `budgetFreezeMarginPercent`). It starts `Draft` with no units |
 | `GET /organizations/{id}` | One organization, by identifier or name, with its working tree |
-| `PUT /organizations/{id}` | Change the name, description, or mission, or set `status` to `Retired` or back to `Active` |
+| `PUT /organizations/{id}` | Change the name, description, mission, or `budgetFreezeMarginPercent`, or set `status` to `Retired` or back to `Active` |
 | `DELETE /organizations/{id}` | Delete it. See [Retention and deletion](#retention-and-deletion) |
 | `GET, POST /organizations/{id}/units` | List the working tree, root first, or add a unit |
 | `GET, PUT, DELETE /organizations/{id}/units/{unitId}` | Read, replace, or remove a unit of the working tree |
@@ -186,8 +227,10 @@ Where an agent belongs to several organizations, `builtin/org-context`, the capa
 | `GET, POST /organizations/{id}/revisions` | List revisions, newest first, or snapshot the working tree (`note`) |
 | `GET /organizations/{id}/revisions/{revId}` | A revision with its snapshot and pinned mandates |
 | `POST /organizations/{id}/revisions/{revId}/publish` | Make a draft live |
-| `POST /organizations/{id}/rollback` | Return to an earlier live revision (`revisionId`, `note`) |
+| `POST /organizations/{id}/rollback` | Return to an earlier live revision (`revisionId`, `note`, `activeTicks`) |
 | `GET /organizations/{id}/spend` | Each unit's spend against its budgets in the current windows |
+| `GET /organizations/{id}/performance` | Metrics per unit and agent over a window, and scheduled checks. `fromUtc`, `toUtc`, `unitId` ([Performance](#performance)) |
+| `POST /organizations/{id}/units/{unitId}/cancel-all` | Cancel everything active in a unit's subtree (`reason`). Needs Execute on Organization ([BRAKES.md](BRAKES.md#cancel-everything-in-a-unit)) |
 | `GET /organizations/{id}/proposals` | Executive proposals, newest change first. `status`, `maxResults`, `skip` ([EXECUTIVES.md](EXECUTIVES.md#proposals)) |
 | `GET /organizations/{id}/proposals/{draftId}` | One proposal; one not yet applied carries its diff, refusals, and rule matches |
 | `POST /organizations/{id}/proposals/{draftId}/decide` | Allow or deny a proposal waiting for a person (`allow`, `reason`). Needs Update on Approval |
@@ -218,14 +261,16 @@ People and API credentials manage organizations with management tools, which run
 |---|---|---|
 | `garrison_list_organizations` | Read on Organization | optional `search`, `skip`, `maxResults` (1 to 100, default 25) |
 | `garrison_get_organization` | Read on Organization | `organization` (identifier or name). Returns it with its working tree |
-| `garrison_create_organization` | Create on Organization, and Update to pass `units` | `name`; optional `description`, `mission`, `units` |
-| `garrison_update_organization` | Update on Organization | `organization`; optional `name`, `description`, `mission`, `status` (`Retired`, `Active`), `units` |
+| `garrison_create_organization` | Create on Organization, and Update to pass `units` | `name`; optional `description`, `mission`, `budgetFreezeMarginPercent`, `units` |
+| `garrison_update_organization` | Update on Organization | `organization`; optional `name`, `description`, `mission`, `budgetFreezeMarginPercent`, `status` (`Retired`, `Active`), `units` |
 | `garrison_publish_org_revision` | Update on Organization | `organization`; optional `revisionId`, `note` |
 | `garrison_rollback_organization` | Update on Organization | `organization`; optional `revisionId`, `note` |
 | `garrison_board_get` | Read on Organization | `organization`; optional `limit`. The board: chart with unit health, the CEO, open escalations, pending proposals, spend, briefs, unhealthy reports, freezes, and the kill switch (AA10) |
 | `garrison_board_direct` | Update on Organization | `organization`, `direction`; optional `changeNote`. Publishes the direction as a `Board` revision of the CEO mandate (AA10) |
+| `garrison_unit_cancel_all` | Execute on Organization | `organization`, `unitId`; optional `reason`. Cancels everything active in the unit's subtree ([BRAKES.md](BRAKES.md#cancel-everything-in-a-unit)) |
 | `garrison_org_chart` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `organization` |
 | `garrison_org_whoami` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `agent`, optional `organization` |
+| `garrison_subordinate_performance` | Runs whose agent leads a unit | optional `unitId`, `fromUtc`, `toUtc`. Performance of the lead's subtree ([What a unit lead sees](#what-a-unit-lead-sees)) |
 | `garrison_list_org_proposals`, `garrison_get_org_proposal` | Read on Organization | `organization`; `draftId` for one. See [EXECUTIVES.md](EXECUTIVES.md#mcp-tools) |
 | `garrison_decide_org_proposal` | Update on Approval, and Create on Manifest to allow | `organization`, `draftId`, `allow`, optional `reason` |
 
@@ -266,9 +311,10 @@ See [WEBSOCKETS_API.md](../WEBSOCKETS_API.md).
 
 | Action | Permission | Built-in roles |
 |---|---|---|
-| List and read organizations, units, revisions, the chart, and spend; subscribe to the channel | Read on Organization | Viewer, Auditor, AgentOperator, AgentDeveloper, Editor, TenantAdmin |
+| List and read organizations, units, revisions, the chart, spend, and performance; subscribe to the channel | Read on Organization | Viewer, Auditor, AgentOperator, AgentDeveloper, Editor, TenantAdmin |
 | Create an organization | Create on Organization | AgentDeveloper, Editor, TenantAdmin |
 | Change it, edit units, snapshot, publish, roll back | Update on Organization | AgentDeveloper, Editor, TenantAdmin |
+| Cancel everything in a unit | Execute on Organization | Editor, TenantAdmin |
 | Delete an organization | Delete on Organization | Editor, TenantAdmin |
 
 Run tokens never hold these permissions. An ordinary run cannot change the structure it sits in; it reads its own place through `garrison_org_chart` and `garrison_org_whoami`. An executive changes the units below it only through studio drafts, checked against its subtree, its hard limits, and the person who started its run ([EXECUTIVES.md](EXECUTIVES.md)). Change rules have their own permissions on `ChangeRule` ([EXECUTIVES.md](EXECUTIVES.md#permissions)). Every change is written to the audit log against the organization.

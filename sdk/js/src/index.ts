@@ -836,8 +836,8 @@ export const PIPELINE_TERMINAL_STATUSES: readonly PipelineRunStatus[] = ["Succee
 
 /** What starts a trigger. */
 export type TriggerType = "Cron" | "Webhook";
-/** What a trigger starts. */
-export type TriggerTargetType = "Agent" | "Pipeline";
+/** What a trigger starts. EvalSet is a scheduled check: an eval run of an eval set against a deployment's recent inputs. */
+export type TriggerTargetType = "Agent" | "Pipeline" | "EvalSet";
 /** Why a trigger fired. */
 export type TriggerFireSource = "Cron" | "Webhook" | "Manual";
 /** Result of one trigger fire. */
@@ -850,9 +850,16 @@ export interface Trigger extends Json {
   id?: string; tenantId?: string; name: string; description?: string | null;
   /** Cron or Webhook; cannot change after creation. */
   type: TriggerType;
-  /** Agent (default) or Pipeline. */
+  /** Agent (default), Pipeline, or EvalSet. */
   targetType?: TriggerTargetType;
+  /** deploymentId is required for an EvalSet target: the deployment whose recent inputs the check replays. */
   agentId?: string | null; deploymentId?: string | null; pipelineId?: string | null;
+  /** Eval set identifier or name for an EvalSet target. */
+  evalSetId?: string | null;
+  /** Judge agent identifier or name for the check's judge scorers, or null. */
+  evalJudgeAgentId?: string | null;
+  /** Recent inputs a check replays, 1 to 50, or null for the eval run default. */
+  evalRecentInputCount?: number | null;
   /** Task prompt template that renders the run input; null uses builtin/trigger-input. */
   inputTemplateId?: string | null;
   priority?: number;
@@ -961,8 +968,8 @@ export interface MandateTick extends Json {
 }
 
 /** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
-export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "CanaryRolledBack" | "BoardBrief" | "Test";
-export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "CanaryRolledBack", "BoardBrief", "Test"] as const;
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "EscalationRaised" | "EscalationExpired" | "FreezeApplied" | "MandateCapReached" | "ReportUnhealthy" | "OrgProposalApplied" | "CanaryRolledBack" | "BoardBrief" | "OrgBudgetFrozen" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy", "OrgProposalApplied", "CanaryRolledBack", "BoardBrief", "OrgBudgetFrozen", "Test"] as const;
 
 /** Escalation status: Open until answered, timed out, cancelled, or withdrawn by the run that raised it. */
 export type EscalationStatus = "Open" | "Answered" | "Expired" | "Cancelled" | "Withdrawn";
@@ -2641,7 +2648,20 @@ export interface OrgUnit extends Json {
 export interface Organization extends Json {
   id: string; tenantId: string; name: string; description?: string | null; mission?: string | null; status: OrganizationStatus;
   rootUnitId?: string | null; currentRevisionId?: string | null; currentRevisionNumber: number; createdBy?: string | null;
+  /** How far past a unit budget, in percent (0 to 100, default 10), the subtree may spend before the budget guard freezes the unit. 0 freezes at the cap. */
+  budgetFreezeMarginPercent?: number;
   units?: OrgUnit[] | null; createdUtc?: string; lastUpdateUtc?: string;
+}
+/** What a rollback does with mandate ticks in flight: Finish (default) lets them complete without moving any mandate off the restored revisions; Cancel cancels their runs first. */
+export type RollbackActiveTicks = "Finish" | "Cancel";
+export const ROLLBACK_ACTIVE_TICKS: readonly RollbackActiveTicks[] = ["Finish", "Cancel"] as const;
+/** Body of an organization rollback. note is at most 2000 characters. */
+export interface OrgRollbackRequest { revisionId?: string; note?: string; activeTicks?: RollbackActiveTicks; }
+/** What a cascade cancel of a unit stopped. */
+export interface CascadeCancelResult extends Json {
+  organizationId: string; unitId: string; unitName: string;
+  runsCancelled: number; ticksCancelled: number; escalationsWithdrawn: number; messagesExpired: number;
+  runIds: string[]; completedUtc: string;
 }
 /** The mandate revision an organization revision pins. */
 export interface OrgRevisionMandate { mandateId: string; mandateName?: string | null; mandateRevisionId: string; mandateRevisionNumber?: number | null; }
@@ -2703,8 +2723,18 @@ export class Organizations extends Resource<Organization> {
   createRevision(organization: string, note?: string): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/revisions`, undefined, { note: note ?? null }); }
   /** Make a Draft revision live and write a promotion record with subject Organization. Fails with 409 RevisionPublished for a revision that is not a draft. */
   publish(organization: string, revisionId: string): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/revisions/${seg(revisionId)}/publish`); }
-  /** Return to an earlier live revision (revisionId, or the one live before the current one) by publishing a copy of its snapshot. Fails with 409 NothingToRollBack or AlreadyLive. */
-  rollback(organization: string, request: { revisionId?: string; note?: string } = {}): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/rollback`, undefined, request); }
+  /** Return to an earlier live revision (revisionId, or the one live before the current one) by publishing a copy of its snapshot. activeTicks (Finish or Cancel) says what happens to ticks in flight. Fails with 409 NothingToRollBack or AlreadyLive. */
+  rollback(organization: string, request: OrgRollbackRequest = {}): Promise<OrgRevision> { return this.t.request("POST", `${this.item(organization)}/rollback`, undefined, request); }
+  /**
+   * Cancel everything active in a unit's subtree of the live tree in one audited action: queued and running runs (running
+   * runs go to Cancelling), in-flight ticks, open escalations its agents raised, and queued or undelivered messages to
+   * them. Does not freeze the unit. reason is at most 1024 characters. Needs Execute on Organization. Fails with 404 for a
+   * unit outside the organization and 409 OrganizationNotLive without a live revision.
+   */
+  cancelAll(orgId: string, unitId: string, request: { reason?: string | null } = {}): Promise<CascadeCancelResult> {
+    if (request.reason && request.reason.length > 1024) throw new RangeError("reason must be at most 1024 characters");
+    return this.t.request("POST", `${this.item(orgId)}/units/${seg(unitId)}/cancel-all`, undefined, { reason: request.reason ?? null });
+  }
   /** Spend of each unit's subtree against its budgets in the current day and month windows. */
   spend(organization: string): Promise<OrgUnitSpend[]> { return this.t.request("GET", `${this.item(organization)}/spend`); }
   /** The organization's executive proposals, newest change first, without diffs. Needs Read on Organization. */
@@ -2864,6 +2894,8 @@ export interface EvalRun extends Json {
   status: EvalRunStatus; inputMode: EvalRunInputMode; recentInputCount: number; score?: number | null; threshold?: number | null;
   passed?: boolean | null; budgetUsd?: number | null; costUsd: number; totalCases: number; completedCases: number; passedCases: number;
   erroredCases: number; failureReason?: string | null; startedByType?: string; startedById?: string | null; startedByName?: string | null;
+  /** Trigger with target EvalSet that started the run as a scheduled check, or null. */
+  triggerId?: string | null;
   originRunId?: string | null; warnings?: FieldWarning[] | null; createdUtc: string; startedUtc?: string | null; completedUtc?: string | null; lastUpdateUtc: string;
 }
 /** Filter for {@link EvalRuns.list}. set takes an identifier or a name; revision is an agent revision identifier. */
@@ -3050,6 +3082,50 @@ export class BoardClient {
   }
   /** Conversations the board started with the CEO, newest first. */
   listConversations(orgId: string): Promise<EnumerationResult<Conversation>> { return this.t.request("GET", this.p(orgId, "/board/conversations")); }
+}
+
+/**
+ * Metrics over runs created in the window by the agents in scope (eval, shadow, and playground runs left out).
+ * successRate is succeeded / (succeeded + failed), 0 to 1, null with no finished runs; latency percentiles are over
+ * finished runs; escalationRate is escalationsRaised / runs, null with no runs; evalScore is the mean score (0 to 1) of
+ * completed eval runs on the scope's deployments, scheduled checks included. sampleRunIds holds at most 5 runs, newest
+ * failures first.
+ */
+export interface PerformanceMetrics {
+  runs: number; succeeded: number; failed: number; cancelled: number; successRate?: number | null; costUsd: number;
+  latencyP50Ms?: number | null; latencyP95Ms?: number | null; latencyP99Ms?: number | null;
+  escalationsRaised: number; escalationRate?: number | null; loopGuardRejections: number;
+  evalScore?: number | null; evalRuns: number; sampleRunIds: string[];
+}
+/** OrgPerformance["units"] item: metrics over the unit's whole subtree. */
+export interface OrgUnitPerformance {
+  unitId: string; unitName: string; parentUnitId?: string | null; leadAgentId?: string | null; metrics: PerformanceMetrics;
+}
+/** OrgPerformance["agents"] item: one agent positioned in the live tree. */
+export interface AgentPerformance {
+  agentId: string; agentName?: string | null; unitId: string; unitName?: string | null; isLead: boolean; metrics: PerformanceMetrics;
+}
+/** OrgPerformance["checks"] item: a trigger with target EvalSet on a deployment in scope, with its newest eval run. */
+export interface PerformanceCheck {
+  triggerId: string; triggerName?: string | null; active: boolean; evalSetId: string; evalSetName?: string | null;
+  deploymentId: string; agentId?: string | null; cronExpression?: string | null; nextFireUtc?: string | null;
+  lastEvalRunId?: string | null; lastRunUtc?: string | null; lastStatus?: EvalRunStatus | null; lastScore?: number | null; lastPassed?: boolean | null;
+}
+/** An organization's performance over a window, computed on each read. */
+export interface OrgPerformance extends Json {
+  organizationId: string; name: string; fromUtc: string; toUtc: string; generatedUtc: string;
+  units: OrgUnitPerformance[]; agents: AgentPerformance[]; checks: PerformanceCheck[];
+}
+/** Window and scope of a performance read. The default window is the last 7 days; the span is at most 90 days. */
+export interface PerformanceQuery { fromUtc?: string | Date; toUtc?: string | Date; unitId?: string; }
+
+/** Organization performance per unit and per agent over a window, with scheduled checks. Needs Read on Organization. */
+export class PerformanceClient {
+  constructor(private readonly t: Transport) {}
+  /** Read an organization's performance. A span over 90 days fails with 400; a unitId outside the organization fails with 404. */
+  get(orgId: string, query: PerformanceQuery = {}): Promise<OrgPerformance> {
+    return this.t.request("GET", this.t.tenantPath(`/organizations/${seg(orgId)}/performance`), { fromUtc: query.fromUtc, toUtc: query.toUtc, unitId: query.unitId });
+  }
 }
 
 /** Reports: list and read reports, chart a metric over time, and file a report as a person. Agents file through garrison_file_report. Reading needs Read on Report; filing needs Create. */
@@ -3348,6 +3424,7 @@ export class GarrisonClient {
   readonly shadowTrials: ShadowTrials;
   readonly canaryReleases: CanaryReleases;
   readonly board: BoardClient;
+  readonly performance: PerformanceClient;
   readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
@@ -3407,6 +3484,7 @@ export class GarrisonClient {
     this.shadowTrials = new ShadowTrials(t);
     this.canaryReleases = new CanaryReleases(t);
     this.board = new BoardClient(t);
+    this.performance = new PerformanceClient(t);
     this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");

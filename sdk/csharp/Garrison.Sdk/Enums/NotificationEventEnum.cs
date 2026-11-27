@@ -81,6 +81,12 @@ namespace Garrison.Sdk.Enums
         BoardBrief,
 
         /// <summary>
+        /// The budget guard froze a unit whose subtree spend passed its budget by the organization's freeze margin
+        /// (AA11.5). The payload carries the organization, unit, spend, amount, and freeze identifier.
+        /// </summary>
+        OrgBudgetFrozen,
+
+        /// <summary>
         /// A test notification from the test action. Endpoints cannot subscribe to it.
         /// </summary>
         Test

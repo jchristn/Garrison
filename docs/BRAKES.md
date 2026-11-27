@@ -7,6 +7,8 @@ Keepers act on their own, so Garrison needs ways to stop them that do not depend
 - A **unit budget** stops every agent in an organization unit's subtree once the subtree has spent its budget for the day or month.
 - The **kill switch** stops every keeper in the tenant at once.
 
+For organizations there are also [org-scale brakes](#org-scale-brakes): cancel everything in a unit's subtree in one action, freeze a unit automatically when it overruns its budget, and roll back without leaving a tick on the wrong revision.
+
 All four take effect in the control plane: a refused run is never created and a skipped wake never starts a tick, so the agent has nothing to argue with. Run tokens never hold the Freeze permissions, so an agent cannot lift a freeze on itself or turn the kill switch off.
 
 ## Freezes
@@ -74,6 +76,8 @@ A usage quota with scope `Mandate` can also be created by hand for any keeper, w
 
 An organization unit can carry a `Day` and a `Month` budget in US dollars. Each caps the known cost of every run by the agents in the unit's subtree, keepers or not. Once a subtree has spent its budget, a new run by any of those agents is refused with 409 `BudgetExhausted`, and a keeper among them records each due wake as a `Skipped` tick with error code `BudgetExhausted`. The unit's manager gets one `Urgent` escalation per window, and everything resumes when the UTC day or month turns over. A child unit's budget may not exceed its parent's.
 
+When a subtree overruns its budget by more than the organization's freeze margin, the budget guard also freezes the unit; see [Automatic freeze on a budget breach](#automatic-freeze-on-a-budget-breach).
+
 Unit budgets are set on the organization and take effect when a revision is published; a usage quota with scope `OrgUnit` cannot be created by hand. A keeper inside a unit with money left still stops at its own `budgetPerDayUsd`. See [ORGANIZATIONS.md](ORGANIZATIONS.md#budgets).
 
 ## The kill switch
@@ -94,6 +98,80 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/autonomy/kill-swi
 
 The response carries `enabled`, the `freezeId` that holds the switch on, the `reason`, `changedByName`, and `changedUtc`.
 
+## Org-scale brakes
+
+An organization can have dozens of agents waking each other, so stopping it one agent at a time is too slow. Three brakes work on a whole unit's subtree at once.
+
+### Cancel everything in a unit
+
+`POST /v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}/cancel-all` stops what is in flight under a unit right now. For every agent in the unit's subtree of the live revision it:
+
+- cancels queued and running runs through the normal cancellation path, so a running run moves to `Cancelling` and its worker stops it;
+- cancels mandate ticks that are in flight;
+- withdraws open escalations those agents raised, recording your reason;
+- expires queued and undelivered messages addressed to them.
+
+The body is optional: `{"reason": "..."}`, at most 1024 characters. The answer counts what it stopped:
+
+```json
+{
+  "organizationId": "org_mx2c9h4k_Pq7LrT2vNs8KdWb3Hf",
+  "unitId": "oun_mx2c9h4k_Rt5MvB8nQw2LsZc7Jp",
+  "unitName": "support",
+  "runsCancelled": 4,
+  "ticksCancelled": 2,
+  "escalationsWithdrawn": 1,
+  "messagesExpired": 7,
+  "runIds": ["run_...", "run_...", "run_...", "run_..."],
+  "completedUtc": "2026-11-26T18:04:11.204Z"
+}
+```
+
+It is one audited action, `UnitCascadeCancelled`, with the counts and who did it. It needs Execute on `Organization`. A unit that is not in the organization answers 404, and an organization with no live revision answers 409 `OrganizationNotLive`.
+
+A cascade cancel does not freeze anything. A keeper in the subtree wakes again on its schedule and a trigger can start a new run a minute later. When you want the subtree to stay quiet, freeze the unit as well; the dashboard offers both from the unit's menu and the board's brakes panel. Cancelling first and freezing second is the usual order during an incident, because a freeze with `cancelActiveRuns` stops runs but leaves ticks, escalations, and messages where they are.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/acme/units/support/cancel-all" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"reason": "Support agents are paging each other in a loop"}'
+```
+
+The management MCP tool `garrison_unit_cancel_all` does the same for people and API credentials. Run tokens never see it.
+
+### Automatic freeze on a budget breach
+
+A unit budget refuses new runs once the subtree has spent it, but runs that were already going keep spending, and their cost is known only when they finish. A subtree can therefore end a window well past its cap. The budget guard catches that: when a unit's subtree spend in a `Day` or `Month` window reaches
+
+```
+amountUsd * (1 + budgetFreezeMarginPercent / 100)
+```
+
+Garrison applies an `OrgUnit` freeze to the unit with `cancelActiveRuns` set, a reason that names the unit, the spend, the budget, and the window, and `createdByName` "Garrison budget guard". The freeze stays until a person lifts it; the window turning over does not lift it.
+
+`budgetFreezeMarginPercent` is a field on the organization: 0 to 100, default 10. With the default, a unit with a $50 daily budget is frozen once its subtree has spent $55 that day. A margin of 0 freezes at the cap itself. Set it on create or update, in the organization's manifest, or in the dashboard's organization settings; a value outside the range answers 400.
+
+The guard checks from two places. A sweep on the leader runs every 60 seconds by default, and the budget check that admits runs freezes the unit as soon as it sees an overrun. Both skip a unit that an active freeze already covers, so one breach produces one freeze even with several replicas.
+
+Each automatic freeze is audited as `OrgBudgetFrozen` and sends the `OrgBudgetFrozen` notification, whose payload carries the organization, unit, spend, budget amount, and freeze identifier. The board shows the freeze in its brakes panel and the unit as frozen and over budget. See [BOARD.md](BOARD.md#brakes-from-the-board).
+
+### Rolling back while ticks are in flight
+
+A rollback restores an earlier snapshot of the organization, including the mandate revision each unit's keeper was pinned to. A tick that started under the newer revision may still be running when you roll back. The rollback request's `activeTicks` field says what happens to it:
+
+| `activeTicks` | What happens |
+|---|---|
+| `Finish` (default) | The tick runs to completion. Its mandate is already pinned to the restored revision, so when the tick finishes it cannot move the mandate's current revision back |
+| `Cancel` | Garrison cancels the runs of in-flight ticks of the organization's mandates, then restores |
+
+Either way, after the rollback no mandate in the organization is on a revision outside the restored snapshot. A mandate that was in the live snapshot but is missing from the restored one is paused with the reason recorded, rather than left running outside the chart. The audit record of the rollback states which option was used.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/acme/rollback" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"note": "Undo the reorg", "activeTicks": "Cancel"}'
+```
+
 ## Permissions
 
 | Action | Permission | Built-in roles |
@@ -101,20 +179,22 @@ The response carries `enabled`, the `freezeId` that holds the switch on, the `re
 | List and read freezes, read the kill switch | Read on `Freeze` | TenantAdmin, Editor, Viewer, Auditor, AgentDeveloper, AgentOperator |
 | Apply a freeze | Create on `Freeze` | TenantAdmin, Editor, AgentOperator |
 | Lift a freeze, set the kill switch | Update on `Freeze` | TenantAdmin, Editor, AgentOperator |
+| Cancel everything in a unit | Execute on `Organization` | TenantAdmin, Editor |
+| Roll back an organization, set its freeze margin | Update on `Organization` | TenantAdmin, Editor, AgentDeveloper, BoardMember |
 
 AgentOperator gets these through its own permission, `AgentOperator.Brakes`, so the people who watch keepers can stop them without being able to change them. A custom role that should not stop anything can copy AgentOperator without it. Run tokens never hold any Freeze permission.
 
-Every freeze, lift, and kill switch change is written to the audit log as `FreezeApplied`, `FreezeLifted`, or `KillSwitchChanged`.
+Every freeze, lift, and kill switch change is written to the audit log as `FreezeApplied`, `FreezeLifted`, or `KillSwitchChanged`. A cascade cancel is written as `UnitCascadeCancelled` and an automatic freeze as `OrgBudgetFrozen`, in addition to the freeze's own `FreezeApplied`.
 
 ## Where it shows up
 
 | Surface | What you get |
 |---|---|
-| REST | `/v1.0/api/tenants/{tenantId}/freezes` and `/autonomy/kill-switch`. See [REST_API.md](../REST_API.md#freezes-and-the-kill-switch) |
-| MCP | `garrison_list_freezes`, `garrison_freeze`, and `garrison_lift_freeze` for people and API credentials. See [MCP_API.md](../MCP_API.md) |
+| REST | `/v1.0/api/tenants/{tenantId}/freezes`, `/autonomy/kill-switch`, and `/organizations/{id}/units/{unitId}/cancel-all`. See [REST_API.md](../REST_API.md#freezes-and-the-kill-switch) |
+| MCP | `garrison_list_freezes`, `garrison_freeze`, `garrison_lift_freeze`, and `garrison_unit_cancel_all` for people and API credentials. See [MCP_API.md](../MCP_API.md) |
 | WebSocket | The `freezes` channel: `freezes.active` on subscribe, then `freeze.applied`, `freeze.lifted`, and `killswitch.changed`. See [WEBSOCKETS_API.md](../WEBSOCKETS_API.md) |
-| Notifications | `FreezeApplied` (including the kill switch turning on) and `MandateCapReached`. See [NOTIFICATIONS.md](NOTIFICATIONS.md) |
-| Metrics | `garrison.freezes` by target kind and action (`applied`, `lifted`, `refused`, `skipped`, `cancelled`), `garrison.spend.cap.hits` by scope (`mandate_tick`, `mandate_day`, `org_unit_day`, `org_unit_month`), and the `garrison.org.budgets.exhausted` gauge by period. See [TELEMETRY.md](TELEMETRY.md) |
+| Notifications | `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, and `OrgBudgetFrozen`. See [NOTIFICATIONS.md](NOTIFICATIONS.md) |
+| Metrics | `garrison.freezes` by target kind and action (`applied`, `lifted`, `refused`, `skipped`, `cancelled`), `garrison.spend.cap.hits` by scope (`mandate_tick`, `mandate_day`, `org_unit_day`, `org_unit_month`), the `garrison.org.budgets.exhausted` gauge by period, `garrison.brakes.cascade_cancels` by organization, and `garrison.brakes.auto_freezes`. See [TELEMETRY.md](TELEMETRY.md) |
 | SDKs | A Freezes client in C#, Python, JavaScript/TypeScript, and Go |
 
 ## How it works across replicas

@@ -239,6 +239,11 @@ namespace Garrison.Sdk
         public BoardClient Board { get; }
 
         /// <summary>
+        /// Performance (AA11): per-unit and per-agent metrics of an organization over a window, and its scheduled checks.
+        /// </summary>
+        public PerformanceClient Performance { get; }
+
+        /// <summary>
         /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
         /// </summary>
         public NotificationEndpointsClient NotificationEndpoints { get; }
@@ -376,6 +381,7 @@ namespace Garrison.Sdk
             ShadowTrials = new ShadowTrialsClient(Transport);
             CanaryReleases = new CanaryReleasesClient(Transport);
             Board = new BoardClient(Transport);
+            Performance = new PerformanceClient(Transport);
             NotificationEndpoints = new NotificationEndpointsClient(Transport);
             AgentRevisions = new AgentRevisionsClient(Transport);
             AgentAssets = new AgentAssetsClient(Transport);

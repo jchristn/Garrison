@@ -26,6 +26,8 @@ const (
 const (
 	TriggerTargetAgent    = "Agent"
 	TriggerTargetPipeline = "Pipeline"
+	// TriggerTargetEvalSet is a scheduled check: an eval run of an eval set against a deployment's recent inputs.
+	TriggerTargetEvalSet = "EvalSet"
 )
 
 // Trigger fire sources (TriggerFire.Source) and outcomes (TriggerFire.Outcome).
@@ -56,6 +58,7 @@ const (
 	NotificationEventOrgProposalApplied = "OrgProposalApplied"
 	NotificationEventCanaryRolledBack   = "CanaryRolledBack"
 	NotificationEventBoardBrief         = "BoardBrief"
+	NotificationEventOrgBudgetFrozen    = "OrgBudgetFrozen"
 	NotificationEventTest               = "Test"
 )
 
@@ -84,11 +87,19 @@ type Trigger struct {
 	Description *string `json:"description,omitempty"`
 	// Type is TriggerTypeCron or TriggerTypeWebhook; it cannot change after creation.
 	Type string `json:"type"`
-	// TargetType is TriggerTargetAgent (default when empty) or TriggerTargetPipeline.
-	TargetType   string  `json:"targetType,omitempty"`
-	AgentID      *string `json:"agentId,omitempty"`
+	// TargetType is TriggerTargetAgent (default when empty), TriggerTargetPipeline, or TriggerTargetEvalSet.
+	TargetType string  `json:"targetType,omitempty"`
+	AgentID    *string `json:"agentId,omitempty"`
+	// DeploymentID pins runs to a deployment. It is required for TriggerTargetEvalSet: the deployment whose recent
+	// inputs the check replays.
 	DeploymentID *string `json:"deploymentId,omitempty"`
 	PipelineID   *string `json:"pipelineId,omitempty"`
+	// EvalSetID names the eval set of a TriggerTargetEvalSet check (identifier or name).
+	EvalSetID *string `json:"evalSetId,omitempty"`
+	// EvalJudgeAgentID names the judge agent for the check's judge scorers, or nil.
+	EvalJudgeAgentID *string `json:"evalJudgeAgentId,omitempty"`
+	// EvalRecentInputCount is how many recent inputs a check replays, 1 to 50, or nil for the eval run default.
+	EvalRecentInputCount *int `json:"evalRecentInputCount,omitempty"`
 	// InputTemplateID is a Task prompt template that renders the run input; nil uses builtin/trigger-input.
 	InputTemplateID *string `json:"inputTemplateId,omitempty"`
 	Priority        int     `json:"priority,omitempty"`

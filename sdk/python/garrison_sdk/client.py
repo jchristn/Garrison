@@ -1071,7 +1071,13 @@ TRIGGER_TYPES = ("Cron", "Webhook")
 # Run["shadowTrialId"] name the eval run or the trial.
 RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message", "Eval", "Shadow")
 PLAYGROUND_ENVIRONMENT = "draft"
-TRIGGER_TARGET_TYPES = ("Agent", "Pipeline")
+# A trigger with targetType "EvalSet" is a scheduled check (evalSetId, deploymentId required, evalJudgeAgentId,
+# evalRecentInputCount 1 to 50): each fire starts an eval run against the deployment's recent inputs, and EvalRun["triggerId"]
+# names the trigger. Run tokens cannot create or change these triggers.
+TRIGGER_TARGET_TYPES = ("Agent", "Pipeline", "EvalSet")
+# OrgRollbackRequest["activeTicks"]: what a rollback does with mandate ticks in flight. Finish (default) lets them complete
+# without moving any mandate off the restored revisions; Cancel cancels their runs first.
+ROLLBACK_ACTIVE_TICKS = ("Finish", "Cancel")
 TRIGGER_FIRE_SOURCES = ("Cron", "Webhook", "Manual")
 TRIGGER_FIRE_OUTCOMES = ("Started", "Failed", "Skipped")
 # Keepers (mandates): standing objectives an agent works on a wake schedule. Mandate["status"], MandateRevision["state"],
@@ -1087,7 +1093,7 @@ TICK_OUTCOMES = ("Quiet", "Acted", "Attention", "Escalated", "Failed", "Skipped"
 # subscribed to) and NotificationDelivery["status"].
 NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
                        "ApprovalRequested", "EscalationRaised", "EscalationExpired", "FreezeApplied", "MandateCapReached", "ReportUnhealthy",
-                       "OrgProposalApplied", "CanaryRolledBack", "BoardBrief", "Test")
+                       "OrgProposalApplied", "CanaryRolledBack", "BoardBrief", "OrgBudgetFrozen", "Test")
 # Escalations: questions runs raise for a person, a role, or another agent. Escalation["status"], ["severity"], ["mode"],
 # ["targetKind"], ["timeoutAction"] and ["resolutionSource"]. NotificationEndpoint["escalationMinimumSeverity"] and a
 # mandate revision's ["escalationTargetKind"] use ESCALATION_SEVERITIES and ESCALATION_TARGET_KINDS.
@@ -1477,13 +1483,15 @@ class OrgUnit(TypedDict, total=False):
 
 class Organization(TypedDict, total=False):
     """An organization. status is one of ORGANIZATION_STATUSES. units is the working tree, root first, when one
-    organization is read; None on lists."""
+    organization is read; None on lists. budgetFreezeMarginPercent (0 to 100, default 10) is how far past a unit budget
+    the subtree may spend before the budget guard freezes the unit; 0 freezes at the cap."""
     id: str
     tenantId: str
     name: str
     description: Optional[str]
     mission: Optional[str]
     status: str
+    budgetFreezeMarginPercent: int
     rootUnitId: Optional[str]
     currentRevisionId: Optional[str]
     currentRevisionNumber: int
@@ -1623,6 +1631,93 @@ class Board(TypedDict, total=False):
     unhealthyReports: List[Dict[str, Any]]
     freezes: List[Dict[str, Any]]
     killSwitch: Dict[str, Any]
+
+
+class PerformanceMetrics(TypedDict, total=False):
+    """Metrics over runs created in the window by the agents in scope (eval, shadow, and playground runs left out).
+    successRate is succeeded / (succeeded + failed), 0 to 1, None with no finished runs. Latency percentiles are over
+    finished runs, None when there are none. escalationRate is escalationsRaised / runs, None with no runs. evalScore is
+    the mean score (0 to 1) of completed eval runs targeting the scope's deployments, scheduled checks included.
+    sampleRunIds holds at most 5 runs, newest failures first, then newest successes."""
+    runs: int
+    succeeded: int
+    failed: int
+    cancelled: int
+    successRate: Optional[float]
+    costUsd: float
+    latencyP50Ms: Optional[int]
+    latencyP95Ms: Optional[int]
+    latencyP99Ms: Optional[int]
+    escalationsRaised: int
+    escalationRate: Optional[float]
+    loopGuardRejections: int
+    evalScore: Optional[float]
+    evalRuns: int
+    sampleRunIds: List[str]
+
+
+class OrgUnitPerformance(TypedDict, total=False):
+    """OrgPerformance["units"] item: metrics over the unit's whole subtree."""
+    unitId: str
+    unitName: str
+    parentUnitId: Optional[str]
+    leadAgentId: Optional[str]
+    metrics: PerformanceMetrics
+
+
+class AgentPerformance(TypedDict, total=False):
+    """OrgPerformance["agents"] item: one agent positioned in the live tree."""
+    agentId: str
+    agentName: Optional[str]
+    unitId: str
+    unitName: Optional[str]
+    isLead: bool
+    metrics: PerformanceMetrics
+
+
+class PerformanceCheck(TypedDict, total=False):
+    """OrgPerformance["checks"] item: a trigger with targetType EvalSet whose deployment belongs to an agent in scope,
+    with its newest eval run. lastStatus is one of EVAL_RUN_STATUSES."""
+    triggerId: str
+    triggerName: Optional[str]
+    active: bool
+    evalSetId: str
+    evalSetName: Optional[str]
+    deploymentId: str
+    agentId: Optional[str]
+    cronExpression: Optional[str]
+    nextFireUtc: Optional[str]
+    lastEvalRunId: Optional[str]
+    lastRunUtc: Optional[str]
+    lastStatus: Optional[str]
+    lastScore: Optional[float]
+    lastPassed: Optional[bool]
+
+
+class OrgPerformance(TypedDict, total=False):
+    """An organization's performance over a window, computed on each read: units in chart order (each covering its
+    subtree), agents in the live tree, and scheduled checks on their deployments."""
+    organizationId: str
+    name: str
+    fromUtc: str
+    toUtc: str
+    generatedUtc: str
+    units: List[OrgUnitPerformance]
+    agents: List[AgentPerformance]
+    checks: List[PerformanceCheck]
+
+
+class CascadeCancelResult(TypedDict, total=False):
+    """What a cascade cancel of a unit stopped. runIds lists the cancelled runs."""
+    organizationId: str
+    unitId: str
+    unitName: str
+    runsCancelled: int
+    ticksCancelled: int
+    escalationsWithdrawn: int
+    messagesExpired: int
+    runIds: List[str]
+    completedUtc: str
 
 
 # "class" is a Python keyword, so these two TypedDicts use the functional form. ChangeRuleClass is a ChangeRule["classes"]
@@ -1809,6 +1904,7 @@ class EvalRun(TypedDict, total=False):
     startedByType: str
     startedById: Optional[str]
     startedByName: Optional[str]
+    triggerId: Optional[str]
     originRunId: Optional[str]
     warnings: Optional[List[FieldWarning]]
     createdUtc: str
@@ -3310,10 +3406,25 @@ class Organizations(Resource):
         RevisionPublished when the revision is not a draft."""
         return self._t.request("POST", self._item(organization) + f"/revisions/{_seg(revision_id)}/publish")
 
-    def rollback(self, organization: str, revision_id: Optional[str] = None, note: Optional[str] = None) -> Dict[str, Any]:
+    def rollback(self, organization: str, revision_id: Optional[str] = None, note: Optional[str] = None,
+                 active_ticks: Optional[str] = None) -> Dict[str, Any]:
         """Return to an earlier live revision (revision_id, or the one live before the current one) by publishing a copy
-        of its snapshot. Raises 409 NothingToRollBack or AlreadyLive."""
-        return self._t.request("POST", self._item(organization) + "/rollback", body={"revisionId": revision_id, "note": note})
+        of its snapshot. active_ticks is one of ROLLBACK_ACTIVE_TICKS (None means the server default, Finish). Raises 409
+        NothingToRollBack or AlreadyLive."""
+        body: Dict[str, Any] = {"revisionId": revision_id, "note": note}
+        if active_ticks is not None:
+            body["activeTicks"] = active_ticks
+        return self._t.request("POST", self._item(organization) + "/rollback", body=body)
+
+    def cancel_all(self, org_id: str, unit_id: str, reason: Optional[str] = None) -> CascadeCancelResult:
+        """Cancel everything active in a unit's subtree of the live tree in one audited action: queued and running runs
+        (running runs go to Cancelling), in-flight mandate ticks, open escalations its agents raised, and queued or
+        undelivered messages addressed to them. Does not freeze the unit. reason is at most 1024 characters. Needs
+        Execute on Organization. Raises 404 for a unit outside the organization and 409 OrganizationNotLive without a
+        live revision."""
+        if reason is not None and len(reason) > 1024:
+            raise ValueError("reason must be at most 1024 characters")
+        return self._t.request("POST", self._item(org_id) + f"/units/{_seg(unit_id)}/cancel-all", body={"reason": reason})
 
     def spend(self, organization: str) -> List[Dict[str, Any]]:
         """Spend of each unit's subtree against its budgets in the current day and month windows (see OrgUnitSpend)."""
@@ -3334,6 +3445,22 @@ class Organizations(Resource):
         """Decide a proposal waiting for approval: allow applies it (recorded as an org revision that a rollback undoes);
         deny sends it back to the executive. Needs Update on Approval."""
         return self._t.request("POST", self._item(organization) + f"/proposals/{_seg(draft_id)}/decide", body={"allow": allow, "reason": reason})
+
+
+class PerformanceClient:
+    """Organization performance: run outcomes, cost, latency, escalations, loop-guard rejections, and eval scores per
+    unit and per agent over a window, plus scheduled checks. Needs Read on Organization."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def get(self, org_id: str, from_utc: Optional[datetime] = None, to_utc: Optional[datetime] = None,
+            unit_id: Optional[str] = None) -> OrgPerformance:
+        """Read an organization's performance (see OrgPerformance). The default window is the last 7 days ending now;
+        a span over 90 days raises GarrisonError 400. unit_id restricts the response to that unit's subtree (404 when the
+        unit is not in the organization)."""
+        return self._t.request("GET", self._t.tenant_path(f"/organizations/{_seg(org_id)}/performance"),
+                               {"fromUtc": from_utc, "toUtc": to_utc, "unitId": unit_id})
 
 
 class BoardClient:
@@ -3749,6 +3876,7 @@ class GarrisonClient:
         self.shadow_trials = ShadowTrials(t, "shadow-trials")
         self.canary_releases = CanaryReleases(t, "canary-releases")
         self.board = BoardClient(t)
+        self.performance = PerformanceClient(t)
         self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)

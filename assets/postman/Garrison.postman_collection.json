@@ -25992,6 +25992,893 @@
       ]
     },
     {
+      "name": "Performance",
+      "description": "Performance signals and org-scale brakes (AA11). Performance per unit and per agent over a window, a cascade cancel of a unit, a rollback that cancels ticks in flight, a scheduled check (an EvalSet trigger agents cannot grade), and the budget freeze margin. This folder makes its own organization, uses the Eval sets folder's approved set and the Deployments folder's deployment, and deletes what it made at the end.",
+      "item": [
+        {
+          "name": "Create the performance organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations"
+              ]
+            },
+            "description": "Creates an organization for the performance and brake requests with budgetFreezeMarginPercent 15. The margin (0 to 100, default 10) is how far past a unit budget a subtree may spend before the budget guard freezes the unit; 0 freezes at the cap.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-perf-{{suffix}}\",\n  \"mission\": \"Exercise performance and brakes from Postman.\",\n  \"budgetFreezeMarginPercent\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('the margin round-trips', function () { pm.expect(json.id).to.match(/^org_/); pm.expect(json.budgetFreezeMarginPercent).to.eql(15); });",
+                  "if (json.id) { pm.collectionVariables.set('perfOrgId', json.id); pm.collectionVariables.set('perfOrgName', json.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add the performance root unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "units"
+              ]
+            },
+            "description": "Adds the root unit, led by the Agents folder's agent, so that agent and its deployment are in scope for performance and scheduled checks.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"operations\",\n  \"leadAgentId\": \"{{agentId}}\",\n  \"leadTitle\": \"Lead\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('perfUnitId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft the performance revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "revisions"
+              ]
+            },
+            "description": "Snapshots the working tree. Performance, cascade cancel, and the budget guard follow the live revision.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"First\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('perfRevisionId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish the performance revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/revisions/{{perfRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "revisions",
+                "{{perfRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Makes the chart live."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Published', function () { pm.expect(json.state).to.eql('Published'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read performance (default window)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/performance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "performance"
+              ]
+            },
+            "description": "Performance over the default window, the last 7 days ending now: one entry per unit in chart order (each covering its subtree), one per agent in the live tree, and the scheduled checks on their deployments. Metrics cover runs the agents in scope created in the window; eval, shadow, and playground runs are left out. successRate, escalationRate, evalScore, and the latency percentiles are null when there is nothing to measure. Needs Read on Organization. The organization may have no runs, so these tests check shapes, not counts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "function metricsShape(m) { ['runs', 'succeeded', 'failed', 'cancelled', 'escalationsRaised', 'loopGuardRejections', 'evalRuns'].forEach(function (k) { pm.expect(m[k], k).to.be.a('number'); }); pm.expect(m.costUsd).to.be.a('number'); pm.expect(m.sampleRunIds).to.be.an('array'); pm.expect(m.sampleRunIds.length).to.be.at.most(5); ['successRate', 'escalationRate', 'evalScore', 'latencyP50Ms', 'latencyP95Ms', 'latencyP99Ms'].forEach(function (k) { pm.expect(m[k] === null || typeof m[k] === 'number', k).to.eql(true); }); }",
+                  "pm.test('the window is about 7 days', function () { var span = Date.parse(json.toUtc) - Date.parse(json.fromUtc); pm.expect(span).to.be.within(6.9 * 86400000, 7.1 * 86400000); pm.expect(json.generatedUtc).to.be.a('string'); });",
+                  "pm.test('the root unit and its metrics', function () { pm.expect(json.organizationId).to.eql(pm.collectionVariables.get('perfOrgId')); var u = json.units.find(function (x) { return x.unitId === pm.collectionVariables.get('perfUnitId'); }); pm.expect(u, 'root unit').to.be.an('object'); metricsShape(u.metrics); });",
+                  "pm.test('agents and checks are arrays', function () { pm.expect(json.agents).to.be.an('array'); json.agents.forEach(function (a) { pm.expect(a.agentId).to.be.a('string'); pm.expect(a.isLead).to.be.a('boolean'); metricsShape(a.metrics); }); pm.expect(json.checks).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read performance (explicit window and unit)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/performance?fromUtc={{perfFromUtc}}&toUtc={{perfToUtc}}&unitId={{perfUnitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "performance"
+              ],
+              "query": [
+                {
+                  "key": "fromUtc",
+                  "value": "{{perfFromUtc}}"
+                },
+                {
+                  "key": "toUtc",
+                  "value": "{{perfToUtc}}"
+                },
+                {
+                  "key": "unitId",
+                  "value": "{{perfUnitId}}"
+                }
+              ]
+            },
+            "description": "Performance over the last 24 hours, restricted to the root unit's subtree. fromUtc and toUtc are ISO 8601; unitId must be a unit of this organization (404 otherwise)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the requested window', function () { pm.expect(Math.abs(Date.parse(json.fromUtc) - Date.parse(pm.collectionVariables.get('perfFromUtc')))).to.be.below(1000); pm.expect(Math.abs(Date.parse(json.toUtc) - Date.parse(pm.collectionVariables.get('perfToUtc')))).to.be.below(1000); });",
+                  "pm.test('restricted to the unit', function () { pm.expect(json.units.length).to.be.at.least(1); pm.expect(json.units[0].unitId).to.eql(pm.collectionVariables.get('perfUnitId')); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var end = new Date();",
+                  "pm.collectionVariables.set('perfToUtc', end.toISOString());",
+                  "pm.collectionVariables.set('perfFromUtc', new Date(end.getTime() - 86400000).toISOString());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A span over 90 days is refused",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/performance?fromUtc={{perfLongFromUtc}}&toUtc={{perfToUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "performance"
+              ],
+              "query": [
+                {
+                  "key": "fromUtc",
+                  "value": "{{perfLongFromUtc}}"
+                },
+                {
+                  "key": "toUtc",
+                  "value": "{{perfToUtc}}"
+                }
+              ]
+            },
+            "description": "The window is at most 90 days; a longer span answers 400 ValidationFailed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var end = new Date();",
+                  "pm.collectionVariables.set('perfToUtc', end.toISOString());",
+                  "pm.collectionVariables.set('perfLongFromUtc', new Date(end.getTime() - 91 * 86400000).toISOString());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel everything in the unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/units/{{perfUnitId}}/cancel-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "units",
+                "{{perfUnitId}}",
+                "cancel-all"
+              ]
+            },
+            "description": "Cascade cancel: for every agent in the unit's subtree of the live tree, cancels queued and running runs (running runs go to Cancelling), cancels in-flight ticks, withdraws open escalations the agents raised, and expires queued or undelivered messages addressed to them. One audited action (UnitCascadeCancelled). It does not freeze the unit. reason is at most 1024 characters. Needs Execute on Organization. The counts may be zero here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Postman cascade cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the counts', function () { pm.expect(json.unitId).to.eql(pm.collectionVariables.get('perfUnitId')); ['runsCancelled', 'ticksCancelled', 'escalationsWithdrawn', 'messagesExpired'].forEach(function (k) { pm.expect(json[k], k).to.be.a('number'); pm.expect(json[k], k).to.be.at.least(0); }); pm.expect(json.runIds).to.be.an('array').with.lengthOf(json.runsCancelled); pm.expect(json.completedUtc).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel-all on an unknown unit is 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/units/oun_postman_missing/cancel-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "units",
+                "oun_postman_missing",
+                "cancel-all"
+              ]
+            },
+            "description": "A unit that is not in the organization answers 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Draft a second performance revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/revisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "revisions"
+              ]
+            },
+            "description": "A second revision, so there is something to roll back.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Second\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('perfSecondRevisionId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish the second performance revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/revisions/{{perfSecondRevisionId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "revisions",
+                "{{perfSecondRevisionId}}",
+                "publish"
+              ]
+            },
+            "description": "Makes the second revision live."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Roll back, cancelling ticks in flight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/rollback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "rollback"
+              ]
+            },
+            "description": "activeTicks says what a rollback does with mandate ticks in flight. Finish (the default) lets them complete, with their mandates already pinned to the restored snapshot so a late tick cannot move a mandate's current revision. Cancel cancels their runs before the restore. The response is the new live revision.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Back to the first\",\n  \"activeTicks\": \"Cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('a rollback of the first revision', function () { pm.expect(json.state).to.eql('Published'); pm.expect(json.rollbackOfRevisionId).to.eql(pm.collectionVariables.get('perfRevisionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a scheduled check",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers"
+              ]
+            },
+            "description": "A trigger with targetType EvalSet is a check agents cannot grade: each fire starts an eval run of the Eval sets folder's approved set against the deployment's recent inputs (inputMode RecentInputs), as the trigger's run-as user. deploymentId is required, evalRecentInputCount is 1 to 50, and evalJudgeAgentId is optional. Run tokens cannot create or change these triggers, and the run-as principal must be a user. Created inactive so it never fires during the run.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-check-{{suffix}}\",\n  \"type\": \"Cron\",\n  \"targetType\": \"EvalSet\",\n  \"evalSetId\": \"{{evalSetId}}\",\n  \"deploymentId\": \"{{deploymentId}}\",\n  \"evalRecentInputCount\": 5,\n  \"cronExpression\": \"0 6 * * *\",\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('an EvalSet target', function () { pm.expect(json.id).to.match(/^trg_/); pm.expect(json.targetType).to.eql('EvalSet'); pm.expect(json.evalSetId).to.eql(pm.collectionVariables.get('evalSetId')); pm.expect(json.deploymentId).to.eql(pm.collectionVariables.get('deploymentId')); pm.expect(json.evalRecentInputCount).to.eql(5); pm.expect(json.runAsType).to.eql('User'); });",
+                  "if (json.id) pm.collectionVariables.set('perfCheckTriggerId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A scheduled check without a deployment is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers"
+              ]
+            },
+            "description": "An EvalSet trigger needs deploymentId; without it the server answers 400 ValidationFailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-check-bad-{{suffix}}\",\n  \"type\": \"Cron\",\n  \"targetType\": \"EvalSet\",\n  \"evalSetId\": \"{{evalSetId}}\",\n  \"cronExpression\": \"0 6 * * *\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Performance lists the scheduled check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}/performance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}",
+                "performance"
+              ]
+            },
+            "description": "checks lists the scheduled checks whose deployment belongs to an agent in scope, with the newest eval run's status, score, and pass (null before the first fire)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the check is listed', function () { var k = json.checks.find(function (x) { return x.triggerId === pm.collectionVariables.get('perfCheckTriggerId'); }); pm.expect(k, 'check').to.be.an('object'); pm.expect(k.evalSetId).to.eql(pm.collectionVariables.get('evalSetId')); pm.expect(k.deploymentId).to.eql(pm.collectionVariables.get('deploymentId')); pm.expect(k.active).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update the freeze margin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}"
+              ]
+            },
+            "description": "Sets budgetFreezeMarginPercent to 0, so the budget guard freezes a unit as soon as its subtree reaches its budget. The freeze stays until a person lifts it and fires OrgBudgetFrozen to notification endpoints.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{perfOrgName}}\",\n  \"mission\": \"Exercise performance and brakes from Postman.\",\n  \"budgetFreezeMarginPercent\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the margin is 0', function () { pm.expect(json.budgetFreezeMarginPercent).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A freeze margin over 100 is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}"
+              ]
+            },
+            "description": "budgetFreezeMarginPercent is 0 to 100; 101 answers 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{perfOrgName}}\",\n  \"budgetFreezeMarginPercent\": 101\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the scheduled check",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{perfCheckTriggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{perfCheckTriggerId}}"
+              ]
+            },
+            "description": "Deletes the EvalSet trigger."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete the performance organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}"
+              ]
+            },
+            "description": "Deletes the folder's organization."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
       "item": [
@@ -27640,6 +28527,74 @@
               ]
             },
             "description": "Deletes the Board folder's organization if the folder stopped early; 404 when the folder already deleted it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('deleted, or already gone', function () { pm.expect(pm.response.code).to.be.oneOf([204, 404]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete performance scheduled check",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{perfCheckTriggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{perfCheckTriggerId}}"
+              ]
+            },
+            "description": "Deletes what the Performance folder made if it stopped early; 404 when the folder already deleted it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('deleted, or already gone', function () { pm.expect(pm.response.code).to.be.oneOf([204, 404]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete performance organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{perfOrgId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{perfOrgId}}"
+              ]
+            },
+            "description": "Deletes what the Performance folder made if it stopped early; 404 when the folder already deleted it."
           },
           "event": [
             {
@@ -29879,6 +30834,42 @@
     },
     {
       "key": "boardConversationId",
+      "value": ""
+    },
+    {
+      "key": "perfOrgId",
+      "value": ""
+    },
+    {
+      "key": "perfOrgName",
+      "value": ""
+    },
+    {
+      "key": "perfUnitId",
+      "value": ""
+    },
+    {
+      "key": "perfRevisionId",
+      "value": ""
+    },
+    {
+      "key": "perfSecondRevisionId",
+      "value": ""
+    },
+    {
+      "key": "perfFromUtc",
+      "value": ""
+    },
+    {
+      "key": "perfToUtc",
+      "value": ""
+    },
+    {
+      "key": "perfLongFromUtc",
+      "value": ""
+    },
+    {
+      "key": "perfCheckTriggerId",
       "value": ""
     }
   ]

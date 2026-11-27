@@ -1439,6 +1439,87 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("performance and org brakes", async () =>
+                {
+                    // Performance reads, a cascade cancel, a rollback with the ticks option, a scheduled check, and the freeze margin. The organization may have no runs, so only shapes are asserted.
+                    Organization? organization = null;
+                    EvalSet? checkSet = null;
+                    Trigger? check = null;
+                    try
+                    {
+                        organization = await client.Organizations.CreateAsync(new Organization { Name = "sdk-cs-perf-" + suffix, Mission = "Exercise C# SDK performance.", BudgetFreezeMarginPercent = 15 }, token).ConfigureAwait(false);
+                        Require(organization.BudgetFreezeMarginPercent == 15, "budgetFreezeMarginPercent round-trips on create");
+                        OrgUnit root = await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "board", LeadAgentId = agentId, LeadTitle = "CEO" }, token).ConfigureAwait(false);
+                        OrgRevision first = await client.Organizations.CreateRevisionAsync(organization.Id, new OrgRevisionRequest { Note = "First" }, token).ConfigureAwait(false);
+                        await client.Organizations.PublishAsync(organization.Id, first.Id, token).ConfigureAwait(false);
+
+                        OrgPerformance performance = await client.Performance.GetAsync(organization.Id, null, token).ConfigureAwait(false);
+                        Require(performance.OrganizationId == organization.Id && performance.FromUtc < performance.ToUtc && performance.Units.Exists(u => u.UnitId == root.Id && u.Metrics != null), "read performance over the default window");
+                        Require(performance.Agents.All(a => a.Metrics != null && a.Metrics.Runs >= 0 && a.Metrics.SampleRunIds.Count <= 5) && performance.Checks != null, "performance agent metrics have the expected shape");
+
+                        DateTime windowEnd = DateTime.UtcNow;
+                        OrgPerformance windowed = await client.Performance.GetAsync(organization.Name, new PerformanceQuery { FromUtc = windowEnd.AddDays(-1), ToUtc = windowEnd, UnitId = root.Id }, token).ConfigureAwait(false);
+                        Require(windowed.Units.Count >= 1 && windowed.Units[0].UnitId == root.Id && (windowed.ToUtc - windowed.FromUtc).TotalHours <= 25, "read performance over an explicit window and unit");
+
+                        int spanStatus = 0;
+                        try { await client.Performance.GetAsync(organization.Id, new PerformanceQuery { FromUtc = windowEnd.AddDays(-91), ToUtc = windowEnd }, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) { spanStatus = e.StatusCode; }
+                        Require(spanStatus == 400, "a span over 90 days is refused, got " + spanStatus);
+
+                        CascadeCancelResult cancelled = await client.Organizations.CancelAllAsync(organization.Id, root.Id, "SDK harness cascade cancel", token).ConfigureAwait(false);
+                        Require(cancelled.UnitId == root.Id && cancelled.RunsCancelled >= 0 && cancelled.TicksCancelled >= 0 && cancelled.EscalationsWithdrawn >= 0 && cancelled.MessagesExpired >= 0 && cancelled.RunIds.Count == cancelled.RunsCancelled, "cancel everything in a unit");
+
+                        int missingUnitStatus = 0;
+                        try { await client.Organizations.CancelAllAsync(organization.Id, "oun_sdk_missing", null, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) { missingUnitStatus = e.StatusCode; }
+                        Require(missingUnitStatus == 404, "cascade cancel of an unknown unit is 404, got " + missingUnitStatus);
+
+                        OrgRevision second = await client.Organizations.CreateRevisionAsync(organization.Id, new OrgRevisionRequest { Note = "Second" }, token).ConfigureAwait(false);
+                        await client.Organizations.PublishAsync(organization.Id, second.Id, token).ConfigureAwait(false);
+                        OrgRevision rolledBack = await client.Organizations.RollbackAsync(organization.Id, new OrgRollbackRequest { Note = "Cancel ticks and go back", ActiveTicks = RollbackActiveTicksEnum.Cancel }, token).ConfigureAwait(false);
+                        Require(rolledBack.RollbackOfRevisionId == first.Id && rolledBack.State == OrgRevisionStateEnum.Published, "roll back with activeTicks Cancel");
+
+                        Organization margin = await client.Organizations.GetAsync(organization.Id, token).ConfigureAwait(false);
+                        margin.BudgetFreezeMarginPercent = 0;
+                        margin = await client.Organizations.UpdateAsync(organization.Id, margin, token).ConfigureAwait(false);
+                        Require(margin.BudgetFreezeMarginPercent == 0, "update the freeze margin");
+                        bool refusedLocally = false;
+                        try { margin.BudgetFreezeMarginPercent = 101; }
+                        catch (ArgumentOutOfRangeException) { refusedLocally = true; }
+                        Require(refusedLocally, "a margin over 100 is refused");
+
+                        EvalSetRequest setRequest = new EvalSetRequest { Name = "sdk-cs-check-" + suffix, Cases = new List<EvalCase>() };
+                        setRequest.Cases.Add(new EvalCase { Name = "first", InputText = "check alpha", Checks = new List<EvalCaseCheck> { new EvalCaseCheck { Scorer = EvalScorerEnum.Contains, Argument = "alpha" } } });
+                        checkSet = await client.EvalSets.CreateAsync(setRequest, token).ConfigureAwait(false);
+                        checkSet = await client.EvalSets.ApproveAsync(checkSet.Id, token).ConfigureAwait(false);
+                        try
+                        {
+                            check = await client.Triggers.CreateAsync(new Trigger { Name = "sdk-cs-check-" + suffix, Type = TriggerTypeEnum.Cron, TargetType = TriggerTargetTypeEnum.EvalSet, EvalSetId = checkSet.Id, DeploymentId = deploymentId, EvalRecentInputCount = 5, CronExpression = "0 6 * * *", Active = false }, token).ConfigureAwait(false);
+                            Require(check.TargetType == TriggerTargetTypeEnum.EvalSet && check.EvalSetId == checkSet.Id && check.EvalRecentInputCount == 5 && check.DeploymentId == deploymentId, "create a scheduled check");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 400)
+                        {
+                            // A scheduled check runs as a user; the harness signs in with an access key, so its run-as principal is a credential.
+                            Console.WriteLine("  (scheduled check refused for a credential caller: " + e.Message + ")");
+                        }
+
+                        int noDeploymentStatus = 0;
+                        try { await client.Triggers.CreateAsync(new Trigger { Name = "sdk-cs-check-bad-" + suffix, Type = TriggerTypeEnum.Cron, TargetType = TriggerTargetTypeEnum.EvalSet, EvalSetId = checkSet.Id, CronExpression = "0 6 * * *" }, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) { noDeploymentStatus = e.StatusCode; }
+                        Require(noDeploymentStatus == 400, "a check without a deployment is refused, got " + noDeploymentStatus);
+                    }
+                    finally
+                    {
+                        if (check != null) await client.Triggers.DeleteAsync(check.Id, token).ConfigureAwait(false);
+                        if (checkSet != null)
+                        {
+                            try { await client.EvalSets.DeleteAsync(checkSet.Id, token).ConfigureAwait(false); }
+                            catch (GarrisonException) { }
+                        }
+                        if (organization != null) await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("notification endpoints", async () =>
                 {
                     int blockedStatus = 0;

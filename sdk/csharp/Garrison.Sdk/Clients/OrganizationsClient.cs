@@ -175,7 +175,7 @@ namespace Garrison.Sdk.Clients
         /// snapshot, restores the working tree and pinned mandate revisions, and records the rollback.
         /// </summary>
         /// <param name="id">Organization identifier or name.</param>
-        /// <param name="request">Optional revision and note.</param>
+        /// <param name="request">Optional revision, note, and what to do with ticks in flight (ActiveTicks, default Finish).</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>The new live revision.</returns>
         /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
@@ -183,6 +183,29 @@ namespace Garrison.Sdk.Clients
         public async Task<OrgRevision> RollbackAsync(string id, OrgRollbackRequest? request = null, CancellationToken token = default)
         {
             return await Transport.SendAsync<OrgRevision>(HttpMethod.Post, Item(id) + "/rollback", request ?? new OrgRollbackRequest(), token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
+        /// Cancel everything active in a unit's subtree of the live tree in one audited action (AA11.4): queued and
+        /// running runs (running runs move to Cancelling), in-flight mandate ticks, open escalations the subtree's agents
+        /// raised, and queued or undelivered messages addressed to them. It does not freeze the unit. Needs Execute on
+        /// Organization.
+        /// </summary>
+        /// <param name="id">Organization identifier or name.</param>
+        /// <param name="unitId">Unit identifier or name.</param>
+        /// <param name="reason">Why, at most 1024 characters, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The counts and the cancelled run identifiers.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when unitId is null or empty.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when reason is longer than 1024 characters.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        /// <exception cref="GarrisonException">Thrown with 404 when the unit is not in the organization and 409 OrganizationNotLive without a live revision.</exception>
+        public async Task<CascadeCancelResult> CancelAllAsync(string id, string unitId, string? reason = null, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(unitId)) throw new ArgumentNullException(nameof(unitId));
+            if (reason != null && reason.Length > 1024) throw new ArgumentOutOfRangeException(nameof(reason), "Reason must be at most 1024 characters.");
+            CascadeCancelRequest request = new CascadeCancelRequest { Reason = reason };
+            return await Transport.SendAsync<CascadeCancelResult>(HttpMethod.Post, Item(id) + "/units/" + Segment(unitId) + "/cancel-all", request, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
         }
 
         /// <summary>

@@ -242,6 +242,11 @@ namespace Garrison.Sdk.Models
         public string? StartedByName { get; set; } = null;
 
         /// <summary>
+        /// Trigger with target EvalSet that started the run as a scheduled check (AA11.3), or null.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// Run that started the evaluation (an executive's run calling garrison_run_eval), or null.
         /// </summary>
         public string? OriginRunId { get; set; } = null;

@@ -346,6 +346,25 @@ turn = await client.Runs.WaitForCompletionAsync(turn.Id, TimeSpan.FromMinutes(5)
 Run next = await client.Board.SendMessageAsync("acme", new BoardMessageRequest { Input = "And next week?", ConversationId = turn.ConversationId });
 ```
 
+## Performance and org-scale brakes
+
+`Performance.GetAsync(orgId, PerformanceQuery?)` returns an `OrgPerformance` for a window: an `OrgUnitPerformance` per unit in chart order, each covering its whole subtree, an `AgentPerformance` per agent in the live tree (with `IsLead`), and a `PerformanceCheck` per scheduled check on those agents' deployments, with its last eval run, score, and pass. Each `PerformanceMetrics` holds run counts by outcome, `SuccessRate` (succeeded over succeeded plus failed, null with no finished runs), `CostUsd`, latency percentiles, `EscalationsRaised` and `EscalationRate`, `LoopGuardRejections`, `EvalScore` and `EvalRuns`, and up to 5 `SampleRunIds` (newest failures first). Eval, shadow, and playground runs are left out. `PerformanceQuery` takes `FromUtc`, `ToUtc`, and `UnitId`; the default window is the last 7 days, and a span over 90 days answers 400. Reading needs Read on Organization.
+
+A scheduled check is a trigger with `TargetType = TriggerTargetTypeEnum.EvalSet`: set `EvalSetId`, `DeploymentId` (required), and optionally `EvalJudgeAgentId` and `EvalRecentInputCount` (1 to 50). Each fire starts an eval run against the deployment's recent inputs, and the run carries `EvalRun.TriggerId`. Run tokens cannot create or change these triggers, so an agent cannot grade itself.
+
+`Organizations.CancelAllAsync(orgId, unitId, reason)` stops everything in a unit's subtree in one audited action and returns a `CascadeCancelResult` with `RunsCancelled`, `TicksCancelled`, `EscalationsWithdrawn`, `MessagesExpired`, and `RunIds`. It does not freeze the unit. An organization without a live revision answers 409 `OrganizationNotLive`. `Organization.BudgetFreezeMarginPercent` (0 to 100, default 10) sets how far past a unit budget the subtree may go before the budget guard freezes the unit; each such freeze fires `NotificationEventEnum.OrgBudgetFrozen`. `OrgRollbackRequest.ActiveTicks` chooses `RollbackActiveTicksEnum.Finish` (default) or `Cancel` for ticks in flight. See [docs/ORGANIZATIONS.md](../../docs/ORGANIZATIONS.md) and [docs/BRAKES.md](../../docs/BRAKES.md).
+
+```csharp
+OrgPerformance week = await client.Performance.GetAsync("acme");
+foreach (OrgUnitPerformance unit in week.Units)
+    Console.WriteLine(unit.UnitName + " " + unit.Metrics.SuccessRate + " $" + unit.Metrics.CostUsd);
+
+await client.Triggers.CreateAsync(new Trigger { Name = "nightly-check", Type = TriggerTypeEnum.Cron, CronExpression = "0 6 * * *", TargetType = TriggerTargetTypeEnum.EvalSet, EvalSetId = "support-regressions", DeploymentId = "support-prod", EvalRecentInputCount = 20 });
+
+CascadeCancelResult stopped = await client.Organizations.CancelAllAsync("acme", "support", "Runaway loop");
+await client.Organizations.RollbackAsync("acme", new OrgRollbackRequest { Note = "Undo the reorg", ActiveTicks = RollbackActiveTicksEnum.Cancel });
+```
+
 ## Agent revisions and promotion
 
 `AgentRevisions` works on one agent at a time; the agent is addressed by ID or name and a revision by its `arv_` ID or its number. `SaveDraftAsync` creates or replaces the agent's single open draft, `PublishAsync` publishes it (optional `RevisionPublishRequest.ChangeNote`), `DiscardDraftAsync` deletes a draft, `ListAsync` returns revisions newest first, `GetAsync` reads one, and `DiffAsync(agentId, from, to)` returns an `AgentRevisionDiff` with one `AgentRevisionChange` per field (`RevisionChangeTypeEnum` `Changed`, `Added`, or `Removed`). `From` and `To` are `JsonElement?` values: objects for the `inputSchema` and `outputSchema` fields, strings for every other field. `Agent` reports `LatestPublishedRevisionId` and `DraftRevisionId`.

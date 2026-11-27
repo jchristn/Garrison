@@ -100,6 +100,25 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
+        /// Budget freeze margin in percent, 0 to 100, default 10 (AA11.5). When a unit's subtree spend in a budget window
+        /// reaches the budget amount times (1 + margin / 100), the budget guard freezes the unit and cancels its active
+        /// runs. 0 freezes at the cap. The freeze stays until a person lifts it.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is outside 0 to 100.</exception>
+        public int BudgetFreezeMarginPercent
+        {
+            get
+            {
+                return _BudgetFreezeMarginPercent;
+            }
+            set
+            {
+                if (value < 0 || value > 100) throw new ArgumentOutOfRangeException(nameof(BudgetFreezeMarginPercent), "BudgetFreezeMarginPercent must be from 0 to 100.");
+                _BudgetFreezeMarginPercent = value;
+            }
+        }
+
+        /// <summary>
         /// Name of the person or credential that created it.
         /// </summary>
         public string? CreatedBy { get; set; } = null;
@@ -127,6 +146,7 @@ namespace Garrison.Sdk.Models
         private string _TenantId = String.Empty;
         private string _Name = String.Empty;
         private int _CurrentRevisionNumber = 0;
+        private int _BudgetFreezeMarginPercent = 10;
 
         #endregion
 

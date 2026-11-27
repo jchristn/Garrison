@@ -325,6 +325,30 @@ run, err = client.Runs.WaitForCompletion(ctx, run.ID)
 next, err := client.Board.SendMessage(ctx, "acme", garrison.BoardMessageRequest{Input: "And next week?", ConversationID: run.ConversationID})
 ```
 
+## Performance and org-scale brakes
+
+`client.Performance.Get(ctx, orgID, PerformanceQuery)` returns an `OrgPerformance` for a window: `Units` (an `OrgUnitPerformance` per unit in chart order, each covering its whole subtree), `Agents` (an `AgentPerformance` per agent in the live tree, with `IsLead`), and `Checks` (a `PerformanceCheck` per scheduled check on those agents' deployments, with its last eval run, score, and pass). Each `PerformanceMetrics` has run counts by outcome, `SuccessRate` (succeeded over succeeded plus failed, nil with no finished runs), `CostUSD`, latency percentiles, `EscalationsRaised` and `EscalationRate`, `LoopGuardRejections`, `EvalScore` and `EvalRuns`, and up to 5 `SampleRunIDs` (newest failures first). Eval, shadow, and playground runs are left out. A zero `FromUTC` or `ToUTC` uses the server default of the last 7 days; a span over 90 days answers 400. `UnitID` restricts the response to one subtree.
+
+A scheduled check is a trigger with `TargetType: garrison.TriggerTargetEvalSet`: set `EvalSetID`, `DeploymentID` (required), and optionally `EvalJudgeAgentID` and `EvalRecentInputCount` (1 to 50). Each fire starts an eval run against the deployment's recent inputs, and the eval run carries `TriggerID`. The trigger must run as a person, and run tokens cannot create or change one, so an agent cannot grade itself.
+
+`client.Organizations.CancelAll(ctx, orgID, unitID, CascadeCancelRequest)` stops everything in a unit's subtree in one audited action and returns a `CascadeCancelResult` with `RunsCancelled`, `TicksCancelled`, `EscalationsWithdrawn`, `MessagesExpired`, and `RunIDs`. It does not freeze the unit. An organization without a live revision answers 409 `OrganizationNotLive`. `Organization.BudgetFreezeMarginPercent` (a `*int`, 0 to 100, default 10) sets how far past a unit budget the subtree may spend before the budget guard freezes the unit; each such freeze fires `NotificationEventOrgBudgetFrozen`. `OrgRollbackRequest.ActiveTicks` takes `RollbackActiveTicksFinish` (the default) or `RollbackActiveTicksCancel`. See [docs/ORGANIZATIONS.md](../../docs/ORGANIZATIONS.md) and [docs/BRAKES.md](../../docs/BRAKES.md).
+
+```go
+week, err := client.Performance.Get(ctx, "acme", garrison.PerformanceQuery{})
+for _, unit := range week.Units {
+	fmt.Println(unit.UnitName, unit.Metrics.SuccessRate, unit.Metrics.CostUSD)
+}
+
+set, deployment, schedule, inputs := "support-regressions", "support-prod", "0 6 * * *", 20
+var check garrison.Trigger
+err = client.Triggers.Create(ctx, garrison.Trigger{Name: "nightly-check", Type: garrison.TriggerTypeCron, CronExpression: &schedule,
+	TargetType: garrison.TriggerTargetEvalSet, EvalSetID: &set, DeploymentID: &deployment, EvalRecentInputCount: &inputs}, &check)
+
+reason := "Runaway loop"
+stopped, err := client.Organizations.CancelAll(ctx, "acme", "support", garrison.CascadeCancelRequest{Reason: &reason})
+_, err = client.Organizations.Rollback(ctx, "acme", garrison.OrgRollbackRequest{Note: "Undo the reorg", ActiveTicks: garrison.RollbackActiveTicksCancel})
+```
+
 ## Agent revisions and promotion
 
 An agent's content can be saved as revisions. `client.Agents` adds `ListRevisions` (newest first), `SaveDraft` (creates or replaces the single open draft), `GetRevision`, `DeleteRevision`, `PublishRevision`, and `DiffRevisions`; each `AgentRevisionChange` in a diff carries `From` and `To` as `json.RawMessage` (objects for `inputSchema` and `outputSchema`, JSON strings otherwise). A revision argument is an `arv_` identifier or a revision number. `Agent.LatestPublishedRevisionID` and `Agent.DraftRevisionID` are read only.

@@ -1,6 +1,6 @@
 # Triggers
 
-A trigger starts work without anyone calling the API at the time. It either fires on a cron schedule or fires when a signed HTTP request arrives at its webhook URL, and every fire starts an ordinary run of an agent or an ordinary pipeline run. Nothing about the run is special afterwards: it is queued, leased, compiled, and executed like any other run, and it shows up in the run list with `kind: Trigger` and the `triggerId` that started it.
+A trigger starts work without anyone calling the API at the time. It either fires on a cron schedule or fires when a signed HTTP request arrives at its webhook URL, and every fire starts an ordinary run of an agent, an ordinary pipeline run, or an eval run ([scheduled checks](#scheduled-checks)). Nothing about the run is special afterwards: it is queued, leased, compiled, and executed like any other run, and it shows up in the run list with `kind: Trigger` and the `triggerId` that started it.
 
 Triggers are tenant resources (`trg_` identifiers) managed over REST, the management MCP tools, manifests (`kind: Trigger`), the SDKs, and the dashboard. They were added in P12.5 under decision D-054.
 
@@ -11,9 +11,10 @@ Triggers are tenant resources (`trg_` identifiers) managed over REST, the manage
 | `name` | Unique in the tenant: 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit |
 | `description` | Optional, at most 4000 characters. Available to the input template as `trigger.description` |
 | `type` | `Cron` (default) or `Webhook`. Cannot change after creation |
-| `targetType` | `Agent` (default) or `Pipeline` |
+| `targetType` | `Agent` (default), `Pipeline`, or `EvalSet` (a [scheduled check](#scheduled-checks)) |
 | `agentId`, `deploymentId` | The agent to run, and optionally one of its deployments to pin runs to. Identifiers or names; names are replaced with identifiers when saved |
 | `pipelineId` | The pipeline to start when `targetType` is `Pipeline`. Identifier or name |
+| `evalSetId`, `evalJudgeAgentId`, `evalRecentInputCount` | The eval set, optional judge agent, and recent input count (1 to 50) when `targetType` is `EvalSet` |
 | `inputTemplateId` | A `Task` prompt template that renders the run input. Null uses `builtin/trigger-input` (see below) |
 | `priority` | Run priority of started runs, -100 to 100, default 0. Values outside the range are clamped |
 | `cronExpression`, `timeZone` | Cron triggers only. Five fields, and an IANA time zone (default `UTC`) |
@@ -118,6 +119,35 @@ Sign the bytes you send. Re-serializing the JSON on either side (reordering keys
 | 413 `PayloadTooLarge` | The body is larger than `Triggers.WebhookMaxBodyBytes` (default 256 KiB); checked before the signature |
 
 The 401 is deliberately uniform. An unknown tenant, an unknown trigger, a cron trigger, a missing header, a malformed header, a stale timestamp, and a wrong signature all get the same status, code, and message, and the server computes an HMAC against a throwaway key when there is no secret so that the response time does not give the difference away either. Only a sender who can sign correctly learns anything more about the trigger. A failed fire (for example a run-as principal that lost its permission) is still a 202: the delivery was received and recorded, and the fire history says why nothing ran.
+
+## Scheduled checks
+
+An agent that reports on its own work can report whatever it likes. A scheduled check is a grade the agent has no hand in: a trigger with `targetType` `EvalSet` that, on each fire, runs an [eval set](EVALS.md) against a deployment's recent real inputs and records the score where managers can see it.
+
+| Field | Meaning |
+|---|---|
+| `evalSetId` | The eval set to run. Identifier or name, in the same tenant. Required |
+| `deploymentId` | The deployment to grade. Required for this target |
+| `evalJudgeAgentId` | The judge agent for the set's judge scorers. Optional |
+| `evalRecentInputCount` | How many of the deployment's recent inputs to replay, 1 to 50. Null uses the eval run default |
+
+`agentId`, `pipelineId`, and `inputTemplateId` do not apply. Each fire creates an eval run through the evaluation service with target `Deployment`, `inputMode` `RecentInputs`, the trigger's input count and judge, and `triggerId` set to the trigger, started by the trigger's run-as user. A fire that cannot start one, for example because the deployment has no recent inputs (`NoRecentInputs`), is recorded as a `Failed` fire with that error code, the same as an agent trigger that cannot start its run.
+
+Two rules keep the grade honest:
+
+- The run-as principal must be a user. A save by an API credential or a system administrator key answers 400, because a check needs a person who answers for it.
+- Run tokens cannot create or change an `EvalSet` trigger, and cannot create, cancel, or alter eval runs. An agent cannot schedule a softer test for itself or cancel one it is failing.
+
+Results show up in the organization's [performance](ORGANIZATIONS.md#performance): each check appears under `checks` with its next fire and its newest eval run's status, score, and pass, and completed check runs count toward `evalScore` for the deployment's agent and every unit above it. A unit lead reads them through `garrison_subordinate_performance`. Each fire also counts on `garrison.evals.scheduled_checks`, by `outcome` (`started` or `failed`).
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "support-nightly-check", "type": "Cron", "cronExpression": "0 6 * * *", "timeZone": "Europe/Berlin",
+       "targetType": "EvalSet", "evalSetId": "support-regressions", "deploymentId": "support-prod", "evalRecentInputCount": 20}'
+```
+
+A missing `evalSetId` or `deploymentId`, or a set in another tenant, answers 400 `ValidationFailed`.
 
 ## Input templates
 

@@ -66,7 +66,7 @@ namespace Garrison.Sdk.Models
         public TriggerTypeEnum Type { get; set; } = TriggerTypeEnum.Cron;
 
         /// <summary>
-        /// Agent (default) or Pipeline.
+        /// Agent (default), Pipeline, or EvalSet.
         /// </summary>
         public TriggerTargetTypeEnum TargetType { get; set; } = TriggerTargetTypeEnum.Agent;
 
@@ -76,9 +76,38 @@ namespace Garrison.Sdk.Models
         public string? AgentId { get; set; } = null;
 
         /// <summary>
-        /// Optional deployment to pin runs to.
+        /// Optional deployment to pin runs to. Required when targetType is EvalSet: the deployment whose recent inputs the
+        /// check replays.
         /// </summary>
         public string? DeploymentId { get; set; } = null;
+
+        /// <summary>
+        /// Eval set identifier or name when targetType is EvalSet. Must be in the caller's tenant.
+        /// </summary>
+        public string? EvalSetId { get; set; } = null;
+
+        /// <summary>
+        /// Judge agent identifier or name for the check's judge scorers when targetType is EvalSet, or null.
+        /// </summary>
+        public string? EvalJudgeAgentId { get; set; } = null;
+
+        /// <summary>
+        /// How many of the deployment's recent inputs a check replays when targetType is EvalSet, 1 to 50, or null for the
+        /// eval run default.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is outside 1 to 50.</exception>
+        public int? EvalRecentInputCount
+        {
+            get
+            {
+                return _EvalRecentInputCount;
+            }
+            set
+            {
+                if (value != null && (value.Value < 1 || value.Value > 50)) throw new ArgumentOutOfRangeException(nameof(EvalRecentInputCount), "EvalRecentInputCount must be from 1 to 50.");
+                _EvalRecentInputCount = value;
+            }
+        }
 
         /// <summary>
         /// Pipeline identifier or name when targetType is Pipeline.
@@ -177,6 +206,7 @@ namespace Garrison.Sdk.Models
         private string _Id = String.Empty;
         private string _TenantId = String.Empty;
         private string _Name = String.Empty;
+        private int? _EvalRecentInputCount = null;
 
         #endregion
 

@@ -969,6 +969,92 @@ def t_board():
             client.mandates.delete(mandate["id"], force=True)
 
 
+def t_performance():
+    # Performance reads, a cascade cancel, a rollback with the ticks option, a scheduled check, and the freeze margin.
+    # The organization may have no runs, so only shapes are asserted.
+    org = None
+    check_set = None
+    trigger = None
+    try:
+        org = client.organizations.create({"name": f"sdk-py-perf-{SUFFIX}", "mission": "Exercise Python SDK performance.", "budgetFreezeMarginPercent": 15})
+        require(org.get("budgetFreezeMarginPercent") == 15, f"budgetFreezeMarginPercent round-trips on create: {org}")
+        root = client.organizations.create_unit(org["id"], {"name": "board", "leadAgentId": state["agent"], "leadTitle": "CEO"})
+        first = client.organizations.create_revision(org["id"], "First")
+        client.organizations.publish(org["id"], first["id"])
+
+        perf = client.performance.get(org["id"])
+        require(perf["organizationId"] == org["id"] and perf["fromUtc"] and perf["toUtc"] and isinstance(perf["agents"], list)
+                and isinstance(perf["checks"], list) and any(u["unitId"] == root["id"] and "metrics" in u for u in perf["units"]),
+                f"read performance over the default window: {perf}")
+        for a in perf["agents"]:
+            m = a["metrics"]
+            require(m["runs"] >= 0 and isinstance(m["sampleRunIds"], list) and len(m["sampleRunIds"]) <= 5, f"agent metrics shape: {a}")
+
+        end = datetime.now(timezone.utc)
+        windowed = client.performance.get(org["name"], from_utc=end - timedelta(days=1), to_utc=end, unit_id=root["id"])
+        require(len(windowed["units"]) >= 1 and windowed["units"][0]["unitId"] == root["id"], f"read performance over an explicit window and unit: {windowed}")
+        try:
+            client.performance.get(org["id"], from_utc=end - timedelta(days=91), to_utc=end)
+            require(False, "a span over 90 days is refused")
+        except GarrisonError as e:
+            require(e.status_code == 400, f"status {e.status_code}")
+
+        result = client.organizations.cancel_all(org["id"], root["id"], reason="SDK harness cascade cancel")
+        require(result["unitId"] == root["id"] and all(result[k] >= 0 for k in ("runsCancelled", "ticksCancelled", "escalationsWithdrawn", "messagesExpired"))
+                and len(result["runIds"]) == result["runsCancelled"], f"cancel everything in a unit: {result}")
+        try:
+            client.organizations.cancel_all(org["id"], "oun_sdk_missing")
+            require(False, "cascade cancel of an unknown unit is refused")
+        except GarrisonError as e:
+            require(e.status_code == 404, f"status {e.status_code}")
+
+        second = client.organizations.create_revision(org["id"], "Second")
+        client.organizations.publish(org["id"], second["id"])
+        rolled = client.organizations.rollback(org["id"], note="Cancel ticks and go back", active_ticks="Cancel")
+        require(rolled["rollbackOfRevisionId"] == first["id"] and rolled["state"] == "Published", f"roll back with activeTicks Cancel: {rolled}")
+
+        current = client.organizations.get(org["id"])
+        current["budgetFreezeMarginPercent"] = 0
+        updated = client.organizations.update(org["id"], current)
+        require(updated.get("budgetFreezeMarginPercent") == 0, f"update the freeze margin: {updated}")
+        try:
+            current["budgetFreezeMarginPercent"] = 101
+            client.organizations.update(org["id"], current)
+            require(False, "a margin over 100 is refused")
+        except GarrisonError as e:
+            require(e.status_code == 400, f"status {e.status_code}")
+
+        check_set = client.eval_sets.create({"name": f"sdk-py-check-{SUFFIX}", "cases": [
+            {"name": "first", "inputText": "check alpha", "checks": [{"scorer": "Contains", "argument": "alpha"}]}]})
+        check_set = client.eval_sets.approve(check_set["id"])
+        try:
+            trigger = client.triggers.create({"name": f"sdk-py-check-{SUFFIX}", "type": "Cron", "targetType": "EvalSet", "evalSetId": check_set["id"],
+                                              "deploymentId": state["deployment"], "evalRecentInputCount": 5, "cronExpression": "0 6 * * *", "active": False})
+            require(trigger["targetType"] == "EvalSet" and trigger["evalSetId"] == check_set["id"] and trigger["evalRecentInputCount"] == 5,
+                    f"create a scheduled check: {trigger}")
+        except GarrisonError as e:
+            # A scheduled check runs as a user; the harness signs in with an access key, so its run-as principal is a credential.
+            if e.status_code != 400:
+                raise
+            print(f"  (scheduled check refused for a credential caller: {e})")
+        try:
+            client.triggers.create({"name": f"sdk-py-check-bad-{SUFFIX}", "type": "Cron", "targetType": "EvalSet", "evalSetId": check_set["id"],
+                                    "cronExpression": "0 6 * * *"})
+            require(False, "a check without a deployment is refused")
+        except GarrisonError as e:
+            require(e.status_code == 400, f"status {e.status_code}")
+    finally:
+        if trigger is not None:
+            client.triggers.delete(trigger["id"])
+        if check_set is not None:
+            try:
+                client.eval_sets.delete(check_set["id"])
+            except GarrisonError:
+                pass
+        if org is not None:
+            client.organizations.delete(org["id"])
+
+
 def t_evaluation():
     # An eval set is versioned and approved by a person, an eval run grades a deployment case by case, a shadow trial
     # copies a deployment's runs to a candidate, and a canary release moves traffic to it in steps.
@@ -1611,7 +1697,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("board", t_board), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("board", t_board), ("performance and org brakes", t_performance), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

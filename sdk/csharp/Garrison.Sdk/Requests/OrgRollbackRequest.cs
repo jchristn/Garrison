@@ -1,5 +1,7 @@
 namespace Garrison.Sdk.Requests
 {
+    using Garrison.Sdk.Enums;
+
     /// <summary>
     /// Rolling an organization back to an earlier live revision (AA7.4).
     /// </summary>
@@ -14,5 +16,11 @@ namespace Garrison.Sdk.Requests
         /// Why, or null. At most 2000 characters.
         /// </summary>
         public string? Note { get; set; } = null;
+
+        /// <summary>
+        /// What to do with mandate ticks in flight. Finish (default) lets them complete without moving any mandate off the
+        /// restored revisions; Cancel cancels their runs before the restore.
+        /// </summary>
+        public RollbackActiveTicksEnum ActiveTicks { get; set; } = RollbackActiveTicksEnum.Finish;
     }
 }

@@ -2035,6 +2035,140 @@ func main() {
 		return nil
 	})
 
+	check("performance and org brakes", func(ctx context.Context) error {
+		// Performance reads, a cascade cancel, a rollback with the ticks option, a scheduled check, and the freeze margin.
+		// The organization may have no runs, so only shapes are asserted.
+		str := func(v string) *string { return &v }
+		num := func(v int) *int { return &v }
+		org, err := client.Organizations.Create(ctx, garrison.Organization{Name: "sdk-go-perf-" + suffix, Mission: str("Exercise Go SDK performance."), BudgetFreezeMarginPercent: num(15)})
+		if err != nil {
+			return err
+		}
+		defer client.Organizations.Delete(ctx, org.ID)
+		if org.BudgetFreezeMarginPercent == nil || *org.BudgetFreezeMarginPercent != 15 {
+			return fmt.Errorf("budgetFreezeMarginPercent round-trips on create: %+v", org)
+		}
+		root, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: str(agentID), LeadTitle: str("CEO")})
+		if err != nil {
+			return err
+		}
+		first, err := client.Organizations.CreateRevision(ctx, org.ID, "First")
+		if err != nil {
+			return err
+		}
+		if _, err := client.Organizations.Publish(ctx, org.ID, first.ID); err != nil {
+			return err
+		}
+
+		perf, err := client.Performance.Get(ctx, org.ID, garrison.PerformanceQuery{})
+		if err != nil {
+			return err
+		}
+		foundRoot := false
+		for _, u := range perf.Units {
+			if u.UnitID == root.ID {
+				foundRoot = true
+			}
+		}
+		if perf.OrganizationID != org.ID || perf.FromUTC == "" || perf.ToUTC == "" || !foundRoot {
+			return fmt.Errorf("read performance over the default window: %+v", perf)
+		}
+		for _, a := range perf.Agents {
+			if a.Metrics.Runs < 0 || len(a.Metrics.SampleRunIDs) > 5 {
+				return fmt.Errorf("agent metrics shape: %+v", a)
+			}
+		}
+		end := time.Now().UTC()
+		windowed, err := client.Performance.Get(ctx, org.Name, garrison.PerformanceQuery{FromUTC: end.Add(-24 * time.Hour), ToUTC: end, UnitID: root.ID})
+		if err != nil {
+			return err
+		}
+		if len(windowed.Units) < 1 || windowed.Units[0].UnitID != root.ID {
+			return fmt.Errorf("read performance over an explicit window and unit: %+v", windowed)
+		}
+		if _, err := client.Performance.Get(ctx, org.ID, garrison.PerformanceQuery{FromUTC: end.Add(-91 * 24 * time.Hour), ToUTC: end}); !garrison.IsStatus(err, http.StatusBadRequest) {
+			return fmt.Errorf("a span over 90 days is refused: %v", err)
+		}
+
+		result, err := client.Organizations.CancelAll(ctx, org.ID, root.ID, garrison.CascadeCancelRequest{Reason: str("SDK harness cascade cancel")})
+		if err != nil {
+			return err
+		}
+		if result.UnitID != root.ID || result.RunsCancelled < 0 || result.TicksCancelled < 0 || result.EscalationsWithdrawn < 0 || result.MessagesExpired < 0 || len(result.RunIDs) != result.RunsCancelled {
+			return fmt.Errorf("cancel everything in a unit: %+v", result)
+		}
+		if _, err := client.Organizations.CancelAll(ctx, org.ID, "oun_sdk_missing", garrison.CascadeCancelRequest{}); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("cascade cancel of an unknown unit is 404: %v", err)
+		}
+
+		second, err := client.Organizations.CreateRevision(ctx, org.ID, "Second")
+		if err != nil {
+			return err
+		}
+		if _, err := client.Organizations.Publish(ctx, org.ID, second.ID); err != nil {
+			return err
+		}
+		rolled, err := client.Organizations.Rollback(ctx, org.ID, garrison.OrgRollbackRequest{Note: "Cancel ticks and go back", ActiveTicks: garrison.RollbackActiveTicksCancel})
+		if err != nil {
+			return err
+		}
+		if rolled.RollbackOfRevisionID == nil || *rolled.RollbackOfRevisionID != first.ID || rolled.State != garrison.OrgRevisionStatePublished {
+			return fmt.Errorf("roll back with activeTicks Cancel: %+v", rolled)
+		}
+
+		current, err := client.Organizations.Get(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		current.BudgetFreezeMarginPercent = num(0)
+		updated, err := client.Organizations.Update(ctx, org.ID, *current)
+		if err != nil {
+			return err
+		}
+		if updated.BudgetFreezeMarginPercent == nil || *updated.BudgetFreezeMarginPercent != 0 {
+			return fmt.Errorf("update the freeze margin: %+v", updated)
+		}
+		current.BudgetFreezeMarginPercent = num(101)
+		if _, err := client.Organizations.Update(ctx, org.ID, *current); !garrison.IsStatus(err, http.StatusBadRequest) {
+			return fmt.Errorf("a margin over 100 is refused: %v", err)
+		}
+
+		set, err := client.EvalSets.Create(ctx, garrison.EvalSetRequest{Name: str("sdk-go-check-" + suffix), Cases: []garrison.EvalCase{
+			{Name: str("first"), InputText: "check alpha", Checks: []garrison.EvalCaseCheck{{Scorer: garrison.EvalScorerContains, Argument: str("alpha")}}},
+		}})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.EvalSets.Delete(ctx, set.ID) }()
+		if _, err := client.EvalSets.Approve(ctx, set.ID); err != nil {
+			return err
+		}
+		inactive := false
+		var trigger garrison.Trigger
+		err = client.Triggers.Create(ctx, garrison.Trigger{Name: "sdk-go-check-" + suffix, Type: garrison.TriggerTypeCron, TargetType: garrison.TriggerTargetEvalSet, EvalSetID: str(set.ID),
+			DeploymentID: str(deploymentID), EvalRecentInputCount: num(5), CronExpression: str("0 6 * * *"), Active: &inactive}, &trigger)
+		switch {
+		case garrison.IsStatus(err, http.StatusBadRequest):
+			// A scheduled check runs as a user; the harness signs in with an access key, so its run-as principal is a credential.
+			fmt.Printf("      (scheduled check refused for a credential caller: %v)\n", err)
+		case err != nil:
+			return err
+		default:
+			defer func() { _ = client.Triggers.Delete(ctx, trigger.ID) }()
+			if trigger.TargetType != garrison.TriggerTargetEvalSet || trigger.EvalSetID == nil || *trigger.EvalSetID != set.ID || trigger.EvalRecentInputCount == nil || *trigger.EvalRecentInputCount != 5 {
+				return fmt.Errorf("create a scheduled check: %+v", trigger)
+			}
+		}
+		var bad garrison.Trigger
+		if err := client.Triggers.Create(ctx, garrison.Trigger{Name: "sdk-go-check-bad-" + suffix, Type: garrison.TriggerTypeCron, TargetType: garrison.TriggerTargetEvalSet, EvalSetID: str(set.ID), CronExpression: str("0 6 * * *")}, &bad); !garrison.IsStatus(err, http.StatusBadRequest) {
+			if err == nil {
+				_ = client.Triggers.Delete(ctx, bad.ID)
+			}
+			return fmt.Errorf("a check without a deployment is refused: %v", err)
+		}
+		return nil
+	})
+
 	check("eval sets, eval runs, shadow trials, and canary releases", func(ctx context.Context) error {
 		// An eval set is written, approved, and run against a fake deployment; a shadow trial and a canary release use a
 		// second deployment of the same agent.

@@ -303,6 +303,25 @@ run = await client.runs.waitForCompletion(run.id);
 await client.board.sendMessage("acme", { input: "And next week?", conversationId: run.conversationId });
 ```
 
+## Performance and org-scale brakes
+
+`client.performance.get(orgId, { fromUtc, toUtc, unitId })` returns an `OrgPerformance` for a window: `units` (an `OrgUnitPerformance` per unit in chart order, each covering its whole subtree), `agents` (an `AgentPerformance` per agent in the live tree, with `isLead`), and `checks` (a `PerformanceCheck` per scheduled check on those agents' deployments, with its last eval run, score, and pass). Each `metrics` (`PerformanceMetrics`) has run counts by outcome, `successRate` (succeeded over succeeded plus failed, null with no finished runs), `costUsd`, latency percentiles, `escalationsRaised` and `escalationRate`, `loopGuardRejections`, `evalScore` and `evalRuns`, and up to 5 `sampleRunIds` (newest failures first). Eval, shadow, and playground runs are left out. `fromUtc` and `toUtc` take a string or a `Date`; the default window is the last 7 days, and a span over 90 days fails with 400. `unitId` restricts the response to one subtree.
+
+A scheduled check is a trigger with `targetType: "EvalSet"`: set `evalSetId`, `deploymentId` (required), and optionally `evalJudgeAgentId` and `evalRecentInputCount` (1 to 50). Each fire starts an eval run against the deployment's recent inputs, and the eval run carries `triggerId`. The trigger must run as a person, and run tokens cannot create or change one, so an agent cannot grade itself.
+
+`client.organizations.cancelAll(orgId, unitId, { reason })` stops everything in a unit's subtree in one audited action and returns a `CascadeCancelResult` with `runsCancelled`, `ticksCancelled`, `escalationsWithdrawn`, `messagesExpired`, and `runIds`. It does not freeze the unit. An organization without a live revision fails with 409 `OrganizationNotLive`. `Organization.budgetFreezeMarginPercent` (0 to 100, default 10) sets how far past a unit budget the subtree may spend before the budget guard freezes the unit; each such freeze fires `OrgBudgetFrozen`. `organizations.rollback(orgId, { activeTicks })` takes `"Finish"` (the default) or `"Cancel"` (`ROLLBACK_ACTIVE_TICKS`). See [docs/ORGANIZATIONS.md](../../docs/ORGANIZATIONS.md) and [docs/BRAKES.md](../../docs/BRAKES.md).
+
+```ts
+const week = await client.performance.get("acme");
+for (const unit of week.units) console.log(unit.unitName, unit.metrics.successRate, unit.metrics.costUsd);
+
+await client.triggers.create({ name: "nightly-check", type: "Cron", cronExpression: "0 6 * * *", targetType: "EvalSet",
+  evalSetId: "support-regressions", deploymentId: "support-prod", evalRecentInputCount: 20 });
+
+const stopped = await client.organizations.cancelAll("acme", "support", { reason: "Runaway loop" });
+await client.organizations.rollback("acme", { note: "Undo the reorg", activeTicks: "Cancel" });
+```
+
 ## Streaming run events
 
 ```ts
