@@ -193,6 +193,7 @@ namespace Test.Shared.Suites
                 string later = Assert.NotNull(await reports.RenderBoardBriefAsync(mandate, brief.CreatedUtc.AddHours(25), token).ConfigureAwait(false), "Due after the interval");
                 Assert.True(later.Contains("Your last brief was filed at", StringComparison.Ordinal) && later.Contains("No organization revision was published since", StringComparison.Ordinal) && !later.Contains("- Draft " + applied.Id, StringComparison.Ordinal), "Only what changed since the last brief: " + later);
                 Assert.True(later.Contains("Not healthy now: ", StringComparison.Ordinal) && later.Contains("May I restart the queue?", StringComparison.Ordinal), "Current state is still there: " + later);
+                Assert.True(later.Contains("No proposal is waiting for a person.", StringComparison.Ordinal), "With none pending, the brief is told so (round 2 board run 2 reported a denied proposal as still waiting): " + later);
             }
         }
 

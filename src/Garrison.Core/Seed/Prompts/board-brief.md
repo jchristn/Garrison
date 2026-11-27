@@ -60,6 +60,9 @@ Proposals waiting for a person:
 {{this.title}}
 --- Title {{this.boundary}} end ---
 {{/each}}
+{{else}}
+
+No proposal is waiting for a person. A proposal you remember as pending was decided or withdrawn; do not report it as waiting.
 {{/if}}
 {{#if brief.escalations}}
 
