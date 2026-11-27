@@ -2327,7 +2327,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}
 
 #### `POST /v1.0/api/tenants/{tenantId}/manifests/apply`
 
-Apply YAML or JSON manifests (query: dryRun, allowSecretValues).
+Apply YAML or JSON manifests (query: dryRun, allowSecretValues, force).
 
 | | |
 |---|---|
@@ -5442,7 +5442,7 @@ Trigger agent targets apply the same schema check to the rendered trigger input;
 
 **Credentials.** `POST .../credentials` and `POST .../credentials/{id}/rotate` return the secret key exactly once. When the caller is the administrator API key (which has no user), `userId` is required.
 
-**Manifests.** `POST .../manifests/apply` takes a YAML or JSON body containing one or more documents (`Content-Type: application/yaml` or `application/json`); add `?dryRun=true` to validate without writing and `?allowSecretValues=true` to accept secret values. `GET .../manifests/export` returns a manifest bundle (YAML) of the whole tenant or of selected resources (`kinds`, `resources`, `followReferences`, `includeBuiltIn`), with secrets listed as requirements, never values. See `docs/MANIFESTS.md`.
+**Manifests.** `POST .../manifests/apply` takes a YAML or JSON body containing one or more documents (`Content-Type: application/yaml` or `application/json`); add `?dryRun=true` to validate without writing and `?allowSecretValues=true` to accept secret values. An Organization document that would undo a change approved through an executive proposal since the last manifest apply fails with `OrganizationDrift`; `?force=true` overwrites it. `GET .../manifests/export` returns a manifest bundle (YAML) of the whole tenant or of selected resources (`kinds`, `resources`, `followReferences`, `includeBuiltIn`), with secrets listed as requirements, never values. See `docs/MANIFESTS.md`.
 
 **Transcripts.** `GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript` return a Markdown or JSON transcript (`format`, `includeThinking`) as an attachment, with secrets redacted. See `docs/TRANSCRIPTS.md`.
 

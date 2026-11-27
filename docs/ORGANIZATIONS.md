@@ -83,6 +83,8 @@ A rollback can land while keepers are mid-tick. `activeTicks` chooses `Finish` (
 
 A revision can also come from an [executive](EXECUTIVES.md). Every executive draft that applies, whether change rules or a person let it through, publishes a new revision with `draftId` (the draft) and `revertDraftId` (an `Undo:` draft holding the records it changed, as they were). A rollback past such revisions restores the tree as usual and then applies their revert drafts, newest first, so the agents, deployments, mandates, templates, and assets the executive changed go back too. See [Revisions, revert drafts, and rollback](EXECUTIVES.md#revisions-revert-drafts-and-rollback).
 
+Re-applying a manifest does not silently undo such a revision. If the manifest's tree would drop a change an executive revision made since the last manifest apply, the Organization document fails with `OrganizationDrift` and names each change, until you add it to the manifest or apply with `force=true`. See [Organization in MANIFESTS.md](MANIFESTS.md#organization).
+
 Organizations have no environments of their own (AA-062). Every publish writes a [promotion record](REVISIONS.md#promotion) with subject `Organization`, `kind` `Promote`, source environment `draft`, and target environment `live`, carrying `organizationId` and `orgRevisionId`. A rollback writes a record of kind `Rollback` from `live` to `live` and marks the publish record of the revision it replaced as `RolledBack`. The records appear in `GET .../promotions` beside agent and app promotions. To undo an organization change, use the organization's rollback route. The promotions rollback route refuses an organization record with 409 `UseOrganizationRollback`.
 
 ## Executives

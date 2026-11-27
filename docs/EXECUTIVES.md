@@ -55,6 +55,8 @@ New workers come in through the same draft that places them. A new agent must jo
 
 Every executive draft is checked against these limits when it is validated, when apply is requested, and again just before it applies. A refused item shows `change: Failed` with the code in `errorCode`, and the draft's diff lists every refusal in `refusals`. Request-apply of a draft with any refusal fails with 400 `DraftInvalid`, whatever rules exist and whoever asks.
 
+The limits, the change classes, and the diff a person reads all compare the Organization item with the live tree unit by unit, by name. Reordering units changes nothing, and removing a unit shows as one removal, `units.uptime`, rather than as renames and budget changes in the units after it. A budget raise is `BudgetIncrease` wherever the unit sits in the document.
+
 | Code | Refused when the draft |
 |---|---|
 | `SelfModification` | Touches the executive's own agent, a deployment or mandate of that agent, the mandate it holds as lead, or its own unit (including placing itself in a unit below), or deletes its own organization |

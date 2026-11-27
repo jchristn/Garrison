@@ -533,7 +533,7 @@ namespace Garrison.Server.Services
             if (upserts.Count > 0)
             {
                 // A rollback restores pins as they were, so it is not eval gated (the emergency path, like a promotion rollback).
-                ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId), MandateRevisionSource = MandateRevisionSourceEnum.Human, SkipEvalGates = true };
+                ManifestApplyOptions options = new ManifestApplyOptions { PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalId, SecretUse = _Server.Authorization.SecretUse(ctx, tenantId), MandateRevisionSource = MandateRevisionSourceEnum.Human, SkipEvalGates = true, Force = true };
                 ManifestApply applied = await _Server.Get<ManifestService>().ApplyAsync(tenantId, Bundle(upserts), options, token).ConfigureAwait(false);
                 if (applied.FailedCount > 0) throw new ConflictException("RevertFailed", "Undoing " + draft.Title + " failed, and nothing was changed: " + String.Join("; ", applied.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + "/" + i.Name + ": " + i.Message)));
                 applyId = applied.Id;

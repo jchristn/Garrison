@@ -51,7 +51,7 @@ namespace Garrison.Server.Routes
         public void Register(RouteRegistrar routes)
         {
             _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
-            routes.Scoped(HttpMethod.POST, _Base + "/apply", ResourceTypeEnum.Manifest, OperationTypeEnum.Create, ApplyAsync, "Apply YAML or JSON manifests (query: dryRun, allowSecretValues)", "Manifests", typeof(string), typeof(ManifestApply));
+            routes.Scoped(HttpMethod.POST, _Base + "/apply", ResourceTypeEnum.Manifest, OperationTypeEnum.Create, ApplyAsync, "Apply YAML or JSON manifests (query: dryRun, allowSecretValues, force)", "Manifests", typeof(string), typeof(ManifestApply));
             routes.Scoped(HttpMethod.GET, _Base + "/export", ResourceTypeEnum.Manifest, OperationTypeEnum.Read, ExportAsync, "Export a manifest bundle as YAML (query: kinds, resources, followReferences, includeBuiltIn); secrets are listed as requirements, never exported", "Manifests");
             routes.Scoped(HttpMethod.GET, _Base + "/applies", ResourceTypeEnum.Manifest, OperationTypeEnum.Read, AppliesAsync, "List manifest applies", "Manifests", null, typeof(EnumerationResult<ManifestApply>));
             routes.Scoped(HttpMethod.GET, _Base + "/applies/{id}", ResourceTypeEnum.Manifest, OperationTypeEnum.Read, ApplyDetailAsync, "Read a manifest apply with per-document results", "Manifests", null, typeof(ManifestApply));
@@ -108,6 +108,7 @@ namespace Garrison.Server.Routes
             ManifestApplyOptions options = new ManifestApplyOptions();
             options.DryRun = RouteHelpers.QueryBool(http, "dryRun") ?? false;
             options.AllowSecretValues = RouteHelpers.QueryBool(http, "allowSecretValues") ?? false;
+            options.Force = RouteHelpers.QueryBool(http, "force") ?? false;
             options.PrincipalName = RouteHelpers.Context(http).PrincipalName;
             options.PrincipalType = RouteHelpers.Context(http).PrincipalType;
             options.PrincipalId = RouteHelpers.Context(http).PrincipalType == PrincipalTypeEnum.Administrator ? null : RouteHelpers.Context(http).PrincipalId;

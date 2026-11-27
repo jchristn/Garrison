@@ -104,6 +104,17 @@ namespace Garrison.Core.Manifests
         /// </summary>
         public Func<string, string, CancellationToken, Task>? OrganizationPublishedAsync { get; set; } = null;
 
+        /// <summary>
+        /// Error code of an Organization document that would undo changes approved through executive proposals since the
+        /// organization's last manifest apply. Such a document fails, on a dry run too, unless the apply is forced.
+        /// </summary>
+        public static readonly string OrganizationDriftCode = "OrganizationDrift";
+
+        /// <summary>
+        /// Note written on the organization revisions a manifest apply publishes.
+        /// </summary>
+        public static readonly string ManifestRevisionNote = "Applied from a manifest.";
+
         #endregion
 
         #region Private-Members
@@ -248,6 +259,9 @@ namespace Garrison.Core.Manifests
                 item.ResourceId = planned.ResourceId;
                 item.PlannedResult = planned.Result;
                 if (planned.Result == ManifestApplyResultEnum.Updated) item.Changes = planned.Changes;
+
+                // A drifted organization shows the changes the document would undo, so the person can decide.
+                if (planned.Result == ManifestApplyResultEnum.Failed && String.Equals(planned.ErrorCode, OrganizationDriftCode, StringComparison.Ordinal)) item.Changes = planned.Changes;
                 item.Warnings = Warnings(planned.Model);
                 if (planned.Result == ManifestApplyResultEnum.Failed)
                 {
@@ -1704,23 +1718,31 @@ namespace Garrison.Core.Manifests
             Dictionary<string, object?> after = await OrganizationTreeAsync(organization, units, names, resolver, token).ConfigureAwait(false);
             bool publish = spec.Publish != false && units.Count > 0;
             bool needsPublish = publish;
+            Dictionary<string, object?>? liveUnits = null;
+            Dictionary<string, object?> afterUnits = UnitsOnly(after);
             if (publish && existing != null && !String.IsNullOrEmpty(existing.CurrentRevisionId))
             {
                 OrgRevision? live = await _Database.Organizations.ReadRevisionAsync(tenantId, existing.CurrentRevisionId, token).ConfigureAwait(false);
                 if (live != null)
                 {
-                    Dictionary<string, object?> liveTree = await OrganizationTreeAsync(existing, live.Units, null, resolver, token).ConfigureAwait(false);
-                    needsPublish = !Same(new Dictionary<string, object?> { { "units", liveTree.TryGetValue("units", out object? lu) ? lu : null } }, new Dictionary<string, object?> { { "units", after.TryGetValue("units", out object? au) ? au : null } });
+                    // Units match by name, members by agent, budgets by period, and peers as a set: a reorder publishes nothing.
+                    liveUnits = UnitsOnly(await OrganizationTreeAsync(existing, live.Units, null, resolver, token).ConfigureAwait(false));
+                    needsPublish = OrgTreeDiff.Compare(liveUnits, afterUnits).Count > 0;
                 }
+            }
+            if (needsPublish && existing != null && liveUnits != null && !options.Force)
+            {
+                await RefuseOrganizationDriftAsync(tenantId, existing, liveUnits, afterUnits, resolver, planned, token).ConfigureAwait(false);
             }
             bool unchanged = false;
             if (existing != null)
             {
                 Dictionary<string, object?> before = await OrganizationTreeAsync(existing, existingUnits, null, resolver, token).ConfigureAwait(false);
-                unchanged = Same(before, after) && !needsPublish;
+                List<ManifestFieldChange> changes = OrgTreeDiff.Compare(before, after);
+                unchanged = changes.Count == 0 && !needsPublish;
                 if (!unchanged)
                 {
-                    planned.Changes = Diff(before, after);
+                    planned.Changes = changes;
                     if (needsPublish) planned.Changes.Add(new ManifestFieldChange("live", existing.CurrentRevisionNumber > 0 ? "revision " + existing.CurrentRevisionNumber : null, "published"));
                 }
             }
@@ -1733,6 +1755,51 @@ namespace Garrison.Core.Manifests
             if (existing != null) existing.Units = existingUnits;
             planned.Previous = existing;
             resolver.Add("Organization", organization.Name, organization.Id);
+        }
+
+        private static Dictionary<string, object?> UnitsOnly(Dictionary<string, object?> tree)
+        {
+            return new Dictionary<string, object?> { { "units", tree.TryGetValue("units", out object? units) ? units : null } };
+        }
+
+        private async Task RefuseOrganizationDriftAsync(string tenantId, Organization existing, Dictionary<string, object?> liveUnits, Dictionary<string, object?> afterUnits, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            // The revisions published since the last manifest apply, newest first. Those recorded for an applied executive
+            // draft hold changes a person or a change rule approved, and a manifest apply must not undo them silently.
+            List<OrgRevision> published = (await _Database.Organizations.ListRevisionsAsync(tenantId, existing.Id, token).ConfigureAwait(false))
+                .Where(r => r.PublishedUtc.HasValue)
+                .OrderByDescending(r => r.PublishedUtc!.Value).ThenByDescending(r => r.Number).ToList();
+            HashSet<string> approved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            List<OrgRevision> sources = new List<OrgRevision>();
+            for (int i = 0; i < published.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                OrgRevision revision = published[i];
+                if (String.Equals(revision.Note, ManifestRevisionNote, StringComparison.Ordinal) && String.IsNullOrEmpty(revision.DraftId) && String.IsNullOrEmpty(revision.RollbackOfRevisionId)) break;
+                if (String.IsNullOrEmpty(revision.DraftId)) continue;
+                OrgRevision? full = await _Database.Organizations.ReadRevisionAsync(tenantId, revision.Id, token).ConfigureAwait(false);
+                if (full == null) continue;
+                OrgRevision? prior = i + 1 < published.Count ? await _Database.Organizations.ReadRevisionAsync(tenantId, published[i + 1].Id, token).ConfigureAwait(false) : null;
+                Dictionary<string, object?> was = prior == null ? new Dictionary<string, object?>() : UnitsOnly(await OrganizationTreeAsync(existing, prior.Units, null, resolver, token).ConfigureAwait(false));
+                Dictionary<string, object?> now = UnitsOnly(await OrganizationTreeAsync(existing, full.Units, null, resolver, token).ConfigureAwait(false));
+                List<ManifestFieldChange> made = OrgTreeDiff.Compare(was, now);
+                if (made.Count == 0) continue;
+                foreach (ManifestFieldChange change in made) approved.Add(change.Field);
+                sources.Add(revision);
+            }
+            if (approved.Count == 0) return;
+            List<ManifestFieldChange> undone = OrgTreeDiff.Compare(liveUnits, afterUnits)
+                .Where(c => approved.Any(f => String.Equals(f, c.Field, StringComparison.OrdinalIgnoreCase) || f.StartsWith(c.Field + ".", StringComparison.OrdinalIgnoreCase) || c.Field.StartsWith(f + ".", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            if (undone.Count == 0) return;
+            planned.Changes = undone;
+            string from = String.Join(", ", sources.OrderBy(r => r.Number).Select(r => "revision " + r.Number + " (draft " + r.DraftId + ")"));
+            string what = String.Join("; ", undone.Select(c => c.Field + ": " + (c.Before ?? "none") + " to " + (c.After ?? "none")));
+            string message = "Organization " + existing.Name + " has changes approved through executive proposals since its last manifest apply (" + from + "), and this document would undo them: " + what
+                + ". Add them to the manifest (export the organization for its current tree), or apply again with force=true to overwrite them.";
+            ValidationException drift = new ValidationException(message, new Dictionary<string, string> { { "spec.units", message } }, new Dictionary<string, string> { { "spec.units", OrganizationDriftCode } });
+            drift.Code = OrganizationDriftCode;
+            throw drift;
         }
 
         private static void CollectUnitIds(List<OrgUnitSpec> specs, List<OrgUnit> existing, Dictionary<string, string> ids, string path)
@@ -1929,7 +1996,7 @@ namespace Garrison.Core.Manifests
             OrgRevision revision = new OrgRevision();
             revision.TenantId = tenantId;
             revision.OrganizationId = organization.Id;
-            revision.Note = "Applied from a manifest.";
+            revision.Note = ManifestRevisionNote;
             revision.AuthorType = publish.ActorType;
             revision.AuthorId = publish.ActorId;
             revision.AuthorName = publish.ActorName;

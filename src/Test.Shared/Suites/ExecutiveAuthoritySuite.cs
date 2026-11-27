@@ -45,6 +45,7 @@ namespace Test.Shared.Suites
             unit.Add(new TestCaseDescriptor("executives-unit", "subtree", "An executive's scope: units, agents, deployments, and mandates below it; its own records apart; templates and assets exclusive or shared", SubtreeAsync));
             unit.Add(new TestCaseDescriptor("executives-unit", "limits", "A valid draft passes; one refusal each for OutsideSubtree, SelfModification, ForbiddenKind, BudgetIncrease, and AuthorityChange", LimitsAsync));
             unit.Add(new TestCaseDescriptor("executives-unit", "classes", "Every change class from its fields, values for limits, and unclassified fields", ClassesAsync));
+            unit.Add(new TestCaseDescriptor("executives-unit", "by-name", "Organization items are read by unit name: a reorder is no change and no refusal, a removed unit is one removal, and a budget raise in a reordered tree is still BudgetIncrease", ByNameAsync));
             unit.Add(new TestCaseDescriptor("executives-unit", "matching", "Rules cover changes in their unit subtree within value and count limits; expired, inactive, and unclassified never match", MatchingAsync));
             unit.Add(new TestCaseDescriptor("executives-unit", "gate-matching", "A rule with an eval gate covers ModelChange only once the draft passed it (EvalGatePending otherwise), still covers WakeTuning at once, and an ungated rule may cover what it holds back", GateMatchingAsync));
             suites.Add(new TestSuiteDescriptor("executives-unit", "Executives: scope, limits, classes, rules", unit));
@@ -138,6 +139,30 @@ namespace Test.Shared.Suites
             ChangeClassification budget = Single(scope, Item("Organization", "acme", Org(qaBudget: 2), Org()));
             Assert.True(budget.Unclassified.Any(f => f.EndsWith(".budgets", StringComparison.Ordinal)), "A budget cut waits for a person");
             return Task.CompletedTask;
+        }
+
+        private static Task ByNameAsync(CancellationToken token)
+        {
+            ExecutiveScope scope = Scope();
+            ExecutiveDraftItem reorder = Item("Organization", "acme", Reordered(true, 5), Org());
+            List<ExecutiveRefusal> none = ExecutiveDraftValidator.Validate(new ExecutiveDraftContext(scope, new List<ExecutiveDraftItem> { reorder }));
+            Assert.True(none.Count == 0 && Classify(scope, reorder).Count == 0, "Listing sales before ops changes nothing: " + Serializer.Serialize(none));
+            ExecutiveDraftItem removal = Item("Organization", "acme", Reordered(false, 5), Org());
+            Assert.True(ExecutiveDraftValidator.Validate(new ExecutiveDraftContext(scope, new List<ExecutiveDraftItem> { removal })).Count == 0, "Removing qa below ops is inside the subtree");
+            ChangeClassification removed = Single(scope, removal);
+            Assert.True(removed.Detail == "removes unit qa" && removed.Unclassified.Single() == "units.qa", "Removing qa is one removal: " + Serializer.Serialize(removed));
+            Expect(scope, ExecutiveDraftValidator.BudgetIncrease, Item("Organization", "acme", Reordered(true, 10), Org()));
+            return Task.CompletedTask;
+        }
+
+        private static ManifestDocument Reordered(bool withQa, int qaBudget)
+        {
+            StringBuilder yaml = new StringBuilder("apiVersion: garrison/v1\nkind: Organization\nmetadata:\n  name: acme\nspec:\n  mission: Ship.\n  units:\n");
+            yaml.Append("    - name: root\n      lead: ceo\n      units:\n");
+            yaml.Append("        - name: sales\n          lead: seller\n");
+            yaml.Append("        - name: ops\n          lead: lead\n          members:\n            - agent: worker\n");
+            if (withQa) yaml.Append("          units:\n            - name: qa\n              members:\n                - agent: tester\n              budgets:\n                - period: Day\n                  amountUsd: " + qaBudget + "\n");
+            return Doc(yaml.ToString());
         }
 
         private static Task MatchingAsync(CancellationToken token)

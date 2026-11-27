@@ -49,6 +49,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply?
 |---|---|---|
 | `dryRun` | `false` | Validate and report what would change, without writing |
 | `allowSecretValues` | `false` | Accept `value` in `Secret` documents. Without it, a secret with a value fails, so values do not end up in manifests by accident |
+| `force` | `false` | Let an `Organization` document undo changes approved through executive proposals since the organization's last manifest apply. Without it, such a document fails with `OrganizationDrift` (see [Organization](#organization)) |
 
 The body can be YAML or JSON (JSON is valid YAML). Applying needs Create on Manifest; each record is then written with the same validation as its REST route.
 
@@ -726,6 +727,10 @@ spec:
 The tree is checked with the same rules as the REST API: one root, unique unit names, one position per agent, active agents, mandates owned by their agents, peers inside the organization, and child budgets within their parent's. A broken tree fails the document with the rule's code, such as `OneRoot`, `LeadsTwoUnits`, or `BudgetExceedsParent`, in the field code of `spec.units`.
 
 Applying replaces the organization's working tree with the document's units. When the document publishes, Garrison snapshots the tree as a new revision that pins the current revision of every mandate it names, makes it live, and writes a promotion record with subject Organization. A second apply of the same document is `Unchanged` and publishes nothing. An apply that fails later in the same manifest restores the earlier working tree; a revision it already published stays in the organization's history, and [rollback](ORGANIZATIONS.md) returns to the earlier one. A retired organization refuses the document with `OrganizationRetired`. Export writes the working tree with names in place of identifiers.
+
+The changes an apply reports for an organization match units by name, members by agent, budgets by period, and peers as a set, wherever they sit in the tree. Listing units, members, or peers in a different order is `Unchanged` and publishes nothing. A removed unit is one change, `units.uptime`, whose before value says what the unit held (`unit uptime (lead uptime-keeper; budgets Day (amountUsd 2); under reliability)`). Other paths read `units.latency.peers.dependencies`, `units.latency.members.probe.title`, `units.latency.budgets.Day.amountUsd`, and `units.dependencies.parent` for a unit that moved. Studio diffs and executive proposals show the same paths.
+
+An executive's approved proposal publishes its own revision (see [EXECUTIVES.md](EXECUTIVES.md#revisions-revert-drafts-and-rollback)), and a manifest written before it does not know about it. When an Organization document would publish a tree that undoes a change from such a revision published since the organization's last manifest apply, the document fails with `errorCode` `OrganizationDrift` and `errorField` `spec.units`, on a dry run too. The message names the revisions and drafts and each change it would undo, for example `units.latency.peers.dependencies: dependencies to none`, and the item's `changes` list exactly those changes. Nothing is written. Either add the changes to the manifest (export the organization for its current tree) or apply again with `?force=true` to overwrite them. A document that keeps the approved changes and changes other things applies as usual, and once a manifest apply publishes, later applies compare against that revision. An organization rollback past executive revisions always goes through. The `garrison_apply_manifest` tool has no `force` argument, so a run never overwrites an approved change this way.
 
 ### NotificationEndpoint
 

@@ -54,5 +54,13 @@ namespace Garrison.Core.Manifests
         /// as a promotion rollback. Such applies are audit-logged like any other.
         /// </summary>
         public bool SkipEvalGates { get; set; } = false;
+
+        /// <summary>
+        /// Whether an Organization document may undo changes approved through executive proposals since the
+        /// organization's last manifest apply. False by default: such a document fails with OrganizationDrift and lists
+        /// the changes it would undo. True overwrites them, as a person asks with force=true or an organization rollback
+        /// does.
+        /// </summary>
+        public bool Force { get; set; } = false;
     }
 }

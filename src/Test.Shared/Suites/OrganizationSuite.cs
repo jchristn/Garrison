@@ -42,6 +42,7 @@ namespace Test.Shared.Suites
             List<TestSuiteDescriptor> suites = new List<TestSuiteDescriptor>();
             List<TestCaseDescriptor> unit = new List<TestCaseDescriptor>();
             unit.Add(new TestCaseDescriptor("organizations-unit", "model", "Prefixes, defaults, budget bounds, and tree positions: members report to their lead, leads to the lead above, the root lead to the board", ModelAsync));
+            unit.Add(new TestCaseDescriptor("organizations-unit", "org-diff", "Organization diffs match units by name, members by agent, budgets by period, and peers as a set: a removal is one change, a reorder none, a move one parent change", OrgDiffAsync));
             suites.Add(new TestSuiteDescriptor("organizations-unit", "Organizations: model and tree", unit));
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
             {
@@ -56,6 +57,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "awareness", "A member run sees its chart and whoami, a non-member run is refused, org-context carries the manager, and capabilities carry the unit (" + provider + ")", ct => AwarenessAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "REST organizations, units, chart, revisions, publish, rollback, spend, scopes, role grants, and cross-tenant 404 (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "kind Organization with nested units applies and publishes, applies again Unchanged, exports and re-applies after a delete; a studio draft built with unit graph operations applies after approval (" + provider + ")", ct => ManifestsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "manifest-drift", "A manifest dry run that removes a unit shows one removal and a reorder is Unchanged; re-applying a manifest after an approved executive change fails with OrganizationDrift naming the line it would drop, until forced (" + provider + ")", ct => ManifestDriftAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "An organization subscriber receives spend.updated, org.changed, and report.filed; without Organization.Read the channel is refused (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Organizations (" + provider + ")", cases));
             }
@@ -520,6 +522,121 @@ namespace Test.Shared.Suites
                 await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/approvals/" + approval.Id + "/decide", new ApprovalDecideRequest { Decision = ApprovalDecisionEnum.Allow }, token).ConfigureAwait(false);
                 Organization created = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadByNameAsync(host.TenantId, "draft-org", token).ConfigureAwait(false), "The approved draft created the organization");
                 Assert.True(created.Status == OrganizationStatusEnum.Active && (await host.Server.Context.Database.Organizations.ListUnitsAsync(host.TenantId, created.Id, token).ConfigureAwait(false)).Count == 3, "It is live with three units: " + Serializer.Serialize(created));
+            }
+        }
+
+        private static Task OrgDiffAsync(CancellationToken token)
+        {
+            string chart = "apiVersion: garrison/v1\nkind: Organization\nmetadata:\n  name: sre\nspec:\n  units:\n    - name: reliability\n      lead: lead\n      budgets:\n        - { period: Day, amountUsd: 10 }\n      units:\n";
+            string uptime = "        - name: uptime\n          lead: uptime-keeper\n          peers: [latency]\n          budgets:\n            - { period: Day, amountUsd: 2 }\n";
+            string latency = "        - name: latency\n          lead: latency-keeper\n          members:\n            - { agent: probe, title: Probe }\n            - { agent: tracer }\n          peers: [uptime, dependencies]\n          budgets:\n            - { period: Day, amountUsd: 2 }\n";
+            string dependencies = "        - name: dependencies\n          lead: dependency-keeper\n          budgets:\n            - { period: Day, amountUsd: 3 }\n";
+            Dictionary<string, object?> live = Garrison.Core.Manifests.ManifestParser.Parse(chart + uptime + latency + dependencies)[0].Spec;
+
+            List<ManifestFieldChange> removed = Garrison.Core.Manifests.OrgTreeDiff.Compare(live, Garrison.Core.Manifests.ManifestParser.Parse(chart + latency.Replace("uptime, ", String.Empty, StringComparison.Ordinal) + dependencies)[0].Spec);
+            Assert.True(removed.Count == 2 && removed.Any(c => c.Field == "units.uptime" && c.After == null && (c.Before ?? String.Empty).Contains("uptime-keeper", StringComparison.Ordinal)) && removed.Any(c => c.Field == "units.latency.peers.uptime" && c.After == null),
+                "Removing the first child unit is one removal (plus the peer line that pointed at it), not renames: " + Serializer.Serialize(removed));
+            Assert.True(!removed.Any(c => c.Field.Contains("dependencies", StringComparison.Ordinal) || c.Field.Contains("budgets", StringComparison.Ordinal)), "No other unit changes: " + Serializer.Serialize(removed));
+
+            string reorderedLatency = latency.Replace("            - { agent: probe, title: Probe }\n            - { agent: tracer }\n", "            - { agent: tracer }\n            - { agent: probe, title: Probe }\n", StringComparison.Ordinal).Replace("[uptime, dependencies]", "[dependencies, uptime]", StringComparison.Ordinal);
+            List<ManifestFieldChange> reordered = Garrison.Core.Manifests.OrgTreeDiff.Compare(live, Garrison.Core.Manifests.ManifestParser.Parse(chart + dependencies + reorderedLatency + uptime)[0].Spec);
+            Assert.True(reordered.Count == 0, "Reordering units, members, and peers is no change: " + Serializer.Serialize(reordered));
+
+            List<ManifestFieldChange> budget = Garrison.Core.Manifests.OrgTreeDiff.Compare(live, Garrison.Core.Manifests.ManifestParser.Parse(chart + uptime + latency.Replace("amountUsd: 2", "amountUsd: 1", StringComparison.Ordinal).Replace("title: Probe", "title: Prober", StringComparison.Ordinal) + dependencies)[0].Spec);
+            Assert.True(budget.Count == 2 && budget.Any(c => c.Field == "units.latency.budgets.Day.amountUsd" && c.Before == "2" && c.After == "1") && budget.Any(c => c.Field == "units.latency.members.probe.title" && c.After == "Prober"), "A budget and a member title change by key: " + Serializer.Serialize(budget));
+
+            string moved = "        - name: latency\n          lead: latency-keeper\n          members:\n            - { agent: probe, title: Probe }\n            - { agent: tracer }\n          peers: [uptime, dependencies]\n          budgets:\n            - { period: Day, amountUsd: 2 }\n          units:\n            - name: dependencies\n              lead: dependency-keeper\n              budgets:\n                - { period: Day, amountUsd: 3 }\n";
+            List<ManifestFieldChange> move = Garrison.Core.Manifests.OrgTreeDiff.Compare(live, Garrison.Core.Manifests.ManifestParser.Parse(chart + uptime + moved)[0].Spec);
+            Assert.True(move.Count == 1 && move[0].Field == "units.dependencies.parent" && move[0].Before == "reliability" && move[0].After == "latency", "Moving a unit is one parent change: " + Serializer.Serialize(move));
+            return Task.CompletedTask;
+        }
+
+        private static async Task ManifestDriftAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                foreach (string name in new[] { "dr-lead", "dr-uptime", "dr-latency", "dr-deps" }) await AgentAsync(host, name, token).ConfigureAwait(false);
+                Garrison.Core.Manifests.ManifestService manifests = host.Server.Context.Get<Garrison.Core.Manifests.ManifestService>();
+                Garrison.Core.Manifests.ManifestApplyOptions options = new Garrison.Core.Manifests.ManifestApplyOptions { PrincipalName = "admin", PrincipalType = PrincipalTypeEnum.Administrator };
+                string head = "apiVersion: garrison/v1\nkind: Organization\nmetadata:\n  name: dr-org\nspec:\n  mission: Keep it up.\n  units:\n    - name: reliability\n      lead: dr-lead\n      budgets:\n        - { period: Day, amountUsd: 10 }\n      units:\n";
+                string uptime = "        - name: uptime\n          lead: dr-uptime\n          budgets:\n            - { period: Day, amountUsd: 2 }\n";
+                string latency = "        - name: latency\n          lead: dr-latency\n          peers: [uptime]\n          budgets:\n            - { period: Day, amountUsd: 2 }\n";
+                string deps = "        - name: dependencies\n          lead: dr-deps\n          budgets:\n            - { period: Day, amountUsd: 3 }\n";
+                string yaml = head + uptime + latency + deps;
+                ManifestApply created = await manifests.ApplyAsync(host.TenantId, yaml, options, token).ConfigureAwait(false);
+                Assert.True(created.FailedCount == 0 && created.CreatedCount == 1, "The organization applies: " + Serializer.Serialize(created.Items));
+                Organization org = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadByNameAsync(host.TenantId, "dr-org", token).ConfigureAwait(false), "Created");
+
+                // Diffs by name: a reorder is Unchanged, and removing the first child unit is one removal.
+                ManifestApply reordered = await manifests.ApplyAsync(host.TenantId, head + deps + latency + uptime, options, token).ConfigureAwait(false);
+                Assert.True(reordered.UnchangedCount == 1 && reordered.FailedCount == 0, "A reordered manifest is Unchanged: " + Serializer.Serialize(reordered.Items));
+                Garrison.Core.Manifests.ManifestApplyOptions dry = new Garrison.Core.Manifests.ManifestApplyOptions { DryRun = true, PrincipalName = "admin", PrincipalType = PrincipalTypeEnum.Administrator };
+                ManifestApply removal = await manifests.ApplyAsync(host.TenantId, head + latency.Replace("          peers: [uptime]\n", String.Empty, StringComparison.Ordinal) + deps, dry, token).ConfigureAwait(false);
+                List<ManifestFieldChange> removalChanges = removal.Items.Single().Changes;
+                Assert.True(removal.FailedCount == 0 && removalChanges.Count(c => c.Field != "live") == 2 && removalChanges.Any(c => c.Field == "units.uptime" && c.After == null) && removalChanges.Any(c => c.Field == "units.latency.peers.uptime" && c.After == null),
+                    "Removing uptime is one unit removal and its peer line, nothing renamed: " + Serializer.Serialize(removalChanges));
+
+                // An executive's approved change (a peer line to dependencies), recorded as its own revision.
+                Garrison.Core.Manifests.ManifestApplyOptions working = new Garrison.Core.Manifests.ManifestApplyOptions { PrincipalName = "admin", PrincipalType = PrincipalTypeEnum.Administrator };
+                string approvedYaml = (head + uptime + latency.Replace("[uptime]", "[uptime, dependencies]", StringComparison.Ordinal) + deps).Replace("  units:\n    - name: reliability", "  publish: false\n  units:\n    - name: reliability", StringComparison.Ordinal);
+                ManifestApply tree = await manifests.ApplyAsync(host.TenantId, approvedYaml, working, token).ConfigureAwait(false);
+                Assert.True(tree.FailedCount == 0, "The working tree takes the peer line: " + Serializer.Serialize(tree.Items));
+                org = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadAsync(host.TenantId, org.Id, token).ConfigureAwait(false), "Read again");
+                OrgRevision approved = await host.Server.Context.Get<OrganizationService>().RecordExecutiveApplyAsync(Admin(host), org, "sdr_drifttest", null, "Approved: add a peer line between latency and dependencies.", token).ConfigureAwait(false);
+                Assert.True(approved.DraftId == "sdr_drifttest" && approved.Number == 2, "The executive apply is revision 2: " + Serializer.Serialize(approved));
+
+                // Re-applying the original manifest would drop that line: it fails, on a dry run too, and names the line.
+                foreach (Garrison.Core.Manifests.ManifestApplyOptions attempt in new[] { dry, options })
+                {
+                    ManifestApply drift = await manifests.ApplyAsync(host.TenantId, yaml, attempt, token).ConfigureAwait(false);
+                    ManifestApplyItem item = drift.Items.Single();
+                    Assert.True(drift.FailedCount == 1 && item.ErrorCode == "OrganizationDrift" && item.ErrorField == "spec.units" && (item.Message ?? String.Empty).Contains("units.latency.peers.dependencies", StringComparison.Ordinal) && (item.Message ?? String.Empty).Contains("force=true", StringComparison.Ordinal),
+                        "The re-apply is refused as drift (dryRun " + attempt.DryRun + "): " + Serializer.Serialize(drift.Items));
+                    Assert.True(item.Changes.Count == 1 && item.Changes[0].Field == "units.latency.peers.dependencies" && item.Changes[0].Before == "dependencies" && item.Changes[0].After == null, "The item lists exactly the change it would undo: " + Serializer.Serialize(item.Changes));
+                }
+                org = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadAsync(host.TenantId, org.Id, token).ConfigureAwait(false), "Read after the refusal");
+                OrgTree stillLive = Assert.NotNull(await host.Server.Context.Get<ChainOfCommand>().LiveTreeAsync(host.TenantId, org.Id, token).ConfigureAwait(false), "Live tree");
+                Assert.True(org.CurrentRevisionNumber == 2 && stillLive.PeersOf(stillLive.Units.Single(u => u.Name == "latency").Id).Any(u => u.Name == "dependencies"), "Nothing was published and the line is still live");
+
+                // A manifest that keeps the approved line and changes something else applies.
+                ManifestApply kept = await manifests.ApplyAsync(host.TenantId, head + uptime.Replace("amountUsd: 2", "amountUsd: 1", StringComparison.Ordinal) + latency.Replace("[uptime]", "[dependencies, uptime]", StringComparison.Ordinal) + deps, options, token).ConfigureAwait(false);
+                Assert.True(kept.FailedCount == 0 && kept.UpdatedCount == 1, "A manifest that carries the approved change applies: " + Serializer.Serialize(kept.Items));
+
+                // Force overwrites, even when a later manifest drops the line the executive added.
+                OrgRevision second = await host.Server.Context.Get<OrganizationService>().RecordExecutiveApplyAsync(Admin(host), Assert.NotNull(await host.Server.Context.Database.Organizations.ReadAsync(host.TenantId, org.Id, token).ConfigureAwait(false), "Read"), "sdr_drifttest2", null, "Approved again.", token).ConfigureAwait(false);
+                Assert.True(second.Number == 4, "Revision 4 records a second executive apply with no unit change");
+                ManifestApply stillKept = await manifests.ApplyAsync(host.TenantId, yaml, options, token).ConfigureAwait(false);
+                Assert.True(stillKept.FailedCount == 0, "Revision 3 came from a manifest, so a manifest after it is not drift for revision 2, and revision 4 changed no unit: " + Serializer.Serialize(stillKept.Items));
+                await manifests.ApplyAsync(host.TenantId, approvedYaml, working, token).ConfigureAwait(false);
+                org = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadAsync(host.TenantId, org.Id, token).ConfigureAwait(false), "Read");
+                await host.Server.Context.Get<OrganizationService>().RecordExecutiveApplyAsync(Admin(host), org, "sdr_drifttest3", null, "Approved a third time.", token).ConfigureAwait(false);
+                ManifestApply refusedAgain = await manifests.ApplyAsync(host.TenantId, yaml, options, token).ConfigureAwait(false);
+                Assert.True(refusedAgain.FailedCount == 1 && refusedAgain.Items.Single().ErrorCode == "OrganizationDrift", "A new approved line is protected again: " + Serializer.Serialize(refusedAgain.Items));
+                Garrison.Core.Manifests.ManifestApplyOptions force = new Garrison.Core.Manifests.ManifestApplyOptions { Force = true, PrincipalName = "admin", PrincipalType = PrincipalTypeEnum.Administrator };
+                ManifestApply forced = await manifests.ApplyAsync(host.TenantId, yaml, force, token).ConfigureAwait(false);
+                Assert.True(forced.FailedCount == 0 && forced.UpdatedCount == 1 && forced.Items.Single().Changes.Any(c => c.Field == "units.latency.peers.dependencies"), "force overwrites and shows what it removed: " + Serializer.Serialize(forced.Items));
+
+                // The REST route takes force as a query parameter.
+                await manifests.ApplyAsync(host.TenantId, approvedYaml, working, token).ConfigureAwait(false);
+                org = Assert.NotNull(await host.Server.Context.Database.Organizations.ReadAsync(host.TenantId, org.Id, token).ConfigureAwait(false), "Read");
+                await host.Server.Context.Get<OrganizationService>().RecordExecutiveApplyAsync(Admin(host), org, "sdr_drifttest4", null, "Approved a fourth time.", token).ConfigureAwait(false);
+                string route = T(host) + "/manifests/apply";
+                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, route) { Content = new StringContent(yaml, Encoding.UTF8, "application/yaml") })
+                {
+                    using (HttpResponseMessage response = await host.AdminClient.SendAsync(request, token).ConfigureAwait(false))
+                    {
+                        string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.True((int)response.StatusCode == 400 && body.Contains("OrganizationDrift", StringComparison.Ordinal), "REST refuses the drift: " + body);
+                    }
+                }
+                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, route + "?force=true") { Content = new StringContent(yaml, Encoding.UTF8, "application/yaml") })
+                {
+                    using (HttpResponseMessage response = await host.AdminClient.SendAsync(request, token).ConfigureAwait(false))
+                    {
+                        string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        Assert.True((int)response.StatusCode == 200, "REST applies with force=true: " + body);
+                    }
+                }
             }
         }
 
