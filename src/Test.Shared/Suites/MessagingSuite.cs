@@ -489,6 +489,7 @@ namespace Test.Shared.Suites
                     AgentMessage toMember = await first.CallAsync<AgentMessage>("garrison_send_message", new { recipient = member.Name, subject = "Tests please", body = "Write tests for rule 5." }, token).ConfigureAwait(false);
                     await memberClient.CallAsync<MessageInbox>("garrison_read_inbox", new { }, token).ConfigureAwait(false);
                     AgentMessage reply = await memberClient.CallAsync<AgentMessage>("garrison_reply_message", new { messageId = toMember.Id, body = "assert parse_amount('12,34') raises" }, token).ConfigureAwait(false);
+                    Assert.Equal(MessageUrgencyEnum.Normal, reply.Urgency, "A reply to a Normal message is Normal");
                     AgentMessage stored = (await host.Server.Context.Database.AgentMessages.ReadAsync(host.TenantId, sentGoal.Id, token).ConfigureAwait(false))!;
                     Assert.Equal(MessageStatusEnum.Delivered, stored.Status, "The goal was delivered to the first run");
 
@@ -511,6 +512,12 @@ namespace Test.Shared.Suites
                     Assert.Equal(MessageStatusEnum.Delivered, (await host.Server.Context.Database.AgentMessages.ReadAsync(host.TenantId, sentGoal.Id, token).ConfigureAwait(false))!.Status, "Reading changes nothing");
                     Assert.True(!(await host.Server.Context.Database.EffectOperations.ListAsync(host.TenantId, laterRun.Id, token).ConfigureAwait(false)).Any(o => o.Tool == "garrison_read_thread"), "A read is not journaled");
 
+                    AgentMessage urgentAsk = await first.CallAsync<AgentMessage>("garrison_send_message", new { recipient = member.Name, subject = "Now please", body = "Run them now.", urgency = "Urgent" }, token).ConfigureAwait(false);
+                    await memberClient.CallAsync<MessageInbox>("garrison_read_inbox", new { }, token).ConfigureAwait(false);
+                    AgentMessage urgentReply = await memberClient.CallAsync<AgentMessage>("garrison_reply_message", new { messageId = urgentAsk.Id, body = "Ran them." }, token).ConfigureAwait(false);
+                    Assert.Equal(MessageUrgencyEnum.Urgent, urgentReply.Urgency, "A reply with no urgency keeps the original's");
+                    AgentMessage calmReply = await memberClient.CallAsync<AgentMessage>("garrison_reply_message", new { messageId = urgentAsk.Id, body = "Details later.", urgency = "Normal" }, token).ConfigureAwait(false);
+                    Assert.Equal(MessageUrgencyEnum.Normal, calmReply.Urgency, "An explicit urgency wins");
                     // Not the outsider's threads, not another tenant's, and not a made-up thread.
                     await outsiderClient.ExpectErrorAsync("garrison_read_thread", new { threadId = sentGoal.ThreadId }, "NotFound", token).ConfigureAwait(false);
                     await outsiderClient.ExpectErrorAsync("garrison_read_thread", new { messageId = reply.Id }, "NotFound", token).ConfigureAwait(false);

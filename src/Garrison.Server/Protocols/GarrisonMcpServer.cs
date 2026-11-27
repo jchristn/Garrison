@@ -2433,6 +2433,9 @@ namespace Garrison.Server.Protocols
                     {
                         if (String.IsNullOrWhiteSpace(arguments.MessageId)) throw ToolError("ValidationFailed", "messageId is required.");
                         request.ParentMessageId = arguments.MessageId;
+                        // AA12.7: a reply without an urgency keeps the original's, so an urgent request to an agent with no
+                        // keeper gets an answer that wakes the sender instead of one that waits in its inbox for good.
+                        if (String.IsNullOrWhiteSpace(arguments.Urgency)) request.Urgency = (await messages.ReadForRunAsync(run!, arguments.MessageId, token).ConfigureAwait(false)).Urgency;
                         return await messages.ReplyFromRunAsync(run!, request, token).ConfigureAwait(false);
                     }
                     if (run != null)
