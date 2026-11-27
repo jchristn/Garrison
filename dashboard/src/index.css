@@ -968,8 +968,13 @@ a.button { text-decoration: none; }
   .topbar-right .icon-button { padding: 4px; }
   .filter-search, .filter-select, .filter-date, .filter-select select, .filter-date input { min-width: 0; width: 100%; max-width: none; }
   .filter-inline { width: 100%; }
-  .topbar-tenant { max-width: 150px; }
-  .topbar-tenant > .text-muted, .topbar-hide-mobile { display: none; }
+  /* Phones: the tenant name gets the room. The GitHub link (also on About) hides, the menu and live badges keep their
+     size, and the tenant badge takes what is left, with an ellipsis only for a name that is truly long. */
+  .topbar-left > .icon-button, .topbar-left > .live-chip { flex-shrink: 0; }
+  .topbar-tenant, .topbar-tenant-name { flex: 0 1 auto; max-width: 100%; }
+  .topbar-tenant select { max-width: 100%; text-overflow: ellipsis; }
+  .topbar-tenant-name .topbar-truncate { max-width: none; }
+  .topbar-tenant > .text-muted, .topbar-tenant-name > .text-muted, .topbar-hide-mobile { display: none; }
   .topbar-lang select { max-width: 84px; }
 }
 
@@ -1897,13 +1902,15 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 .perf-legend::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 6px; vertical-align: middle; }
 .perf-legend-rate::before, .perf-bar-rate .perf-bar-fill { background: var(--color-success); }
 .perf-legend-cost::before, .perf-bar-cost .perf-bar-fill { background: var(--color-info); }
-.perf-chart-rows { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-/* The rows are grid items; plain-list's check mark would become a third grid cell and push the bars under the name. */
+/* One grid for the whole chart (unit, track, value) shared by every row through subgrid, so a long value such as
+   "No finished runs" widens the value column for all rows and every bar track keeps the same width. */
+.perf-chart-rows { display: grid; grid-template-columns: minmax(6rem, 12rem) minmax(0, 1fr) minmax(5.5rem, max-content); column-gap: var(--spacing-xs); row-gap: var(--spacing-sm); }
+/* The rows are grid items; plain-list's check mark would become a grid cell and push the bars under the name. */
 .perf-chart-rows li::before { content: none; }
-.perf-chart-row { display: grid; grid-template-columns: minmax(6rem, 12rem) minmax(0, 1fr); gap: var(--spacing-sm); align-items: center; }
-.perf-chart-unit { font-size: var(--font-size-sm); overflow-wrap: anywhere; }
-.perf-chart-bars { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.perf-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(5.5rem, max-content); gap: var(--spacing-xs); align-items: center; }
+.perf-chart-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+.perf-chart-unit { grid-column: 1; font-size: var(--font-size-sm); overflow-wrap: anywhere; margin-inline-end: var(--spacing-xs); }
+.perf-chart-bars { grid-column: 2 / -1; display: grid; grid-template-columns: subgrid; row-gap: 4px; min-width: 0; }
+.perf-bar { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
 .perf-bar-track { height: 8px; border-radius: 4px; background: var(--color-surface-alt); border: 1px solid var(--color-border); overflow: hidden; }
 .perf-bar-fill { height: 100%; }
 .perf-bar-value { font-size: var(--font-size-xs); color: var(--color-text-secondary); text-align: end; max-width: 10rem; overflow-wrap: anywhere; }
@@ -1914,5 +1921,8 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 .rollback-ticks { border: 1px solid var(--color-border); border-radius: 6px; padding: var(--spacing-sm); margin: var(--spacing-sm) 0 0; display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .rollback-ticks legend { font-size: var(--font-size-sm); padding: 0 4px; }
 @media (max-width: 640px) {
-  .perf-chart-row { grid-template-columns: minmax(0, 1fr); }
+  .perf-chart-rows { grid-template-columns: minmax(0, 1fr) minmax(5.5rem, max-content); }
+  .perf-chart-row { row-gap: 4px; }
+  .perf-chart-unit { grid-column: 1 / -1; margin-inline-end: 0; }
+  .perf-chart-bars { grid-column: 1 / -1; }
 }

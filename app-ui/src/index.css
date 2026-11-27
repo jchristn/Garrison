@@ -322,7 +322,20 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 .conversation-item:hover { background: var(--color-surface-alt); }
 .conversation-item.is-selected { background: var(--color-surface-alt); border-inline-start-color: var(--app-accent); }
 .conversation-title { font-weight: 600; font-size: var(--font-size-sm); overflow-wrap: anywhere; }
-.conversation-meta { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.conversation-meta { display: flex; flex-wrap: wrap; align-items: center; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+/* Meta lines (size, version, time) separate their items with a dot drawn in the gap before each item. The dot sits
+   just outside the item's inline-start edge, so on an item that starts a wrapped line it falls outside the clipped
+   container and no dot is left dangling at a line end or start, in either direction. A badge takes no dot after it. */
+.file-meta, .conversation-meta { --meta-separator-width: 0.9em; column-gap: var(--meta-separator-width); row-gap: 0; overflow: hidden; }
+.file-meta > *, .conversation-meta > * { position: relative; }
+.file-meta > :not(.badge) + *::before, .conversation-meta > :not(.badge) + *::before {
+  content: '\00B7';
+  content: '\00B7' / '';
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--meta-separator-width));
+  inline-size: var(--meta-separator-width);
+  text-align: center;
+}
 
 /* ---------------------------------------------------------------- chat */
 .chat-pane { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
@@ -419,7 +432,7 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 .file-info, .version-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .version-info { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs) var(--spacing-sm); }
 .file-path { font-family: var(--font-mono); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
-.file-meta { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.file-meta { display: flex; flex-wrap: wrap; align-items: center; font-size: var(--font-size-xs); color: var(--color-text-muted); }
 .file-hash { font-size: var(--font-size-xs); color: var(--color-text-muted); }
 .file-actions { display: flex; gap: 2px; flex: 0 0 auto; }
 .file-viewer { display: flex; flex-direction: column; gap: var(--spacing-sm); min-height: 0; }
@@ -556,9 +569,12 @@ select { min-height: 40px; padding: 0 var(--spacing-sm); max-width: 160px; }
 @media (max-width: 760px) { .splitter-start { display: none; } }
 
 /* Conversation list: filter and sort, rows with rename and delete, inline rename and delete confirmation. */
-.list-controls { display: flex; gap: var(--spacing-xs); margin-bottom: var(--spacing-xs); }
-.list-filter { flex: 1 1 auto; min-width: 0; min-height: 32px; padding: 0 var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--font-size-sm); }
-.list-sort { min-height: 32px; font-size: var(--font-size-sm); max-width: 150px; }
+/* The filter keeps room for its placeholder: when a long locale's filter and sort do not fit on one line, the sort
+   wraps below, and a placeholder still too long ends in an ellipsis instead of being cut. */
+.list-controls { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-bottom: var(--spacing-xs); }
+.list-filter { flex: 1 1 7.5rem; text-overflow: ellipsis; min-width: 0; min-height: 32px; padding: 0 var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--font-size-sm); }
+.list-filter::placeholder { text-overflow: ellipsis; }
+.list-sort { flex: 0 1 auto; min-width: 0; min-height: 32px; font-size: var(--font-size-sm); max-width: 150px; }
 .conversation-row { display: flex; flex-direction: column; gap: 2px; }
 .conversation-open { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--spacing-xs) var(--spacing-sm); border: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; }
 .conversation-actions { display: inline-flex; gap: 0; opacity: 0; transition: opacity 0.15s; }

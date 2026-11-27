@@ -86,9 +86,7 @@ export default function FilePanel({ client, conversationId, files, onClose, view
               <span className="file-meta">
                 {files.fresh.includes(f.path) ? <span className="badge badge-new">{t('files.newBadge')}</span> : null}
                 <span>{t('files.version', { number: f.currentVersion })}</span>
-                <span aria-hidden="true">·</span>
                 <span>{formatBytes(f.sizeBytes)}</span>
-                <span aria-hidden="true">·</span>
                 <time dateTime={f.lastUpdateUtc}>{t('files.updated', { when: formatRelativeTime(f.lastUpdateUtc) })}</time>
               </span>
             </div>

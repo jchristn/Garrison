@@ -64,7 +64,6 @@ export default function FileViewer({ client, conversationId, file, path, filePat
           {file ? (
             <span className="file-meta">
               <span>{t('files.version', { number: file.currentVersion })}</span>
-              <span aria-hidden="true">·</span>
               <span>{formatBytes(size)}</span>
             </span>
           ) : null}

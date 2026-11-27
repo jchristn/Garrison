@@ -298,6 +298,33 @@ for (const vp of [...VIEWPORTS, { name: 'narrow-desktop', width: 1000, height: 8
   });
 }
 
+// AA13.9 QA: at 390 pixels the tenant badge was squeezed to "defau" while other topbar items kept their room.
+test('the tenant name stays readable in the topbar on a phone', async ({ page }) => {
+  await login(page);
+  const select = page.locator('.topbar-tenant select');
+  await expect(select).toHaveValue('default');
+  const natural = await select.evaluate((el) => el.getBoundingClientRect().width);
+  for (const locale of ['en', 'de', 'zz']) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate((l) => localStorage.setItem('garrison.locale', l), locale);
+    await page.reload();
+    await expect(select).toBeVisible();
+    const m = await page.evaluate(() => {
+      const left = document.querySelector('.topbar-left');
+      return {
+        width: document.querySelector('.topbar-tenant select').getBoundingClientRect().width,
+        leftClipped: left.scrollWidth - left.clientWidth,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+      };
+    });
+    expect(m.width, `${locale} tenant select keeps its natural width`).toBeGreaterThanOrEqual(natural - 1);
+    expect(m.leftClipped, `${locale} topbar items fit`).toBeLessThanOrEqual(1);
+    expect(m.overflow, `${locale} no horizontal scroll`).toBeLessThanOrEqual(1);
+    await expect(page.locator('.topbar .live-chip')).toBeVisible();
+  }
+  await page.evaluate(() => localStorage.setItem('garrison.locale', 'en'));
+});
+
 test('setup wizard opens for an empty tenant', async ({ page }) => {
   await page.route(/\/tenants\/[^/]+\/agents(\?|$)/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: [], totalRecords: 0, skip: 0, maxResults: 1, endOfResults: true }) })

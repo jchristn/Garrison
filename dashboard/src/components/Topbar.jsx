@@ -39,7 +39,7 @@ export default function Topbar({ onToggleSidebar, health, live }) {
               </select>
             </label>
           ) : (
-            <span className="topbar-chip" {...tip(t('tips.topbar.tenant', { tenant: tenantId }))}>
+            <span className="topbar-chip topbar-tenant-name" {...tip(t('tips.topbar.tenant', { tenant: tenantId }))}>
               <span className="text-muted">{t('topbar.tenant')}</span>
               <code className="topbar-truncate">{tenantId}</code>
             </span>
@@ -58,7 +58,7 @@ export default function Topbar({ onToggleSidebar, health, live }) {
 
         <div className="topbar-right">
           <LanguageSelector compact />
-          <a className="icon-button" href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label={t('common.actions.openGithub')} {...tip(t('tips.topbar.github'))}>
+          <a className="icon-button topbar-hide-mobile" href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label={t('common.actions.openGithub')} {...tip(t('tips.topbar.github'))}>
             <GithubIcon />
           </a>
           <button

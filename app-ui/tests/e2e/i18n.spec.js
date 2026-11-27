@@ -90,3 +90,36 @@ test('the RTL pseudo-locale mirrors the layout without horizontal overflow', asy
   }
   await page.goto('/apps/demo/?lang=en');
 });
+
+// AA13.9 QA: the pseudo-locale's long "Filter by name" placeholder was cut off mid-letter. The sort now wraps below
+// the filter when both do not fit, and a placeholder that still does not fit ends in an ellipsis.
+test('the conversation filter keeps its placeholder readable in long locales', async ({ page }) => {
+  for (const [width, lang] of [[1440, 'en'], [1440, 'zz'], [390, 'de'], [390, 'zz']]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/apps/demo/?lang=${lang}`);
+    await page.getByTestId('signin-anonymous').click();
+    await expect(page.getByTestId('composer-input')).toBeVisible();
+    const filter = page.getByTestId('conversation-filter');
+    if (!(await filter.isVisible())) await page.getByTestId('toggle-conversations').click();
+    await expect(filter).toBeVisible();
+    const m = await filter.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const context = document.createElement('canvas').getContext('2d');
+      context.font = `${style.fontSize} ${style.fontFamily}`;
+      const controls = el.parentElement.getBoundingClientRect();
+      const sort = el.parentElement.querySelector('select').getBoundingClientRect();
+      return {
+        text: context.measureText(el.placeholder).width,
+        inner: el.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd),
+        ellipsis: style.textOverflow,
+        inside: [el.getBoundingClientRect(), sort].every((r) => r.left >= controls.left - 0.5 && r.right <= controls.right + 0.5)
+      };
+    });
+    expect(m.ellipsis, `${lang} at ${width}: a placeholder that does not fit ends in an ellipsis`).toBe('ellipsis');
+    expect(m.inside, `${lang} at ${width}: filter and sort stay inside the list`).toBe(true);
+    if (width > 1100) expect(m.text, `${lang} at ${width}: the whole placeholder shows on a desktop`).toBeLessThanOrEqual(m.inner + 1);
+    expect(await overflow(page), `${lang} at ${width}`).toBeLessThanOrEqual(0);
+    await page.evaluate(() => sessionStorage.clear());
+  }
+  await page.goto('/apps/demo/?lang=en');
+});

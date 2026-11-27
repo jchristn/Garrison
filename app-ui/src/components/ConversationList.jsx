@@ -144,7 +144,6 @@ export default function ConversationList({ conversations, error, selectedId, onS
                     <span className="conversation-meta">
                       {c.busy ? <span className="badge badge-working">{t('conversations.working')}</span> : null}
                       <span>{t('conversations.messages', { count: c.turnCount || 0 })}</span>
-                      <span aria-hidden="true">·</span>
                       <time dateTime={c.lastActivityUtc || c.createdUtc}>{formatRelativeTime(c.lastActivityUtc || c.createdUtc)}</time>
                     </span>
                   </button>

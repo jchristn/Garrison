@@ -171,14 +171,18 @@ test('the guided tour stops at Performance', async ({ page }) => {
 });
 
 // AA13.9: plain-list's check mark used to become a third grid cell in each chart row, which pushed the bars under the
-// unit name into the narrow first column, and "No finished runs" overflowed its fixed 5.5rem value column.
-test('chart rows keep the bars beside the unit name and every value inside its card', async ({ page }) => {
+// unit name into the narrow first column, and "No finished runs" overflowed its fixed 5.5rem value column. The value
+// column is shared by every row, so a long value no longer shortens its own row's bar track.
+test('chart rows keep the bars beside the unit name, every value inside its card, and equal bar tracks', async ({ page }) => {
   await login(page);
-  for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
+  for (const [width, locale] of [[1280, 'en'], [1280, 'de'], [390, 'de'], [390, 'zz']]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate((l) => localStorage.setItem('garrison.locale', l), locale);
     await page.goto('/dashboard/performance/org_0001');
     await expect(page.getByTestId('performance-chart').locator('[data-chart-unit]')).toHaveCount(3);
+    const tracks = await page.locator('[data-testid="performance-chart"] .perf-bar-track').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+    expect(tracks).toHaveLength(6);
+    for (const track of tracks) expect(Math.abs(track - tracks[0]), `${locale} at ${width}: track ${track} equals ${tracks[0]}`).toBeLessThanOrEqual(0.5);
     const layout = await page.evaluate(() => {
       const card = document.querySelector('[data-testid="performance-chart"]').getBoundingClientRect();
       return [...document.querySelectorAll('[data-chart-unit]')].map((row) => {

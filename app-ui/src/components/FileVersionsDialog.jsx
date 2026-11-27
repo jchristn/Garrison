@@ -39,7 +39,8 @@ export default function FileVersionsDialog({ client, conversationId, file, onDow
                 <strong>{t('files.version', { number: v.number })}</strong>
                 {v.number === file.currentVersion ? <span className="badge">{t('files.current')}</span> : null}
                 <span className="file-meta">
-                  {formatBytes(v.sizeBytes)} · {formatDateTime(v.createdUtc)}
+                  <span>{formatBytes(v.sizeBytes)}</span>
+                  <span>{formatDateTime(v.createdUtc)}</span>
                 </span>
                 <code className="file-hash">{String(v.sha256 || '').slice(0, 12)}</code>
               </div>

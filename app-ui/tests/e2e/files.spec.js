@@ -75,3 +75,40 @@ test('falls back to the content route when a download URL cannot be issued', asy
   expect(download.suggestedFilename()).toBe('notes.txt');
   expect(await downloadedSha(download)).toBe(sha('plain notes\n'));
 });
+
+// AA13.9 QA: a file row's meta line used text separators, so a wrapped line ended in a dangling " ·". The dots are
+// now drawn before each item and clipped when the item starts a line, so every visible dot sits between two items.
+test('meta separators never dangle at a line end when the meta line wraps', async ({ page, request }) => {
+  for (const [width, lang] of [[1280, 'en'], [390, 'de'], [390, 'zz']]) {
+    await resetMock(request, { scenario: { chunkMs: 50, holdMs: 50, writeFile: { path: 'reports/weekly.md', content: 'x\n', atChunk: 0 } } });
+    await page.setViewportSize({ width, height: 800 });
+    await openAnonymously(page, `/apps/demo/?lang=${lang}`);
+    await send(page, 'Write the weekly report');
+    await expect(page.getByTestId('turn').first()).toHaveAttribute('data-phase', 'done');
+    if (!(await page.getByTestId('file-panel').isVisible())) await page.getByTestId('toggle-files').click();
+    const meta = page.locator('[data-testid="file-item"][data-path="reports/weekly.md"] .file-meta');
+    await expect(meta).toBeVisible();
+    const check = await meta.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      const rtl = style.direction === 'rtl';
+      const gap = parseFloat(style.columnGap);
+      const items = [...el.children].map((child) => ({ child, r: child.getBoundingClientRect() }));
+      const dots = [];
+      items.forEach(({ child, r }, i) => {
+        const content = getComputedStyle(child, '::before').content;
+        if (i === 0 || content === 'none' || content === 'normal') return;
+        const dotStart = rtl ? r.right : r.left - gap;
+        const dotEnd = rtl ? r.right + gap : r.left;
+        dots.push({ visible: dotStart >= box.left - 0.5 && dotEnd <= box.right + 0.5, sameLine: Math.abs(items[i - 1].r.bottom - r.bottom) < 2 });
+      });
+      return { text: el.textContent, lines: new Set(items.map((x) => Math.round(x.r.bottom))).size, dots };
+    });
+    // The pseudo-locale pads its strings with the same dot, so only real languages are checked for separator text.
+    if (lang !== 'zz') expect(check.text, `${lang} at ${width}: no separator characters in the text`).not.toContain('·');
+    expect(check.dots.length, `${lang} at ${width}: separators drawn`).toBeGreaterThan(0);
+    for (const dot of check.dots) expect(dot.visible, `${lang} at ${width}: a dot shows only between two items on one line`).toBe(dot.sameLine);
+    if (width < 500) expect(check.lines, `${lang} at ${width}: the meta line wraps`).toBeGreaterThan(1);
+    await page.evaluate(() => sessionStorage.clear());
+  }
+});
