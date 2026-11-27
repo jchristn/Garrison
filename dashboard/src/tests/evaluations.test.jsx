@@ -12,6 +12,9 @@ import AuthContext from '../context/AuthContext';
 import AppContext from '../context/AppContext';
 import ToastContext from '../context/ToastContext';
 import EvalRunDetailView from '../views/EvalRunDetailView';
+import EvalSetDetailView from '../views/EvalSetDetailView';
+import { evalRunFields } from '../components/EvalRunModal';
+import { canaryReleasesConfig, evalRunsConfig, evalSetsConfig, shadowTrialsConfig } from '../views/evaluationConfigs';
 import SaveEvalCaseModal from '../components/SaveEvalCaseModal';
 import { PAGE_VIEWS, DETAIL_VIEWS } from '../views/hubs/hubPanels';
 import { findPage, pathFor } from '../config/navConfig';
@@ -39,7 +42,7 @@ import {
   shadowTrialFormErrors,
   stepState
 } from '../utils/evaluations';
-import { evalCase, evalCaseResult, evalRun, canaryRelease, shadowTrial } from '../../tests/e2e/mocks.js';
+import { evalCase, evalCaseResult, evalRun, evalSet, canaryRelease, shadowTrial } from '../../tests/e2e/mocks.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -63,14 +66,14 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function mount(element, { apiClient = {}, addToast = vi.fn() } = {}) {
+function mount(element, { apiClient = {}, addToast = vi.fn(), principal = { isAdmin: true } } = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
     root.render(
       <MemoryRouter>
-        <AuthContext.Provider value={{ apiClient, principal: { isAdmin: true } }}>
+        <AuthContext.Provider value={{ apiClient, principal }}>
           <AppContext.Provider value={{ tenantId: 'default', setWizardOpen: () => {}, setTourOpen: () => {} }}>
             <ToastContext.Provider value={{ addToast }}>{element}</ToastContext.Provider>
           </AppContext.Provider>
@@ -200,6 +203,64 @@ describe('run, shadow, and canary helpers', () => {
     }
     const err = { fields: { 'steps[2].weightPercent': 'raw', other: 'server text' }, fieldCodes: { 'steps[2].weightPercent': 'LastStepNotFull', other: 'Weird' } };
     expect(evalFieldErrors(t, err)).toEqual({ 'steps[2].weightPercent': 'The last step must be 100 percent.', other: 'server text' });
+  });
+});
+
+const viewerGrants = { grants: [{ resourceTypes: ['All'], operations: ['Read'], permissionType: 'Permit' }] };
+
+describe('read-only callers (UT-03)', () => {
+  const ctx = { t, i18n, lookups: { permissions: viewerGrants }, navigate: vi.fn(), addToast: vi.fn(), reload: vi.fn(), setExtraModal: vi.fn() };
+
+  it('disables the write actions of the eval lists with the missing permission', () => {
+    for (const action of ['create', 'update', 'delete']) expect(evalSetsConfig.deniedReason(action, { id: 'evs_1' }, ctx)).toContain('on Eval set');
+    expect(shadowTrialsConfig.deniedReason('create', null, ctx)).toContain('Create on');
+    expect(canaryReleasesConfig.deniedReason('create', null, ctx)).toContain('Create on');
+    const runSet = evalSetsConfig.rowActions({ id: 'evs_1' }, ctx).find((a) => a.label === 'Run set');
+    expect(runSet.disabled).toBe(true);
+    expect(runSet.tip).toContain('Execute on');
+    const cancel = evalRunsConfig.rowActions({ id: 'evr_1', status: 'Running', setId: 'evs_1' }, ctx).find((a) => a.label === t('evals.actions.cancelRun'));
+    expect(cancel.disabled).toBe(true);
+    expect(cancel.danger).toBe(false);
+    const stop = shadowTrialsConfig.rowActions({ id: 'sht_1', status: 'Running' }, ctx).find((a) => a.label === t('evals.actions.stopTrial'));
+    expect(stop.disabled).toBe(true);
+    const admin = { ...ctx, lookups: { permissions: { isAdmin: true, grants: [] } } };
+    expect(evalSetsConfig.deniedReason('create', null, admin)).toBe('');
+    expect(evalSetsConfig.rowActions({ id: 'evs_1' }, admin).find((a) => a.label === 'Run set').disabled).toBe(false);
+  });
+
+  it('disables Edit, Run set, Add case, and Remove on the eval set page', async () => {
+    const set = { ...evalSet(1), state: 'Draft' };
+    const apiClient = {
+      getEvalSet: vi.fn(async () => set),
+      listEvalCases: vi.fn(async () => [1, 2].map((k) => evalCase(set.id, k))),
+      listEvalSets: vi.fn(async () => ({ items: [set] })),
+      listEvalRuns: vi.fn(async () => ({ items: [] })),
+      listAgents: vi.fn(async () => ({ items: [] })),
+      getUserPermissions: vi.fn(async () => viewerGrants)
+    };
+    mount(<EvalSetDetailView recordId={set.id} />, { apiClient, principal: { userId: 'usr_vic' } });
+    await flush();
+    await flush();
+    const ids = ['eval-set-edit', 'eval-set-delete', 'eval-set-approve', 'eval-set-run', 'eval-case-add', `eval-case-remove-${evalCase(set.id, 1).order}`];
+    for (const id of ids) {
+      const button = q(`[data-testid="${id}"]`);
+      expect(button, id).not.toBeNull();
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      expect(button.getAttribute('data-tip')).toContain('You may not do this.');
+    }
+  });
+});
+
+describe('run form (UT-07)', () => {
+  it('says an empty threshold and budget mean none, instead of showing sample values', () => {
+    const fields = evalRunFields(t, { sets: [], deployments: [], agents: [] }, {});
+    const threshold = fields.find((f) => f.name === 'thresholdPercent');
+    const budget = fields.find((f) => f.name === 'budgetUsd');
+    expect(threshold.placeholder).toBe('None');
+    expect(budget.placeholder).toBe('None');
+    expect(threshold.hint).toContain('Leave it empty for no threshold');
+    expect(budget.hint).toContain('Leave it empty for no budget');
+    expect(evalRunFormToBody({ setId: 'evs_1', targetType: 'Deployment', deploymentId: 'dep_1', thresholdPercent: null, budgetUsd: null })).toMatchObject({ threshold: null, budgetUsd: null });
   });
 });
 

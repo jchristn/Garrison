@@ -8573,3 +8573,55 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "common": {
+  "tabs": {
+   "scrollBack": "顯示前面的分頁",
+   "scrollForward": "顯示更多分頁"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "無",
+    "budgetUsd": "無"
+   },
+   "hints": {
+    "thresholdPercent": "選填，0 到 100。加權分數達到此值即為通過。留空表示沒有門檻，也沒有通過或未通過的判定。",
+    "budgetUsd": "選填。案例與評審執行花費達到此金額後，其餘案例會略過，執行失敗。留空表示沒有預算。"
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "你無權執行此操作。需要{{resource}}的 {{operation}} 權限。"
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "開啟提出它的 tick 所屬的 keeper。其 ID 為 {{id}}。"
+   }
+  },
+  "tabs": {
+   "scrollBack": "將分頁列向後捲動，顯示第一個可見分頁之前隱藏的分頁。",
+   "scrollForward": "捲動分頁列，顯示超出邊緣而隱藏的分頁。"
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "有人喚醒了 keeper：立即喚醒、恢復、發佈修訂或給予指示。"
+   }
+  }
+ }
+});

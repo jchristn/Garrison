@@ -7,6 +7,7 @@ import { tip } from './Tooltip';
 import useMeasuredWidth from '../hooks/useMeasuredWidth';
 import { niceTicks, chartMax } from '../utils/analytics';
 import { formatDateTime } from '../i18n/formatters';
+import { distinctAxisLabels } from '../utils/chart';
 
 // Hand-rolled SVG time series chart in the style of ActivityChart: drawn at the measured container width in CSS
 // pixels, full width and tall, with a recessive grid, one y-axis, a hover crosshair and portaled tooltip that
@@ -31,9 +32,9 @@ function labelIndices(count, max = MAX_X_LABELS) {
   return set;
 }
 
-function axisTime(iso, bucketSeconds, spanMs, locale) {
+function axisTime(iso, bucketSeconds, spanMs, locale, withSeconds = false) {
   const opts = bucketSeconds && bucketSeconds >= 86400 ? { month: 'short', day: 'numeric' } : spanMs > 26 * 3600 * 1000 ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' };
-  return formatDateTime(iso, locale, opts);
+  return formatDateTime(iso, locale, withSeconds && !(bucketSeconds && bucketSeconds >= 86400) ? { ...opts, second: '2-digit' } : opts);
 }
 
 /** Split a line's points at nulls so gaps stay visible. */
@@ -72,7 +73,9 @@ export default function TimeSeriesChart({ id, title, help, titleTip, kind = 'lin
   const xCenter = (i) => PAD_LEFT + i * colW + colW / 2;
   const spanMs = n > 1 ? new Date(times[n - 1]).getTime() - new Date(times[0]).getTime() : 0;
   const labels = labelIndices(n, Math.max(2, Math.min(MAX_X_LABELS, Math.floor(plotW / X_LABEL_WIDTH))));
+  // UT-11: ticks in the same minute get seconds, so the axis never repeats a label.
   const lng = i18n.language;
+  const axisLabels = distinctAxisLabels(times, labels, (iso, withSeconds) => axisTime(iso, bucketSeconds, spanMs, lng, withSeconds));
   const hasData = visible.some((s) => s.values.some((v) => v !== null && v !== undefined && v !== 0));
   const name = (s) => s.label || t(`views.analytics.metrics.${s.metric}`);
 
@@ -186,9 +189,9 @@ export default function TimeSeriesChart({ id, title, help, titleTip, kind = 'lin
               ))}
 
               {times.map((iso, i) =>
-                labels.has(i) ? (
+                axisLabels.has(i) ? (
                   <text key={`x${i}`} className="chart-svg-text" x={xCenter(i)} y={H - PAD_BOTTOM + 20} textAnchor="middle">
-                    {axisTime(iso, bucketSeconds, spanMs, lng)}
+                    {axisLabels.get(i)}
                   </text>
                 ) : null
               )}

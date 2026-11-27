@@ -52,14 +52,14 @@ function Where() {
   return <output data-testid="where">{`${location.pathname}${location.search}`}</output>;
 }
 
-function mount(element, { apiClient = {}, addToast = vi.fn() } = {}) {
+function mount(element, { apiClient = {}, addToast = vi.fn(), principal = { isAdmin: true } } = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
     root.render(
       <MemoryRouter>
-        <AuthContext.Provider value={{ apiClient, principal: { isAdmin: true } }}>
+        <AuthContext.Provider value={{ apiClient, principal }}>
           <AppContext.Provider value={{ tenantId: 'default', setWizardOpen: () => {}, setTourOpen: () => {} }}>
             <ToastContext.Provider value={{ addToast }}>
               {element}
@@ -224,6 +224,19 @@ describe('PerformanceView', () => {
     await flush();
     await click(q('[data-testid="performance-new-check"]'));
     expect(q('[data-testid="where"]').textContent).toBe('/dashboard/agents?tab=triggers&new=EvalSet');
+  });
+
+  it('disables New check for a caller who may not create triggers (UT-03)', async () => {
+    const api = { ...client(), getUserPermissions: vi.fn(async () => ({ grants: [{ resourceTypes: ['All'], operations: ['Read'], permissionType: 'Permit' }] })) };
+    mount(<PerformanceView recordId="org_0001" />, { apiClient: api, principal: { userId: 'usr_vic' } });
+    await flush();
+    await flush();
+    const button = q('[data-testid="performance-new-check"]');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.getAttribute('data-tip')).toContain('Create on');
+    const before = q('[data-testid="where"]').textContent;
+    await click(button);
+    expect(q('[data-testid="where"]').textContent).toBe(before);
   });
 });
 

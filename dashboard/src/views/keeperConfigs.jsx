@@ -12,6 +12,8 @@ import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i
 import { errorMessage } from '../utils/errors';
 import { resourceTip, optionalText } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
+import { loadCallerPermissions } from '../utils/apps';
+import { permissionDenied } from '../utils/permissions';
 import { blankKeeper, keeperToForm, keeperToBody, keeperDuplicate, keeperErrors, formatInterval, canPause, canResume, canWake } from '../utils/keepers';
 
 const ID = 'keepers';
@@ -118,10 +120,18 @@ export const keepersConfig = {
       optionLabel: (o, _t, lookups) => lookups?.agents?.[o] || o
     }
   ],
-  // Agent and deployment names for the table.
-  loadLookups: async ({ apiClient, tenantId }) => {
-    const [agents, deployments] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }))]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), deployments: Object.fromEntries(deployments.map((x) => [x.id, x.name])) };
+  // Agent and deployment names for the table, and the caller's permissions (UT-03: denied actions stay disabled).
+  loadLookups: async ({ apiClient, tenantId, principal }) => {
+    const [agents, deployments, permissions] = await Promise.all([
+      safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      loadCallerPermissions(apiClient, tenantId, principal).catch(() => null)
+    ]);
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), deployments: Object.fromEntries(deployments.map((x) => [x.id, x.name])), permissions };
+  },
+  deniedReason: (action, row, { t, lookups }) => {
+    const op = action === 'create' ? 'Create' : action === 'delete' ? 'Delete' : 'Update';
+    return permissionDenied(t, lookups?.permissions, 'Mandate', op, { resourceId: row?.id || null });
   },
   // Hosted agents and their active deployments: keepers cannot run on remote agents or inactive deployments.
   loadOptions: async ({ apiClient, tenantId }) => {
@@ -188,10 +198,14 @@ export const keepersConfig = {
         {t(`resources.${ID}.editNotice`, { name: d.runAsName || d.runAsId || '-' })}
       </div>
     ) : null,
-  rowActions: (r, ctx) => [
-    { label: ctx.t(`resources.${ID}.actions.pause`), tip: ctx.t(`tips.resources.${ID}.actions.pause`), hidden: !canPause(r), onClick: () => perform(ctx, r, 'pause') },
-    { label: ctx.t(`resources.${ID}.actions.resume`), tip: ctx.t(`tips.resources.${ID}.actions.resume`), hidden: !canResume(r), onClick: () => perform(ctx, r, 'resume') },
-    { label: ctx.t(`resources.${ID}.actions.wake`), tip: ctx.t(`tips.resources.${ID}.actions.wake`), hidden: !canWake(r), onClick: () => perform(ctx, r, 'wake') },
-    { label: ctx.t(`resources.${ID}.actions.runs`), tip: ctx.t(`tips.resources.${ID}.actions.runs`), onClick: () => ctx.navigate(pathFor('runs', null, { mandateId: r.id })) }
-  ]
+  rowActions: (r, ctx) => {
+    const denied = permissionDenied(ctx.t, ctx.lookups?.permissions, 'Mandate', 'Execute', { resourceId: r.id });
+    const execute = (action) => ({ label: ctx.t(`resources.${ID}.actions.${action}`), tip: denied || ctx.t(`tips.resources.${ID}.actions.${action}`), disabled: !!denied, onClick: () => perform(ctx, r, action) });
+    return [
+      { ...execute('pause'), hidden: !canPause(r) },
+      { ...execute('resume'), hidden: !canResume(r) },
+      { ...execute('wake'), hidden: !canWake(r) },
+      { label: ctx.t(`resources.${ID}.actions.runs`), tip: ctx.t(`tips.resources.${ID}.actions.runs`), onClick: () => ctx.navigate(pathFor('runs', null, { mandateId: r.id })) }
+    ];
+  }
 };

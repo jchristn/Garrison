@@ -122,7 +122,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
           {onCancelAll && (
             <button
               type="button"
-              className="button-ghost button-sm org-unit-cancel-all"
+              className="button-danger button-sm org-unit-cancel-all"
               aria-disabled={cancelAllDenied ? 'true' : undefined}
               onClick={() => !cancelAllDenied && onCancelAll(unit)}
               data-testid="org-unit-cancel-all"

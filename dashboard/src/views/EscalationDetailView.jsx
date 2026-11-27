@@ -17,6 +17,8 @@ import { useOpenEscalations } from '../context/EscalationsContext';
 import { pathFor } from '../config/navConfig';
 import { errorMessage, errorDetail } from '../utils/errors';
 import { enumLabel } from '../utils/enums';
+import { deniedProps, permissionDenied } from '../utils/permissions';
+import useCallerPermissions from '../hooks/useCallerPermissions';
 import { enumTip } from '../utils/tips';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { isAnswerable, optionLabel, targetText } from '../utils/escalations';
@@ -69,6 +71,8 @@ export default function EscalationDetailView({ recordId }) {
   const [answering, setAnswering] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [keeperName, setKeeperName] = useState(null);
+  const permissions = useCallerPermissions();
   const lng = i18n.language;
 
   const load = useCallback(() => {
@@ -83,6 +87,20 @@ export default function EscalationDetailView({ recordId }) {
   }, [apiClient, tenantId, recordId]);
 
   useEffect(load, [load]);
+
+  // UT-12: name the keeper rather than show its identifier. The identifier stays in the tooltip.
+  const mandateId = escalation?.mandateId || null;
+  useEffect(() => {
+    if (!apiClient || !mandateId || typeof apiClient.getMandate !== 'function') return undefined;
+    let cancelled = false;
+    apiClient
+      .getMandate(tenantId, mandateId)
+      .then((m) => !cancelled && setKeeperName(m?.name || null))
+      .catch(() => !cancelled && setKeeperName(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, tenantId, mandateId]);
 
   const open = escalation?.status === 'Open';
   useEffect(() => {
@@ -104,6 +122,7 @@ export default function EscalationDetailView({ recordId }) {
 
   const e = escalation;
   const answerable = isAnswerable(e);
+  const denied = permissionDenied(t, permissions, 'Escalation', 'Update', { resourceId: e.id });
   const when = (value) => (value ? <span {...tip(formatRelativeTime(value, lng))}>{formatDateTime(value, lng, { dateStyle: 'medium', timeStyle: 'medium' })}</span> : '-');
   const runLink = (id, testId) =>
     id ? (
@@ -154,10 +173,10 @@ export default function EscalationDetailView({ recordId }) {
             </button>
             {answerable && (
               <>
-                <button type="button" className="button-danger" onClick={() => setCancelling(true)} data-testid="escalation-cancel" {...tip(t('tips.resources.escalations.actions.cancel'))}>
+                <button type="button" className="button-danger" onClick={() => !denied && setCancelling(true)} data-testid="escalation-cancel" {...deniedProps(denied)} {...tip(denied || t('tips.resources.escalations.actions.cancel'))}>
                   {t('resources.escalations.actions.cancel')}
                 </button>
-                <button type="button" className="button-primary" onClick={() => setAnswering(true)} data-testid="escalation-answer" {...tip(t('tips.resources.escalations.actions.answer'))}>
+                <button type="button" className="button-primary" onClick={() => !denied && setAnswering(true)} data-testid="escalation-answer" {...deniedProps(denied)} {...tip(denied || t('tips.resources.escalations.actions.answer'))}>
                   {t('resources.escalations.actions.answer')}
                 </button>
               </>
@@ -262,8 +281,8 @@ export default function EscalationDetailView({ recordId }) {
         <Detail name="raisingRunId" t={t}>{runLink(e.raisingRunId, 'escalation-run-link')}</Detail>
         <Detail name="mandate" t={t}>
           {e.mandateId ? (
-            <Link to={pathFor('keepers', e.mandateId)} tipText={t('tips.views.escalationDetail.openKeeper')} testId="escalation-keeper-link">
-              <code>{e.mandateId}</code>
+            <Link to={pathFor('keepers', e.mandateId)} tipText={keeperName ? t('tips.views.escalationDetail.openKeeperNamed', { id: e.mandateId }) : t('tips.views.escalationDetail.openKeeper')} testId="escalation-keeper-link">
+              {keeperName || <code>{e.mandateId}</code>}
             </Link>
           ) : (
             '-'

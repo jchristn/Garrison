@@ -28,8 +28,8 @@ export function evalRunFields(t, { sets = null, deployments = [], agents = [] } 
   fields.push(f('agentRevisionId', 'text', { placeholder: 'arv_...', showIf: (d) => d.targetType === 'AgentRevision', hint: t('evals.run.hints.agentRevisionId') }));
   fields.push(f('inputMode', 'select', { required: true, options: enumOptions(t, 'evalRunInputMode'), showIf: (d) => d.targetType === 'Deployment', hint: t('evals.run.hints.inputMode') }));
   fields.push(f('recentInputCount', 'number', { min: 1, max: EVAL_LIMITS.recentInputsMax, step: 1, showIf: (d) => d.targetType === 'Deployment' && d.inputMode === 'RecentInputs', hint: t('evals.run.hints.recentInputCount', { max: EVAL_LIMITS.recentInputsMax }) }));
-  fields.push(f('thresholdPercent', 'number', { min: 0, max: 100, step: 'any', placeholder: '80', hint: t('evals.run.hints.thresholdPercent') }));
-  fields.push(f('budgetUsd', 'number', { min: 0, max: EVAL_LIMITS.budgetMax, step: 'any', placeholder: '1.00', hint: t('evals.run.hints.budgetUsd') }));
+  fields.push(f('thresholdPercent', 'number', { min: 0, max: 100, step: 'any', placeholder: t('evals.run.placeholders.thresholdPercent'), hint: t('evals.run.hints.thresholdPercent') }));
+  fields.push(f('budgetUsd', 'number', { min: 0, max: EVAL_LIMITS.budgetMax, step: 'any', placeholder: t('evals.run.placeholders.budgetUsd'), hint: t('evals.run.hints.budgetUsd') }));
   return fields;
 }
 

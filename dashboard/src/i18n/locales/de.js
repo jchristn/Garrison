@@ -8625,3 +8625,55 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "common": {
+  "tabs": {
+   "scrollBack": "Frühere Tabs zeigen",
+   "scrollForward": "Weitere Tabs zeigen"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "Keine",
+    "budgetUsd": "Keine"
+   },
+   "hints": {
+    "thresholdPercent": "Optional, 0 bis 100. Der Lauf besteht, wenn seine gewichtete Punktzahl ihn erreicht. Leer lassen für keinen Schwellenwert und kein Ergebnis bestanden oder nicht bestanden.",
+    "budgetUsd": "Optional. Wenn Fall- und Richterläufe so viel ausgeben, werden die restlichen Fälle übersprungen und der Lauf schlägt fehl. Leer lassen für kein Budget."
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "Sie dürfen dies nicht tun. Dafür ist {{operation}} auf {{resource}} nötig."
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "Den Keeper öffnen, dessen Tick sie ausgelöst hat. Seine ID ist {{id}}."
+   }
+  },
+  "tabs": {
+   "scrollBack": "Die Tableiste zurückscrollen, zu den Tabs vor dem ersten sichtbaren.",
+   "scrollForward": "Die Tableiste zu den Tabs scrollen, die hinter ihrem Rand verborgen sind."
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "Eine Person hat den Keeper geweckt: Jetzt wecken, Fortsetzen, eine Revision veröffentlichen oder Anweisungen geben."
+   }
+  }
+ }
+});

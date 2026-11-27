@@ -8613,3 +8613,55 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "common": {
+  "tabs": {
+   "scrollBack": "Show earlier tabs",
+   "scrollForward": "Show more tabs"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "None",
+    "budgetUsd": "None"
+   },
+   "hints": {
+    "thresholdPercent": "Optional, 0 to 100. The run passes when its weighted score reaches it. Leave it empty for no threshold and no pass or fail verdict.",
+    "budgetUsd": "Optional. When case and judge runs spend this much, the remaining cases are skipped and the run fails. Leave it empty for no budget."
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "You may not do this. It needs {{operation}} on {{resource}}."
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "Open the keeper whose tick raised it. Its ID is {{id}}."
+   }
+  },
+  "tabs": {
+   "scrollBack": "Scroll the tab bar back to the tabs hidden before the first one shown.",
+   "scrollForward": "Scroll the tab bar to the tabs hidden past its edge."
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "A person woke the keeper: Wake now, resuming it, publishing a revision, or giving direction."
+   }
+  }
+ }
+});

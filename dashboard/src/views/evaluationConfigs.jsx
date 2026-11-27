@@ -31,6 +31,8 @@ import {
   shadowTrialFormToBody
 } from '../utils/evaluations';
 import { EVAL_FIELD_CODES } from '../utils/evalErrors';
+import { loadCallerPermissions } from '../utils/apps';
+import { deniedProps, deniedReasonFor, permissionDenied, permissionsLookup } from '../utils/permissions';
 
 function col(t, id, key, render, extra = {}) {
   return { key, label: t(`resources.${id}.columns.${key}`), tip: resourceTip(t, id, key), render, ...extra };
@@ -51,19 +53,34 @@ const when = (value, lng) => (value ? <span {...tip(formatDateTime(value, lng))}
 const nameOf = (lookups, kind, id) => (id ? lookups?.[kind]?.[id] || id : '-');
 const fieldErrorSpecial = (t) => (_key, code) => (EVAL_FIELD_CODES.includes(code) ? t(`evals.fieldCodes.${code}`, { defaultValue: '' }) || null : null);
 
+/** The tip, danger, and disabled state of a destructive row action that needs `operation` on the row (UT-03). */
+function guarded(ctx, resourceType, r, usualTip, operation = 'Update') {
+  const denied = permissionDenied(ctx.t, ctx.lookups?.permissions, resourceType, operation, { resourceId: r.id });
+  return { tip: denied || usualTip, danger: !denied, disabled: !!denied };
+}
+
 /** Copy an ID and say whether the browser allowed it. */
 async function copyId(ctx, id) {
   const ok = await copyToClipboard(id);
   ctx.addToast?.({ type: ok ? 'success' : 'error', message: ctx.t(ok ? 'evals.toasts.copied' : 'tips.copy.failed') });
 }
 
-/** Names of deployments, agents, and the newest eval set versions, for list cells and filters. */
-async function loadNames({ apiClient, tenantId }) {
-  const [deployments, agents, sets] = await Promise.all([safeList(apiClient.listDeployments(tenantId, page)), safeList(apiClient.listAgents(tenantId, page)), safeList(apiClient.listEvalSets(tenantId, { ...page, latestOnly: true }))]);
+/**
+ * Names of deployments, agents, and the newest eval set versions, for list cells and filters, and the caller's
+ * permissions (UT-03: actions the caller may not take stay disabled with the reason).
+ */
+async function loadNames({ apiClient, tenantId, principal }) {
+  const [deployments, agents, sets, permissions] = await Promise.all([
+    safeList(apiClient.listDeployments(tenantId, page)),
+    safeList(apiClient.listAgents(tenantId, page)),
+    safeList(apiClient.listEvalSets(tenantId, { ...page, latestOnly: true })),
+    loadCallerPermissions(apiClient, tenantId, principal).catch(() => null)
+  ]);
   return {
     deployments: Object.fromEntries(deployments.map((d) => [d.id, d.name])),
     agents: Object.fromEntries(agents.map((a) => [a.id, a.name])),
-    sets: Object.fromEntries(sets.map((s) => [s.id, s.name]))
+    sets: Object.fromEntries(sets.map((s) => [s.id, s.name])),
+    permissions
   };
 }
 
@@ -103,6 +120,8 @@ export const evalSetsConfig = {
     { name: 'latestOnly', label: (t) => t('resources.evalSets.filters.latestOnly'), options: ['true', 'all'], optionLabel: (o, t) => t(`resources.evalSets.filters.${o === 'all' ? 'allVersions' : 'newestOnly'}`) }
   ],
   loadOptions: async ({ apiClient, tenantId }) => ({ agents: await safeList(apiClient.listAgents(tenantId, page)) }),
+  loadLookups: permissionsLookup,
+  deniedReason: deniedReasonFor('EvalSet'),
   canDuplicate: false,
   bulkDelete: false,
   canDelete: (r) => r?.state !== 'Approved',
@@ -149,10 +168,13 @@ export const evalSetsConfig = {
         {t('evals.set.nextVersion', { version: (d.version || 0) + 1 })}
       </p>
     ) : null,
-  rowActions: (r, ctx) => [
-    { label: ctx.t('evals.actions.runSet'), tip: ctx.t('tips.evals.actions.runSet'), onClick: () => ctx.navigate(pathFor('evaluations', r.id, { run: '1' })) },
-    { label: ctx.t('evals.actions.copyId'), tip: ctx.t('tips.evals.actions.copyId'), onClick: () => copyId(ctx, r.id) }
-  ]
+  rowActions: (r, ctx) => {
+    const denied = permissionDenied(ctx.t, ctx.lookups?.permissions, 'EvalRun', 'Execute');
+    return [
+      { label: ctx.t('evals.actions.runSet'), tip: denied || ctx.t('tips.evals.actions.runSet'), disabled: !!denied, onClick: () => ctx.navigate(pathFor('evaluations', r.id, { run: '1' })) },
+      { label: ctx.t('evals.actions.copyId'), tip: ctx.t('tips.evals.actions.copyId'), onClick: () => copyId(ctx, r.id) }
+    ];
+  }
 };
 
 // ---------------------------------------------------------------- eval runs
@@ -231,14 +253,17 @@ export const evalRunsConfig = {
     ];
   },
   fields: () => [],
-  headerActions: (ctx) => (
-    <button type="button" className="button-primary" onClick={() => openRun(ctx)} data-testid="eval-runs-start" {...tip(ctx.t('tips.evals.actions.runSet'))}>
-      {ctx.t('evals.actions.runSet')}
-    </button>
-  ),
+  headerActions: (ctx) => {
+    const denied = permissionDenied(ctx.t, ctx.lookups?.permissions, 'EvalRun', 'Execute');
+    return (
+      <button type="button" className="button-primary" onClick={() => !denied && openRun(ctx)} data-testid="eval-runs-start" {...deniedProps(denied)} {...tip(denied || ctx.t('tips.evals.actions.runSet'))}>
+        {ctx.t('evals.actions.runSet')}
+      </button>
+    );
+  },
   rowActions: (r, ctx) => [
     { label: ctx.t('evals.actions.openSet'), tip: ctx.t('tips.evals.actions.openSet'), hidden: !r.setId, onClick: () => ctx.navigate(pathFor('evaluations', r.setId)) },
-    { label: ctx.t('evals.actions.cancelRun'), tip: ctx.t('tips.evals.actions.cancelRun'), hidden: isEvalRunFinished(r.status), danger: true, onClick: () => cancelRun(r, ctx) },
+    { ...guarded(ctx, 'EvalRun', r, ctx.t('tips.evals.actions.cancelRun'), 'Execute'), label: ctx.t('evals.actions.cancelRun'), hidden: isEvalRunFinished(r.status), onClick: () => cancelRun(r, ctx) },
     { label: ctx.t('evals.actions.copyId'), tip: ctx.t('tips.evals.actions.copyId'), onClick: () => copyId(ctx, r.id) }
   ]
 };
@@ -283,6 +308,7 @@ export const shadowTrialsConfig = {
   },
   filters: [{ name: 'status', label: (t) => t('resources.shadowTrials.columns.status'), options: ['Running', 'Completed', 'Stopped', 'Failed'], optionLabel: (o, t) => enumLabel(t, 'shadowTrialStatus', o) }],
   loadLookups: loadNames,
+  deniedReason: deniedReasonFor('ShadowTrial'),
   loadOptions: loadPicks,
   canDuplicate: false,
   bulkDelete: false,
@@ -325,7 +351,7 @@ export const shadowTrialsConfig = {
     ];
   },
   rowActions: (r, ctx) => [
-    { label: ctx.t('evals.actions.stopTrial'), tip: ctx.t('tips.evals.actions.stopTrial'), hidden: r.status !== 'Running', danger: true, onClick: () => stopTrial(r, ctx) },
+    { ...guarded(ctx, 'ShadowTrial', r, ctx.t('tips.evals.actions.stopTrial')), label: ctx.t('evals.actions.stopTrial'), hidden: r.status !== 'Running', onClick: () => stopTrial(r, ctx) },
     { label: ctx.t('evals.actions.copyId'), tip: ctx.t('tips.evals.actions.copyId'), onClick: () => copyId(ctx, r.id) }
   ]
 };
@@ -376,6 +402,7 @@ export const canaryReleasesConfig = {
   },
   filters: [{ name: 'status', label: (t) => t('resources.canaryReleases.columns.status'), options: ['Running', 'Promoted', 'RolledBack', 'Aborted'], optionLabel: (o, t) => enumLabel(t, 'canaryStatus', o) }],
   loadLookups: loadNames,
+  deniedReason: deniedReasonFor('CanaryRelease'),
   loadOptions: loadPicks,
   canDuplicate: false,
   bulkDelete: false,
@@ -424,7 +451,7 @@ export const canaryReleasesConfig = {
     ];
   },
   rowActions: (r, ctx) => [
-    { label: ctx.t('evals.actions.abortCanary'), tip: ctx.t('tips.evals.actions.abortCanary'), hidden: r.status !== 'Running', danger: true, onClick: () => abortCanary(r, ctx) },
+    { ...guarded(ctx, 'CanaryRelease', r, ctx.t('tips.evals.actions.abortCanary')), label: ctx.t('evals.actions.abortCanary'), hidden: r.status !== 'Running', onClick: () => abortCanary(r, ctx) },
     { label: ctx.t('evals.actions.copyId'), tip: ctx.t('tips.evals.actions.copyId'), onClick: () => copyId(ctx, r.id) }
   ]
 };

@@ -8639,3 +8639,55 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "common": {
+  "tabs": {
+   "scrollBack": "Mostra le schede precedenti",
+   "scrollForward": "Mostra altre schede"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "Nessuno",
+    "budgetUsd": "Nessuno"
+   },
+   "hints": {
+    "thresholdPercent": "Facoltativo, da 0 a 100. L'esecuzione è superata quando il punteggio ponderato lo raggiunge. Lascialo vuoto per nessuna soglia e nessun esito superato o non superato.",
+    "budgetUsd": "Facoltativo. Quando le esecuzioni dei casi e del giudice spendono questa cifra, i casi rimanenti vengono saltati e l'esecuzione fallisce. Lascialo vuoto per nessun budget."
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "Non puoi farlo. Serve {{operation}} su {{resource}}."
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "Apri il keeper il cui tick l'ha sollevata. Il suo ID è {{id}}."
+   }
+  },
+  "tabs": {
+   "scrollBack": "Scorri la barra delle schede indietro, fino alle schede nascoste prima della prima visibile.",
+   "scrollForward": "Scorri la barra delle schede fino alle schede nascoste oltre il bordo."
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "Una persona ha svegliato il keeper: Sveglia ora, ripresa, pubblicazione di una revisione o indicazioni."
+   }
+  }
+ }
+});

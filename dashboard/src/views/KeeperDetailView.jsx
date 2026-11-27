@@ -30,6 +30,7 @@ import FreezeAction from '../components/FreezeAction';
 import FrozenBanner from '../components/FrozenBanner';
 import useActiveFreezes from '../hooks/useActiveFreezes';
 import useCallerPermissions from '../hooks/useCallerPermissions';
+import { deniedProps, permissionDenied } from '../utils/permissions';
 import { FREEZES_CHANGED_EVENT, freezeOn, freezesFor } from '../utils/freezes';
 
 const TICK_PAGE_SIZE = 25;
@@ -301,6 +302,10 @@ export default function KeeperDetailView({ recordId }) {
     </PageLink>
   );
   const series = tickSeries(ticks.items);
+  // UT-03: write actions stay visible but disabled, with the missing permission as the tooltip.
+  const deniedUpdate = permissionDenied(t, permissions, 'Mandate', 'Update', { resourceId: m.id });
+  const deniedExecute = permissionDenied(t, permissions, 'Mandate', 'Execute', { resourceId: m.id });
+  const deniedDelete = permissionDenied(t, permissions, 'Mandate', 'Delete', { resourceId: m.id });
   const counts = outcomeCounts(ticks.items, ENUMS.tickOutcome);
   const usd = (v) => (v === null || v === undefined ? '-' : formatCurrency(v, lng, 'USD'));
   const diffPrev = diffOf ? previousRevision(revisions, diffOf) : null;
@@ -337,26 +342,26 @@ export default function KeeperDetailView({ recordId }) {
             <button type="button" className="button-secondary" onClick={() => navigate(pathFor('runs', null, { mandateId: m.id }))} data-testid="keeper-runs" {...tip(t('tips.resources.keepers.actions.runs'))}>
               <ListIcon size={14} /> {t('resources.keepers.actions.runs')}
             </button>
-            <button type="button" className="button-secondary" disabled={busy} onClick={() => setRevisionOpen(true)} data-testid="keeper-new-revision" {...tip(t('tips.views.keeperDetail.newRevision'))}>
+            <button type="button" className="button-secondary" disabled={busy} onClick={() => !deniedUpdate && setRevisionOpen(true)} data-testid="keeper-new-revision" {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t('tips.views.keeperDetail.newRevision'))}>
               <PlusIcon size={14} /> {t('views.keeperDetail.newRevision')}
             </button>
             {canPause(m) && (
-              <button type="button" className="button-secondary" disabled={busy} onClick={() => act('pause')} data-testid="keeper-pause" {...tip(t('tips.resources.keepers.actions.pause'))}>
+              <button type="button" className="button-secondary" disabled={busy} onClick={() => !deniedExecute && act('pause')} data-testid="keeper-pause" {...deniedProps(deniedExecute)} {...tip(deniedExecute || t('tips.resources.keepers.actions.pause'))}>
                 <PauseIcon size={14} /> {t('resources.keepers.actions.pause')}
               </button>
             )}
             {canResume(m) && (
-              <button type="button" className="button-secondary" disabled={busy} onClick={() => act('resume')} data-testid="keeper-resume" {...tip(t('tips.resources.keepers.actions.resume'))}>
+              <button type="button" className="button-secondary" disabled={busy} onClick={() => !deniedExecute && act('resume')} data-testid="keeper-resume" {...deniedProps(deniedExecute)} {...tip(deniedExecute || t('tips.resources.keepers.actions.resume'))}>
                 <PlayIcon size={14} /> {t('resources.keepers.actions.resume')}
               </button>
             )}
             {canWake(m) && (
-              <button type="button" className="button-primary" disabled={busy} onClick={() => act('wake')} data-testid="keeper-wake" {...tip(t('tips.resources.keepers.actions.wake'))}>
+              <button type="button" className="button-primary" disabled={busy} onClick={() => !deniedExecute && act('wake')} data-testid="keeper-wake" {...deniedProps(deniedExecute)} {...tip(deniedExecute || t('tips.resources.keepers.actions.wake'))}>
                 <WakeIcon size={14} /> {t('resources.keepers.actions.wake')}
               </button>
             )}
             <FreezeAction targetKind="Mandate" targetId={m.id} targetName={m.name} active={activeFreezes} permissions={permissions} />
-            <button type="button" className="button-danger" disabled={busy} onClick={() => setConfirm('delete')} data-testid="keeper-delete" {...tip(t('tips.views.keeperDetail.delete'))}>
+            <button type="button" className="button-danger" disabled={busy} onClick={() => !deniedDelete && setConfirm('delete')} data-testid="keeper-delete" {...deniedProps(deniedDelete)} {...tip(deniedDelete || t('tips.views.keeperDetail.delete'))}>
               <TrashIcon size={14} /> {t('common.actions.delete')}
             </button>
           </>
@@ -603,7 +608,7 @@ export default function KeeperDetailView({ recordId }) {
                         {t('views.keeperDetail.diff')}
                       </button>
                       {r.state === 'Draft' && (
-                        <button type="button" className="button-secondary button-sm" disabled={busy} onClick={() => publish(r)} data-testid={`keeper-revision-publish-${r.number}`} {...tip(t('tips.keeperRevision.publish'))}>
+                        <button type="button" className="button-secondary button-sm" disabled={busy} onClick={() => !deniedUpdate && publish(r)} data-testid={`keeper-revision-publish-${r.number}`} {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t('tips.keeperRevision.publish'))}>
                           {t('components.keeperRevision.publish')}
                         </button>
                       )}

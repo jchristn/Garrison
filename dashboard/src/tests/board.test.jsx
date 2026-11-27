@@ -258,6 +258,33 @@ describe('BoardView', () => {
     expect(q('[data-testid="board-picker"]')).not.toBeNull();
     expect(q('[data-testid="board-picker-link-org_0001"]').getAttribute('href')).toBe('/dashboard/board/org_0001');
   });
+
+  it('shows only the error, not the empty state, when listing organizations is refused (UT-05)', async () => {
+    const refused = Object.assign(new Error('denied'), { status: 403, code: 'AuthorizationDenied' });
+    const api = {
+      ...client(),
+      listOrganizations: vi.fn(async () => {
+        throw refused;
+      })
+    };
+    mount(<BoardView />, { apiClient: api });
+    await flush();
+    expect(q('[data-testid="board-picker"] .error-banner')).not.toBeNull();
+    expect(q('[data-testid="board-picker-organizations"]')).toBeNull();
+    expect(q('[data-testid="board-picker"]').textContent).not.toContain(en.board.picker.emptyTitle);
+  });
+
+  it('styles Cancel everything in this unit as a danger button (UT-17)', async () => {
+    mount(<BoardView recordId="org_0001" />, { apiClient: client() });
+    await flush();
+    await flush();
+    const buttons = qa('[data-testid="org-unit-cancel-all"]');
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const b of buttons) {
+      expect(b.classList.contains('button-danger')).toBe(true);
+      expect(b.classList.contains('button-ghost')).toBe(false);
+    }
+  });
 });
 
 describe('setup wizard first keeper (AA10.8)', () => {

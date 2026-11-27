@@ -13,6 +13,8 @@ import { formatDateTime, formatRelativeTime, truncate } from '../i18n/formatters
 import { errorMessage } from '../utils/errors';
 import { resourceTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
+import { loadCallerPermissions } from '../utils/apps';
+import { permissionDenied } from '../utils/permissions';
 import { isAnswerable, optionLabel, targetText } from '../utils/escalations';
 
 const ID = 'escalations';
@@ -97,10 +99,14 @@ export const escalationsConfig = {
       optionLabel: (o, _t, lookups) => lookups?.agents?.[o] || o
     }
   ],
-  // Agent names for the agent filter, and keeper names for the keeper column.
-  loadLookups: async ({ apiClient, tenantId }) => {
-    const [agents, mandates] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), safeList(apiClient.listMandates(tenantId, { pageNumber: 1, pageSize: 1000 }))]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), mandates: Object.fromEntries(mandates.map((m) => [m.id, m.name])) };
+  // Agent names for the agent filter, keeper names for the keeper column, and the caller's permissions (UT-03).
+  loadLookups: async ({ apiClient, tenantId, principal }) => {
+    const [agents, mandates, permissions] = await Promise.all([
+      safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      safeList(apiClient.listMandates(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      loadCallerPermissions(apiClient, tenantId, principal).catch(() => null)
+    ]);
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), mandates: Object.fromEntries(mandates.map((m) => [m.id, m.name])), permissions };
   },
   canDuplicate: false,
   isEditable: () => false,
@@ -128,11 +134,14 @@ export const escalationsConfig = {
     ];
   },
   fields: () => [],
-  rowActions: (r, ctx) => [
-    { label: ctx.t(`resources.${ID}.actions.answer`), tip: ctx.t(`tips.resources.${ID}.actions.answer`), hidden: !isAnswerable(r), onClick: () => openAnswer(ctx, r) },
-    { label: ctx.t(`resources.${ID}.actions.openEscalatedTo`), tip: ctx.t(`tips.resources.${ID}.actions.openEscalatedTo`), hidden: !(r.status === 'Open' && r.escalatedToId), onClick: () => ctx.navigate(pathFor('escalations', r.escalatedToId)) },
-    { label: ctx.t(`resources.${ID}.actions.openRun`), tip: ctx.t(`tips.resources.${ID}.actions.openRun`), hidden: !r.raisingRunId, onClick: () => ctx.navigate(pathFor('runs', r.raisingRunId)) },
-    { label: ctx.t(`resources.${ID}.actions.openKeeper`), tip: ctx.t(`tips.resources.${ID}.actions.openKeeper`), hidden: !r.mandateId, onClick: () => ctx.navigate(pathFor('keepers', r.mandateId)) },
-    { label: ctx.t(`resources.${ID}.actions.cancel`), tip: ctx.t(`tips.resources.${ID}.actions.cancel`), hidden: !isAnswerable(r), danger: true, onClick: () => openCancel(ctx, r) }
-  ]
+  rowActions: (r, ctx) => {
+    const denied = permissionDenied(ctx.t, ctx.lookups?.permissions, 'Escalation', 'Update', { resourceId: r.id });
+    return [
+      { label: ctx.t(`resources.${ID}.actions.answer`), tip: denied || ctx.t(`tips.resources.${ID}.actions.answer`), hidden: !isAnswerable(r), disabled: !!denied, onClick: () => openAnswer(ctx, r) },
+      { label: ctx.t(`resources.${ID}.actions.openEscalatedTo`), tip: ctx.t(`tips.resources.${ID}.actions.openEscalatedTo`), hidden: !(r.status === 'Open' && r.escalatedToId), onClick: () => ctx.navigate(pathFor('escalations', r.escalatedToId)) },
+      { label: ctx.t(`resources.${ID}.actions.openRun`), tip: ctx.t(`tips.resources.${ID}.actions.openRun`), hidden: !r.raisingRunId, onClick: () => ctx.navigate(pathFor('runs', r.raisingRunId)) },
+      { label: ctx.t(`resources.${ID}.actions.openKeeper`), tip: ctx.t(`tips.resources.${ID}.actions.openKeeper`), hidden: !r.mandateId, onClick: () => ctx.navigate(pathFor('keepers', r.mandateId)) },
+      { label: ctx.t(`resources.${ID}.actions.cancel`), tip: denied || ctx.t(`tips.resources.${ID}.actions.cancel`), hidden: !isAnswerable(r), danger: !denied, disabled: !!denied, onClick: () => openCancel(ctx, r) }
+    ];
+  }
 };

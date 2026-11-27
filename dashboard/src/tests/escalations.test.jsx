@@ -47,14 +47,14 @@ afterEach(() => {
   mounted = [];
 });
 
-function mount(element, { apiClient = {}, addToast = vi.fn(), refresh = vi.fn(), open = null } = {}) {
+function mount(element, { apiClient = {}, addToast = vi.fn(), refresh = vi.fn(), open = null, principal = { isAdmin: true } } = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
     root.render(
       <MemoryRouter>
-        <AuthContext.Provider value={{ apiClient, principal: { isAdmin: true } }}>
+        <AuthContext.Provider value={{ apiClient, principal }}>
           <AppContext.Provider value={{ tenantId: 'default', setWizardOpen: () => {}, setTourOpen: () => {} }}>
             <ToastContext.Provider value={{ addToast }}>
               <ApprovalsProvider value={{ pending: null, approvalsPending: null, reviewsPending: null, refresh: () => {} }}>
@@ -244,6 +244,32 @@ describe('escalation page', () => {
     expect(q('[data-testid="escalation-passed-up-banner"]')).toBeTruthy();
     expect(q('[data-testid="escalation-escalated-to-banner-link"]').getAttribute('href')).toBe('/dashboard/escalations/esc_0002');
     expect(q('[data-testid="escalation-answer"]')).toBeNull();
+  });
+
+  it('names the keeper and keeps its ID in the tooltip (UT-12)', async () => {
+    const getMandate = vi.fn(async () => ({ id: 'mdt_0001', name: 'uptime-watch' }));
+    mount(<EscalationDetailView recordId="esc_0001" />, { apiClient: { getEscalation: vi.fn(async () => escalation(1)), getMandate } });
+    await flush();
+    const link = q('[data-testid="escalation-keeper-link"]');
+    expect(getMandate).toHaveBeenCalledWith('default', 'mdt_0001');
+    expect(link.textContent).toBe('uptime-watch');
+    expect(link.getAttribute('data-tip')).toContain('mdt_0001');
+  });
+
+  it('disables Answer and Cancel for a viewer, with the missing permission as the tooltip (UT-03)', async () => {
+    const viewer = { userId: 'usr_vic' };
+    const getUserPermissions = vi.fn(async () => ({ grants: [{ resourceTypes: ['All'], operations: ['Read'], permissionType: 'Permit' }] }));
+    mount(<EscalationDetailView recordId="esc_0001" />, { apiClient: { getEscalation: vi.fn(async () => escalation(1)), getUserPermissions }, principal: viewer });
+    await flush();
+    await flush();
+    for (const id of ['escalation-answer', 'escalation-cancel']) {
+      const button = q(`[data-testid="${id}"]`);
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      expect(button.getAttribute('data-tip')).toContain('Update on Escalation');
+      act(() => button.click());
+    }
+    expect(q('[data-testid="escalation-answer-modal"]')).toBeNull();
+    expect(document.body.querySelector('.modal')).toBeNull();
   });
 
   it('says so when the escalation does not exist', async () => {

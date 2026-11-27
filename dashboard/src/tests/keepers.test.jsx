@@ -62,14 +62,14 @@ afterEach(() => {
   mounted = [];
 });
 
-function mount(element, { apiClient = {}, addToast = vi.fn() } = {}) {
+function mount(element, { apiClient = {}, addToast = vi.fn(), principal = { isAdmin: true } } = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
     root.render(
       <MemoryRouter>
-        <AuthContext.Provider value={{ apiClient, principal: { isAdmin: true } }}>
+        <AuthContext.Provider value={{ apiClient, principal }}>
           <AppContext.Provider value={{ tenantId: 'default', setWizardOpen: () => {}, setTourOpen: () => {} }}>
             <ToastContext.Provider value={{ addToast }}>{element}</ToastContext.Provider>
           </AppContext.Provider>
@@ -225,6 +225,22 @@ describe('keeper list configuration', () => {
     expect(ctx.navigate).toHaveBeenCalledWith('/dashboard/runs?mandateId=mdt_0001');
   });
 
+  it('disables the add button, Edit, Delete, and the Execute actions for a viewer (UT-03)', () => {
+    const lookups = { permissions: { grants: [{ resourceTypes: ['All'], operations: ['Read'], permissionType: 'Permit' }] } };
+    const viewer = { ...ctx, lookups };
+    for (const action of ['create', 'update', 'delete']) expect(keepersConfig.deniedReason(action, keeper(1), viewer)).toContain('on Keeper');
+    const shown = keepersConfig.rowActions(keeper(1), viewer).filter((a) => !a.hidden);
+    for (const label of ['Pause', 'Wake now']) {
+      const a = shown.find((x) => x.label === label);
+      expect(a.disabled).toBe(true);
+      expect(a.tip).toContain('Execute on Keeper');
+    }
+    expect(shown.find((x) => x.label === 'View runs').disabled).toBeFalsy();
+    const admin = { ...ctx, lookups: { permissions: { isAdmin: true, grants: [] } } };
+    expect(keepersConfig.deniedReason('create', null, admin)).toBe('');
+    expect(keepersConfig.rowActions(keeper(1), admin).find((x) => x.label === 'Wake now').disabled).toBe(false);
+  });
+
   it('wakes a keeper from its row and reports the result', async () => {
     const apiClient = { wakeMandate: vi.fn(async () => keeper(1)) };
     const local = { ...ctx, apiClient, addToast: vi.fn(), reload: vi.fn() };
@@ -267,6 +283,35 @@ describe('keeper page', () => {
     expect(q('[data-testid="keeper-revision-publish-3"]')).toBeTruthy();
     expect(q('[data-testid="keeper-resume"]')).toBeNull();
     expect(apiClient.listMandateTicks).toHaveBeenCalledWith('default', 'mdt_0001', { pageNumber: 1, pageSize: 25 });
+  });
+
+  it('disables New revision, Pause, Wake now, Delete, and Publish for a viewer (UT-03)', async () => {
+    const getUserPermissions = vi.fn(async () => ({ grants: [{ resourceTypes: ['All'], operations: ['Read'], permissionType: 'Permit' }] }));
+    const apiClient = keeperClient({ getUserPermissions });
+    mount(<KeeperDetailView recordId="mdt_0001" />, { apiClient, principal: { userId: 'usr_vic' } });
+    await flush();
+    await flush();
+    for (const id of ['keeper-new-revision', 'keeper-pause', 'keeper-wake', 'keeper-delete', 'keeper-revision-publish-3']) {
+      const button = q(`[data-testid="${id}"]`);
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      expect(button.getAttribute('data-tip')).toMatch(/You may not do this\. It needs \w+ on Keeper/);
+      await click(button);
+    }
+    await flush();
+    expect(apiClient.wakeMandate).not.toHaveBeenCalled();
+    expect(apiClient.pauseMandate).not.toHaveBeenCalled();
+    expect(apiClient.publishMandateRevision).not.toHaveBeenCalled();
+    expect(q('.modal')).toBeNull();
+  });
+
+  it('labels a wake a person caused as Woken by hand (UT-15)', async () => {
+    const apiClient = keeperClient({ listMandateTicks: vi.fn(async () => page([{ ...keeperTick(1), wakeSource: 'Manual' }])) });
+    mount(<KeeperDetailView recordId="mdt_0001" />, { apiClient });
+    await flush();
+    await flush();
+    const cell = q('[data-testid="keeper-ticks-table"] tbody tr td:nth-child(2) span');
+    expect(cell.textContent).toBe('Woken by hand');
+    expect(cell.getAttribute('data-tip')).toContain('A person woke the keeper');
   });
 
   it('filters ticks by outcome', async () => {

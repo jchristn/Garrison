@@ -8572,3 +8572,55 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "common": {
+  "tabs": {
+   "scrollBack": "前のタブを表示",
+   "scrollForward": "ほかのタブを表示"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "なし",
+    "budgetUsd": "なし"
+   },
+   "hints": {
+    "thresholdPercent": "任意。0 から 100。加重スコアがこの値に達すると合格です。空のままにすると、しきい値も合否判定もありません。",
+    "budgetUsd": "任意。ケースとジャッジの実行がこの金額を使うと、残りのケースはスキップされ、実行は失敗します。空のままにすると予算はありません。"
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "この操作は許可されていません。{{resource}} に対する {{operation}} が必要です。"
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "これを起こしたティックのキーパーを開きます。ID は {{id}} です。"
+   }
+  },
+  "tabs": {
+   "scrollBack": "タブバーを戻し、表示中の最初のタブより前に隠れているタブを表示します。",
+   "scrollForward": "タブバーをスクロールし、端の先に隠れているタブを表示します。"
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "人がキーパーを起こしました。今すぐ起こす、再開、リビジョンの公開、または指示によるものです。"
+   }
+  }
+ }
+});

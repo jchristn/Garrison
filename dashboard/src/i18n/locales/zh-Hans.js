@@ -8573,3 +8573,55 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "common": {
+  "tabs": {
+   "scrollBack": "显示前面的标签页",
+   "scrollForward": "显示更多标签页"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "无",
+    "budgetUsd": "无"
+   },
+   "hints": {
+    "thresholdPercent": "可选，0 到 100。加权得分达到该值即为通过。留空表示没有阈值，也没有通过或未通过的判定。",
+    "budgetUsd": "可选。用例和评审运行花费达到此金额后，其余用例将被跳过，运行失败。留空表示没有预算。"
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "你无权执行此操作。需要对 {{resource}} 拥有 {{operation}} 权限。"
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "打开提出它的 tick 所属的 keeper。其 ID 为 {{id}}。"
+   }
+  },
+  "tabs": {
+   "scrollBack": "将标签栏向后滚动，显示第一个可见标签页之前隐藏的标签页。",
+   "scrollForward": "滚动标签栏，显示超出边缘而隐藏的标签页。"
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "有人唤醒了 keeper：立即唤醒、恢复、发布修订或给出指示。"
+   }
+  }
+ }
+});

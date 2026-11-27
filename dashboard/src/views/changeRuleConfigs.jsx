@@ -12,6 +12,7 @@ import { copyToClipboard } from '../utils/clipboard';
 import { enumLabel } from '../utils/enums';
 import { resourceTip, optionalText } from '../utils/tips';
 import { treeOrder } from '../utils/organizations';
+import { deniedReasonFor, permissionsLookup } from '../utils/permissions';
 import { blankChangeRule, blankLimit, changeRuleFieldError, changeRuleFormErrors, changeRuleFormToBody, changeRuleToForm, limitLabel, limitNamesFor, limitText, ruleStatus } from '../utils/changeRules';
 
 const ID = 'changeRules';
@@ -74,11 +75,13 @@ export const changeRulesConfig = {
     },
     { name: 'activeOnly', label: (t) => t(`resources.${ID}.filters.activeOnly`), options: ['true'], optionLabel: (_o, t) => t(`resources.${ID}.filters.inForce`) }
   ],
-  // Organization names for the filter.
-  loadLookups: async ({ apiClient, tenantId }) => {
-    const organizations = await safeList(apiClient.listOrganizations(tenantId, { pageNumber: 1, pageSize: 1000 }));
-    return { organizations: Object.fromEntries(organizations.map((o) => [o.id, o.name])) };
+  // Organization names for the filter, and the caller's permissions.
+  loadLookups: async ({ apiClient, tenantId, principal }) => {
+    const [organizations, { permissions }] = await Promise.all([safeList(apiClient.listOrganizations(tenantId, { pageNumber: 1, pageSize: 1000 })), permissionsLookup({ apiClient, tenantId, principal })]);
+    return { organizations: Object.fromEntries(organizations.map((o) => [o.id, o.name])), permissions };
   },
+  // UT-03: Add rule, Edit, Duplicate, and Delete stay disabled with the reason for callers without the permission.
+  deniedReason: deniedReasonFor('ChangeRule'),
   // Organizations with their units, for the organization and unit pickers.
   loadOptions: async ({ apiClient, tenantId }) => {
     const organizations = await safeList(apiClient.listOrganizations(tenantId, { pageNumber: 1, pageSize: 1000 }));

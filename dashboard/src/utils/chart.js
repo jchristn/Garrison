@@ -32,3 +32,22 @@ export function normalizeBuckets(raw, rangeId, now = new Date()) {
   }
   return out;
 }
+
+/**
+ * X-axis labels for the shown indices of a time series, as a Map of index to text, with no label repeated (UT-11).
+ * `format(iso, withSeconds)` formats one time. When two shown labels would read the same, every label gains seconds;
+ * a label that still repeats the one before it (ticks in the same second) is left out.
+ */
+export function distinctAxisLabels(times, indices, format) {
+  const shown = [...indices].sort((a, b) => a - b);
+  const build = (withSeconds) => shown.map((i) => ({ index: i, text: format(times[i], withSeconds) }));
+  let labels = build(false);
+  if (new Set(labels.map((l) => l.text)).size < labels.length) labels = build(true);
+  const out = new Map();
+  let previous = null;
+  for (const l of labels) {
+    if (l.text !== previous) out.set(l.index, l.text);
+    previous = l.text;
+  }
+  return out;
+}

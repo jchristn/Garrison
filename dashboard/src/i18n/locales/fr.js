@@ -8639,3 +8639,55 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "common": {
+  "tabs": {
+   "scrollBack": "Afficher les onglets précédents",
+   "scrollForward": "Afficher plus d'onglets"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "Aucun",
+    "budgetUsd": "Aucun"
+   },
+   "hints": {
+    "thresholdPercent": "Facultatif, de 0 à 100. L'exécution réussit quand son score pondéré l'atteint. Laissez vide pour n'avoir ni seuil ni verdict de réussite ou d'échec.",
+    "budgetUsd": "Facultatif. Quand les exécutions des cas et du juge dépensent ce montant, les cas restants sont ignorés et l'exécution échoue. Laissez vide pour n'avoir aucun budget."
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "Vous n'êtes pas autorisé à faire cela. Il faut l'opération {{operation}} sur {{resource}}."
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "Ouvrir le keeper dont le tick l'a soulevée. Son ID est {{id}}."
+   }
+  },
+  "tabs": {
+   "scrollBack": "Faire défiler la barre d'onglets vers les onglets masqués avant le premier affiché.",
+   "scrollForward": "Faire défiler la barre d'onglets vers les onglets masqués au-delà de son bord."
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "Une personne a réveillé le keeper : Réveiller maintenant, reprise, publication d'une révision ou consignes données."
+   }
+  }
+ }
+});

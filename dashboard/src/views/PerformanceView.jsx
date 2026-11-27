@@ -17,6 +17,8 @@ import { PERFORMANCE_LIMITS } from '../utils/constants';
 import { formatCurrency, formatDateTime, formatDuration, formatNumber, formatPercent, formatRelativeTime } from '../i18n/formatters';
 import { enumLabel } from '../utils/enums';
 import { errorMessage } from '../utils/errors';
+import { deniedProps, permissionDenied } from '../utils/permissions';
+import useCallerPermissions from '../hooks/useCallerPermissions';
 import { PERFORMANCE_WINDOWS, blankCustomWindow, customWindowErrors, newCheckQuery, unitDepths, windowQuery } from '../utils/performance';
 
 /** The metric columns both tables share, each with how to render it from a PerformanceMetrics object. */
@@ -181,6 +183,9 @@ function Performance({ organizationId }) {
   const { tenantId } = useApp();
   const navigate = useNavigate();
   const lng = i18n.language;
+  // UT-03: a scheduled check is a trigger, so New check needs Create on Trigger.
+  const permissions = useCallerPermissions();
+  const deniedCheck = permissionDenied(t, permissions, 'Trigger', 'Create');
   const [choice, setChoice] = useState(PERFORMANCE_LIMITS.defaultWindow);
   const [custom, setCustom] = useState(() => blankCustomWindow());
   const [unitId, setUnitId] = useState('');
@@ -377,7 +382,7 @@ function Performance({ organizationId }) {
 
         <section className="panel board-panel board-wide" aria-labelledby="performance-checks-title" data-testid="performance-checks">
           <PanelHead id="performance-checks-title" title={t('performance.checks.title')} tipText={t('tips.performance.checks.title')}>
-            <button type="button" className="button-primary button-sm" onClick={() => navigate(pathFor('triggers', null, newCheckQuery()))} data-testid="performance-new-check" {...tip(t('tips.performance.checks.new'))}>
+            <button type="button" className="button-primary button-sm" onClick={() => !deniedCheck && navigate(pathFor('triggers', null, newCheckQuery()))} data-testid="performance-new-check" {...deniedProps(deniedCheck)} {...tip(deniedCheck || t('tips.performance.checks.new'))}>
               <PlusIcon size={14} /> {t('performance.checks.new')}
             </button>
           </PanelHead>

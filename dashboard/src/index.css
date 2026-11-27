@@ -815,6 +815,18 @@ button[aria-disabled="true"]:hover { filter: none; }
 .tab:hover { color: var(--color-text); }
 .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
 .tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+/* UT-16: a strip whose tabs do not fit shows a scroll button over each edge that hides tabs. */
+.tabs-frame { position: relative; min-width: 0; }
+.tabs-scroll { position: absolute; top: 0; bottom: 1px; z-index: 1; display: flex; align-items: center; justify-content: center; width: 2rem; padding: 0; border: none; color: var(--color-text-secondary); cursor: pointer; }
+.tabs-scroll:hover { color: var(--color-primary); }
+.tabs-scroll:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.tabs-scroll-start { inset-inline-start: 0; background: linear-gradient(to right, var(--color-background) 60%, transparent); }
+.tabs-scroll-end { inset-inline-end: 0; background: linear-gradient(to left, var(--color-background) 60%, transparent); }
+[dir='rtl'] .tabs-scroll-start { background: linear-gradient(to left, var(--color-background) 60%, transparent); }
+[dir='rtl'] .tabs-scroll-end { background: linear-gradient(to right, var(--color-background) 60%, transparent); }
+[dir='rtl'] .tabs-scroll svg { transform: scaleX(-1); }
+.tabs-frame.has-start > .tabs { padding-inline-start: 2rem; }
+.tabs-frame.has-end > .tabs { padding-inline-end: 2rem; }
 
 /* Tabbed hubs (config/navConfig.js): hub title, URL-synced tab strip, compact embedded view headers. */
 .hub-header { margin-bottom: var(--spacing-sm); }
@@ -1302,7 +1314,7 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .studio-summary .detail-item-value { font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .studio-draft-workspace.is-chat { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: var(--spacing-sm); }
 .studio-draft-workspace.is-chat > * { flex-shrink: 0; }
-.studio-draft-workspace.is-chat > .page-header, .studio-draft-workspace.is-chat > .studio-summary, .studio-draft-workspace.is-chat > .tabs { margin: 0; }
+.studio-draft-workspace.is-chat > .page-header, .studio-draft-workspace.is-chat > .studio-summary, .studio-draft-workspace.is-chat > .tabs-frame, .studio-draft-workspace.is-chat > .tabs-frame > .tabs { margin: 0; }
 .studio-draft-workspace.is-chat > .studio-chat-space { flex: 1; min-height: 0; }
 .studio-chat-resizable { position: relative; height: 100%; min-height: 0; box-sizing: border-box; }
 .studio-chat-resizable > * { flex-shrink: 0; }

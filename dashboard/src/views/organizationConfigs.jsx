@@ -11,6 +11,7 @@ import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i
 import { copyToClipboard } from '../utils/clipboard';
 import { resourceTip, optionalText } from '../utils/tips';
 import { organizationFormErrors, organizationFormToBody, organizationToForm } from '../utils/organizations';
+import { deniedReasonFor, permissionsLookup } from '../utils/permissions';
 
 const ID = 'organizations';
 
@@ -50,6 +51,9 @@ export const organizationsConfig = {
     remove: (c, tenant, id) => c.deleteOrganization(tenant, id)
   },
   detailPath: (r) => pathFor('organizations', r.id),
+  // UT-03: the caller's permissions, so Create, Edit, and Delete stay disabled with the reason for read-only callers.
+  loadLookups: permissionsLookup,
+  deniedReason: deniedReasonFor('Organization'),
   canDuplicate: false,
   bulkDelete: false,
   blank: () => organizationToForm(null),

@@ -90,8 +90,9 @@ function BoardPicker() {
     <div data-testid="board-picker">
       <PageHeader title={t('board.title')} subtitle={t('board.subtitle')} />
       <Explainer topic="board" />
+      {/* UT-05: a refused list shows only the error, never the empty state and its call to action. */}
       {error && <ErrorBanner message={errorMessage(t, error)} />}
-      {orgs === null ? (
+      {error ? null : orgs === null ? (
         <LoadingState />
       ) : orgs.length === 0 ? (
         <EmptyState

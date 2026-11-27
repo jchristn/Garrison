@@ -8572,3 +8572,55 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "common": {
+  "tabs": {
+   "scrollBack": "顯示前面嘅分頁",
+   "scrollForward": "顯示更多分頁"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "無",
+    "budgetUsd": "無"
+   },
+   "hints": {
+    "thresholdPercent": "可選，0 至 100。加權分數達到呢個數就算合格。留空就冇門檻，亦冇合格或者唔合格嘅判定。",
+    "budgetUsd": "可選。案例同評審運行用咗咁多錢之後，剩低嘅案例會跳過，運行會失敗。留空就冇預算。"
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "你唔可以做呢個操作。需要{{resource}}嘅 {{operation}} 權限。"
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "打開提出佢嘅 tick 所屬嘅 keeper。佢嘅 ID 係 {{id}}。"
+   }
+  },
+  "tabs": {
+   "scrollBack": "將分頁列向後捲，睇返第一個顯示分頁之前收埋咗嘅分頁。",
+   "scrollForward": "捲動分頁列，睇超出邊緣收埋咗嘅分頁。"
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "有人喚醒咗 keeper：立即喚醒、恢復、發佈修訂，或者俾指示。"
+   }
+  }
+ }
+});

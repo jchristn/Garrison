@@ -9,6 +9,8 @@ import { useApp } from '../context/AppContext';
 import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime, truncate } from '../i18n/formatters';
 import { attentionList } from '../utils/escalations';
+import { deniedProps, permissionDenied } from '../utils/permissions';
+import useCallerPermissions from '../hooks/useCallerPermissions';
 
 const PAGE = 100;
 const SHOWN = 5;
@@ -24,6 +26,7 @@ export default function HomeEscalationsCard() {
   const { tenantId } = useApp();
   const [items, setItems] = useState(null);
   const [answering, setAnswering] = useState(null);
+  const permissions = useCallerPermissions();
   const lng = i18n.language;
 
   const load = useCallback(() => {
@@ -56,20 +59,30 @@ export default function HomeEscalationsCard() {
         </a>
       </div>
       <ul className="node-list home-escalations" data-testid="home-escalations-list">
-        {items.slice(0, SHOWN).map((x) => (
-          <li key={x.id}>
-            <EscalationSeverityBadge severity={x.severity} t={t} />
-            <a href={pathFor('escalations', x.id)} {...tip(x.question)} onClick={(e) => open(e, pathFor('escalations', x.id))}>
-              <strong>{x.agentName || x.agentId || '-'}</strong>: {truncate(x.question || '', 80)}
-            </a>
-            <span className="text-muted node-meta" {...tip(formatDateTime(x.createdUtc, lng))}>
-              {formatRelativeTime(x.createdUtc, lng)}
-            </span>
-            <button type="button" className="button-secondary button-sm" onClick={() => setAnswering(x)} data-testid={`home-escalation-answer-${x.id}`} {...tip(t('tips.resources.escalations.actions.answer'))}>
-              {t('resources.escalations.actions.answer')}
-            </button>
-          </li>
-        ))}
+        {items.slice(0, SHOWN).map((x) => {
+          const denied = permissionDenied(t, permissions, 'Escalation', 'Update', { resourceId: x.id });
+          return (
+            <li key={x.id}>
+              <EscalationSeverityBadge severity={x.severity} t={t} />
+              <a href={pathFor('escalations', x.id)} {...tip(x.question)} onClick={(e) => open(e, pathFor('escalations', x.id))}>
+                <strong>{x.agentName || x.agentId || '-'}</strong>: {truncate(x.question || '', 80)}
+              </a>
+              <span className="text-muted node-meta" {...tip(formatDateTime(x.createdUtc, lng))}>
+                {formatRelativeTime(x.createdUtc, lng)}
+              </span>
+              <button
+                type="button"
+                className="button-secondary button-sm"
+                onClick={() => !denied && setAnswering(x)}
+                data-testid={`home-escalation-answer-${x.id}`}
+                {...deniedProps(denied)}
+                {...tip(denied || t('tips.resources.escalations.actions.answer'))}
+              >
+                {t('resources.escalations.actions.answer')}
+              </button>
+            </li>
+          );
+        })}
       </ul>
       {items.length > SHOWN && <p className="text-muted">{t('views.home.escalations.more', { count: items.length - SHOWN })}</p>}
       {answering && (

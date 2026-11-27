@@ -26,6 +26,8 @@ import { formatDateTime, formatRelativeTime, truncate } from '../i18n/formatters
 import { effectiveScorers, evalSetFormErrors, evalSetFormToBody, evalSetToForm, needsJudge, scoreText } from '../utils/evaluations';
 import { evalSetsConfig } from './resourceConfigs';
 import { targetText } from './evaluationConfigs';
+import { deniedProps, permissionDenied } from '../utils/permissions';
+import useCallerPermissions from '../hooks/useCallerPermissions';
 
 /**
  * One eval set version (AA9.15): its state, origin, judge, tags, and who wrote and approved it; its cases with their
@@ -52,6 +54,7 @@ export default function EvalSetDetailView({ recordId }) {
   const [editErrors, setEditErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const runAsked = useRef(false);
+  const permissions = useCallerPermissions();
   const lng = i18n.language;
 
   const load = useCallback(() => {
@@ -183,6 +186,10 @@ export default function EvalSetDetailView({ recordId }) {
     }
   };
 
+  // UT-03: write actions stay visible but disabled, with the missing permission as the tooltip.
+  const deniedUpdate = permissionDenied(t, permissions, 'EvalSet', 'Update', { resourceId: s.id });
+  const deniedDelete = permissionDenied(t, permissions, 'EvalSet', 'Delete', { resourceId: s.id });
+  const deniedRun = permissionDenied(t, permissions, 'EvalRun', 'Execute');
   const editFields = evalSetsConfig.fields(editForm || {}, { t, i18n, options: { agents }, mode: 'edit' });
 
   return (
@@ -202,20 +209,20 @@ export default function EvalSetDetailView({ recordId }) {
             <button type="button" className="button-secondary" onClick={() => setModal({ kind: 'json' })} {...tip(t('tips.evals.setDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>
-            <button type="button" className="button-secondary" onClick={() => setEditForm(evalSetToForm(s))} data-testid="eval-set-edit" {...tip(t(approved ? 'tips.evals.setDetail.editApproved' : 'tips.evals.setDetail.edit'))}>
+            <button type="button" className="button-secondary" onClick={() => !deniedUpdate && setEditForm(evalSetToForm(s))} data-testid="eval-set-edit" {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t(approved ? 'tips.evals.setDetail.editApproved' : 'tips.evals.setDetail.edit'))}>
               {t('common.actions.edit')}
             </button>
             {!approved && (
-              <button type="button" className="button-danger" onClick={() => setModal({ kind: 'delete' })} data-testid="eval-set-delete" {...tip(t('tips.evals.setDetail.delete'))}>
+              <button type="button" className="button-danger" onClick={() => !deniedDelete && setModal({ kind: 'delete' })} data-testid="eval-set-delete" {...deniedProps(deniedDelete)} {...tip(deniedDelete || t('tips.evals.setDetail.delete'))}>
                 {t('common.actions.delete')}
               </button>
             )}
             {!approved && (
-              <button type="button" className="button-secondary" onClick={() => setModal({ kind: 'approve' })} disabled={!cases.length} data-testid="eval-set-approve" {...tip(t(cases.length ? 'tips.evals.setDetail.approve' : 'tips.evals.setDetail.approveEmpty'))}>
+              <button type="button" className="button-secondary" onClick={() => !deniedUpdate && setModal({ kind: 'approve' })} disabled={!cases.length} data-testid="eval-set-approve" {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t(cases.length ? 'tips.evals.setDetail.approve' : 'tips.evals.setDetail.approveEmpty'))}>
                 {t('evals.setDetail.approve')}
               </button>
             )}
-            <button type="button" className="button-primary" onClick={() => setModal({ kind: 'run', initial: {} })} disabled={!cases.length} data-testid="eval-set-run" {...tip(t(cases.length ? 'tips.evals.actions.runSet' : 'tips.evals.setDetail.runEmpty'))}>
+            <button type="button" className="button-primary" onClick={() => !deniedRun && setModal({ kind: 'run', initial: {} })} disabled={!cases.length} data-testid="eval-set-run" {...deniedProps(deniedRun)} {...tip(deniedRun || t(cases.length ? 'tips.evals.actions.runSet' : 'tips.evals.setDetail.runEmpty'))}>
               {t('evals.actions.runSet')}
             </button>
           </>
@@ -277,7 +284,7 @@ export default function EvalSetDetailView({ recordId }) {
         tipText={t('tips.evals.setDetail.cases')}
         testId="eval-set-cases"
         actions={
-          <button type="button" className="button-secondary button-sm" onClick={() => setModal({ kind: 'case', item: null })} data-testid="eval-case-add" {...tip(t(approved ? 'tips.evals.setDetail.addCaseApproved' : 'tips.evals.setDetail.addCase'))}>
+          <button type="button" className="button-secondary button-sm" onClick={() => !deniedUpdate && setModal({ kind: 'case', item: null })} data-testid="eval-case-add" {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t(approved ? 'tips.evals.setDetail.addCaseApproved' : 'tips.evals.setDetail.addCase'))}>
             <PlusIcon size={14} /> {t('evals.setDetail.addCase')}
           </button>
         }
@@ -323,10 +330,10 @@ export default function EvalSetDetailView({ recordId }) {
                     </td>
                     <td className="actions-cell">
                       <div className="flex gap-sm eval-row-actions">
-                        <button type="button" className="button-ghost button-sm" onClick={() => setModal({ kind: 'case', item: c })} data-testid={`eval-case-edit-${c.order}`} {...tip(t(approved ? 'tips.evals.setDetail.editCaseApproved' : 'tips.evals.setDetail.editCase'))}>
+                        <button type="button" className="button-ghost button-sm" onClick={() => !deniedUpdate && setModal({ kind: 'case', item: c })} data-testid={`eval-case-edit-${c.order}`} {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t(approved ? 'tips.evals.setDetail.editCaseApproved' : 'tips.evals.setDetail.editCase'))}>
                           {t('common.actions.edit')}
                         </button>
-                        <button type="button" className="button-ghost button-sm" onClick={() => setModal({ kind: 'removeCase', item: c })} data-testid={`eval-case-remove-${c.order}`} {...tip(t('tips.evals.setDetail.removeCase'))}>
+                        <button type="button" className="button-ghost button-sm" onClick={() => !deniedUpdate && setModal({ kind: 'removeCase', item: c })} data-testid={`eval-case-remove-${c.order}`} {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t('tips.evals.setDetail.removeCase'))}>
                           {t('common.actions.remove')}
                         </button>
                       </div>

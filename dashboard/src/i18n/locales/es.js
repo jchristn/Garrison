@@ -8643,3 +8643,55 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Simulated user findings (AA12.8): the missing-permission tooltip of Autonomy write actions (UT-03), the keeper
+// link on an escalation (UT-12), the tab bar scroll buttons (UT-16), the run form's empty threshold and budget
+// (UT-07), and the Manual wake source (UT-15).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "common": {
+  "tabs": {
+   "scrollBack": "Mostrar pestañas anteriores",
+   "scrollForward": "Mostrar más pestañas"
+  }
+ },
+ "evals": {
+  "run": {
+   "placeholders": {
+    "thresholdPercent": "Ninguno",
+    "budgetUsd": "Ninguno"
+   },
+   "hints": {
+    "thresholdPercent": "Opcional, de 0 a 100. La ejecución aprueba cuando su puntuación ponderada lo alcanza. Déjelo vacío para no tener umbral ni veredicto de aprobado o suspenso.",
+    "budgetUsd": "Opcional. Cuando las ejecuciones de casos y del juez gastan esta cantidad, se omiten los casos restantes y la ejecución falla. Déjelo vacío para no tener presupuesto."
+   }
+  }
+ },
+ "tips": {
+  "permissions": {
+   "denied": "No puede hacerlo. Hace falta {{operation}} sobre {{resource}}."
+  },
+  "views": {
+   "escalationDetail": {
+    "openKeeperNamed": "Abrir el keeper cuyo tick la planteó. Su ID es {{id}}."
+   }
+  },
+  "tabs": {
+   "scrollBack": "Desplazar la barra de pestañas hacia atrás, a las pestañas ocultas antes de la primera visible.",
+   "scrollForward": "Desplazar la barra de pestañas a las pestañas ocultas tras su borde."
+  },
+  "enums": {
+   "wakeSource": {
+    "Manual": "Una persona despertó al keeper: Despertar ahora, reanudarlo, publicar una revisión o dar indicaciones."
+   }
+  }
+ }
+});
