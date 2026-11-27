@@ -450,7 +450,7 @@ namespace Garrison.Server.Runtime
                 && await _Lines.LineAsync(message.TenantId, message.SenderAgentId, message.RecipientAgentId, parent, token).ConfigureAwait(false) == null)
             {
                 reason = MessageRejectionEnum.NoLine;
-                detail = "No line connects agent " + (message.SenderAgentName ?? message.SenderAgentId) + " to agent " + (message.RecipientAgentName ?? message.RecipientAgentId) + ": they share no app edge, and this is not a reply to a message from it.";
+                detail = "No line connects agent " + (message.SenderAgentName ?? message.SenderAgentId) + " to agent " + (message.RecipientAgentName ?? message.RecipientAgentId) + ": they share no app edge, neither manages the other, their organization units have no peer line, and this is not a reply to a message from it.";
             }
             else if (message.HopCount > _Options.MaxHops)
             {

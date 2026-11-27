@@ -105,6 +105,17 @@ namespace Test.Shared.Suites
             Assert.True(rendered.Contains("garrison_read_inbox", StringComparison.Ordinal) && rendered.Contains("garrison_ack_message", StringComparison.Ordinal), "More waiting points at the inbox tool, and acknowledgement is asked for");
             Assert.True(rendered.Contains("You cannot see the senders' workspaces or files", StringComparison.Ordinal) && rendered.Contains("do not look for it on disk", StringComparison.Ordinal), "AA12.7: the recipient is told it cannot see the sender's files and should ask for missing contents: " + rendered);
             Assert.Equal(String.Empty, InboxDeliveryRenderer.Render(template, "builtin/inbox-delivery", new List<AgentMessage>(), false), "No messages render nothing");
+
+            // AA12.7: senders are told the recipient cannot see their workspace or file space.
+            foreach (string name in new[] { "garrison_send_message", "garrison_reply_message" })
+            {
+                McpToolDefinition tool = Assert.NotNull(McpToolCatalog.All().FirstOrDefault(t => t.Name == name), name);
+                Assert.True(tool.DefaultDescription.Contains("The recipient cannot see your workspace or your files", StringComparison.Ordinal), name + " tells the sender to put everything in the body: " + tool.DefaultDescription);
+            }
+            McpToolDefinition files = Assert.NotNull(McpToolCatalog.All().FirstOrDefault(t => t.Name == "garrison_files_write"), "garrison_files_write");
+            Assert.True(files.DefaultDescription.Contains("Agents you send messages to do not see it", StringComparison.Ordinal), "The file space is not shared with message recipients: " + files.DefaultDescription);
+            string filesFragment = BuiltInSeeder.PromptDefault("garrison-files-instructions") ?? throw new TestAssertionException("builtin/garrison-files-instructions is embedded");
+            Assert.True(filesFragment.Contains("Agents you send messages to cannot see these files", StringComparison.Ordinal), "The files fragment says the same: " + filesFragment);
             return Task.CompletedTask;
         }
 
