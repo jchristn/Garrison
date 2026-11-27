@@ -4,20 +4,20 @@ These are the four short trials from Part I of `AUTONOMOUS_AGENTS_PLAN.md` ("How
 
 ## Round 2 (2026-11-27)
 
-Result in one line: on qwen3.8:27b the keeper, team, org, and board trials each passed at least twice in a row, after ten Garrison defects the reruns exposed were fixed. The team tied the generalist instead of beating it, because both reached the task's ceiling.
+Result in one line: on qwen3.8:27b the keeper, team handoff, and board trials passed at least twice in a row, and the org trial passed once and partly a second time, after nine Garrison defects the reruns exposed were fixed. The team tied the generalist instead of beating it, because both reached the task's ceiling.
 
 | Trial | Part I test | Round 1 (gpt-oss:20b) | Round 2 (qwen3.8:27b) |
 |---|---|---|---|
 | Keeper | Catches a real failure and escalates exactly what it should | Partial: a second escalation after the answer | Passed 3 runs in a row: one escalation per outage, the answer recorded and followed |
 | Team | Three specialists hand work on with no person relaying, and beat one generalist | Failed: stalled at hop 3 | Handoff passed 2 runs in a row (8 and 9 hops, 20 of 20). Tied the generalist at 20 of 20, so "beat" is not shown |
-| Org | A proposed structural change is approved and measured outcomes improve; a bad change is obvious in its diff | Partial: the bad-change diff was misleading | ORG_VERDICT |
-| Board | The brief explains what happened | Failed: "all keepers Healthy" while latency was Degraded | BOARD_VERDICT |
+| Org | A proposed structural change is approved and measured outcomes improve; a bad change is obvious in its diff | Partial: the bad-change diff was misleading | Run 1 passed: the lead proposed the peer line on its first tick, a person approved it, and delivered handoffs went from 0 of 2 to 2 of 2. Run 2 passed every step but had no handoff left to measure after the approval. The bad-change diff reads plainly in both |
+| Board | The brief explains what happened | Failed: "all keepers Healthy" while latency was Degraded | Passed runs 3 and 4 in a row. Runs 1 and 2 each repeated a stale "pending" proposal, which two fixes to the facts addressed |
 
 ### Setup
 
 | Item | Value |
 |---|---|
-| Date | 2026-11-27, 03:00 to TBD UTC |
+| Date | 2026-11-27, 03:00 to 20:00 UTC |
 | Branch | `aa12-trials2`, from `feature/autonomous-agents` at `cd53990b`, rebased onto `83760ac1` |
 | Control plane | `Garrison.Server`, Sqlite, REST 8770, MCP 8771, liveness 8772, agent memory on, run from a copy of the build so rebuilding did not touch it |
 | Worker | One `Garrison.Worker`, health 8773, metrics 8774, three concurrent runs |
@@ -28,7 +28,7 @@ Result in one line: on qwen3.8:27b the keeper, team, org, and board trials each 
 
 Models other than qwen3.8:27b did not run. Every `:cloud` model on that Ollama server answered HTTP 401 `{"error":"Unauthorized"}` (the server is not signed in to ollama.com). qwen3.6:35b loaded once for a speed check, then never answered again while qwen3.8:27b stayed resident: a team run and a direct `curl` both waited minutes with no output. gpt-oss:120b did not load within 300 seconds. The user then chose to stay on qwen3.8:27b. Another client was using the same Ollama server during the session, which is why some ticks ran for many minutes; timeouts were raised from round 1's 300 to 600 seconds for the gerbil, 900 for the org keepers, 1500 for the lead and the team, and 2400 for the generalist.
 
-Spend: Garrison recorded $0.00, as in round 1 (no rate for a local model). The about 100 runs of the session used roughly 12 million input and 0.4 million output tokens.
+Spend: Garrison recorded $0.00, as in round 1 (no rate for a local model). The 153 runs of the session used 19.7 million input and 0.56 million output tokens.
 
 ### Keeper trial
 
@@ -59,7 +59,7 @@ The task, the hidden checks, and the three specialists were round 1's, with two 
 | `t-qwen38-5` (t5-*, 09:12 to 10:03) | 8 | Reviewer, tester, reviewer, fixer, reviewer, fixer (a second fix for `-$-5`), reviewer, fixer, then the reviewer filed `rpt_mwyszzfm_8YNAvO1c35fhe37kKsH` | 20/20 | 20/20 (`run_mwyt4g4c_SB0UYf1qbnp2CKthQcA`) |
 | `t-qwen38-6` (t6-*, 10:04 to 11:06) | 9 | Reviewer, tester, reviewer, fixer, reviewer, tester, reviewer and fixer, then `rpt_mwyvegwc_kQSY4Ikm7d7iP4X9aR9`. Three late messages at hop 9 were refused with `HopLimit` | 20/20 | 20/20 (`run_mwyvfhrs_wWVFf8rm3tpoojpnNhf`) |
 
-Runs 1 to 4 each stopped on a Garrison defect, fixed before the next run (Findings below). Runs 5 and 6 passed. In both, the only message a person sent was the goal (`amg_mwyrjh7f_EE3XUkSeyTsChUSkXpf`, `amg_mwytdpdd_locviyMnJedR1hK41o1`), every handoff carried its content in the body, and the reviewers called `garrison_read_thread` 12 times across the two runs to reread the goal and earlier test files.
+Runs 1 to 4 each stopped on a Garrison defect, fixed before the next run (Findings below), except run 2's slow first tool call. Runs 5 and 6 passed. In both, the only message a person sent was the goal (`amg_mwyrjh7f_EE3XUkSeyTsChUSkXpf`, `amg_mwytdpdd_locviyMnJedR1hK41o1`), every handoff carried its content in the body, and the reviewers called `garrison_read_thread` 12 times across the two runs to reread the goal and earlier test files.
 
 **Before and after.** Round 1: the handoff stalled at the third hop and the team produced nothing. Round 2, runs 5 and 6: eight and nine hops, a corrected module that passes all 20 hidden checks, filed as a `Handoff` report with no person relaying.
 
@@ -89,13 +89,30 @@ The bad proposal. Board direction at 12:04 (mandate revision 2, source `Board`) 
 
 Re-applying the example manifest afterwards failed with `OrganizationDrift`: "this document would undo them: units.latency.peers.dependencies: dependencies to none ... or apply again with force=true". Round 1's re-apply silently removed the approved peer line.
 
-ORG_RUN2
+**Run 2 (`o-qwen38-2b`, 16:24 to 17:50).** A first attempt at 14:43 reset run 1's organization with a forced manifest apply, but the agents kept their mail, threads, and the board's earlier decisions, so the keepers carried on from run 1 instead of meeting the fault fresh, and a restart left the worker down for an hour (it could not bind its health port while the old one drained). Run 2 therefore deleted the organization, its mandates, deployments, and agents and applied the example again, so every agent was new (organization `org_mwz6zeon_e4VuUXnfpcF9x0bO7Gz`).
+
+Before: the same as run 1. Two `NoLine` refusals (`amg_mwz748p0_Ub4xXWOgjgsVGkQg4jG`, `amg_mwz7p08c_3ivgckAgJ7cbfRd2zdk`), both reported; the lead relayed the finding (`amg_mwz7i85h_p49u6eQlAFmcYNevftU`, Urgent) and proposed `sdr_mwz7i85q_u6vlbb2gYwJSrikRITR`, the same one-line peer-line change, on its first tick. The dependency keeper answered the relay and called pgdriver 4.3.0 "the leading cause of the p95 miss" (`rpt_mwz7qrnw_nWD8Lxck10vN3TFkecD`).
+
+I approved at 17:05 (revision 2). After: the latency keeper's two woken ticks sent nothing new to the dependency keeper. The relay had already handed the problem over and the fix was "staged, pending the maintenance window", so there was no second handoff to measure. Both ticks filed their report and then ran out the 900-second deadline before `garrison_keeper_complete_tick`, minutes passing between model calls. The lead recorded that the peer line was live and "relay retired". The board direction to remove uptime did not produce a proposal this time; the lead's tick after it handled other mail. A person's `RemoveUnit uptime` draft showed the same plain three-line diff as run 1, and re-applying the manifest failed with `OrganizationDrift` again.
+
+**Part I test: run 1 passed; run 2 passed on the proposal, the approval, the diff, and the drift guard, but showed no measurable improvement, because the lead had already worked around the missing line through its reporting lines before a person approved the fix.** That is the lead doing its job, not a Garrison defect, but it means the trial's before and after only differ when the keepers have something new to hand off after the approval. Two passes in a row were not reached in the time available; a third run would need a fault the lead cannot relay around, or a second finding that arrives after the approval.
 
 ### Board trial
 
-The lead's mandate got `briefIntervalHours: 1` and lost the cost direction (revision 4, after the board denied the removal), and it was paused until a brief was due, an hour after its last one, so the next tick carried the `builtin/board-brief` section with the facts.
+For each run the lead's mandate had `briefIntervalHours: 1` and no standing direction (the board withdrew the cost direction after denying the removal), and the mandate stayed paused until a brief was due, an hour after the lead's last one, so the next tick carried the `builtin/board-brief` section with the facts. Runs 1 and 2 used organization run 1's agents; runs 3 and 4 used run 2's. Between runs 1 and 2 the board answered the open escalation with `hold`.
 
-BOARD_RUNS
+| Run | Brief | Agrees with the board view | Wrong or missing | Verdict |
+|---|---|---|---|---|
+| 1, 13:31 (`run_mwz0mhxi_SmNOuVYhHtaogJV7oyi`) | `rpt_mwz0sbo1_H9e4v9WnfFabNfXVYLP` | Yes: reliability, latency, and dependencies Degraded, uptime Healthy, the lapsed and re-raised escalation, spend $0 of each budget | Called the uptime removal "still awaiting a person"; the board had denied it. The facts left out the denial (fixed in 8c80a58f) | Failed on a Garrison defect |
+| 2, 14:34 (`run_mwz31qrd_GbCAennryWVGHAefS7Z`) | `rpt_mwz39h6h_SPnxpGNfrGesfNqraN5` | Yes, and it led with the board's Hold answer, relayed to both keepers | Repeated the same "still pending" claim from its own notes; the facts were silent when nothing waited (fixed in 9c671be0). The first attempt at 14:31 failed outright: the restart had broken the deployments (Finding 9) | Failed on a Garrison defect |
+| 3, 18:41 (`run_mwzbuzaw_gZ2u0uOkBrYJ2AFI6MV`) | `rpt_mwzcafhe_QLZkATGktidN0ekNjch` | Yes: each unit's health "per the board record", "no org revision was published in this period, no proposal is waiting, and no escalation is open", spend per unit | Nothing wrong. It also explained a gap the board view does not show: the uptime keeper's missing report was its own tick timing out, not an outage | Passed |
+| 4, 19:54 (`run_mwzegj8t_IeOhgqjepdBavoDuaVZ`) | `rpt_mwzekrmf_mIjpyYhlBx0gMGalV7A` | Yes: "Not healthy per the board record: latency (Degraded) and dependencies (Degraded); uptime Healthy", "no organization revision was published, no proposal is waiting on a person, and no escalation is open", spend per unit | Nothing wrong. Its one new item was a dependency keeper report that two of that keeper's ticks had timed out | Passed |
+
+Run 3 was after organization run 2, with new agents, so it is not a continuation of runs 1 and 2. In every run the brief named the open decision and what the CEO planned next, and spend was reported against each budget; as in round 1, $0.00 recorded spend makes that line uninformative on a local model, and run 3's lead said so ("a possible cost-telemetry gap, not confirmed zero spend").
+
+**Before and after.** Round 1's requested brief: "All keepers report Healthy. No incidents." while the board view showed latency Degraded, and nothing about the approved peer line. Round 2 runs 3 and 4: every unit's health as the board view shows it, every decision and open question, and nothing claimed that the record contradicts.
+
+**Part I test: passed twice in a row on qwen3.8:27b (runs 3 and 4), after the two defects runs 1 and 2 exposed were fixed.** A person reading only these briefs would know the state of every unit, what the board had decided, and what was waiting on them. The second half of the Part I test, the board spending less time each week, still cannot be measured in a day.
 
 ### Round 1 bugs, checked again
 
@@ -103,18 +120,18 @@ BOARD_RUNS
 |---|---|
 | 1. Blank `agent` or `scopeId` refused memory writes | Gone. Every keeper and org run wrote memory on the first try |
 | 2. Organization diffs compared units by position (a1de864c) | Gone. Removing `uptime` reads as `units.uptime` removed plus its peer line, and re-applying the manifest over the approved peer line fails with `OrganizationDrift` |
-| 3. Prompts named tools Mux calls something else (d6117ee0) | Gone. No tool-name paragraph in any prompt, and no `unknown_mcp_tool` in about 100 runs |
-| 4. An empty answer counted as success (d6117ee0) | Not seen. No run ended without text or tool calls |
+| 3. Prompts named tools Mux calls something else (d6117ee0) | Gone. No tool-name paragraph in any prompt. In 153 runs one call missed (`garrison.garrison_complete_tick`, keeper run 3, a name no Garrison tool has); the model then called `garrison.garrison_keeper_complete_tick` |
+| 4. An empty answer counted as success (d6117ee0) | Not seen. No run in 153 ended with `EmptyResponse` |
 | Keeper re-escalated after "wait" | Gone. One escalation per outage in three runs; the answer tick wrote `on-call-instruction` every time |
 | Team stalled on a file it never attached | Fixed (380ba8c9, d9dbe50f), and the recipient now asks for missing content instead of searching the disk |
-| Board brief "all Healthy" while latency was Degraded | Fixed (380ba8c9, 8c80a58f) |
+| Board brief "all Healthy" while latency was Degraded | Fixed (380ba8c9, 8c80a58f, 9c671be0) |
 | `sandbox: none` let an agent list files outside its workspace | Expected, and not specific to `none`. Measured on Mux 1.8.0: `workspace-write` (the default) also lets a shell command read and write outside the workspace and reach `127.0.0.1`; `read-only` refuses `run_process` and `write_file` but still lists other directories. `docs/HARNESSES.md` and `docs/SECURITY.md` now say so (380ba8c9). Isolation for Mux runs comes from the executor |
 
 ### Findings and fixes
 
 Each fix has a Touchstone case and passed its targeted suites on Sqlite and PostgreSQL.
 
-1. **Fixed (380ba8c9, 8c80a58f): a board brief had nothing to brief from.** `builtin/board-brief` asked for a brief and gave only the organization's name; the CEO saw reports filed since its last tick and nothing else. The section now carries Garrison's own record since the last brief (unit health from each unit's latest report, spend against budget, revisions published, proposals decided and waiting, open escalations, unhealthy reports, freezes, the kill switch) with agent-written text framed by random markers, and tells the CEO the brief must agree with it. Board run 1 then showed a gap: a denied proposal goes back to `Open`, which the facts skipped, so the brief called it "still awaiting a person"; 8c80a58f lists it as decided. Case `board-<provider>/brief-facts`.
+1. **Fixed (380ba8c9, 8c80a58f, 9c671be0): a board brief had nothing to brief from.** `builtin/board-brief` asked for a brief and gave only the organization's name; the CEO saw reports filed since its last tick and nothing else. The section now carries Garrison's own record since the last brief (unit health from each unit's latest report, spend against budget, revisions published, proposals decided and waiting, open escalations, unhealthy reports, freezes, the kill switch) with agent-written text framed by random markers, and tells the CEO the brief must agree with it. Board run 1 then showed a gap: a denied proposal goes back to `Open`, which the facts skipped, so the brief called it "still awaiting a person"; 8c80a58f lists it as decided. Board run 2 repeated the claim from the CEO's own notes because the facts were silent when nothing waited; 9c671be0 says "No proposal is waiting for a person". Case `board-<provider>/brief-facts`.
 2. **Fixed (380ba8c9): messages referred to files the recipient could not see.** `builtin/inbox-delivery` tells the recipient it cannot see senders' files and should reply to ask for missing content; the send and reply tools tell the sender to put everything in the body. Case `messaging-unit`.
 3. **Fixed (d9dbe50f): the file space looked shared with message recipients.** `garrison_files_write` said "the user and other agents see it at once", so team run 1's tester saved its tests there and told the reviewer they were "in the shared file space". The files tools and fragment now say only the conversation's turns and delegated agents share it. The `NoLine` refusal also named only app edges; it now names reporting and peer lines too.
 4. **Fixed (73f66928): a failed keeper tick lost what it carried.** Keeper run 2's answer tick timed out on the busy model server; its escalation answer stayed marked delivered to it and its messages stayed `Delivered`, so no later tick would carry them, and the next digest started after it. A tick that fails before it reports now hands the answers and mail back, and the digest window skips it. Case `escalations-<provider>/redeliver`.
@@ -122,10 +139,28 @@ Each fix has a Touchstone case and passed its targeted suites on Sqlite and Post
 6. **Fixed (3a3bfd3f): Mux 1.8.0's exit 2 failed completed runs.** Mux exits 2 for `completed_with_errors`. `builtin/mux` accepted only 0, so team run 2's generalist, whose answer scored 20 of 20, was recorded `Failed`. The profile accepts 0 and 2. Case `parsers/mux-1.8.0-exit-2`.
 7. **Fixed (b0f7351a): one refused Mux tool call failed the run.** The Mux parser treated any `tool_call_denied` (here a `write_file` outside the workspace) as fatal even when the model went on and completed. The completion status now decides.
 8. **Fixed (a7a9cbf8): a reply without an urgency was always Normal.** Team run 4's tester answered the reviewer's urgent request without an urgency; the reply waited in the inbox of a reviewer that has no keeper, which only urgent mail wakes. A reply now keeps the original's urgency unless the run gives one. Case `messaging-<provider>/thread`.
-9. **Fixed in the examples (380ba8c9): the gerbil asks once per outage, and the site-reliability keepers report refused messages and the lead proposes missing peer lines.** Round 1 added the last two by hand to the trial copies; they are now in `examples/autonomous`.
-10. **Not a Garrison defect: the model shortens identifiers.** The dependency keeper kept message ids in its memory notes cut to 12 characters (`amg_mwyxq75w`), so `garrison_reply_message` and `garrison_read_thread` answered `NotFound`; it then wrote a new message instead. Ids are 31 characters and Garrison matches them exactly.
-11. **Not a Garrison defect: speed.** On a shared model server qwen3.8:27b took up to 15 minutes for one org tick and up to 6.5 minutes before a first tool call. The team took 43 and 57 minutes where the generalist took 7 and 5.
-12. **Noted, not investigated: the first ticks after a manifest apply recorded wake source `Timer`**, where a wake a person causes through the publish or resume routes records `Manual`.
+9. **Fixed (9589d163): a server restart broke Mux deployments that use `baseUrl`.** `HarnessRuntimeMigration` runs at every start and moved each Mux deployment with a model and `baseUrl` (the documented legacy path) to a saved connection that kept neither, so after the 13:40 restart every org keeper and the lead ran `gpt-4o-mini` against `https://api.openai.com/v1` and failed with 404. It likely explains why round 1 had to apply its manifests again after its restart. The migration now skips such deployments. Case `provider-api-<provider>/mux-legacy-endpoint`.
+10. **Fixed in the examples (380ba8c9): the gerbil asks once per outage, and the site-reliability keepers report refused messages and the lead proposes missing peer lines.** Round 1 added the last two by hand to the trial copies; they are now in `examples/autonomous`.
+11. **Not a Garrison defect: the model shortens identifiers.** The dependency keeper kept message ids in its memory notes cut to 12 characters (`amg_mwyxq75w`), so `garrison_reply_message` and `garrison_read_thread` answered `NotFound`; it then wrote a new message instead. Ids are 31 characters and Garrison matches them exactly.
+12. **Not a Garrison defect: speed.** On a shared model server qwen3.8:27b took up to 15 minutes for one org tick and up to 6.5 minutes before a first tool call. The team took 43 and 57 minutes where the generalist took 7 and 5.
+13. **Noted, not investigated: the first ticks after a manifest apply recorded wake source `Timer`**, where a wake a person causes through the publish or resume routes records `Manual`.
+
+### Reproduce
+
+Build, start a Sqlite server and a worker on spare ports with `GARRISON_AGENT_MEMORY_ENABLE=true`, as `scripts/run-autonomy-example.sh` describes, with Mux and a model endpoint reachable from the worker. Apply the examples as they are, with their Claude Code deployments moved to `builtin/mux`:
+
+```yaml
+  model: qwen3.8:27b
+  timeoutSeconds: 900          # the lead and the team specialists used 1500
+  noProgressSeconds: 900
+  parameters:
+    baseUrl: http://<ollama host>:11434/v1
+    adapterType: ollama
+    contextWindow: 131072
+    maxTokens: 32768
+```
+
+Point the mandate signals at services you control. Use a fresh set of agents for each team run, and run the generalist after the team, not beside it, when both share one model server. For a brief the board trial can check, set `briefIntervalHours` and wait until that interval has passed since the CEO's last `Brief`. Pause every mandate when you finish.
 
 ## Round 1 (2026-11-26, gpt-oss:20b)
 
