@@ -12,6 +12,7 @@ import { isKillSwitch } from '../utils/freezes';
 import useActiveFreezes from '../hooks/useActiveFreezes';
 import KillSwitchControl from './KillSwitchControl';
 import { hoursAgo, rejectedPath } from '../utils/messages';
+import { EmptyNote } from './States';
 
 const PAGE = 250;
 
@@ -91,9 +92,9 @@ export default function HomeAutonomyCard() {
         </p>
       )}
       {summary.total === 0 ? (
-        <p className="text-muted" data-testid="home-autonomy-empty">
+        <EmptyNote data-testid="home-autonomy-empty">
           {t('views.home.autonomy.empty')}
-        </p>
+        </EmptyNote>
       ) : (
         <>
           <div className="home-autonomy-stats">
@@ -115,7 +116,7 @@ export default function HomeAutonomyCard() {
             </span>
           </div>
           {summary.attention.length === 0 ? (
-            <p className="text-muted">{t('views.home.autonomy.allQuiet')}</p>
+            <EmptyNote>{t('views.home.autonomy.allQuiet')}</EmptyNote>
           ) : (
             <>
               <h3 className="node-section-title" {...tip(t('tips.views.home.autonomy.attention'))}>

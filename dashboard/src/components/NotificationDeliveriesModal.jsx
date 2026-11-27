@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import CodeBlock from './CodeBlock';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { tip } from './Tooltip';
 import { NotificationDeliveryStatusBadge } from './TriggerBadges';
 import { useAuth } from '../context/AuthContext';
@@ -118,7 +118,7 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!page && !error && <p>{t('common.generic.loading')}</p>}
-      {page && items.length === 0 && <p className="text-muted" data-testid="deliveries-empty">{t('components.notificationDeliveries.empty')}</p>}
+      {page && items.length === 0 && <EmptyNote data-testid="deliveries-empty">{t('components.notificationDeliveries.empty')}</EmptyNote>}
       {items.length > 0 && (
         <table className="data-table compact" data-testid="deliveries-table">
           <thead>

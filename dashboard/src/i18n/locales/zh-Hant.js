@@ -8659,7 +8659,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "沒有變更：此修訂與目前修訂內容相同，因此未發佈，keeper 也未喚醒。"
+  "RevisionUnchanged": "沒有變更：草稿與最新發佈的修訂內容相同，因此未發佈。請在發佈前修改，或將其捨棄。"
  },
  "components": {
   "keeperRevision": {
@@ -8724,6 +8724,43 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "harness 向模型顯示 MCP 工具時加在工具名稱前的內容。用 {server} 代表伺服器名稱，例如 mcp__{server}__ 或 {server}.（點）。如果模型看到的是原始工具名稱，請留空。"
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "自行持續工作的代理：守護者依排程喚醒，彼此傳送訊息，提交報告，記住資訊，並在受阻時詢問人員。凍結可以讓它們停止。"
+   },
+   "organizations": {
+    "label": "組織",
+    "tip": "依單位組織圖排列的代理，每個單位有負責人與預算，包括董事會、依單位的表現，以及讓高階主管代理套用提案的變更規則。"
+   },
+   "evaluations": {
+    "label": "評估",
+    "tip": "變更進入生產環境之前的檢查：評估集及其執行、與線上代理並行的影子試驗，以及分階段轉移流量的金絲雀發布。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "自行持續工作的代理：守護者依排程喚醒，彼此傳送訊息，提交報告，記住資訊，並在受阻時詢問人員。凍結可以讓它們停止。",
+    "organizations": "依單位組織圖排列的代理，每個單位有負責人與預算，包括董事會、依單位的表現，以及讓高階主管代理套用提案的變更規則。",
+    "evaluations": "變更進入生產環境之前的檢查：評估集及其執行、與線上代理並行的影子試驗，以及分階段轉移流量的金絲雀發布。"
    }
   }
  }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { TAB_PARAM } from '../config/navConfig';
+import { DASHBOARD_BASE, PAGES, TAB_PARAM, findHub } from '../config/navConfig';
 import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
 import { tip } from './Tooltip';
 
@@ -152,6 +152,18 @@ export function UrlTabs({ tabs, label, idPrefix = 'hub' }) {
   );
 
   const activeTab = tabs.find((tab) => tab.id === activeKey);
+  const { pathname } = useLocation();
+
+  // A tab that moved to another hub (Board, Performance, Change rules, and the evaluation tabs left Autonomy in AA13)
+  // forwards an old link such as /dashboard/autonomy?tab=board to its hub instead of opening this hub's first tab.
+  const moved = requested && !tabs.some((tab) => tab.id === requested) ? PAGES.find((page) => page.tab === requested) : null;
+  const movedPath = moved ? `${DASHBOARD_BASE}/${findHub(moved.hub).slug}` : null;
+  if (movedPath && movedPath !== pathname) {
+    const params = new URLSearchParams(searchParams);
+    if (moved.defaultTab) params.delete(TAB_PARAM);
+    const query = params.toString();
+    return <Navigate to={query ? `${movedPath}?${query}` : movedPath} replace />;
+  }
 
   return (
     <div className="hub-tabs">

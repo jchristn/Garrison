@@ -60,7 +60,7 @@ Every mandate is new, so all five keepers tick within a few seconds of the apply
 4. **Escalation.** The uptime keeper sees two failures in 10 minutes and asks the on-call role (`AgentOperator`) whether to fail over, then completes `Escalated`. Answer it in Autonomy > Escalations; the answer wakes the keeper.
 5. **Curation.** The curator lists the `reliability` unit's shared memory and completes `Quiet`.
 
-Autonomy > Organizations shows the chart, the reports, and the open escalation. Autonomy > Messages shows the urgent message as `Delivered`.
+Organizations > Organizations shows the chart, the reports, and the open escalation. Autonomy > Messages shows the urgent message as `Delivered`.
 
 ## The proposal
 

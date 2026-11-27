@@ -24,6 +24,20 @@ export function EmptyState({ title, body, action }) {
   );
 }
 
+/**
+ * Inline empty state for a list, panel, or tab that has nothing to show yet.
+ * Renders a padded, centered note inside a bordered surface (`.empty-state`),
+ * matching the look of `.table-empty`. Extra props (such as `data-testid`) pass
+ * through to the wrapper.
+ */
+export function EmptyNote({ children, className = '', ...rest }) {
+  return (
+    <div className={className ? `empty-state ${className}` : 'empty-state'} {...rest}>
+      {children}
+    </div>
+  );
+}
+
 /** Dismissible/retryable error banner. */
 export function ErrorBanner({ message, onRetry }) {
   const { t } = useTranslation();

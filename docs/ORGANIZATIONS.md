@@ -206,7 +206,7 @@ Each unit and agent carries the same `metrics`, over the runs its agents created
 
 A unit's numbers include every unit below it, so the root's metrics are the whole organization's. An agent's own entry has `isLead` set when it leads its unit. `checks` lists each scheduled check whose deployment belongs to an agent in scope, with its schedule, its next fire, and the newest eval run's status, score, and pass.
 
-Reading performance needs Read on Organization. The dashboard's Performance view, reached from the organization page and the Autonomy navigation, draws the same response as tables and a chart.
+Reading performance needs Read on Organization. The dashboard's Performance view, reached from the organization page and the Organizations navigation, draws the same response as tables and a chart.
 
 ### What a unit lead sees
 

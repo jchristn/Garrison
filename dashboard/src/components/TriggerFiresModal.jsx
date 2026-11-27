@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { tip } from './Tooltip';
 import { TriggerFireOutcomeBadge } from './TriggerBadges';
 import { useAuth } from '../context/AuthContext';
@@ -93,7 +93,7 @@ export default function TriggerFiresModal({ triggerId, triggerName, onClose }) {
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!page && !error && <p>{t('common.generic.loading')}</p>}
-      {page && items.length === 0 && <p className="text-muted" data-testid="trigger-fires-empty">{t('components.triggerFires.empty')}</p>}
+      {page && items.length === 0 && <EmptyNote data-testid="trigger-fires-empty">{t('components.triggerFires.empty')}</EmptyNote>}
       {items.length > 0 && (
         <table className="data-table compact" data-testid="trigger-fires-table">
           <thead>

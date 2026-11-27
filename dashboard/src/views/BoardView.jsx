@@ -18,7 +18,7 @@ import { OrganizationStatusBadge, SpendBar } from '../components/OrganizationBad
 import { ReportHealthBadge } from '../components/ReportBadges';
 import { EscalationSeverityBadge } from '../components/EscalationBadges';
 import { Badge } from '../components/StatusBadge';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { RefreshIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -59,7 +59,7 @@ function Empty({ text, testId }) {
 }
 
 /**
- * The organization picker for /dashboard/autonomy?tab=board: every organization with a link to its board.
+ * The organization picker for /dashboard/organizations?tab=board: every organization with a link to its board.
  */
 function BoardPicker() {
   const { t } = useTranslation();
@@ -207,7 +207,7 @@ function BoardProposal({ organizationId, proposal, deniedDecide, onDecided }) {
         <div id={regionId} className="board-proposal-diff" data-testid="board-proposal-diff">
           {loading && <div className="text-muted">{t('common.generic.loading')}</div>}
           {detail && <ProposalDiff diff={detail.diff} t={t} />}
-          {detail && !detail.diff && <p className="text-muted">{t('orgProposals.review.noChanges')}</p>}
+          {detail && !detail.diff && <EmptyNote>{t('orgProposals.review.noChanges')}</EmptyNote>}
         </div>
       )}
       <div className="board-proposal-decide">

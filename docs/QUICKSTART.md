@@ -370,7 +370,7 @@ curl -s $API/organizations/$ORG/board -H "Authorization: Bearer $TOKEN" | jq -c 
 curl -s -X POST $API/freezes/$FREEZE/lift -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"reason":"Done"}' | jq -r .active
 ```
 
-The dashboard shows the same organization under Autonomy. To let someone else sit on the board without building anything, assign them the built-in `BoardMember` role scoped to the organization ([BOARD.md](BOARD.md#the-boardmember-role)). When you are done, delete the organization and the keeper:
+The dashboard shows the same organization under Organizations, with its board on the Board tab. To let someone else sit on the board without building anything, assign them the built-in `BoardMember` role scoped to the organization ([BOARD.md](BOARD.md#the-boardmember-role)). When you are done, delete the organization and the keeper:
 
 ```bash
 curl -s -X DELETE $API/organizations/$ORG -H "Authorization: Bearer $TOKEN" -o /dev/null -w "%{http_code}\n"

@@ -8725,7 +8725,7 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "Nessuna modifica: questa revisione dice lo stesso della corrente, quindi non è stata pubblicata e il keeper non si è svegliato."
+  "RevisionUnchanged": "Nessuna modifica: la bozza è uguale all'ultima revisione pubblicata, quindi non è stata pubblicata. Modificala prima di pubblicarla o scartala."
  },
  "components": {
   "keeperRevision": {
@@ -8790,6 +8790,43 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "Ciò che l'harness mette davanti al nome di uno strumento MCP quando lo mostra al modello. Usa {server} per il nome del server, per esempio mcp__{server}__ o {server}. (punto). Lascialo vuoto quando il modello vede i nomi semplici."
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agenti che continuano a lavorare da soli: i custodi si svegliano secondo una pianificazione, si scrivono, inviano report, ricordano e chiedono alle persone quando sono bloccati. I blocchi li fermano."
+   },
+   "organizations": {
+    "label": "Organizzazioni",
+    "tip": "Agenti disposti in un organigramma di unità con responsabili e budget, con il consiglio, le prestazioni per unità e le regole di modifica che consentono ai dirigenti di applicare le proposte."
+   },
+   "evaluations": {
+    "label": "Valutazioni",
+    "tip": "Controlli prima che una modifica arrivi in produzione: set di valutazione e relative esecuzioni, prove ombra accanto all’agente attivo e rilasci canary che spostano il traffico per gradi."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agenti che continuano a lavorare da soli: i custodi si svegliano secondo una pianificazione, si scrivono, inviano report, ricordano e chiedono alle persone quando sono bloccati. I blocchi li fermano.",
+    "organizations": "Agenti disposti in un organigramma di unità con responsabili e budget, con il consiglio, le prestazioni per unità e le regole di modifica che consentono ai dirigenti di applicare le proposte.",
+    "evaluations": "Controlli prima che una modifica arrivi in produzione: set di valutazione e relative esecuzioni, prove ombra accanto all’agente attivo e rilasci canary che spostano il traffico per gradi."
    }
   }
  }

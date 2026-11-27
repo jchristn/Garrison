@@ -8,7 +8,7 @@ import JsonViewerModal from '../components/JsonViewerModal';
 import Explainer from '../components/Explainer';
 import PipelineReviewDecideModal from '../components/PipelineReviewDecideModal';
 import { Badge } from '../components/StatusBadge';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { StopIcon, RetryIcon, CodeIcon, TrashIcon } from '../components/Icons';
 import { PipelineRunStatusBadge, PipelineRunOutcome, PipelineStageStatusBadge, PipelineReviewStatusBadge, PipelineReviewDecisionBadge } from '../components/PipelineBadges';
 import { RunStatus } from './runConfigs';
@@ -328,7 +328,7 @@ export default function PipelineRunDetailView({ recordId }) {
           {t('views.pipelineRunDetail.stagesCount', { count: timeline.length })}
         </h3>
         {timeline.length === 0 ? (
-          <div className="text-muted">{t('views.pipelineRunDetail.noStages')}</div>
+          <EmptyNote>{t('views.pipelineRunDetail.noStages')}</EmptyNote>
         ) : (
           <ol className="pipeline-timeline" data-testid="pipeline-timeline">
             {timeline.map(({ stage, runs, reviews, current }) => (

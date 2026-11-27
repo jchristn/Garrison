@@ -11,7 +11,7 @@ import EvalCaseModal from '../components/EvalCaseModal';
 import EvalRunModal from '../components/EvalRunModal';
 import { EvalDetail, EvalLink, EvalSection } from '../components/EvalDetailParts';
 import { EvalRunStatusBadge, EvalSetStateBadge, EvalVerdictBadge } from '../components/EvalBadges';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { CodeIcon, PlusIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -290,7 +290,7 @@ export default function EvalSetDetailView({ recordId }) {
         }
       >
         {cases.length === 0 ? (
-          <p className="text-muted">{t('evals.setDetail.noCases')}</p>
+          <EmptyNote>{t('evals.setDetail.noCases')}</EmptyNote>
         ) : (
           <div className="table-scroll" tabIndex={0} role="region" aria-label={t('evals.setDetail.cases', { count: cases.length })}>
             <table className="data-table compact" data-testid="eval-cases-table">
@@ -395,7 +395,7 @@ export default function EvalSetDetailView({ recordId }) {
         }
       >
         {runs.length === 0 ? (
-          <p className="text-muted">{t('evals.setDetail.noRuns')}</p>
+          <EmptyNote>{t('evals.setDetail.noRuns')}</EmptyNote>
         ) : (
           <div className="table-scroll" tabIndex={0} role="region" aria-label={t('evals.setDetail.runs')}>
             <table className="data-table compact" data-testid="eval-set-runs-table">

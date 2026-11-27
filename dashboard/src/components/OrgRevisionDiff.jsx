@@ -1,5 +1,6 @@
 import { tip } from './Tooltip';
 import { diffIsEmpty } from '../utils/organizations';
+import { EmptyNote } from './States';
 
 /**
  * What changed between two trees of units (AA7.14), from diffOrgUnits: units added and removed, and for each changed
@@ -8,9 +9,9 @@ import { diffIsEmpty } from '../utils/organizations';
 export default function OrgRevisionDiff({ diff, t, beforeLabel, afterLabel }) {
   if (diffIsEmpty(diff)) {
     return (
-      <p className="text-muted" data-testid="org-diff-empty">
+      <EmptyNote data-testid="org-diff-empty">
         {t('organizations.diff.none')}
-      </p>
+      </EmptyNote>
     );
   }
   const empty = <span className="text-muted">{t('organizations.diff.empty')}</span>;

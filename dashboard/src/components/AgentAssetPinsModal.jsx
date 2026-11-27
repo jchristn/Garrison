@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { tip } from './Tooltip';
 import { PlusIcon, TrashIcon } from './Icons';
 import { useAuth } from '../context/AuthContext';
@@ -106,7 +106,7 @@ export default function AgentAssetPinsModal({ agent, revision, onClose, onSaved 
       <p className="field-hint" data-testid="asset-pins-source">
         {isDraft ? t('components.assets.pinsDraft', { number: revision.number }) : t('components.assets.pinsNewDraft', { number: revision.number })}
       </p>
-      {pins.length === 0 && <p className="text-muted">{t('components.assets.pinsEmpty')}</p>}
+      {pins.length === 0 && <EmptyNote>{t('components.assets.pinsEmpty')}</EmptyNote>}
       {pins.map((p, i) => {
         const taken = chosen(p.key);
         const known = assets.some((a) => a.id === p.assetId);

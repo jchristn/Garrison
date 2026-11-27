@@ -7,7 +7,7 @@ import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Tabs from '../components/Tabs';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { Badge, ActiveBadge } from '../components/StatusBadge';
 import { SendIcon, TrashIcon } from '../components/Icons';
 import { RunStatus } from './runConfigs';
@@ -287,7 +287,7 @@ export default function AgentDetailView({ recordId }) {
         {tab === 'revisions' && <AgentRevisionsPanel agent={agent} onChanged={reloadAgent} />}
         {tab === 'runs' &&
           (runs.length === 0 ? (
-            <div className="text-muted">{t('views.agentDetail.noRuns')}</div>
+            <EmptyNote>{t('views.agentDetail.noRuns')}</EmptyNote>
           ) : (
             <ul className="plain-list">
               {runs.map((r) => (

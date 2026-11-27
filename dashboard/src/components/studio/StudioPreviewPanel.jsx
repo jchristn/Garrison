@@ -8,6 +8,7 @@ import { errorMessage } from '../../utils/errors';
 import { enumLabel } from '../../utils/enums';
 import { formatBytes, formatNumber } from '../../i18n/formatters';
 import { compilePreviewBody, compilePreviewSummary } from '../../utils/studio';
+import { EmptyNote } from '../States';
 
 /**
  * Compile preview before deploy (AD9.3): pick a deployment and, optionally, an agent revision (a draft one included)
@@ -153,7 +154,7 @@ export default function StudioPreviewPanel({ deployments, blocked = '' }) {
             {t('components.studio.preview.assets', { total: summary.assets.length })}
           </h4>
           {summary.assets.length === 0 ? (
-            <div className="text-muted">{t('components.studio.preview.noAssets')}</div>
+            <EmptyNote>{t('components.studio.preview.noAssets')}</EmptyNote>
           ) : (
             <div className="table-scroll">
               <table className="data-table" data-testid="studio-preview-assets">

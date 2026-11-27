@@ -13,6 +13,7 @@ import { pathFor } from '../../config/navConfig';
 import { TERMINAL_RUN_STATUSES } from '../../utils/constants';
 import { errorMessage } from '../../utils/errors';
 import { TURN_POLL_MS, downloadMarkdown, entryAgent, playgroundAgents, playgroundFileName, playgroundMarkdown } from '../../utils/studio';
+import { EmptyNote } from '../States';
 
 /**
  * The playground for a draft (AD9.2): each turn writes the draft's document for the chosen agent (default: the target
@@ -121,7 +122,7 @@ export default function StudioPlaygroundPanel({ draft, graph, blocked = '' }) {
       <p className="text-muted">{t('components.studio.playground.intro')}</p>
       <div className="studio-chat-turns" data-testid="studio-playground-turns">
         {turns.length === 0 ? (
-          <div className="text-muted">{t('components.studio.playground.empty')}</div>
+          <EmptyNote>{t('components.studio.playground.empty')}</EmptyNote>
         ) : (
           turns.map((turn, i) => (
             <div key={turn.runId || i} className="studio-turn" data-playground-turn={i + 1}>

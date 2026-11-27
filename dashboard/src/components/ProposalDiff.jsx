@@ -3,6 +3,7 @@ import { tip } from './Tooltip';
 import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { DIFF_CHANGES, diffChangeTone, itemKey } from '../utils/studio';
+import { EmptyNote } from './States';
 
 /**
  * The diff of an executive's proposal (AA8.12, shared with the board in AA10.4): whether change rules cover it, the
@@ -31,7 +32,7 @@ export default function ProposalDiff({ diff, t }) {
         </div>
       )}
       {(diff.items || []).length === 0 ? (
-        <p className="text-muted">{t('orgProposals.review.noChanges')}</p>
+        <EmptyNote>{t('orgProposals.review.noChanges')}</EmptyNote>
       ) : (
         <div className="table-scroll" tabIndex={0} role="region" aria-label={t('orgProposals.review.columns.item')}>
           <table className="data-table compact" data-testid="org-proposal-changes">

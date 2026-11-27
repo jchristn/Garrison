@@ -6,7 +6,7 @@ import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
 import ReportMetricChart from '../components/ReportMetricChart';
 import { ReportHealthBadge, ReportIssueSeverityBadge } from '../components/ReportBadges';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { CodeIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -192,13 +192,13 @@ export default function ReportDetailView({ recordId }) {
             {r.body}
           </pre>
         ) : (
-          <p className="text-muted">{t('views.reportDetail.noBody')}</p>
+          <EmptyNote>{t('views.reportDetail.noBody')}</EmptyNote>
         )}
       </Section>
 
       <Section id="metrics" t={t} testId="report-metrics-panel">
         {metrics.length === 0 ? (
-          <p className="text-muted">{t('views.reportDetail.noMetrics')}</p>
+          <EmptyNote>{t('views.reportDetail.noMetrics')}</EmptyNote>
         ) : (
           <div className="table-scroll">
             <table className="data-table compact" data-testid="report-metrics">
@@ -229,7 +229,7 @@ export default function ReportDetailView({ recordId }) {
 
       <Section id="issues" t={t} testId="report-issues-panel">
         {issues.length === 0 ? (
-          <p className="text-muted">{t('views.reportDetail.noIssues')}</p>
+          <EmptyNote>{t('views.reportDetail.noIssues')}</EmptyNote>
         ) : (
           <ul className="report-list" data-testid="report-issues">
             {issues.map((issue, i) => (
@@ -244,7 +244,7 @@ export default function ReportDetailView({ recordId }) {
 
       <Section id="decisions" t={t} testId="report-decisions-panel">
         {decisions.length === 0 ? (
-          <p className="text-muted">{t('views.reportDetail.noDecisions')}</p>
+          <EmptyNote>{t('views.reportDetail.noDecisions')}</EmptyNote>
         ) : (
           <ol className="report-list report-decisions" data-testid="report-decisions">
             {decisions.map((d, i) => (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tip } from '../../Tooltip';
 import { formatNumber } from '../../../i18n/formatters';
+import { EmptyNote } from '../../States';
 
 const denied = (reason) => (reason ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {});
 
@@ -111,7 +112,7 @@ export default function OrgUnitPanel({ flow, unit, peer, choices, blocked, onAdd
         })}
       </div>
       {unit.members.length === 0 ? (
-        <div className="text-muted">{t('components.studio.canvas.org.noMembers')}</div>
+        <EmptyNote>{t('components.studio.canvas.org.noMembers')}</EmptyNote>
       ) : (
         <ul className="studio-list" data-testid="studio-unit-members">
           {unit.members.map((m) => (
@@ -183,7 +184,7 @@ export default function OrgUnitPanel({ flow, unit, peer, choices, blocked, onAdd
         {t('components.studio.canvas.org.peers')}
       </div>
       {peers.length === 0 ? (
-        <div className="text-muted">{t('components.studio.canvas.org.noPeers')}</div>
+        <EmptyNote>{t('components.studio.canvas.org.noPeers')}</EmptyNote>
       ) : (
         <ul className="studio-list">
           {peers.map((p) => {

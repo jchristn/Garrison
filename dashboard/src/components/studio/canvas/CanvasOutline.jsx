@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { tip } from '../../Tooltip';
 import { edgeSentence, graphSummary } from '../../../utils/studioCanvas';
+import { EmptyNote } from '../../States';
 
 /**
  * The canvas in words (AD8.6), under the drawing: the counts and the entry agent, then each call as a button, which
@@ -30,7 +31,7 @@ export default function CanvasOutline({ summaryId, flow, selection, blocked, onS
         {t('components.studio.canvas.calls', { total: flow.edges.length })}
       </div>
       {flow.edges.length === 0 ? (
-        <div className="text-muted">{t('components.studio.canvas.noCalls')}</div>
+        <EmptyNote>{t('components.studio.canvas.noCalls')}</EmptyNote>
       ) : (
         <ul className="studio-list" aria-labelledby={`${summaryId}-calls`}>
           {flow.edges.map((edge, i) => {

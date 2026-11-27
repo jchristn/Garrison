@@ -6,7 +6,7 @@ import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
 import SendMessageModal from '../components/SendMessageModal';
 import { MessageRejectionBadge, MessageStatusBadge, MessageUrgencyBadge } from '../components/MessageBadges';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { CodeIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -112,7 +112,7 @@ function ThreadMessage({ m, t, lng, picked, canReply, replyDenied, onReply }) {
           {m.body}
         </pre>
       ) : (
-        <p className="text-muted">{t('views.messageThread.noBody')}</p>
+        <EmptyNote>{t('views.messageThread.noBody')}</EmptyNote>
       )}
       {artifacts.length > 0 && (
         <ul className="message-artifacts" aria-label={t('views.messageThread.artifacts')} data-testid="thread-artifacts">

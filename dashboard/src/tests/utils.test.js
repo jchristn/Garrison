@@ -178,8 +178,9 @@ describe('principal and routes', () => {
   it('keeps the sidebar small and redirects every pre-hub route', () => {
     expect(HUBS.length).toBeGreaterThanOrEqual(7);
     // Count visible TOC entries; import/export is opened by an action rather than another sidebar entry. AA1.16 added
-    // the Autonomy group, which later autonomy pages join as tabs instead of new sidebar entries.
-    expect(HUBS.filter((hub) => !hub.hidden).length).toBeLessThanOrEqual(14);
+    // Autonomy, and AA13 split Organizations and Evaluations out of it so no hub carries more than eight tabs.
+    expect(HUBS.filter((hub) => !hub.hidden).length).toBeLessThanOrEqual(16);
+    for (const hub of HUBS) expect((hub.tabs || []).filter((tab) => !tab.hidden).length, hub.key).toBeLessThanOrEqual(8);
     const hubSlugs = new Set(HUBS.map((h) => h.slug));
     for (const p of PAGES) {
       const covered = hubSlugs.has(p.slug) || LEGACY_REDIRECTS.some((r) => r.from === p.slug);

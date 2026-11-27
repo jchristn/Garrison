@@ -11,7 +11,7 @@ import GrafanaLink from '../components/GrafanaLink';
 import { useGrafana } from '../hooks/useServerInfo';
 import { dashboardUrl } from '../utils/grafana';
 import { Badge } from '../components/StatusBadge';
-import { EmptyState } from '../components/States';
+import { EmptyNote, EmptyState } from '../components/States';
 import { SendIcon, BotIcon, FileCodeIcon, PlayIcon, ListIcon, CpuIcon, ChartIcon } from '../components/Icons';
 import { RunStatus } from './runConfigs';
 import { ControlNodeStatus, LeaderBadge, HeartbeatAge } from '../components/ControlNodeBadges';
@@ -211,9 +211,9 @@ export default function HomeView() {
               </a>
             </div>
             {!overview ? null : overview.controlNodes === null ? (
-              <p className="text-muted">{t('views.home.controlNodesUnavailable')}</p>
+              <EmptyNote>{t('views.home.controlNodesUnavailable')}</EmptyNote>
             ) : (overview?.controlNodes || []).length === 0 ? (
-              <p className="text-muted">{t('views.home.noControlNodes')}</p>
+              <EmptyNote>{t('views.home.noControlNodes')}</EmptyNote>
             ) : (
               <ul className="node-list">
                 {[...overview.controlNodes].sort((x, y) => Number(!!y.isLeader) - Number(!!x.isLeader) || String(x.name).localeCompare(String(y.name))).slice(0, 8).map((n) => (
@@ -261,7 +261,7 @@ export default function HomeView() {
             {t('views.home.recentFailures')}
           </h2>
           {(overview?.recentFailures || []).length === 0 ? (
-            <p className="text-muted">{t('views.home.noFailures')}</p>
+            <EmptyNote>{t('views.home.noFailures')}</EmptyNote>
           ) : (
             <ul className="plain-list">
               {overview.recentFailures.map((r) => (

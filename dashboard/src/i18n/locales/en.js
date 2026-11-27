@@ -8699,7 +8699,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "Nothing changed: this revision says the same as the current one, so it was not published and the keeper did not wake."
+  "RevisionUnchanged": "Nothing changed, so nothing was published. The draft is the same as the latest published revision. Change it before publishing, or discard it."
  },
  "components": {
   "keeperRevision": {
@@ -8764,6 +8764,43 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "What the harness puts before an MCP tool's name when it shows the tool to the model. Use {server} for the server name, for example mcp__{server}__ or {server}. (dot). Leave it empty when the model sees plain tool names."
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agents that keep working on their own: keepers wake on a schedule, write to each other, file reports, remember, and ask people when they are stuck. Freezes stop them."
+   },
+   "organizations": {
+    "label": "Organizations",
+    "tip": "Agents arranged as a chart of units with leads and budgets, with the board, performance by unit, and the change rules that let executives apply proposals."
+   },
+   "evaluations": {
+    "label": "Evaluations",
+    "tip": "Checks before a change reaches production: eval sets and their runs, shadow trials beside the live agent, and canary releases that move traffic in steps."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agents that keep working on their own: keepers wake on a schedule, write to each other, file reports, remember, and ask people when they are stuck. Freezes stop them.",
+    "organizations": "Agents arranged as a chart of units with leads and budgets, with the board, performance by unit, and the change rules that let executives apply proposals.",
+    "evaluations": "Checks before a change reaches production: eval sets and their runs, shadow trials beside the live agent, and canary releases that move traffic in steps."
    }
   }
  }

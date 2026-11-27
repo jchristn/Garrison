@@ -8,6 +8,7 @@ import { readStored, writeStored } from '../../../utils/studio';
 import { absoluteX, canvasOrganizations, defaultOrganization, layoutOrg, orgSummary, orgToFlow, parsePeerId, peerId, unitAgentChoices, unitHeaderHeight, unitLabel } from '../../../utils/orgCanvas';
 import CanvasUnitNode from './CanvasUnitNode';
 import OrgUnitPanel from './OrgUnitPanel';
+import { EmptyNote } from '../../States';
 
 const NODE_TYPES = { unit: CanvasUnitNode };
 const denied = (reason) => (reason ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {});
@@ -447,9 +448,9 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
         </details>
       </div>
       {!organization ? (
-        <div className="text-muted" data-testid="studio-org-empty">
+        <EmptyNote data-testid="studio-org-empty">
           {t('components.studio.canvas.org.none')}
-        </div>
+        </EmptyNote>
       ) : (
         <div className="studio-canvas-layout">
           <div className="studio-canvas-main">
@@ -526,7 +527,7 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
                 })}
               </div>
               {flow.peers.length === 0 ? (
-                <div className="text-muted">{t('components.studio.canvas.org.noPeerLines')}</div>
+                <EmptyNote>{t('components.studio.canvas.org.noPeerLines')}</EmptyNote>
               ) : (
                 <ul className="studio-list" aria-labelledby={`${summaryId}-peers`}>
                   {flow.peers.map((p, i) => {

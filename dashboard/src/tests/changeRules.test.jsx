@@ -76,8 +76,8 @@ const click = (el) => act(() => el.click());
 
 describe('navigation and enums', () => {
   it('puts Change rules under Autonomy', () => {
-    expect(findPage('changeRules')).toMatchObject({ hub: 'autonomy', tab: 'change-rules' });
-    expect(pathFor('changeRules')).toBe('/dashboard/autonomy?tab=change-rules');
+    expect(findPage('changeRules')).toMatchObject({ hub: 'organizations', tab: 'change-rules' });
+    expect(pathFor('changeRules')).toBe('/dashboard/organizations?tab=change-rules');
     expect(PAGE_VIEWS.changeRules).toBeTruthy();
   });
 

@@ -8725,7 +8725,7 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "Rien n'a changé : cette révision dit la même chose que l'actuelle, elle n'a donc pas été publiée et le keeper ne s'est pas réveillé."
+  "RevisionUnchanged": "Rien n'a changé : le brouillon est identique à la dernière révision publiée, il n'a donc pas été publié. Modifiez-le avant de le publier, ou supprimez-le."
  },
  "components": {
   "keeperRevision": {
@@ -8790,6 +8790,43 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "Ce que le harness place devant le nom d'un outil MCP quand il le présente au modèle. Utilisez {server} pour le nom du serveur, par exemple mcp__{server}__ ou {server}. (point). Laissez vide quand le modèle voit les noms simples."
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Des agents qui continuent à travailler seuls : les gardiens se réveillent selon un calendrier, s’écrivent, déposent des rapports, se souviennent et demandent de l’aide aux personnes quand ils sont bloqués. Les gels les arrêtent."
+   },
+   "organizations": {
+    "label": "Organisations",
+    "tip": "Des agents organisés en organigramme d’unités avec responsables et budgets, avec le conseil, la performance par unité et les règles de changement qui permettent aux dirigeants d’appliquer des propositions."
+   },
+   "evaluations": {
+    "label": "Évaluations",
+    "tip": "Des vérifications avant qu’un changement n’atteigne la production : jeux d’évaluation et leurs exécutions, essais fantômes à côté de l’agent en service et déploiements canary qui déplacent le trafic par étapes."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Des agents qui continuent à travailler seuls : les gardiens se réveillent selon un calendrier, s’écrivent, déposent des rapports, se souviennent et demandent de l’aide aux personnes quand ils sont bloqués. Les gels les arrêtent.",
+    "organizations": "Des agents organisés en organigramme d’unités avec responsables et budgets, avec le conseil, la performance par unité et les règles de changement qui permettent aux dirigeants d’appliquer des propositions.",
+    "evaluations": "Des vérifications avant qu’un changement n’atteigne la production : jeux d’évaluation et leurs exécutions, essais fantômes à côté de l’agent en service et déploiements canary qui déplacent le trafic par étapes."
    }
   }
  }

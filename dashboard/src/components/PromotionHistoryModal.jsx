@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { PromotionKindBadge, PromotionOutcomeBadge } from './RevisionBadges';
 import { Badge } from './StatusBadge';
 import { tip } from './Tooltip';
@@ -128,7 +128,7 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
       {records === null ? (
         <LoadingState />
       ) : records.length === 0 ? (
-        <p className="text-muted">{t('components.promotions.empty')}</p>
+        <EmptyNote>{t('components.promotions.empty')}</EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="promotions-table">

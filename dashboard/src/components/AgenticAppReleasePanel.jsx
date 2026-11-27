@@ -4,7 +4,7 @@ import ConfirmModal from './ConfirmModal';
 import AgenticAppPromoteModal from './AgenticAppPromoteModal';
 import AgenticAppShare from './AgenticAppShare';
 import { Badge } from './StatusBadge';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { PromotionKindBadge, PromotionOutcomeBadge } from './RevisionBadges';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -281,9 +281,9 @@ export default function AgenticAppReleasePanel({ app, permissions = null, onChan
       {records === null ? (
         <LoadingState />
       ) : records.length === 0 ? (
-        <p className="text-muted" data-testid="app-release-history-empty">
+        <EmptyNote data-testid="app-release-history-empty">
           {t('components.apps.release.historyEmpty')}
-        </p>
+        </EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="app-release-history">

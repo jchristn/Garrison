@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import CodeBlock from './CodeBlock';
-import { LoadingState, ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { Badge } from './StatusBadge';
 import { tip } from './Tooltip';
 import { errorMessage } from '../utils/errors';
@@ -29,7 +29,7 @@ export default function EffectivePermissionsModal({ load, title, onClose }) {
       {data && (
         <>
           {grants.length === 0 ? (
-            <p className="text-muted">{t('components.permissions.none')}</p>
+            <EmptyNote>{t('components.permissions.none')}</EmptyNote>
           ) : (
             <div className="table-scroll">
               <table className="data-table">

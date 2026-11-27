@@ -92,9 +92,9 @@ function client(b = board(1)) {
 }
 
 describe('navigation', () => {
-  it('has the Board tab under Autonomy with a detail route', () => {
+  it('has the Board tab under Organizations with a detail route', () => {
     const p = findPage('board');
-    expect(p.hub).toBe('autonomy');
+    expect(p.hub).toBe('organizations');
     expect(p.detail).toBe(true);
     expect(pathFor('board', 'org_0001')).toBe('/dashboard/board/org_0001');
     expect(PAGE_VIEWS.board).toBe(BoardView);

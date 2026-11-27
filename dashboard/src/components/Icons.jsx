@@ -473,6 +473,28 @@ export function AutonomyIcon({ size = 18 }) {
   );
 }
 
+/** An org chart: one lead box over two units (Organizations). */
+export function OrganizationIcon({ size = 18 }) {
+  return (
+    <svg {...base(size)}>
+      <rect x="9" y="3" width="6" height="5" rx="1" />
+      <rect x="3" y="16" width="6" height="5" rx="1" />
+      <rect x="15" y="16" width="6" height="5" rx="1" />
+      <path d="M12 8v4M6 16v-4h12v4" />
+    </svg>
+  );
+}
+
+/** A flask with a check mark: changes tested before they ship (Evaluations). */
+export function EvaluationIcon({ size = 18 }) {
+  return (
+    <svg {...base(size)}>
+      <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3" />
+      <path d="M9.5 15.5l1.8 1.8 3.2-3.6" />
+    </svg>
+  );
+}
+
 /** A small alarm bell: wake a keeper now. */
 export function WakeIcon({ size = 16 }) {
   return (

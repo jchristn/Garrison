@@ -10,7 +10,7 @@ import NamedId from '../components/NamedId';
 import Explainer from '../components/Explainer';
 import Tabs from '../components/Tabs';
 import ConversationFilesPanel from '../components/ConversationFilesPanel';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { SendIcon, TrashIcon, CodeIcon } from '../components/Icons';
 import { RunStatus, ConversationState, FallbackReason, TurnSession, conversationTitle } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
@@ -270,7 +270,7 @@ export default function ConversationDetailView({ recordId }) {
               {t('views.conversationDetail.turnsCount', { count: turns.length })}
             </h3>
             {turns.length === 0 ? (
-              <div className="text-muted">{t('views.conversationDetail.noTurns')}</div>
+              <EmptyNote>{t('views.conversationDetail.noTurns')}</EmptyNote>
             ) : (
               <div className="table-scroll">
                 <table className="data-table" data-testid="conversation-turns">

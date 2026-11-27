@@ -8658,7 +8658,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "冇改到嘢：呢個修訂同而家嘅一樣，所以冇發佈，keeper 亦冇喚醒。"
+  "RevisionUnchanged": "冇改到嘢：草稿同最新發佈嘅修訂一樣，所以冇發佈。發佈之前改一改，或者捨棄佢。"
  },
  "components": {
   "keeperRevision": {
@@ -8723,6 +8723,43 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "harness 向模型顯示 MCP 工具時加喺工具名稱前面嘅字。用 {server} 代表伺服器名稱，例如 mcp__{server}__ 或者 {server}.（點）。如果模型睇到嘅係原本嘅工具名稱，就留空。"
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "會自己繼續做嘢嘅代理：守護者按時間表醒嚟，互相寫信，提交報告，記住嘢，卡住嗰陣問人。凍結可以令佢哋停低。"
+   },
+   "organizations": {
+    "label": "組織",
+    "tip": "以單位組織圖排列嘅代理，每個單位有負責人同預算，包括董事會、按單位嘅表現，同埋俾管理層代理套用提案嘅變更規則。"
+   },
+   "evaluations": {
+    "label": "評估",
+    "tip": "變更上線之前嘅檢查：評估集同佢哋嘅執行、喺現行代理旁邊嘅影子試驗，同埋逐步轉移流量嘅金絲雀發佈。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "會自己繼續做嘢嘅代理：守護者按時間表醒嚟，互相寫信，提交報告，記住嘢，卡住嗰陣問人。凍結可以令佢哋停低。",
+    "organizations": "以單位組織圖排列嘅代理，每個單位有負責人同預算，包括董事會、按單位嘅表現，同埋俾管理層代理套用提案嘅變更規則。",
+    "evaluations": "變更上線之前嘅檢查：評估集同佢哋嘅執行、喺現行代理旁邊嘅影子試驗，同埋逐步轉移流量嘅金絲雀發佈。"
    }
   }
  }

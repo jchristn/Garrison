@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { Badge } from './StatusBadge';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { RefreshIcon } from './Icons';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -119,7 +119,7 @@ export default function CapabilityRefreshModal({ onClose, onDone }) {
             {item('failed', totals.failed)}
           </div>
           {totals.servers === 0 ? (
-            <p className="text-muted">{t('components.capabilities.refresh.noServers')}</p>
+            <EmptyNote>{t('components.capabilities.refresh.noServers')}</EmptyNote>
           ) : (
             <div className="table-scroll">
               <table className="data-table" data-testid="capability-refresh-servers">

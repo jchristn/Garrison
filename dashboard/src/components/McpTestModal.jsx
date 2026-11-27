@@ -49,15 +49,15 @@ export default function McpTestModal({ load, loadNodes = null, name, onClose }) 
   return (
     <Modal open size="large" onClose={onClose} title={t('components.mcpTest.title')} headerMeta={name}>
       {loadNodes && (
-        <div className="form-field">
+        <div className="field">
           <label htmlFor="mcp-test-worker">{t('components.mcpTest.worker')}</label>
           <select id="mcp-test-worker" value={nodeId} disabled={running} onChange={(e) => setNodeId(e.target.value)} {...tip(t('components.mcpTest.chooseWorker'))}>
             <option value="">{t('components.mcpTest.worker')}</option>
             {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
           </select>
-          <p className="text-muted">{t('components.mcpTest.chooseWorker')}</p>
+          <p className="field-hint">{t('components.mcpTest.chooseWorker')}</p>
           {nodesLoaded && nodes.length === 0 && <p className="text-muted" data-testid="mcp-test-no-workers">{t('components.mcpTest.noWorkers')}</p>}
-          <button type="button" className="btn btn-primary" disabled={!nodeId || running} onClick={run} {...tip(t('components.mcpTest.chooseWorker'))}>{t('components.mcpTest.runTest')}</button>
+          <button type="button" className="button-primary mcp-test-run" disabled={!nodeId || running} onClick={run} {...tip(t('components.mcpTest.chooseWorker'))}>{t('components.mcpTest.runTest')}</button>
         </div>
       )}
       {running && <LoadingState label={t('components.mcpTest.testing')} />}

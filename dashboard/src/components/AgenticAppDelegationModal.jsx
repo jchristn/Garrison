@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import Modal from './Modal';
 import { Badge } from './StatusBadge';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -193,7 +193,7 @@ export default function AgenticAppDelegationModal({ app, deniedTip = '', onClose
               </table>
             </div>
           ) : (
-            <div className="text-muted">{t('components.apps.delegation.empty')}</div>
+            <EmptyNote>{t('components.apps.delegation.empty')}</EmptyNote>
           )}
           {plan.applied && summary.drafts > 0 && <p className="field-hint">{t('components.apps.delegation.review')}</p>}
         </>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorBanner } from '../States';
+import { EmptyNote, ErrorBanner } from '../States';
 import { PlusIcon, SendIcon } from '../Icons';
 import { tip } from '../Tooltip';
 import ChatTurn from './ChatTurn';
@@ -197,7 +197,7 @@ export default function StudioChatPanel({ draft, architects, architectId, onArch
       })()}
       <div className="studio-chat-turns chat-transcript" data-testid="studio-chat-turns" ref={turnsRef} onScroll={onTurnsScroll}>
         {shownTurns.length === 0 ? (
-          <div className="text-muted">{t(architect ? 'components.studio.chat.empty' : 'components.studio.chat.pickFirst')}</div>
+          <EmptyNote>{t(architect ? 'components.studio.chat.empty' : 'components.studio.chat.pickFirst')}</EmptyNote>
         ) : (
           shownTurns.map((r) => <ChatTurn key={r.id} run={r} live={live[r.id] || null} architectName={architect?.name || ''} />)
         )}

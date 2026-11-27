@@ -13,7 +13,7 @@ import TimeSeriesChart from '../components/TimeSeriesChart';
 import KeeperRevisionModal from '../components/KeeperRevisionModal';
 import { MandateStatusBadge, TickOutcomeBadge } from '../components/KeeperBadges';
 import { Badge } from '../components/StatusBadge';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { CodeIcon, TrashIcon, PlayIcon, PauseIcon, WakeIcon, PlusIcon, ListIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -424,7 +424,7 @@ export default function KeeperDetailView({ recordId }) {
           {rev ? t('views.keeperDetail.revisionHeading', { number: rev.number }) : t('views.keeperDetail.revisionTitle')}
         </h3>
         {!rev ? (
-          <div className="text-muted">{t('views.keeperDetail.noRevision')}</div>
+          <EmptyNote>{t('views.keeperDetail.noRevision')}</EmptyNote>
         ) : (
           <>
             <RevisionText label={t('resources.keepers.fields.objective')} tipText={t('tips.resources.keepers.objective')} value={rev.objective} testId="keeper-objective" />
@@ -567,7 +567,7 @@ export default function KeeperDetailView({ recordId }) {
           {t('views.keeperDetail.revisions')}
         </h3>
         {revisions.length === 0 ? (
-          <div className="text-muted">{t('views.keeperDetail.noRevisions')}</div>
+          <EmptyNote>{t('views.keeperDetail.noRevisions')}</EmptyNote>
         ) : (
           <div className="table-scroll">
             <table className="data-table compact" data-testid="keeper-revisions-table">

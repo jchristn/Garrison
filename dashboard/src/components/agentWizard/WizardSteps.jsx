@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { FormField } from '../FormFields';
-import { ErrorBanner, LoadingState } from '../States';
+import { EmptyNote, ErrorBanner, LoadingState } from '../States';
 import { Badge } from '../StatusBadge';
 import { SendIcon, ChevronRightIcon } from '../Icons';
 import { tip } from '../Tooltip';
@@ -201,7 +201,7 @@ function DraftContents({ draft }) {
     <aside className="wizard-contents" data-testid="wizard-contents" aria-label={t('views.agentWizard.design.contents')}>
       <div className="form-section-title">{t('views.agentWizard.design.contents')}</div>
       {Object.keys(counts).length === 0 ? (
-        <p className="text-muted">{t('views.agentWizard.design.empty')}</p>
+        <EmptyNote>{t('views.agentWizard.design.empty')}</EmptyNote>
       ) : (
         <>
           <ul className="wizard-list wizard-counts">
@@ -633,7 +633,7 @@ export function TestStep({ draft, state, update, go }) {
       <StepIntro name="test" />
       {target && <p className="text-muted">{t('views.agentWizard.test.talkingTo', { name: target.agent.name })}</p>}
       <div className="chat-transcript" ref={turnsRef} onScroll={onTurnsScroll} data-testid="wizard-test-turns">
-        {turns.length === 0 ? <div className="text-muted">{t('views.agentWizard.test.empty')}</div> : turns.map((r) => <ChatTurn key={r.id} run={r} live={live[r.id] || null} architectName={target?.agent.name || ''} />)}
+        {turns.length === 0 ? <EmptyNote>{t('views.agentWizard.test.empty')}</EmptyNote> : turns.map((r) => <ChatTurn key={r.id} run={r} live={live[r.id] || null} architectName={target?.agent.name || ''} />)}
       </div>
       <div className="field">
         <label htmlFor="wizard-test-message" {...tip(t('tips.views.agentWizard.test.message'))}>

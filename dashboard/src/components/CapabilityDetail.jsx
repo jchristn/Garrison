@@ -10,6 +10,7 @@ import { translateServerText } from '../utils/serverText';
 import { formatCurrency, formatDateTime, formatDuration, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { hintsKnown, isDerived, isShared, lockedReasonKey, requirementText, sourceOf } from '../utils/capabilities';
 import { jsonToText } from '../utils/jsonFields';
+import { EmptyNote } from './States';
 
 /**
  * Where a capability comes from, as links (AD4.8): an Agent entry links to the agent's page; an McpTool entry links to
@@ -202,7 +203,7 @@ export default function CapabilityDetail({ descriptor, lookups = {} }) {
           ))}
         </ul>
       ) : (
-        <p className="text-muted">{t('components.capabilities.noRequirements')}</p>
+        <EmptyNote>{t('components.capabilities.noRequirements')}</EmptyNote>
       )}
 
       <div className="field">

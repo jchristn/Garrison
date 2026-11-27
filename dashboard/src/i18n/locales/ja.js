@@ -8658,7 +8658,7 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "変更はありません。このリビジョンは現在のものと同じ内容のため、公開されず、キーパーも起動しませんでした。"
+  "RevisionUnchanged": "変更はありません。下書きは最新の公開リビジョンと同じ内容のため、公開されませんでした。公開する前に変更するか、破棄してください。"
  },
  "components": {
   "keeperRevision": {
@@ -8723,6 +8723,43 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "ハーネスが MCP ツールをモデルに示すとき、ツール名の前に付ける文字列です。サーバー名には {server} を使います。例: mcp__{server}__ や {server}.(ドット)。モデルがそのままのツール名を見る場合は空にします。"
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "自律して働き続けるエージェント。キーパーはスケジュールで起動し、互いにメッセージを送り、レポートを提出し、記憶し、行き詰まると人に尋ねます。凍結で停止できます。"
+   },
+   "organizations": {
+    "label": "組織",
+    "tip": "リーダーと予算を持つユニットの組織図として配置されたエージェント。ボード、ユニット別のパフォーマンス、エグゼクティブが提案を適用できる変更ルールを扱います。"
+   },
+   "evaluations": {
+    "label": "評価",
+    "tip": "変更が本番に届く前の確認。評価セットとその実行、稼働中のエージェントと並ぶシャドートライアル、トラフィックを段階的に移すカナリアリリースを扱います。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "自律して働き続けるエージェント。キーパーはスケジュールで起動し、互いにメッセージを送り、レポートを提出し、記憶し、行き詰まると人に尋ねます。凍結で停止できます。",
+    "organizations": "リーダーと予算を持つユニットの組織図として配置されたエージェント。ボード、ユニット別のパフォーマンス、エグゼクティブが提案を適用できる変更ルールを扱います。",
+    "evaluations": "変更が本番に届く前の確認。評価セットとその実行、稼働中のエージェントと並ぶシャドートライアル、トラフィックを段階的に移すカナリアリリースを扱います。"
    }
   }
  }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import { Badge } from './StatusBadge';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -91,9 +91,9 @@ export default function ConversationFileVersionsModal({ conversationId, file, do
         {versions === null ? (
           <LoadingState />
         ) : versions.length === 0 ? (
-          <p className="text-muted" data-testid="file-versions-empty">
+          <EmptyNote data-testid="file-versions-empty">
             {t('components.files.noVersions')}
-          </p>
+          </EmptyNote>
         ) : (
           <div className="table-scroll">
             <table className="data-table" data-testid="file-version-list">
@@ -179,7 +179,7 @@ export default function ConversationFileVersionsModal({ conversationId, file, do
                 <pre data-testid="file-preview-text">{preview.text}</pre>
               </div>
             ) : (
-              <p className="text-muted">{t('components.files.emptyFile')}</p>
+              <EmptyNote>{t('components.files.emptyFile')}</EmptyNote>
             )}
           </div>
         )}

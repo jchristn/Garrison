@@ -9,6 +9,7 @@ import { enumLabel } from '../../../utils/enums';
 import { draftDeployments, fieldError, liveDeployments } from '../../../utils/studioCanvas';
 import { ManifestYamlError, extractDocument, readDeploymentFields, runtimeErrors, writeDeploymentFields } from '../../../utils/manifestYaml';
 import { PanelActions, PanelErrors, PanelField, diffFailure, useItemForm } from './panelParts';
+import { EmptyNote } from '../../States';
 
 const TEXT_FIELDS = ['model', 'effort'];
 const NUMBER_FIELDS = ['timeoutSeconds', 'maxTurns', 'maxBudgetUsd'];
@@ -56,7 +57,7 @@ export default function RuntimePanel({ agent, draft, diff, agents, deployments, 
         {t('components.studio.canvas.runtime.title', { name: agent })}
       </h4>
       {held.length === 0 ? (
-        <p className="text-muted">{t('components.studio.canvas.runtime.none', { name: agent })}</p>
+        <EmptyNote>{t('components.studio.canvas.runtime.none', { name: agent })}</EmptyNote>
       ) : (
         <>
           <PanelField id="studio-runtime-deployment" label={t('components.studio.canvas.runtime.deployment')} tipText={t('tips.studio.canvas.runtime.deployment')}>
@@ -75,7 +76,7 @@ export default function RuntimePanel({ agent, draft, diff, agents, deployments, 
         {t('components.studio.canvas.runtime.live')}
       </div>
       {live.length === 0 ? (
-        <div className="text-muted">{t('components.studio.canvas.runtime.noLive')}</div>
+        <EmptyNote>{t('components.studio.canvas.runtime.noLive')}</EmptyNote>
       ) : (
         <ul className="studio-list" data-testid="studio-runtime-live">
           {live.map((d) => (
@@ -192,7 +193,7 @@ function RuntimeForm({ item, diff, blocked, onSave }) {
         </select>
       </PanelField>
       <div className="field span-full">
-        {form.approvalRules.length === 0 && <div className="text-muted">{t('components.studio.canvas.runtime.noRules')}</div>}
+        {form.approvalRules.length === 0 && <EmptyNote>{t('components.studio.canvas.runtime.noRules')}</EmptyNote>}
         {form.approvalRules.map((r, i) => (
           <div key={i} className="studio-canvas-row" data-rule-row={i}>
             <label htmlFor={`studio-rule-action-${i}`} className="sr-only" {...tip(t('tips.studio.canvas.runtime.rule.action'))}>

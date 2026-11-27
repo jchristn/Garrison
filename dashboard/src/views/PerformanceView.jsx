@@ -62,7 +62,7 @@ function MetricCells({ metrics, t, lng }) {
   ));
 }
 
-/** The organization picker for /dashboard/autonomy?tab=performance. */
+/** The organization picker for /dashboard/organizations?tab=performance. */
 function PerformancePicker() {
   const { t } = useTranslation();
   const { apiClient } = useAuth();

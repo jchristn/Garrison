@@ -9,7 +9,7 @@ import DiffViewer from '../components/DiffViewer';
 import EvalReasonModal from '../components/EvalReasonModal';
 import { EvalDetail, EvalLink, EvalSection } from '../components/EvalDetailParts';
 import { EvalResultBadge, EvalRunStatusBadge, EvalVerdictBadge } from '../components/EvalBadges';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { CodeIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -109,7 +109,7 @@ function EvalResultModal({ result, item, onClose }) {
             {t('evals.runDetail.checks')}
           </div>
           {checks.length === 0 ? (
-            <p className="text-muted">{t('evals.runDetail.noChecks')}</p>
+            <EmptyNote>{t('evals.runDetail.noChecks')}</EmptyNote>
           ) : (
             <div className="table-scroll" tabIndex={0} role="region" aria-label={t('evals.runDetail.checks')}>
               <table className="data-table compact" data-testid="eval-result-checks">
@@ -354,7 +354,7 @@ export default function EvalRunDetailView({ recordId }) {
         }
       >
         {rows.length === 0 ? (
-          <p className="text-muted">{state.results.length ? t('evals.runDetail.noFailing') : t(finished ? 'evals.runDetail.noResults' : 'evals.runDetail.waiting')}</p>
+          <EmptyNote>{state.results.length ? t('evals.runDetail.noFailing') : t(finished ? 'evals.runDetail.noResults' : 'evals.runDetail.waiting')}</EmptyNote>
         ) : (
           <div className="table-scroll" tabIndex={0} role="region" aria-label={t('evals.runDetail.results', { count: state.results.length })}>
             <table className="data-table compact" data-testid="eval-results-table">

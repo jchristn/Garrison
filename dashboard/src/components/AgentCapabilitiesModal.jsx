@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { Badge } from './StatusBadge';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { PlusIcon, TrashIcon } from './Icons';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -98,7 +98,7 @@ export default function AgentCapabilitiesModal({ agent, revision, onClose, onSav
         {isDraft ? t('components.capabilities.draftEdit', { number: revision.number }) : t('components.capabilities.draftNew', { number: revision.number })}
       </p>
       <p className="field-hint">{t('components.capabilities.draftPlacementHint')}</p>
-      {names.length === 0 && <p className="text-muted">{t('components.capabilities.draftEmpty')}</p>}
+      {names.length === 0 && <EmptyNote>{t('components.capabilities.draftEmpty')}</EmptyNote>}
       <div data-testid="revision-capability-list">
         {names.map((name) => {
           const kinds = kindsOf(name);

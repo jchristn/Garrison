@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ChatTurn from './studio/ChatTurn';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { SendIcon, PlusIcon } from './Icons';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -107,7 +107,7 @@ export default function BoardCeoChat({ organizationId, ceo, denied = '' }) {
         </div>
       )}
       <div className="chat-transcript board-ceo-transcript" ref={turnsRef} onScroll={onTurnsScroll} role="log" aria-live="polite" aria-label={t('board.ceoChat.transcript')} data-testid="board-ceo-turns">
-        {turns.length === 0 ? <div className="text-muted">{t('board.ceoChat.empty')}</div> : turns.map((r) => <ChatTurn key={r.id} run={r} live={live[r.id] || null} architectName={ceo?.agentName || ''} />)}
+        {turns.length === 0 ? <EmptyNote>{t('board.ceoChat.empty')}</EmptyNote> : turns.map((r) => <ChatTurn key={r.id} run={r} live={live[r.id] || null} architectName={ceo?.agentName || ''} />)}
       </div>
       <div className="field">
         <label htmlFor="board-ceo-message" {...tip(t('tips.board.ceoChat.message'))}>

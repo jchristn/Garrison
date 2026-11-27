@@ -8711,7 +8711,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "Nichts geändert: Diese Revision sagt dasselbe wie die aktuelle, daher wurde sie nicht veröffentlicht und der Keeper nicht geweckt."
+  "RevisionUnchanged": "Nichts geändert: Der Entwurf entspricht der zuletzt veröffentlichten Revision, daher wurde er nicht veröffentlicht. Ändern Sie ihn vor dem Veröffentlichen oder verwerfen Sie ihn."
  },
  "components": {
   "keeperRevision": {
@@ -8776,6 +8776,43 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "Was das Harness vor den Namen eines MCP-Tools setzt, wenn es das Tool dem Modell zeigt. {server} steht für den Servernamen, zum Beispiel mcp__{server}__ oder {server}. (Punkt). Leer lassen, wenn das Modell einfache Toolnamen sieht."
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agenten, die selbstständig weiterarbeiten: Keeper wachen nach Zeitplan auf, schreiben einander, reichen Berichte ein, merken sich Dinge und fragen Menschen, wenn sie nicht weiterkommen. Sperren halten sie an."
+   },
+   "organizations": {
+    "label": "Organisationen",
+    "tip": "Agenten als Organigramm aus Einheiten mit Leitungen und Budgets, mit dem Board, der Leistung je Einheit und den Änderungsregeln, mit denen Führungsagenten Vorschläge anwenden."
+   },
+   "evaluations": {
+    "label": "Evaluierungen",
+    "tip": "Prüfungen, bevor eine Änderung in Produktion geht: Eval-Sets und ihre Läufe, Schattentests neben dem laufenden Agenten und Canary-Releases, die den Verkehr schrittweise verlagern."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agenten, die selbstständig weiterarbeiten: Keeper wachen nach Zeitplan auf, schreiben einander, reichen Berichte ein, merken sich Dinge und fragen Menschen, wenn sie nicht weiterkommen. Sperren halten sie an.",
+    "organizations": "Agenten als Organigramm aus Einheiten mit Leitungen und Budgets, mit dem Board, der Leistung je Einheit und den Änderungsregeln, mit denen Führungsagenten Vorschläge anwenden.",
+    "evaluations": "Prüfungen, bevor eine Änderung in Produktion geht: Eval-Sets und ihre Läufe, Schattentests neben dem laufenden Agenten und Canary-Releases, die den Verkehr schrittweise verlagern."
    }
   }
  }

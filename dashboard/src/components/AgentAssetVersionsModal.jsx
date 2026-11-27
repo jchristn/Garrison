@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import AssetUploadPanel from './AssetUploadPanel';
 import { Badge } from './StatusBadge';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -109,9 +109,9 @@ export default function AgentAssetVersionsModal({ asset, onClose, onChanged }) {
         {versions === null ? (
           <LoadingState />
         ) : versions.length === 0 ? (
-          <p className="text-muted" data-testid="asset-versions-empty">
+          <EmptyNote data-testid="asset-versions-empty">
             {t('components.assets.noVersions')}
-          </p>
+          </EmptyNote>
         ) : (
           <div className="table-scroll">
             <table className="data-table" data-testid="asset-version-list">
@@ -168,7 +168,7 @@ export default function AgentAssetVersionsModal({ asset, onClose, onChanged }) {
           <div data-testid="asset-version-detail" data-version={version.number}>
             <h3 className="section-title">{t('components.assets.filesTitle', { number: version.number })}</h3>
             {(version.files || []).length === 0 ? (
-              <p className="text-muted">{t('components.assets.noFiles')}</p>
+              <EmptyNote>{t('components.assets.noFiles')}</EmptyNote>
             ) : (
               <div className="table-scroll">
                 <table className="data-table" data-testid="asset-file-list">
@@ -223,7 +223,7 @@ export default function AgentAssetVersionsModal({ asset, onClose, onChanged }) {
                 <pre data-testid="asset-file-preview-text">{preview.text}</pre>
               </div>
             ) : (
-              <p className="text-muted">{t('components.assets.emptyFile')}</p>
+              <EmptyNote>{t('components.assets.emptyFile')}</EmptyNote>
             )}
           </div>
         )}

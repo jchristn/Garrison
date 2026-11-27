@@ -5,7 +5,7 @@ import CopyButton from '../components/CopyButton';
 import CodeBlock from '../components/CodeBlock';
 import ConfirmModal from '../components/ConfirmModal';
 import { MethodPill, StatusBadge } from '../components/StatusBadge';
-import { LoadingState, EmptyState } from '../components/States';
+import { EmptyNote, EmptyState, LoadingState } from '../components/States';
 import useApiExplorer from '../hooks/useApiExplorer';
 import { isDestructive, buildCodeSnippets } from '../utils/openApi';
 import { formatDuration, formatBytes, truncate } from '../i18n/formatters';
@@ -214,7 +214,7 @@ export default function ApiExplorerView({ apiClient }) {
                     )}
                   </div>
                   {ex.history.length === 0 ? (
-                    <p className="text-muted" style={{ fontSize: 'var(--font-size-sm)' }}>{t('views.explorer.historyEmpty')}</p>
+                    <EmptyNote>{t('views.explorer.historyEmpty')}</EmptyNote>
                   ) : (
                     ex.history.map((h, i) => (
                       <div className="explorer-history-item" key={i}>

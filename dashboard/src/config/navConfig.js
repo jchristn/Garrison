@@ -29,6 +29,78 @@ export const NAV_SECTIONS = [
       { key: 'home', slug: 'home', icon: 'HomeIcon', page: { id: 'home', slug: 'home' } },
       { key: 'invoke', slug: 'invoke', icon: 'SendIcon', page: { id: 'invoke', slug: 'invoke' } },
       {
+        key: 'agents',
+        slug: 'agents',
+        icon: 'BotIcon',
+        tabs: [
+          { id: 'agents', slug: 'agents', detail: true },
+          // Agent Studio is always in the Agents tab bar; individual drafts open their own workspace.
+          { id: 'studio', slug: 'studio', detail: true },
+          // Agent architects: reusable deployments of agent-architect that any studio draft can use.
+          { id: 'architects', slug: 'architects' },
+          { id: 'deployments', slug: 'deployments' },
+          // P12.9: ordered agent stages with optional review gates.
+          { id: 'pipelines', slug: 'pipelines' },
+          // P12.5: cron schedules and signed webhooks that start agent runs or pipeline runs.
+          { id: 'triggers', slug: 'triggers' },
+          // AD4.8: the capability catalog (agents, MCP tools, harness built-ins) with cost and latency hints.
+          { id: 'capabilities', slug: 'capabilities' },
+          // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
+          { id: 'apps', slug: 'apps' },
+          // The agent wizard: /dashboard/agent-wizard/new starts one, /dashboard/agent-wizard/<draftId> continues it.
+          { id: 'agentWizard', slug: 'agent-wizard', detail: true, hidden: true }
+        ]
+      },
+      // AA1.16: autonomous agents, in the order they are set up. Keepers are mandates an agent keeps on a wake schedule;
+      // /dashboard/keepers/<id> is one keeper's ticks and revisions. AA6.12: messages are mail between agents and from
+      // people, with the ones loop guards refused; /dashboard/message-threads/<id> is one thread, oldest first (a hidden
+      // tab, opened from a message). AA5.10: reports are what runs and people filed upward; /dashboard/reports/<id> is one
+      // report. AA4.13: memory is what agents and people saved, by scope, with provenance and delete. AA2.13: escalations
+      // are questions runs raise for a person, a role, or another agent; the sidebar badge counts the open ones. AA3.8:
+      // freezes are brakes on agents, deployments, keepers, and apps, and the kill switch shows among them.
+      {
+        key: 'autonomy',
+        slug: 'autonomy',
+        icon: 'AutonomyIcon',
+        tabs: [
+          { id: 'keepers', slug: 'keepers', detail: true },
+          { id: 'messages', slug: 'messages' },
+          { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true },
+          { id: 'reports', slug: 'reports', detail: true },
+          { id: 'memory', slug: 'memory' },
+          { id: 'escalations', slug: 'escalations', detail: true },
+          { id: 'freezes', slug: 'freezes' }
+        ]
+      },
+      // AA7.14: organizations are trees of units with leads, members, peer lines, and budgets; /dashboard/organizations/<id>
+      // is one organization's chart, budgets, revisions, and proposals. AA10.7: the board of one organization
+      // (/dashboard/board/<id>). AA11.7: an organization's performance by unit and agent (/dashboard/performance/<id>).
+      // AA8.12: change rules are what people pre-approve for an organization's executives.
+      {
+        key: 'organizations',
+        slug: 'organizations',
+        icon: 'OrganizationIcon',
+        tabs: [
+          { id: 'organizations', slug: 'organizations', detail: true },
+          { id: 'board', slug: 'board', detail: true },
+          { id: 'performance', slug: 'performance', detail: true },
+          { id: 'changeRules', slug: 'change-rules' }
+        ]
+      },
+      // AA9.15: eval sets (/dashboard/evaluations/<id> is one set version with its cases, versions, and runs), eval runs
+      // (/dashboard/eval-runs/<id> follows one run live, case by case), shadow trials, and canary releases.
+      {
+        key: 'evaluations',
+        slug: 'evaluations',
+        icon: 'EvaluationIcon',
+        tabs: [
+          { id: 'evaluations', slug: 'evaluations', detail: true },
+          { id: 'evalRuns', slug: 'eval-runs', detail: true },
+          { id: 'shadowTrials', slug: 'shadow-trials', detail: true },
+          { id: 'canaryReleases', slug: 'canary-releases', detail: true }
+        ]
+      },
+      {
         key: 'runs',
         slug: 'runs',
         icon: 'RunsIcon',
@@ -52,67 +124,7 @@ export const NAV_SECTIONS = [
           { id: 'pipelineReviews', slug: 'pipeline-reviews' }
         ]
       },
-      // AA1.16: autonomous agents. Keepers are mandates an agent keeps on a wake schedule; /dashboard/keepers/<id> is
-      // one keeper's ticks and revisions. AA2.13: escalations are questions runs raise for a person, a role, or another
-      // agent; the sidebar badge counts the open ones. AA3.8: freezes are brakes on agents, deployments, keepers, and
-      // apps, and the kill switch shows among them. AA4.13: memory is what agents and people saved, by scope, with
-      // provenance and delete. AA5.10: reports are what runs and people filed upward; /dashboard/reports/<id> is one
-      // report with its metrics, issues, decisions, and a chart of a metric across the author's reports. AA6.12:
-      // messages are mail between agents and from people, with the ones loop guards refused; /dashboard/message-threads/<id>
-      // is one thread, oldest first (a hidden tab, opened from a message). AA7.14: organizations are trees of units with
-      // leads, members, peer lines, and budgets; /dashboard/organizations/<id> is one organization's chart, budgets, and
-      // revisions. AA8.12: change rules are what people pre-approve for an organization's executives; proposals live on
-      // the organization's page. AA9.15: evaluations are eval sets (/dashboard/evaluations/<id> is one set version with its
-      // cases, versions, and runs), eval runs (/dashboard/eval-runs/<id> follows one run live, case by case), shadow
-      // trials, and canary releases, each with a detail page. Later phases add the other autonomy pages here.
-      {
-        key: 'autonomy',
-        slug: 'autonomy',
-        icon: 'AutonomyIcon',
-        tabs: [
-          { id: 'keepers', slug: 'keepers', detail: true },
-          { id: 'escalations', slug: 'escalations', detail: true },
-          { id: 'freezes', slug: 'freezes' },
-          { id: 'memory', slug: 'memory' },
-          { id: 'reports', slug: 'reports', detail: true },
-          { id: 'messages', slug: 'messages' },
-          { id: 'messageThreads', slug: 'message-threads', detail: true, hidden: true },
-          { id: 'organizations', slug: 'organizations', detail: true },
-          // AA10.7: the board of one organization (/dashboard/board/<id>); the tab itself picks the organization.
-          { id: 'board', slug: 'board', detail: true },
-          // AA11.7: an organization's performance by unit and agent, with its scheduled checks (/dashboard/performance/<id>).
-          { id: 'performance', slug: 'performance', detail: true },
-          { id: 'changeRules', slug: 'change-rules' },
-          { id: 'evaluations', slug: 'evaluations', detail: true },
-          { id: 'evalRuns', slug: 'eval-runs', detail: true },
-          { id: 'shadowTrials', slug: 'shadow-trials', detail: true },
-          { id: 'canaryReleases', slug: 'canary-releases', detail: true }
-        ]
-      },
-      { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
-      {
-        key: 'agents',
-        slug: 'agents',
-        icon: 'BotIcon',
-        tabs: [
-          { id: 'agents', slug: 'agents', detail: true },
-          // Agent architects: reusable deployments of agent-architect that any studio draft can use.
-          { id: 'architects', slug: 'architects' },
-          { id: 'deployments', slug: 'deployments' },
-          // P12.9: ordered agent stages with optional review gates.
-          { id: 'pipelines', slug: 'pipelines' },
-          // P12.5: cron schedules and signed webhooks that start agent runs or pipeline runs.
-          { id: 'triggers', slug: 'triggers' },
-          // AD4.8: the capability catalog (agents, MCP tools, harness built-ins) with cost and latency hints.
-          { id: 'capabilities', slug: 'capabilities' },
-          // AD6.11: agentic apps, groups of agents behind one end-user chat UI at /apps/{slug}/.
-          { id: 'apps', slug: 'apps' },
-          // Agent Studio is always in the Agents tab bar; individual drafts open their own workspace.
-          { id: 'studio', slug: 'studio', detail: true },
-          // The agent wizard: /dashboard/agent-wizard/new starts one, /dashboard/agent-wizard/<draftId> continues it.
-          { id: 'agentWizard', slug: 'agent-wizard', detail: true, hidden: true }
-        ]
-      }
+      { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } }
     ]
   },
   {

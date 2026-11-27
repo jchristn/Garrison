@@ -14,6 +14,7 @@ import { enumLabel } from '../../utils/enums';
 import { enumTip } from '../../utils/tips';
 import { formatNumber } from '../../i18n/formatters';
 import { DIFF_CHANGES, diffChangeTone, diffCounts, isDraftOpen, itemKey } from '../../utils/studio';
+import { EmptyNote } from '../States';
 
 /**
  * The draft's apply approval (AD7.10): its status, summary, and a link to the approval, and, for a caller permitted to
@@ -200,7 +201,7 @@ export default function StudioDiffPanel({ draft, diff, onDiff, onReload, blocked
       {!diff ? (
         <div className="text-muted">{t('common.generic.loading')}</div>
       ) : (diff.items || []).length === 0 ? (
-        <div className="text-muted">{t('components.studio.diff.empty')}</div>
+        <EmptyNote>{t('components.studio.diff.empty')}</EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="studio-diff-table">

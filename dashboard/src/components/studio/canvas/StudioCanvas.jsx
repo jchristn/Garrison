@@ -20,6 +20,7 @@ import AppPanel from './AppPanel';
 import RuntimePanel from './RuntimePanel';
 import OrgCanvas from './OrgCanvas';
 import { UNIT_OPERATIONS, canvasOrganizations } from '../../../utils/orgCanvas';
+import { EmptyNote } from '../../States';
 
 const NODE_TYPES = { agent: CanvasAgentNode };
 
@@ -500,9 +501,9 @@ function CanvasInner({ draft, graph, diff, blocked = '', deployments = [], onGra
       ) : view === 'organizations' ? (
         <OrgCanvas draft={draft} graph={graph} blocked={blocked} agents={agents} runOperation={runOperation} say={say} />
       ) : !app ? (
-        <div className="text-muted" data-testid="studio-graph-empty">
+        <EmptyNote data-testid="studio-graph-empty">
           {t('components.studio.canvas.noApp')}
-        </div>
+        </EmptyNote>
       ) : (
         <>
           <CanvasToolbar

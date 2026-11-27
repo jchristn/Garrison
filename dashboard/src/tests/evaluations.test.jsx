@@ -95,10 +95,10 @@ const setValue = (el, value) =>
   });
 
 describe('navigation and enums', () => {
-  it('puts the evaluation pages under Autonomy with detail routes', () => {
+  it('puts the evaluation pages under Evaluations with detail routes', () => {
     for (const [id, slug] of [['evaluations', 'evaluations'], ['evalRuns', 'eval-runs'], ['shadowTrials', 'shadow-trials'], ['canaryReleases', 'canary-releases']]) {
       const page = findPage(id);
-      expect(page.hub).toBe('autonomy');
+      expect(page.hub).toBe('evaluations');
       expect(page.slug).toBe(slug);
       expect(PAGE_VIEWS[id]).toBeTruthy();
       expect(DETAIL_VIEWS[id]).toBeTruthy();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import TimeSeriesChart from './TimeSeriesChart';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -42,8 +42,8 @@ export default function ReportMetricChart({ report }) {
 
   useEffect(load, [load]);
 
-  if (!names.length) return <p className="text-muted" data-testid="report-chart-none">{t('reports.chart.noMetrics')}</p>;
-  if (!author) return <p className="text-muted" data-testid="report-chart-none">{t('reports.chart.noAuthor')}</p>;
+  if (!names.length) return <EmptyNote data-testid="report-chart-none">{t('reports.chart.noMetrics')}</EmptyNote>;
+  if (!author) return <EmptyNote data-testid="report-chart-none">{t('reports.chart.noAuthor')}</EmptyNote>;
 
   const series = metricSeries(points);
   const format = (v) => formatNumber(v, { maximumFractionDigits: 2 }, lng);
@@ -70,9 +70,9 @@ export default function ReportMetricChart({ report }) {
       ) : points === null ? (
         <LoadingState />
       ) : series.times.length === 0 ? (
-        <p className="text-muted" data-testid="report-chart-empty">
+        <EmptyNote data-testid="report-chart-empty">
           {t('reports.chart.empty')}
-        </p>
+        </EmptyNote>
       ) : (
         <TimeSeriesChart
           id="report-metric"

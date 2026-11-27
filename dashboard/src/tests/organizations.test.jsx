@@ -120,8 +120,8 @@ function orgApi(overrides = {}) {
 
 describe('navigation and enums', () => {
   it('puts Organizations under Autonomy with a detail route', () => {
-    expect(findPage('organizations')).toMatchObject({ hub: 'autonomy', tab: 'organizations', detail: true });
-    expect(pathFor('organizations')).toBe('/dashboard/autonomy?tab=organizations');
+    expect(findPage('organizations')).toMatchObject({ hub: 'organizations', tab: 'organizations', detail: true });
+    expect(pathFor('organizations')).toBe('/dashboard/organizations');
     expect(pathFor('organizations', 'org_0001')).toBe('/dashboard/organizations/org_0001');
     expect(PAGE_VIEWS.organizations).toBeTruthy();
     expect(DETAIL_VIEWS.organizations).toBe(OrganizationDetailView);

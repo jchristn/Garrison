@@ -12,6 +12,7 @@ import { enumLabel } from '../../utils/enums';
 import { enumTip } from '../../utils/tips';
 import { formatDateTime, formatRelativeTime } from '../../i18n/formatters';
 import { DELETABLE_KINDS, DRAFT_KINDS, DRAFT_OPERATIONS, draftChanges, draftItems, itemKey, itemTemplate, newItemErrors, noItemChanges, staleKeys } from '../../utils/studio';
+import { EmptyNote } from '../States';
 
 /**
  * The notice after a save or removal failed with 409 DraftVersionConflict: the draft was read again, and the notice
@@ -195,7 +196,7 @@ export default function StudioItemsPanel({ draft, diff, blocked = '', onDraft })
         </div>
       )}
       {items.length === 0 ? (
-        <div className="text-muted">{t('components.studio.items.empty')}</div>
+        <EmptyNote>{t('components.studio.items.empty')}</EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="studio-items-table">

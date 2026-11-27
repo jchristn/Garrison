@@ -8,6 +8,7 @@ import { itemTemplate } from '../../../utils/studio';
 import { draftDeployments, fieldError, findItem } from '../../../utils/studioCanvas';
 import { ManifestYamlError, extractDocument, joinPromptRef, parseSchemaText, readAgentFields, writeAgentFields } from '../../../utils/manifestYaml';
 import { PanelActions, PanelErrors, PanelField, diffFailure, failureText, useItemForm } from './panelParts';
+import { EmptyNote } from '../../States';
 
 const SCHEMA_KEYS = ['inputSchema', 'outputSchema'];
 
@@ -126,7 +127,7 @@ export default function AgentPanel({ name, node, draft, diff, blocked, onSave, o
             <div className="form-section-title" {...tip(t('tips.studio.canvas.agent.assets'))}>
               {t('components.studio.canvas.agent.assets')}
             </div>
-            {form.assets.length === 0 && <div className="text-muted">{t(form.hasAssets ? 'components.studio.canvas.agent.noAssets' : 'components.studio.canvas.agent.assetsKept')}</div>}
+            {form.assets.length === 0 && <EmptyNote>{t(form.hasAssets ? 'components.studio.canvas.agent.noAssets' : 'components.studio.canvas.agent.assetsKept')}</EmptyNote>}
             {form.assets.map((a, i) => (
               <div key={i} className="studio-canvas-row" data-asset-row={i}>
                 <label htmlFor={`studio-agent-asset-${i}`} className="sr-only" {...tip(t('tips.studio.canvas.agent.assetName'))}>
@@ -165,7 +166,7 @@ export default function AgentPanel({ name, node, draft, diff, blocked, onSave, o
               {t('components.studio.canvas.agent.systemPrompt')}
             </div>
             {deployments.length === 0 ? (
-              <div className="text-muted">{t('components.studio.canvas.agent.noDeployments')}</div>
+              <EmptyNote>{t('components.studio.canvas.agent.noDeployments')}</EmptyNote>
             ) : (
               <ul className="studio-list" data-testid="studio-agent-prompts">
                 {deployments.map(({ item: d, fields }) => (

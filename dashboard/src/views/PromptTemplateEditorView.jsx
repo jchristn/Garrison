@@ -10,7 +10,7 @@ import JsonViewerModal from '../components/JsonViewerModal';
 import Modal from '../components/Modal';
 import Tabs from '../components/Tabs';
 import Explainer from '../components/Explainer';
-import { LoadingState, ErrorBanner } from '../components/States';
+import { EmptyNote, ErrorBanner, LoadingState } from '../components/States';
 import { Badge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -249,7 +249,7 @@ export default function PromptTemplateEditorView({ recordId }) {
         <aside className="panel editor-side" aria-label={t('views.templateEditor.variables')}>
           <h3 className="section-title">{t('views.templateEditor.variables')}</h3>
           {variables.length === 0 ? (
-            <div className="text-muted">{t('views.templateEditor.noVariables')}</div>
+            <EmptyNote>{t('views.templateEditor.noVariables')}</EmptyNote>
           ) : (
             <ul className="plain-list">
               {variables.map((v) => (
@@ -287,7 +287,7 @@ export default function PromptTemplateEditorView({ recordId }) {
         )}
         {tab === 'versions' &&
           (versions.length === 0 ? (
-            <div className="text-muted">{t('views.templateEditor.noVersions')}</div>
+            <EmptyNote>{t('views.templateEditor.noVersions')}</EmptyNote>
           ) : (
             <div className="table-scroll">
               <table className="data-table">

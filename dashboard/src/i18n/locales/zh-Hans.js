@@ -8659,7 +8659,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "没有变化：此修订与当前修订内容相同，因此未发布，keeper 也未唤醒。"
+  "RevisionUnchanged": "没有变化：草稿与最新发布的修订内容相同，因此未发布。请在发布前修改，或将其丢弃。"
  },
  "components": {
   "keeperRevision": {
@@ -8724,6 +8724,43 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "harness 向模型展示 MCP 工具时加在工具名称前的内容。用 {server} 表示服务器名称，例如 mcp__{server}__ 或 {server}.（点）。如果模型看到的是原始工具名称，请留空。"
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "自行持续工作的代理：守护者按计划唤醒，相互发消息，提交报告，记住信息，并在受阻时询问人员。冻结可以让它们停止。"
+   },
+   "organizations": {
+    "label": "组织",
+    "tip": "按单元组织图排列的代理，每个单元有负责人和预算，包括董事会、按单元的表现，以及让高管代理应用提案的变更规则。"
+   },
+   "evaluations": {
+    "label": "评估",
+    "tip": "变更进入生产之前的检查：评估集及其运行、与在线代理并行的影子试验，以及分步转移流量的金丝雀发布。"
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "自行持续工作的代理：守护者按计划唤醒，相互发消息，提交报告，记住信息，并在受阻时询问人员。冻结可以让它们停止。",
+    "organizations": "按单元组织图排列的代理，每个单元有负责人和预算，包括董事会、按单元的表现，以及让高管代理应用提案的变更规则。",
+    "evaluations": "变更进入生产之前的检查：评估集及其运行、与在线代理并行的影子试验，以及分步转移流量的金丝雀发布。"
    }
   }
  }

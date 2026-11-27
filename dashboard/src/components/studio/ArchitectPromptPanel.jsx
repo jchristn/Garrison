@@ -15,6 +15,7 @@ import { pathFor } from '../../config/navConfig';
 import { errorMessage } from '../../utils/errors';
 import { formatDateTime, formatNumber } from '../../i18n/formatters';
 import { ARCHITECT_AGENT, inUseDeployments, sortArchitectPrompts } from '../../utils/studio';
+import { EmptyNote } from '../States';
 
 /** Sample values the architect prompt preview renders with. */
 const PREVIEW_CONTEXT = {
@@ -179,7 +180,7 @@ function PromptEditor({ entry, deniedEdit, onSaved, onClose }) {
         {t('views.templateEditor.versions', { count: versions.length })}
       </div>
       {versions.length === 0 ? (
-        <div className="text-muted">{t('views.templateEditor.noVersions')}</div>
+        <EmptyNote>{t('views.templateEditor.noVersions')}</EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="architect-prompt-versions">
@@ -360,7 +361,7 @@ export default function ArchitectPromptPanel({ architect = null, deployments = [
       {entries === null ? (
         <div className="text-muted">{t('common.generic.loading')}</div>
       ) : entries.length === 0 ? (
-        <div className="text-muted">{t('components.studio.prompts.empty')}</div>
+        <EmptyNote>{t('components.studio.prompts.empty')}</EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="architect-prompts-table">

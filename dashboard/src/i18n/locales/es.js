@@ -8729,7 +8729,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  },
  "errorCodes": {
-  "RevisionUnchanged": "Nada cambió: esta revisión dice lo mismo que la actual, así que no se publicó y el keeper no despertó."
+  "RevisionUnchanged": "Nada cambió: el borrador es igual a la última revisión publicada, así que no se publicó. Cámbialo antes de publicarlo o descártalo."
  },
  "components": {
   "keeperRevision": {
@@ -8794,6 +8794,43 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   "resources": {
    "harnessProfiles": {
     "mcpToolNamePrefix": "Lo que el harness antepone al nombre de una herramienta MCP cuando la muestra al modelo. Use {server} para el nombre del servidor, por ejemplo mcp__{server}__ o {server}. (punto). Déjelo vacío cuando el modelo ve los nombres sin prefijo."
+   }
+  }
+ }
+});
+
+// Navigation (AA13): Organizations and Evaluations are their own hubs, split out of Autonomy.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "hubs": {
+   "autonomy": {
+    "tip": "Agentes que siguen trabajando por su cuenta: los guardianes despiertan según un horario, se escriben entre sí, presentan informes, recuerdan y preguntan a las personas cuando se atascan. Las congelaciones los detienen."
+   },
+   "organizations": {
+    "label": "Organizaciones",
+    "tip": "Agentes organizados en un organigrama de unidades con responsables y presupuestos, con la junta, el rendimiento por unidad y las reglas de cambio que permiten a los ejecutivos aplicar propuestas."
+   },
+   "evaluations": {
+    "label": "Evaluaciones",
+    "tip": "Comprobaciones antes de que un cambio llegue a producción: conjuntos de evaluación y sus ejecuciones, pruebas en sombra junto al agente en vivo y versiones canary que mueven el tráfico por pasos."
+   }
+  }
+ },
+ "tips": {
+  "nav": {
+   "hubs": {
+    "autonomy": "Agentes que siguen trabajando por su cuenta: los guardianes despiertan según un horario, se escriben entre sí, presentan informes, recuerdan y preguntan a las personas cuando se atascan. Las congelaciones los detienen.",
+    "organizations": "Agentes organizados en un organigrama de unidades con responsables y presupuestos, con la junta, el rendimiento por unidad y las reglas de cambio que permiten a los ejecutivos aplicar propuestas.",
+    "evaluations": "Comprobaciones antes de que un cambio llegue a producción: conjuntos de evaluación y sus ejecuciones, pruebas en sombra junto al agente en vivo y versiones canary que mueven el tráfico por pasos."
    }
   }
  }

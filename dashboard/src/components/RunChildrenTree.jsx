@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import FanOutGroupPanel from './FanOutGroupPanel';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { tip } from './Tooltip';
 import { RunStatus } from '../views/runConfigs';
 import { useAuth } from '../context/AuthContext';
@@ -88,7 +88,7 @@ export default function RunChildrenTree({ runId, items, highlightGroup }) {
   return (
     <div className="flex-col gap-md" data-testid="run-tree">
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
-      {tree.groups.length === 0 && tree.others.length === 0 && <div className="text-muted">{t('views.runDetail.noChildren')}</div>}
+      {tree.groups.length === 0 && tree.others.length === 0 && <EmptyNote>{t('views.runDetail.noChildren')}</EmptyNote>}
       {tree.groups.map((entry) =>
         entry.group ? (
           <FanOutGroupPanel key={entry.id} group={entry.group} onChange={onGroup} highlighted={entry.id === highlightGroup} />

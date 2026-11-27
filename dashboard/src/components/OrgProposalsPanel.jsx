@@ -5,7 +5,7 @@ import StudioLink from './studio/StudioLink';
 import ProposalDiff from './ProposalDiff';
 import ProposalEvidence from './ProposalEvidence';
 import { ProposalDecisionBadge } from './ChangeRuleBadges';
-import { EmptyState } from './States';
+import { EmptyNote, EmptyState } from './States';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -174,7 +174,7 @@ function ProposalModal({ organization, summary, rules, revisions, deniedDecide, 
         )}
 
         {loading && <div className="text-muted">{t('common.generic.loading')}</div>}
-        {!loading && !diff && proposal.status === 'Applied' && <p className="text-muted">{t('orgProposals.review.appliedNoDiff')}</p>}
+        {!loading && !diff && proposal.status === 'Applied' && <EmptyNote>{t('orgProposals.review.appliedNoDiff')}</EmptyNote>}
 
         <ProposalDiff diff={diff} t={t} />
         <ProposalEvidence evidence={proposal.evidence} t={t} lng={lng} />

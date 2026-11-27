@@ -4,7 +4,7 @@ import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
 import DiffViewer from './DiffViewer';
 import { Badge } from './StatusBadge';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { RevisionStateBadge } from './RevisionBadges';
 import AgentAssetPinsModal from './AgentAssetPinsModal';
 import AgentCapabilitiesModal from './AgentCapabilitiesModal';
@@ -136,7 +136,7 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
         </div>
       )}
       {revisions.length === 0 ? (
-        <div className="text-muted">{t('components.revisions.empty')}</div>
+        <EmptyNote>{t('components.revisions.empty')}</EmptyNote>
       ) : (
         <div className="table-scroll">
           <table className="data-table" data-testid="agent-revisions">
@@ -304,14 +304,14 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
 
 /** Field-level changes between two revisions; long or multi-line values render as a line diff. */
 export function RevisionDiff({ diff, error, pair, t }) {
-  if (!pair.from || !pair.to || pair.from === pair.to) return <p className="text-muted">{t('components.revisions.pickTwo')}</p>;
+  if (!pair.from || !pair.to || pair.from === pair.to) return <EmptyNote>{t('components.revisions.pickTwo')}</EmptyNote>;
   if (error) return <ErrorBanner message={errorMessage(t, error)} />;
   if (!diff) return <LoadingState />;
   if (diff.identical || !(diff.changes || []).length) {
     return (
-      <p className="text-muted" data-testid="revision-diff-identical">
+      <EmptyNote data-testid="revision-diff-identical">
         {t('components.revisions.identical', { from: diff.fromNumber, to: diff.toNumber })}
-      </p>
+      </EmptyNote>
     );
   }
   const empty = <span className="text-muted">{t('components.revisions.emptyValue')}</span>;

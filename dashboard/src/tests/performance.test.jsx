@@ -103,9 +103,9 @@ function client() {
 }
 
 describe('navigation and enums', () => {
-  it('has the Performance tab under Autonomy with a detail route', () => {
+  it('has the Performance tab under Organizations with a detail route', () => {
     const p = findPage('performance');
-    expect(p.hub).toBe('autonomy');
+    expect(p.hub).toBe('organizations');
     expect(p.detail).toBe(true);
     expect(pathFor('performance', 'org_0001')).toBe('/dashboard/performance/org_0001');
     expect(PAGE_VIEWS.performance).toBe(PerformanceView);

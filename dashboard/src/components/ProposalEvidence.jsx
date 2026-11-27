@@ -4,6 +4,7 @@ import { CanaryStatusBadge, EvalRunStatusBadge, EvalVerdictBadge, ShadowTrialSta
 import { tip } from './Tooltip';
 import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatNumber, formatPercent, formatRelativeTime } from '../i18n/formatters';
+import { EmptyNote } from './States';
 
 /** A score in 0 to 1 as a percent, or '-'. */
 const percent = (v, lng) => (v == null ? '-' : formatPercent(v * 100, lng, { alreadyPercent: true, digits: 0 }));
@@ -21,9 +22,9 @@ export default function ProposalEvidence({ evidence, t, lng, showEmpty = false }
   const when = (v) => (v ? <span {...tip(formatDateTime(v, lng))}>{formatRelativeTime(v, lng)}</span> : '-');
   if (!evals.length && !shadows.length && !canaries.length) {
     return showEmpty ? (
-      <p className="text-muted" data-testid="proposal-evidence-empty">
+      <EmptyNote data-testid="proposal-evidence-empty">
         {t('board.evidence.empty')}
-      </p>
+      </EmptyNote>
     ) : null;
   }
   return (

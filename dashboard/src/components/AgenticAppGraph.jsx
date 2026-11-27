@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tip } from './Tooltip';
 import { layoutAppGraph } from '../utils/apps';
+import { EmptyNote } from './States';
 
 const NODE_W = 160;
 const BASE_H = 46;
@@ -25,9 +26,9 @@ export default function AgenticAppGraph({ app, nameOf = (id) => id, edgeLabel = 
   const layout = layoutAppGraph(app);
   if (!layout.nodes.length) {
     return (
-      <div className="text-muted app-graph-empty" data-testid={testId}>
+      <EmptyNote className="app-graph-empty" data-testid={testId}>
         {t('components.apps.graph.empty')}
-      </div>
+      </EmptyNote>
     );
   }
   const notes = new Map(layout.nodes.map((n) => [n.id, nodeNote ? nodeNote(n.id) || '' : '']));

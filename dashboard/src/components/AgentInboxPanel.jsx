@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import SendMessageModal from './SendMessageModal';
 import { MessageRejectionBadge, MessageStatusBadge, MessageUrgencyBadge } from './MessageBadges';
-import { ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner } from './States';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -90,7 +90,7 @@ export default function AgentInboxPanel({ agent }) {
         </button>
       </div>
       {error && <ErrorBanner message={`${errorMessage(t, error)} ${errorDetail(t, error)}`.trim()} onRetry={load} />}
-      {page && items.length === 0 && !error && <div className="text-muted">{t(status ? 'views.agentDetail.inbox.noneWithStatus' : 'views.agentDetail.inbox.none')}</div>}
+      {page && items.length === 0 && !error && <EmptyNote>{t(status ? 'views.agentDetail.inbox.noneWithStatus' : 'views.agentDetail.inbox.none')}</EmptyNote>}
       {items.length > 0 && (
         <>
           <div className="table-scroll">

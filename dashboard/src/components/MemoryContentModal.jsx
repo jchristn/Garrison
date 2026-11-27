@@ -5,7 +5,7 @@ import Modal from './Modal';
 import CopyButton from './CopyButton';
 import CopyableId from './CopyableId';
 import { Badge } from './StatusBadge';
-import { LoadingState, ErrorBanner } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
 import { TrashIcon } from './Icons';
 import { useAuth } from '../context/AuthContext';
@@ -109,7 +109,7 @@ export default function MemoryContentModal({ entry, names = {}, agents = {}, del
           ) : error ? (
             <ErrorBanner message={error?.code === 'MemoryDisabled' ? t('errorCodes.MemoryDisabled') : errorMessage(t, error)} onRetry={error?.code === 'MemoryDisabled' ? undefined : load} />
           ) : value === '' ? (
-            <p className="text-muted">{t('memory.viewer.empty')}</p>
+            <EmptyNote>{t('memory.viewer.empty')}</EmptyNote>
           ) : (
             <div className="code-block memory-content">
               <div className="code-block-toolbar">

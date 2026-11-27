@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
 import { Badge } from './StatusBadge';
-import { ErrorBanner, LoadingState } from './States';
+import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { RevisionStateBadge } from './RevisionBadges';
 import AgenticAppPromoteModal from './AgenticAppPromoteModal';
 import { tip } from './Tooltip';
@@ -151,9 +151,9 @@ export default function AgenticAppRevisionsModal({ app, denied = {}, permissions
         {revisions === null ? (
           <LoadingState />
         ) : list.length === 0 ? (
-          <div className="text-muted" data-testid="app-revisions-empty">
+          <EmptyNote data-testid="app-revisions-empty">
             {t('components.apps.revisions.empty')}
-          </div>
+          </EmptyNote>
         ) : (
           <div className="table-scroll">
             <table className="data-table" data-testid="app-revisions">
