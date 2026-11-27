@@ -48,6 +48,7 @@ namespace Test.Shared.Suites
                 suites.Add(new TestSuiteDescriptor(id, "Provider configuration and tool mediation", new List<TestCaseDescriptor>
                 {
                     new TestCaseDescriptor(id, "lifecycle", "Provider execution through the real node protocol repairs schema output and resumes a conversation", ct => LifecycleAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "mux-legacy-endpoint", "AA12.7 the startup runtime migration leaves a Mux deployment with baseUrl and a model alone, and still moves one with a named endpoint to a saved connection", ct => MuxLegacyAsync(provider, ct)),
                     new TestCaseDescriptor(id, "runtime-profile-reference", "Reusable runtime profiles migrate legacy endpoints, propagate edits to all consumers, preserve secrets and export portable references", ct => RuntimeProfileAsync(provider, ct)),
                     new TestCaseDescriptor(id, "endpoint-contract", "Typed inference endpoints persist, compile secret references, and enforce SecretUse and deletion references", ct => EndpointContractAsync(provider, ct)),
                     new TestCaseDescriptor(id, "ollama-mcp-approvals", "Native Ollama tool calls participate in the same MCP and approval loop", ct => McpAsync(provider, ct, true)),
@@ -97,6 +98,50 @@ namespace Test.Shared.Suites
                     }
                     finally { Environment.SetEnvironmentVariable(variable, null); Environment.SetEnvironmentVariable(second, null); }
                 }
+            }
+        }
+
+        private static async Task MuxLegacyAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                HarnessProfile mux = Assert.NotNull(await fixture.Database.HarnessProfiles.ReadByNameAsync(CompilerFixture.TenantId, "builtin/mux", token).ConfigureAwait(false), "builtin/mux is seeded");
+                Agent agent = await fixture.Database.Agents.CreateAsync(new Agent { TenantId = CompilerFixture.TenantId, Name = "mux-legacy-agent" }, token).ConfigureAwait(false);
+                Deployment legacy = await fixture.Database.Deployments.CreateAsync(new Deployment
+                {
+                    TenantId = CompilerFixture.TenantId,
+                    Name = "mux-legacy",
+                    AgentId = agent.Id,
+                    HarnessProfileId = mux.Id,
+                    Model = "qwen3.8:27b",
+                    Parameters = new List<DeploymentParameter>
+                    {
+                        new DeploymentParameter { Name = "baseUrl", Value = "http://192.0.2.10:11434/v1" },
+                        new DeploymentParameter { Name = "adapterType", Value = "ollama" }
+                    }
+                }, token).ConfigureAwait(false);
+                Deployment named = await fixture.Database.Deployments.CreateAsync(new Deployment
+                {
+                    TenantId = CompilerFixture.TenantId,
+                    Name = "mux-named",
+                    AgentId = agent.Id,
+                    HarnessProfileId = mux.Id,
+                    Model = "qwen3.8:27b",
+                    Parameters = new List<DeploymentParameter> { new DeploymentParameter { Name = "endpoint", Value = "local-ollama" } }
+                }, token).ConfigureAwait(false);
+
+                await HarnessRuntimeMigration.TenantAsync(fixture.Database, CompilerFixture.TenantId, token).ConfigureAwait(false);
+                await HarnessRuntimeMigration.TenantAsync(fixture.Database, CompilerFixture.TenantId, token).ConfigureAwait(false);
+
+                Deployment kept = Assert.NotNull(await fixture.Database.Deployments.ReadAsync(CompilerFixture.TenantId, legacy.Id, token).ConfigureAwait(false), "Legacy deployment");
+                Assert.True(kept.HarnessProfileId == mux.Id && kept.Model == "qwen3.8:27b" && kept.Parameters.Any(p => p.Name == "baseUrl" && p.Value == "http://192.0.2.10:11434/v1") && kept.Parameters.Any(p => p.Name == "adapterType" && p.Value == "ollama"), "A legacy Mux deployment keeps its profile, model, and URL: " + Serializer.Serialize(kept));
+                CompilationResult result = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(kept, false), null, token).ConfigureAwait(false);
+                string endpoints = result.Spec.Files.Single(f => f.Path.EndsWith("endpoints.json", StringComparison.Ordinal)).Content;
+                Assert.True(endpoints.Contains("http://192.0.2.10:11434/v1", StringComparison.Ordinal) && endpoints.Contains("qwen3.8:27b", StringComparison.Ordinal), "It still compiles to its own endpoint and model: " + endpoints);
+
+                Deployment moved = Assert.NotNull(await fixture.Database.Deployments.ReadAsync(CompilerFixture.TenantId, named.Id, token).ConfigureAwait(false), "Named-endpoint deployment");
+                HarnessProfile connection = Assert.NotNull(await fixture.Database.HarnessProfiles.ReadAsync(CompilerFixture.TenantId, moved.HarnessProfileId, token).ConfigureAwait(false), "Its saved connection");
+                Assert.True(moved.HarnessProfileId != mux.Id && connection.RuntimeConfiguration != null && connection.RuntimeConfiguration.EndpointName == "local-ollama" && !moved.Parameters.Any(p => p.Name == "endpoint"), "A named-endpoint Mux deployment still moves to a saved connection");
             }
         }
 

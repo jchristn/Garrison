@@ -25,6 +25,10 @@ namespace Garrison.Core.Services
                 if (source == null || source.RuntimeConfiguration != null) continue;
                 DeploymentResourceBinding? credential = deployment.ResourceBindings.FirstOrDefault(b => b.Kind == ResourceBindingKindEnum.Secret && b.Alias == "credential");
                 string? endpointName = source.HarnessType == HarnessTypeEnum.Mux ? deployment.Parameters.FirstOrDefault(p => p.Name == "endpoint")?.Value : null;
+                // A Mux deployment without a named endpoint uses the legacy generated endpoint (baseUrl, adapterType, and the
+                // deployment model), which stays supported. Moving it to a saved connection kept neither the URL nor the
+                // model, so every restart turned such a deployment into gpt-4o-mini at api.openai.com (AA12.7).
+                if (source.HarnessType == HarnessTypeEnum.Mux && String.IsNullOrWhiteSpace(endpointName)) continue;
                 InferenceEndpoint? endpoint = deployment.InferenceEndpoint;
                 string? baseUrl = deployment.Parameters.FirstOrDefault(p => p.Name == "baseUrl")?.Value;
                 if (endpoint == null && source.HarnessType == HarnessTypeEnum.ProviderApi && !String.IsNullOrWhiteSpace(baseUrl))
