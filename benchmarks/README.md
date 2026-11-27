@@ -22,6 +22,8 @@ The harness talks to Garrison only over the REST API, as a client would, with it
 | `k8s/` | Kustomize overlay on `k8s/base` for the bench cluster: two worker lanes, small requests, fake credentials |
 | `config/garrison-bench.json` | Server settings of the local stack, copied fresh into `.run/` on every start |
 | `config/scale-workload.yaml` | The `scale` command's workload: a fake harness profile in its paced mode, the `scale-echo` agent, and its deployment |
+| `config/autonomy-workload.yaml` | The `scheduler`, `messaging`, and `memory` commands' workload: the keeper and memory agents on the built-in fake harness (AA12.4) |
+| `evidence/` | Committed reports with provenance for one-off experiments (`aa12/` holds the AA12.4 autonomy round) |
 | `datasets/` | Datasets, `SCHEMA.md`, and the sources and build scripts that produce them |
 | `baselines/` | Committed reports the CI gate compares against (`ci-<kind>-<dataset>.json` and `.md`) |
 | `baselines.json` | Published or prior results shown next to every report |
@@ -68,7 +70,7 @@ LOCAL_ALPHA_WORKERS=2 WORKER_SLOTS=8 benchmarks/start-bench-server.sh
 benchmarks/stop-bench-server.sh
 ```
 
-The server gets a fresh Sqlite database and a fresh copy of `config/garrison-bench.json` on every start.
+The server gets a fresh Sqlite database and a fresh copy of `config/garrison-bench.json` on every start. That file turns agent memory on (`AgentMemory.Enabled`, text under the server's working directory), which the `memory` command needs. The k3d stack does not turn memory on, so run `memory` against the local stack or set `GARRISON_AGENT_MEMORY_ENABLE` on the k3d server.
 
 ## Commands
 
@@ -84,10 +86,13 @@ Run any command with `benchmarks/bench.sh <command> [options]` (or `bench.bat`).
 | `load` | Throughput and latency per concurrency (closed loop) or arrival rate (open loop), optionally per worker count | `load` |
 | `resilience` | A failing harness, an overrunning harness, and on k3d a worker, server, or database crash under load | `resilience` |
 | `scale` | Control plane load to failure: steps up offered load across server replicas until a level breaks, with per-subsystem metrics (run it through `scale.sh`) | `scale` |
+| `scheduler` | Keeper scheduler load: tick lag p50, p95, and p99 at 1, 100, 1000, and 10000 mandates (AA12.4) | `scheduler` |
+| `messaging` | Message send throughput and latency, and delivery lag through keeper wakes, with the coalescing rule checked (AA12.4) | `messaging` |
+| `memory` | Latency of every memory operation over MCP and the REST browsing routes, with every result checked (AA12.4) | `memory` |
 | `compare` | Paired, significance-gated diff of two reports; exit 1 on regression | none (writes `-compare-` files) |
 | `history` | Headline metrics per round with the net change and baselines | none (writes `-history.md`) |
 | `stub` | Runs the stub dependency (the fake harness) on its own | none |
-| `ci-gate` | The deterministic subset against `baselines/` | the five gate reports |
+| `ci-gate` | The deterministic subset against `baselines/` | the eight gate reports |
 | `wait` | Waits for the server and `--nodes` Ready workers (used by the stack scripts) | none |
 
 Exit codes are the same for every command: 0 success, 1 error, validation failure, or regression, 2 unknown command or bad usage, 3 incomplete run (some input failed to load, or a run was lost; the report opens with a bold banner and is not comparable), 130 cancelled with Ctrl+C.
@@ -109,6 +114,9 @@ benchmarks/bench.sh compare --baseline benchmarks/results/A.json --candidate ben
 benchmarks/bench.sh history --rounds R0=round0,R1=round1
 benchmarks/bench.sh stub --harness-args format=claude,delay-ms=20 --repeat 10
 benchmarks/run-baseline.sh round1 --shared-note "nothing else running"
+BENCH_STACK=local benchmarks/bench.sh scheduler --levels 1,100,1000,10000 --window-seconds 120 --label try1
+BENCH_STACK=local benchmarks/bench.sh messaging --recipients 25 --messages 500 --rounds 3 --label try1
+BENCH_STACK=local benchmarks/bench.sh memory --keys 200 --concurrency 8 --label try1
 ```
 
 Ingest at a larger scale: generate a bigger fleet outside the committed file, then ingest it.
@@ -152,6 +160,17 @@ benchmarks/bench.sh ingest --dataset benchmarks/.run/synthetic-fleet-2000.json -
 | `--allow-partial`, `--no-latency` | off | compare | Compare different probe sets; skip latency and throughput |
 | `--rounds`, `--kinds` | none | history | `R0=<label or UTC prefix>,...`; report kinds to include |
 | `--update` | off | ci-gate | Write new baselines instead of comparing |
+| `--jobs` | all | ci-gate | Gate jobs to run, as `<kind>-<dataset>`, for example `scheduler-autonomy-workload` |
+| `--workload` | `benchmarks/config/autonomy-workload.yaml` | scheduler, messaging, memory | Manifest applied into the run's fresh tenant |
+| `--levels` | `1,100,1000,10000` | scheduler | Mandates per level; each level is created, observed, read, and deleted before the next |
+| `--window-seconds` | 120 | scheduler | How long the scheduler runs after the last create of a level (10 to 3600) |
+| `--interval-seconds` | 60 | scheduler | Fixed wake interval of every mandate; the server raises anything below `Autonomy.MinIntervalSeconds` (60) |
+| `--concurrency` | 16 (scheduler), 8 (messaging, memory) | scheduler, messaging, memory | Requests in flight for creates, reads, and deletes; MCP sessions for memory |
+| `--recipients`, `--messages`, `--rounds` | 25, 500, 3 | messaging | Recipient agents (each with a keeper), normal messages in total, and rounds (1 to 12, the urgent wakes each recipient gets) |
+| `--body-bytes`, `--delivery-timeout-seconds` | 512, 120 | messaging | Message body size; how long a round may take to drain |
+| `--keys`, `--value-bytes` | 200, 1024 | memory | Entries in the scope and the size of each value |
+| `--rate` | 80 | memory | Calls per second across all sessions, open loop; 0 runs closed loop. Keep it under 100: the MCP endpoint refuses more tool calls per second from one client |
+| `--mcp-url` | REST port plus one, path `/mcp` (`GARRISON_BENCH_MCP_URL`) | memory | Management MCP endpoint |
 | `--shared-note` | none | all reports | What else ran on the machine; marks latency as indicative |
 | `--require-pass` | off | measuring commands | Exit 1 when any probe failed |
 
@@ -219,6 +238,9 @@ After changing code on the load path (manifest apply), pass a new `--workspace-s
 | `e2e synthetic-fleet` | Every run-flow probe keeps its result, in the Garrison arm and the direct arm |
 | `ingest synthetic-fleet` | No document fails, re-apply stays all Unchanged, reachability stays 1.0, the invalid-document probes keep their result |
 | `e2e garrison-live`, `ingest garrison-live` | The same on the shipped configuration |
+| `scheduler autonomy-workload` | 5 mandates over a 20 s window: every mandate created, every first wake handled, no mandate runs two ticks at once, every started tick has a run, and no tick fails |
+| `messaging autonomy-workload` | 5 recipients, 40 normal and 10 urgent messages over 2 rounds: every send accepted, every urgent message wakes its keeper, everything is delivered to a keeper tick of its recipient, and each round's mail rides on exactly one tick per recipient |
+| `memory autonomy-workload` | 50 keys, 4 MCP sessions at 50 calls per second: every write, read, compare-and-set, refusal, list, search, REST read, and delete gives the right answer |
 
 The gate never looks at latency or throughput: those depend on the machine and are compared with `compare` on one machine. A probe that flips from pass to fail is a regression even though the pass rate barely moves, because deterministic probes have no noise to discount.
 
