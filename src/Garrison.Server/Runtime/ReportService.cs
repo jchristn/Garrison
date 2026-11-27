@@ -42,6 +42,12 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public Func<Report, CancellationToken, Task>? FiledAsync { get; set; } = null;
 
+        /// <summary>
+        /// Gathers what Garrison knows about an organization since a point in time (UTC) for the board-brief section
+        /// (AA12.7): the board view, published revisions, and decided proposals. Null renders the request without facts.
+        /// </summary>
+        public Func<Organization, DateTime, CancellationToken, Task<BoardBriefFacts>>? BriefFactsAsync { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -265,7 +271,8 @@ namespace Garrison.Server.Runtime
         /// Render the board's request for a brief into a keeper tick's input (AA10.3), or null when none is due. A brief is
         /// due when the mandate's agent leads the root unit of a live organization (as that unit's lead mandate, when the
         /// unit names one), its current revision sets briefIntervalHours, and its last Brief report is missing or at least
-        /// that many hours old. The text comes only from the board-brief template.
+        /// that many hours old. The text comes only from the board-brief template, with the board's facts for the period
+        /// when <see cref="BriefFactsAsync"/> is set.
         /// </summary>
         /// <param name="mandate">The ticking mandate.</param>
         /// <param name="nowUtc">Now (UTC).</param>
@@ -292,7 +299,15 @@ namespace Garrison.Server.Runtime
             Report? last = await LastBriefAsync(mandate.TenantId, mandate.AgentId, token).ConfigureAwait(false);
             if (!BoardBriefRenderer.Due(revision.BriefIntervalHours, last?.CreatedUtc, nowUtc)) return null;
             PromptTemplate template = await new KeeperTemplateResolver(_Database).ResolveAsync(mandate.TenantId, BoardBriefRenderer.TemplateName, PromptTemplateKindEnum.Task, token).ConfigureAwait(false);
-            string text = BoardBriefRenderer.Render(template.Content, template.Name, led.Organization.Name, mandate.Name, revision.BriefIntervalHours.Value, last?.CreatedUtc);
+            // AA12.7: the brief gets the board's own facts for its period, so it cannot report all healthy while the board
+            // view shows a degraded unit, or leave out a change the board approved.
+            BoardBriefFacts? facts = null;
+            if (BriefFactsAsync != null)
+            {
+                DateTime since = last != null ? last.CreatedUtc : nowUtc.AddHours(-revision.BriefIntervalHours.Value);
+                facts = await BriefFactsAsync(led.Organization, since, token).ConfigureAwait(false);
+            }
+            string text = BoardBriefRenderer.Render(template.Content, template.Name, led.Organization.Name, mandate.Name, revision.BriefIntervalHours.Value, last?.CreatedUtc, facts);
             return String.IsNullOrWhiteSpace(text) ? null : text;
         }
 

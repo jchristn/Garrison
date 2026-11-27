@@ -318,6 +318,10 @@ The container or pod is then the isolation boundary, so what Codex can reach is 
 - In a KubernetesJob run pod, Codex can write anywhere the pod allows (its own emptyDir volumes; the root filesystem is read-only) and use the network the `garrison-run` NetworkPolicy allows. It cannot see other runs or the worker's credentials. This is the same boundary every other harness in a run pod has.
 - In a Process run on a containerized worker, Codex can write anything the worker user can write and reach anything the worker can reach, including other concurrent runs' directories and the node credential. That was already true of reads with `workspace-write` (the Process executor has no filesystem namespace); `danger-full-access` adds writes outside the workspace and network access from shell commands. This is why Process stays trusted only.
 
+### Mux sandbox
+
+Mux's `sandbox` parameter chooses which of Mux's own tools may run; it is not an operating system sandbox. Checked against Mux 1.8.0 on a macOS host worker (AA12.7, 2026-11-26): `read-only` refuses `run_process` and `write_file` but still lists directories outside the workspace; `workspace-write` (the default) refuses `write_file` outside the workspace, but a shell command it runs can read and write anywhere the worker's user can and can reach the network, loopback included; `none` also lets `write_file` go anywhere. A keeper that runs `curl` against `127.0.0.1` works under `workspace-write`, and the same run can list your home directory. Treat a Mux run on a host worker as having the worker user's file access, and use a containerized worker or the KubernetesJob executor, with an egress allowlist, when that is too much. `docs/HARNESSES.md` has the table.
+
 Trust levels ("Deployment trust level" above) still decide placement: an `Untrusted` deployment never runs on a Process worker, whatever the sandbox. Set `sandbox` explicitly (for example `read-only`) on a deployment that should not run shell commands at all, and expect shell commands to fail in a container when you do.
 
 ## Delegation

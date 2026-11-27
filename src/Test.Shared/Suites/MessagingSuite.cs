@@ -103,6 +103,7 @@ namespace Test.Shared.Suites
             Assert.True(rendered.Contains("Attached artifact: art_1 report.csv (text/csv, 42 bytes)", StringComparison.Ordinal), "Artifacts are listed: " + rendered);
             Assert.True(rendered.Contains("carries escalation esc_1", StringComparison.Ordinal) && rendered.Contains("garrison_answer_escalation", StringComparison.Ordinal), "An escalation message says how to answer it");
             Assert.True(rendered.Contains("garrison_read_inbox", StringComparison.Ordinal) && rendered.Contains("garrison_ack_message", StringComparison.Ordinal), "More waiting points at the inbox tool, and acknowledgement is asked for");
+            Assert.True(rendered.Contains("You cannot see the senders' workspaces or files", StringComparison.Ordinal) && rendered.Contains("do not look for it on disk", StringComparison.Ordinal), "AA12.7: the recipient is told it cannot see the sender's files and should ask for missing contents: " + rendered);
             Assert.Equal(String.Empty, InboxDeliveryRenderer.Render(template, "builtin/inbox-delivery", new List<AgentMessage>(), false), "No messages render nothing");
             return Task.CompletedTask;
         }

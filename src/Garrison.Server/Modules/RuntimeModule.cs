@@ -333,7 +333,10 @@ namespace Garrison.Server.Modules
             context.Register(new ChangeRuleService(context, organizations));
             context.Register(new OrgProposalService(context));
             // AA10: the board of an organization: one aggregate read, direction to the top agent, and talking to it.
-            context.Register(new BoardService(context));
+            BoardService board = new BoardService(context);
+            context.Register(board);
+            // AA12.7: a requested brief carries the board's own facts, so it agrees with the board view.
+            reports.BriefFactsAsync = (organization, sinceUtc, ct) => board.BriefFactsAsync(organization, sinceUtc, ct);
             // AA11: performance rollups by unit and agent, and the scheduled checks on them.
             context.Register(new PerformanceService(context));
             _Events.CancelOverBudgetAsync = cancelRun;

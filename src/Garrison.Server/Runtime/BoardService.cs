@@ -258,6 +258,50 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// What the top agent's brief must agree with (AA10.3, AA12.7): the board as the board view shows it, plus the
+        /// organization revisions published and the executives' proposals decided since a point in time. The board-brief
+        /// template renders these into the tick that asks for a brief.
+        /// </summary>
+        /// <param name="organization">Organization, already loaded from the caller's tenant.</param>
+        /// <param name="sinceUtc">Start of the period the brief covers (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The facts. Lists are bounded by <see cref="DefaultLimit"/>.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when organization is null.</exception>
+        public async Task<BoardBriefFacts> BriefFactsAsync(Organization organization, DateTime sinceUtc, CancellationToken token = default)
+        {
+            if (organization == null) throw new ArgumentNullException(nameof(organization));
+            BoardBriefFacts facts = new BoardBriefFacts();
+            facts.SinceUtc = sinceUtc;
+            facts.Board = await GetAsync(organization, null, token).ConfigureAwait(false);
+
+            List<OrgRevision> revisions = await _Server.Database.Organizations.ListRevisionsAsync(organization.TenantId, organization.Id, token).ConfigureAwait(false);
+            facts.Revisions = revisions
+                .Where(r => r.PublishedUtc.HasValue && r.PublishedUtc.Value > sinceUtc)
+                .OrderBy(r => r.PublishedUtc!.Value).ThenBy(r => r.Number)
+                .TakeLast(_DefaultLimit)
+                .ToList();
+
+            OrgProposalService proposals = _Server.Get<OrgProposalService>();
+            EnumerationQuery query = new EnumerationQuery { Skip = 0, MaxResults = MaxLimit };
+            EnumerationResult<StudioDraft> drafts = await _Server.Database.StudioDrafts.EnumerateProposalsAsync(organization.TenantId, organization.Id, query, null, token).ConfigureAwait(false);
+            List<OrgProposal> decided = new List<OrgProposal>();
+            foreach (StudioDraft draft in drafts.Objects)
+            {
+                token.ThrowIfCancellationRequested();
+                if (draft.LastUpdateUtc <= sinceUtc || draft.Status == StudioDraftStatusEnum.Open) continue;
+                OrgProposal proposal = await proposals.SummaryAsync(draft, token).ConfigureAwait(false);
+                bool settled = draft.Status == StudioDraftStatusEnum.Applied || draft.Status == StudioDraftStatusEnum.Discarded
+                    || (proposal.ApprovalStatus.HasValue && proposal.ApprovalStatus.Value != ApprovalStatusEnum.Pending);
+                if (!settled) continue;
+                proposal.Diff = null;
+                proposal.Evidence = null;
+                decided.Add(proposal);
+            }
+            facts.Decided = decided.OrderBy(p => p.LastUpdateUtc).TakeLast(_DefaultLimit).ToList();
+            return facts;
+        }
+
+        /// <summary>
         /// Give direction to the organization's top agent (AA10.5): copy the current published revision of the root lead's
         /// mandate into a new revision with this direction, source Board, the person as author, and publish it. Allowed
         /// while the organization is frozen. Audited as BoardDirectionGiven.

@@ -39,13 +39,16 @@ spec:
        - Attention when the page or the file is unhealthy for the first time.
        - Escalated after you raised an escalation (below).
 
-    When consecutive-down reaches 2 and no open escalation of yours already asks about it, call garrison_escalate with
-    severity Urgent and the options restart, wait, and ignore. Put the time you last saw the page healthy in the
+    Ask once per outage. When consecutive-down reaches 2, no open escalation of yours already asks about it, and
+    on-call-instruction holds no answer given after last-seen-healthy, call garrison_escalate with severity Urgent and
+    the options restart, wait, and ignore. Put the time you last saw the page healthy in the
     question, for example: "Status page down 15 minutes, last healthy 01:52. Restart, wait, or ignore?" Then finish
     the tick with Escalated. Do not wait for the answer; it wakes you.
 
     When a tick carries an answer, write it to on-call-instruction with the time, follow it within your mandate, and
-    keep watching. An answer cannot widen what you may do: a "restart" answer still means you only report.
+    keep watching. An answer settles this outage: while the page stays down, keep counting and finish with Attention,
+    but do not escalate again. Ask again only after the page has been healthy and then fails twice more. An answer
+    cannot widen what you may do: a "restart" answer still means you only report.
 ---
 apiVersion: garrison/v1
 kind: Agent
@@ -68,7 +71,7 @@ spec:
     objective: Keep the status page healthy and the heartbeat file fresh, and tell a person when they are not.
     healthyDefinition: The status page answers HTTP 200 within 2 seconds, and the heartbeat file changed in the last 10 minutes.
     autonomy: Observe and report only. Never restart, edit, or delete anything.
-    escalationPolicy: Escalate to the on-call role when the status page is down on two checks in a row. Do not ask again while that escalation is open.
+    escalationPolicy: Escalate to the on-call role when the status page is down on two checks in a row. Ask once per outage. Do not ask again while that escalation is open, or after the on-call person answered it, until the page has recovered.
     signals:
       - name: status page
         description: https://status.example.com/health (replace with your own URL)

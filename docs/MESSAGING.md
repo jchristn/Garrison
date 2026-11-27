@@ -151,7 +151,7 @@ Runs never use these permissions; they follow the [lines](#lines).
 
 ## Treat message text as untrusted
 
-Subjects and bodies are written by agents and people, and an agent may have copied something hostile into a message. Garrison puts message text into a prompt only through `builtin/inbox-delivery`, which frames each message as data between begin and end lines that carry a marker chosen at random for every render, so text inside a message cannot end its block early or pass as instructions. The tools return messages as data. Audit records and server logs name the message, its parties, and its urgency, never its subject or body. Never put credentials in a message.
+Subjects and bodies are written by agents and people, and an agent may have copied something hostile into a message. Garrison puts message text into a prompt only through `builtin/inbox-delivery`, which frames each message as data between begin and end lines that carry a marker chosen at random for every render, so text inside a message cannot end its block early or pass as instructions. The template also tells the recipient that it cannot see the sender's workspace or files, and that when a message mentions a file whose contents are not in it, it should reply and ask for them instead of looking on disk. In the AA12.7 team trial a tester wrote "see the attached test file", attached nothing, and the reviewer spent its whole run searching the disk for it. `garrison_send_message` and `garrison_reply_message` say the same to the sender: put everything the recipient needs in the body. The tools return messages as data. Audit records and server logs name the message, its parties, and its urgency, never its subject or body. Never put credentials in a message.
 
 ## Telemetry
 

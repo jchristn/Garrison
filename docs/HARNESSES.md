@@ -189,6 +189,16 @@ Deployment parameters:
 | `approvalPolicy` | unset (`--yolo`) | `auto` or `deny` instead of approving every tool call. |
 | `sandbox` | `workspace-write` | `none`, `read-only`, or `workspace-write`. |
 
+What `sandbox` does, checked against Mux 1.8.0 on a macOS worker during the AA12.7 trials (2026-11-26):
+
+| Mode | `run_process` (shell) | `write_file` outside the workspace | Reading outside the workspace |
+|---|---|---|---|
+| `read-only` | Refused (`tool_call_denied`) | Refused | Allowed (`list_directory /Users` worked) |
+| `workspace-write` | Runs as the worker's user: a shell command wrote a file outside the workspace, listed `/Users`, and reached `127.0.0.1` | Refused | Allowed |
+| `none` | Same as `workspace-write` | Allowed | Allowed |
+
+So the mode decides which of Mux's own tools may run. It does not confine what a shell command touches, and no mode keeps reads inside the workspace or blocks the network. On a Process worker started on a host, a Mux run can read anything the worker's user can read. Isolate Mux runs with the executor: a containerized worker or the KubernetesJob executor, an egress allowlist, and trust levels (`docs/SECURITY.md`). Use `read-only` for a deployment that should never run shell commands.
+
 Both numbers are whole numbers written into the command line or `endpoints.json` as they are, so a value that is not a number makes the run fail. Docker Compose and the Kubernetes bootstrap set them on the sample `mux-helper` from `MUX_CONTEXT_WINDOW` and `MUX_MAX_TOKENS` when those are set (`docs/DOCKER.md`).
 
 What Garrison reads from the Mux JSONL stream:
