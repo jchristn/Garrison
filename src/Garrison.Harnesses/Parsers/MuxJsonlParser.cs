@@ -160,7 +160,9 @@ namespace Garrison.Harnesses.Parsers
             state.Emit(Event(RunEventTypeEnum.Error, message, raw));
 
             string? category = JsonPath.Str(root, "failureCategory");
-            if (code == "tool_call_denied") state.DetectedFailure ??= message;
+            // A refused tool call (tool_call_denied: the sandbox or the approval policy said no) is not fatal by itself: the
+            // model sees the refusal and may go on. run_completed decides, and a run that does not complete reports this
+            // as its last error (AA12.7: a model's write_file outside the workspace failed runs that answered correctly).
             if (IsCredentialError(code, category, message)) state.CredentialFailure ??= message;
 
             // Errors raised before the run starts (bad flags, an unknown endpoint, config_unresolved_env) arrive with

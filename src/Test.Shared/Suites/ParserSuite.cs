@@ -48,7 +48,7 @@ namespace Test.Shared.Suites
                 Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
                 Case("parsers", "mux-failed", "Mux JSONL: max iterations is a failure", MuxFailed),
                 Case("parsers", "mux-llm-error", "Mux JSONL: completed_with_errors plus a non-zero exit is a failure", MuxLlmError),
-                Case("parsers", "mux-1.8.0-exit-2", "AA12.7: Mux 1.8.0 exits 2 for completed_with_errors; builtin/mux counts it as success, and exit 2 without a completed event still fails", Mux180ExitTwo),
+                Case("parsers", "mux-1.8.0-exit-2", "AA12.7: Mux 1.8.0 exits 2 for completed_with_errors after a refused tool call (tool_call_denied); builtin/mux counts it as success, and exit 2 without a completed event still fails", Mux180ExitTwo),
                 Case("parsers", "mux-empty-answer", "AA12.7: Mux completed with no text and no tool calls is a failed run (EmptyResponse), with or without reasoning tokens", MuxEmptyAnswer),
                 Case("parsers", "empty-answer-other-parsers", "AA12.7: the empty answer rule for the other agent parsers, and not for generic JSONL or plain text", EmptyAnswerOtherParsers),
                 Case("parsers", "mux-1.2.0-compat", "Mux 1.2.0 JSONL: no contextWindowSource warning, mcp.supported fallback, empty session id ignored", Mux120Compat),
@@ -519,10 +519,11 @@ namespace Test.Shared.Suites
             {
                 "{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"qwen3.8:27b\"}",
                 "{\"contractVersion\":2,\"eventType\":\"tool_call_proposed\",\"toolCall\":{\"id\":\"c1\",\"name\":\"write_file\",\"arguments\":{\"path\":\"/elsewhere/amounts.py\"}}}",
-                "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"sandbox_violation\",\"message\":\"Tool 'write_file' would write to '/elsewhere/amounts.py', which escapes the workspace-write sandbox\"}",
+                "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"tool_call_denied\",\"errorCode\":\"tool_call_denied\",\"failureCategory\":\"approval\",\"message\":\"Tool 'write_file' would write to '/elsewhere/amounts.py', which escapes the workspace-write sandbox\"}",
                 "{\"contractVersion\":2,\"eventType\":\"assistant_text\",\"text\":\"All tests pass.\"}",
                 "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"status\":\"completed_with_errors\"}"
             });
+            Assert.True(recovered.DetectedFailure == null, "A refused tool call alone is not a failure: " + recovered.DetectedFailure);
             HarnessOutcome ok = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 2 }, recovered);
             Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "completed_with_errors with exit 2 succeeds: " + ok.ErrorMessage);
             HarnessOutcome other = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 3 }, recovered);
