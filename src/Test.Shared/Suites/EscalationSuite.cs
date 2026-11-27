@@ -16,6 +16,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Models;
     using Garrison.Core.Notifications;
     using Garrison.Core.Requests;
+    using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
@@ -59,6 +60,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "mcp", "Run-only and user tools, a run sees its own and addressed escalations only, replayed raise, withdraw, answer by the target agent, and garrison_list_escalations (" + provider + ")", ct => McpAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "An escalations subscriber receives the open count, then raised, answered, and expired events (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "notifications", "Signed EscalationRaised and EscalationExpired notifications, and an endpoint's minimum severity (" + provider + ")", ct => NotificationsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "audit-and-filters", "UT-06 answers and cancels are audited as EscalationAnswered and EscalationCancelled without the answer, and UT-04 unknown status, report kind, and memory scope filters answer 400 InvalidValue (" + provider + ")", ct => AuditAndFiltersAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Escalations (" + provider + ")", cases));
             }
             return suites;
@@ -566,6 +568,43 @@ namespace Test.Shared.Suites
                 Assert.True(raisedUrgent.Escalation!.Question == "Fire in the server room" && raisedUrgent.Escalation.Severity == EscalationSeverityEnum.Urgent && raisedUrgent.Link != null && raisedUrgent.Link.Contains("/escalations/" + urgent.Id, StringComparison.Ordinal), "The payload names the escalation: " + Serializer.Serialize(raisedUrgent));
                 List<WebhookReceipt> urgentReceipts = receiver.For("/urgent");
                 Assert.True(urgentReceipts.Count == 1 && Encoding.UTF8.GetString(urgentReceipts[0].Body).Contains(urgent.Id, StringComparison.Ordinal), "The urgent-only endpoint skipped the Info escalation");
+            }
+        }
+
+        private static async Task AuditAndFiltersAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await ClusterAsync(provider, 0, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                EscalationService service = host.Server.Context.Get<EscalationService>();
+                Agent agent = await cluster.CreateAgentAsync("esc-audit", "builtin/fake", null, token).ConfigureAwait(false);
+                User admin = await AdminAsync(host, token).ConfigureAwait(false);
+                Run raiser = Raiser(host, agent, admin.Id);
+                Escalation asked = await service.RaiseAsync(raiser, Ask("Rotate the secret-hotel key?", "rotate", "wait"), token).ConfigureAwait(false);
+                Escalation other = await service.RaiseAsync(raiser, new Escalation { Question = "Drop the cache?" }, token).ConfigureAwait(false);
+
+                await HttpTestHelpers.SendAsync<Escalation>(host.AdminClient, HttpMethod.Post, T(host) + "/escalations/" + asked.Id + "/answer", new EscalationAnswerRequest { Choice = "rotate", Text = "Use the papaya vault." }, 200, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Escalation>(host.AdminClient, HttpMethod.Post, T(host) + "/escalations/" + other.Id + "/cancel", new EscalationCancelRequest { Reason = "Not now." }, 200, token).ConfigureAwait(false);
+
+                AuditPage answered = await host.Server.Context.Database.Audit.EnumerateAsync(new AuditFilter { TenantId = host.TenantId, EventType = AuditEventTypeEnum.EscalationAnswered }, token).ConfigureAwait(false);
+                Assert.True(answered.Objects.Count == 1 && answered.Objects[0].ResourceId == asked.Id && answered.Objects[0].ResourceType == "Escalation" && !String.IsNullOrEmpty(answered.Objects[0].PrincipalName), "The answer is audited with the person: " + Serializer.Serialize(answered.Objects));
+                string description = answered.Objects[0].Description ?? String.Empty;
+                foreach (string agentText in new[] { "rotate", "papaya", "secret-hotel", "Choose" })
+                {
+                    Assert.True(!description.Contains(agentText, StringComparison.Ordinal), "The audit record names the escalation, not its text (" + agentText + "): " + description);
+                }
+                AuditPage cancelled = await host.Server.Context.Database.Audit.EnumerateAsync(new AuditFilter { TenantId = host.TenantId, EventType = AuditEventTypeEnum.EscalationCancelled }, token).ConfigureAwait(false);
+                Assert.True(cancelled.Objects.Count == 1 && cancelled.Objects[0].ResourceId == other.Id, "The cancel is audited: " + Serializer.Serialize(cancelled.Objects));
+
+                // UT-04: a typo in a filter is refused instead of returning everything.
+                foreach (string path in new[] { "/escalations?status=Bogus", "/escalations?severity=Loud", "/reports?kind=Bogus", "/reports?health=Fine", "/memory/entries?scopeKind=Bogus", "/audit?eventType=EscalationAnswer" })
+                {
+                    TestResponse response = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + path, null, token).ConfigureAwait(false);
+                    KeeperSuite.Code(response, 400, "InvalidValue", path);
+                    Assert.True(response.Body.Contains("must be one of", StringComparison.Ordinal), path + " lists the allowed values: " + response.Body);
+                }
+                EnumerationResult<Escalation> open = await HttpTestHelpers.SendAsync<EnumerationResult<Escalation>>(host.AdminClient, HttpMethod.Get, T(host) + "/escalations?status=answered", null, 200, token).ConfigureAwait(false);
+                Assert.True(open.Objects.Count == 1 && open.Objects[0].Id == asked.Id, "A known value still filters");
             }
         }
 

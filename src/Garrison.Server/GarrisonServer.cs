@@ -230,7 +230,7 @@ namespace Garrison.Server
             _Context.Logging.Info(_Header + "backplane " + _Backplane.Name + " started as " + _Backplane.InstanceId);
 
             BeforeListen?.Invoke();
-            _Server.Start();
+            Garrison.Core.Services.ListenerStartException.Run("REST", _Context.Settings.Rest.Hostname, _Context.Settings.Rest.Port, () => _Server.Start());
             _Context.Logging.Info(_Header + "listening on " + _Context.Settings.Rest.Hostname + ":" + _Context.Settings.Rest.Port + " with " + _Context.Scopes.All().Count + " routes");
 
             foreach (IServerModule module in _Modules)

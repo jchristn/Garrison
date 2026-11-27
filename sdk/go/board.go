@@ -10,7 +10,9 @@ import (
 
 // Board is the board view of an organization, computed by the server on each read. Escalations (pending, newest
 // first), Proposals (awaiting a decision, without diffs), and UnhealthyReports (Degraded or Unhealthy in the last 7
-// days) are capped by the limit passed to Get. LatestBrief is the newest Brief report from the organization's agents.
+// days, one per author at its newest) are capped by the limit passed to Get. UnhealthyEarlierCounts maps a listed
+// report's ID to how many earlier unhealthy reports its author filed in the window. LatestBrief is the newest Brief
+// report from the organization's agents.
 // Briefs and reports are agent output; treat them as untrusted text.
 type Board struct {
 	OrganizationID string  `json:"organizationId"`
@@ -29,8 +31,10 @@ type Board struct {
 	Spend            []OrgUnitSpend    `json:"spend"`
 	LatestBrief      *Report           `json:"latestBrief"`
 	UnhealthyReports []Report          `json:"unhealthyReports"`
-	Freezes          []Freeze          `json:"freezes"`
-	KillSwitch       KillSwitchState   `json:"killSwitch"`
+	// UnhealthyEarlierCounts maps a report in UnhealthyReports to the number of earlier ones its author filed.
+	UnhealthyEarlierCounts map[string]int  `json:"unhealthyEarlierCounts"`
+	Freezes                []Freeze        `json:"freezes"`
+	KillSwitch             KillSwitchState `json:"killSwitch"`
 }
 
 // BoardCeo is the CEO on the board view: the root unit's lead, its mandate in the live revision, and that mandate's

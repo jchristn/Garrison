@@ -51,6 +51,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "briefs", "A fake CEO keeper files the requested brief, the BoardBrief notification arrives, and the next request waits for the interval (" + provider + ")", ct => BriefsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "messages", "Board messages start and continue a board conversation on the CEO deployment with builtin/board-conversation, and the board lists it (" + provider + ")", ct => MessagesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "permissions", "BoardMember scoped to one organization governs it and nothing else, a Viewer reads only, the scope map covers routes and tools, run tokens are refused, and another tenant answers 404 (" + provider + ")", ct => PermissionsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "attention", "UT-10 Needs attention lists each author once at its newest unhealthy report with a count of earlier ones, and UT-14 the same direction twice answers 409 RevisionUnchanged without a new revision (" + provider + ")", ct => AttentionAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Board (" + provider + ")", cases));
             }
             return suites;
@@ -138,6 +139,36 @@ namespace Test.Shared.Suites
                 Assert.True(limited.Escalations.Count == 1 && limited.Escalations[0].AgentId == f.Worker.Id && limited.UnitHealth.Single(u => u.UnitId == f.Ops.Id).OpenEscalations == 2, "limit bounds the list, newest first, while unit counts see all: " + Serializer.Serialize(limited.Escalations.Select(e => e.Question)));
                 Assert.Equal(400, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, b + "/" + f.Org.Id + "/board?limit=many", null, token).ConfigureAwait(false)).StatusCode, "A limit that is not an integer answers 400");
                 Assert.Equal(200, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, b + "/" + f.Org.Id + "/board?limit=0", null, token).ConfigureAwait(false)).StatusCode, "A limit below 1 is clamped");
+            }
+        }
+
+        private static async Task AttentionAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                host.Server.Context.Get<MaintenanceService>().Keepers = null;
+                string b = T(host) + "/organizations";
+                OrgFixture f = await CeoFixtureAsync(host, "att", 24, false, token).ConfigureAwait(false);
+                ReportService reports = host.Server.Context.Get<ReportService>();
+                await reports.FileFromRunAsync(OrganizationSuite.RunOf(host, f.Worker), new Report { Title = "Outdated driver 1", Health = ReportHealthEnum.Degraded }, token).ConfigureAwait(false);
+                await Task.Delay(20, token).ConfigureAwait(false);
+                await reports.FileFromRunAsync(OrganizationSuite.RunOf(host, f.Worker), new Report { Title = "Outdated driver 2", Health = ReportHealthEnum.Unhealthy }, token).ConfigureAwait(false);
+                await Task.Delay(20, token).ConfigureAwait(false);
+                Report newest = await reports.FileFromRunAsync(OrganizationSuite.RunOf(host, f.Worker), new Report { Title = "Outdated driver 3", Health = ReportHealthEnum.Degraded }, token).ConfigureAwait(false);
+                Report lead = await reports.FileFromRunAsync(OrganizationSuite.RunOf(host, f.Lead), new Report { Title = "Pager noisy", Health = ReportHealthEnum.Degraded }, token).ConfigureAwait(false);
+
+                Board board = await HttpTestHelpers.SendAsync<Board>(host.AdminClient, HttpMethod.Get, b + "/" + f.Org.Id + "/board", null, 200, token).ConfigureAwait(false);
+                Assert.True(board.UnhealthyReports.Count == 2 && board.UnhealthyReports.Any(r => r.Id == newest.Id) && board.UnhealthyReports.Any(r => r.Id == lead.Id), "One report per author, the newest: " + Serializer.Serialize(board.UnhealthyReports.Select(r => r.Title)));
+                Assert.True(board.UnhealthyEarlierCounts.Count == 1 && board.UnhealthyEarlierCounts.TryGetValue(newest.Id, out int earlier) && earlier == 2, "The worker's two earlier reports are counted: " + Serializer.Serialize(board.UnhealthyEarlierCounts));
+
+                // UT-14: the same direction twice publishes once.
+                Mandate mandate = (await host.Server.Context.Database.Mandates.ReadByNameAsync(host.TenantId, "att-ceo-mandate", token).ConfigureAwait(false))!;
+                MandateRevision published = await HttpTestHelpers.SendAsync<MandateRevision>(host.AdminClient, HttpMethod.Post, b + "/" + f.Org.Id + "/direction", new BoardDirectionRequest { Direction = "Ship the driver upgrade." }, 201, token).ConfigureAwait(false);
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, b + "/" + f.Org.Id + "/direction", new BoardDirectionRequest { Direction = " Ship the driver upgrade. ", ChangeNote = "Again" }, token).ConfigureAwait(false), 409, "RevisionUnchanged", "The same direction again");
+                Mandate after = (await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, mandate.Id, token).ConfigureAwait(false))!;
+                Assert.True(after.CurrentRevisionId == published.Id && after.CurrentRevisionNumber == published.Number, "The repeat made no revision: " + Serializer.Serialize(after));
+                AuditPage audit = await host.Server.Context.Database.Audit.EnumerateAsync(new AuditFilter { TenantId = host.TenantId, EventType = AuditEventTypeEnum.BoardDirectionGiven }, token).ConfigureAwait(false);
+                Assert.Equal(1, audit.Objects.Count, "Only the first direction is audited");
             }
         }
 

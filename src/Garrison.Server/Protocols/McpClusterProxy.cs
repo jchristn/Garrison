@@ -175,7 +175,7 @@ namespace Garrison.Server.Protocols
             settings.IO.MaxRequestBodySize = _Context.Settings.Mcp.MaxMessageSize;
             _Server = new Webserver(settings, HandleAsync);
             _Server.Routes.Preflight = HandleAsync;
-            _Server.Start();
+            Garrison.Core.Services.ListenerStartException.Run("MCP", settings.Hostname, settings.Port, () => _Server.Start());
 
             _Backplane = _Context.TryGet<IEventBackplane>();
             if (_Backplane != null) _Backplane.MessageReceived += OnBackplaneMessage;

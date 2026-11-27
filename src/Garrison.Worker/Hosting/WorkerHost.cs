@@ -311,7 +311,7 @@ namespace Garrison.Worker.Hosting
                 Func<string?, CancellationToken, Task<MetricsScrape?>>? metrics = null;
                 if (telemetry != null && _Settings.Telemetry.ServeMetricsOnServicePort) metrics = (accept, token) => telemetry.ScrapeAsync(accept, token);
                 _Health = new HealthServer(_Settings.HealthHostname, _Settings.HealthPort, Health, metrics);
-                _Health.Start();
+                Garrison.Core.Services.ListenerStartException.Run("health", _Settings.HealthHostname, _Settings.HealthPort, () => _Health.Start());
                 _Logging.Info(_Header + "health listening on " + _Settings.HealthHostname + ":" + _Settings.HealthPort + (metrics != null && telemetry!.PrometheusUrl != null ? " (also serving /metrics)" : String.Empty));
             }
             _MainTask = Task.Run(() => MainAsync(_Stop.Token));

@@ -101,7 +101,11 @@ Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`.
 | `InvalidJsonSchema` | An agent's `inputSchema` or `outputSchema` is not a usable JSON Schema |
 | `InvalidFormat` | A transcript `format` other than `markdown` or `json` |
 | `UnknownKind`, `InvalidSelector` | A manifest export `kinds` value that cannot be exported, or a `resources` entry that is not `Kind/name` |
+| `InvalidValue` | A query filter such as `status`, `kind`, or `eventType` that names no value of its list (the message lists the allowed values), or a value the field refuses, such as a negative keeper budget |
+| `InvalidType` | A request body field of the wrong type, such as text for a number. The response is 400 `InvalidBody` and its message names the field path and what it takes, for example "currentRevision.wakeMode must be one of Fixed, Backoff." |
 | `Invalid` | Any other field problem; read the message |
+
+A filter whose value names no member of its list answers 400 `ValidationFailed` with field code `InvalidValue` on the parameter, instead of being ignored. Names match without regard to case, and an empty value means no filter.
 
 Query string values are decoded the way browsers and HTTP clients encode them: percent escapes are decoded and a `+` is a space, so send a literal plus sign as `%2B`. A model name such as `gpt-oss:20b` works raw or encoded (`gpt-oss%3A20b`). Timestamps keep a raw `+` as a time zone offset sign.
 
@@ -3844,11 +3848,11 @@ Save a new revision (a `MandateRevision` body) as a draft, numbered after the la
 
 #### `POST /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/revisions/{revId}/publish`
 
-Publish a draft revision. It becomes current, the interval resets to its minimum, a `Draft` mandate becomes `Active`, and an `Active` mandate wakes now. Publishing a draft older than the current revision marks it published without making it current. A published revision answers 409 `RevisionPublished`, and a revision of another mandate 409 `RevisionMismatch`.
+Publish a draft revision. It becomes current, the interval resets to its minimum, a `Draft` mandate becomes `Active`, and an `Active` mandate wakes now. Publishing a draft older than the current revision marks it published without making it current. A published revision answers 409 `RevisionPublished`, and a revision of another mandate 409 `RevisionMismatch`. A draft whose content matches the current revision (every field but the change note, author, and timestamps) answers 409 `RevisionUnchanged`; it stays a draft and the keeper is not woken. A person's publish sets `pendingWakeSource: Manual`, so the tick it starts records `Manual`; a run token's publish leaves the timer source.
 
 #### `POST /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/pause`, `/resume`, `/wake`
 
-Pause stops further wakes; a running tick finishes. Only an `Active` or `CapReached` mandate can be paused (409 `MandateNotActive`), and pausing a paused one changes nothing. Resume makes a `Paused` mandate `Active` and wakes it now with the interval reset (409 `MandateNotPaused` otherwise). Wake sets the next wake of an `Active` mandate to now with `pendingWakeSource: Manual` and answers 202; when a tick is running, the woken tick starts as soon as that one finishes (409 `MandateNotActive` for other statuses).
+Pause stops further wakes; a running tick finishes. Only an `Active` or `CapReached` mandate can be paused (409 `MandateNotActive`), and pausing a paused one changes nothing. Resume makes a `Paused` mandate `Active` and wakes it now with the interval reset and, when a person resumes it, `pendingWakeSource: Manual` (409 `MandateNotPaused` otherwise). Wake sets the next wake of an `Active` mandate to now with `pendingWakeSource: Manual` and answers 202; when a tick is running, the woken tick starts as soon as that one finishes (409 `MandateNotActive` for other statuses). Pause, resume, wake, and delete write audit records `MandatePaused`, `MandateResumed`, `MandateWoken`, and `MandateDeleted`.
 
 #### `GET /v1.0/api/tenants/{tenantId}/mandates/{idOrName}/ticks`
 
@@ -4140,7 +4144,7 @@ The `Board` aggregate, computed on every request. `limit` (1 to 100, default 20;
 
 #### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/direction`
 
-Give direction to the top agent with a `BoardDirectionRequest`: `direction` (required, 1 to 4000 characters) and `changeNote` (at most 1024 characters, default `Board direction`). Garrison copies the current published revision of the CEO mandate into a new revision with this `direction`, `source` `Board`, and you as `author`, and publishes it, so the keeper wakes under it. Its next tick's system prompt frames the direction as the board's instruction through `builtin/keeper-system`. The change is audited as `BoardDirectionGiven` with your identity. Direction is allowed while the organization is frozen. Errors: 400 `ValidationFailed` (field codes `Required`, `TooLong`); 409 `BoardCeoMissing` (the root unit has no lead, the lead has no mandate in the live revision, or the mandate has no published revision).
+Give direction to the top agent with a `BoardDirectionRequest`: `direction` (required, 1 to 4000 characters) and `changeNote` (at most 1024 characters, default `Board direction`). Garrison copies the current published revision of the CEO mandate into a new revision with this `direction`, `source` `Board`, and you as `author`, and publishes it, so the keeper wakes under it. Its next tick's system prompt frames the direction as the board's instruction through `builtin/keeper-system`. The change is audited as `BoardDirectionGiven` with your identity. Direction is allowed while the organization is frozen. Errors: 400 `ValidationFailed` (field codes `Required`, `TooLong`); 409 `BoardCeoMissing` (the root unit has no lead, the lead has no mandate in the live revision, or the mandate has no published revision); 409 `RevisionUnchanged` when the current revision already has this direction (nothing is published or audited).
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/direction" \
@@ -5733,7 +5737,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`, `FreezeApplied`, `FreezeLifted`, `KillSwitchChanged`, `BoardDirectionGiven`, `UnitCascadeCancelled` (a person cancelled everything in a unit's subtree), `OrgBudgetFrozen` (the budget guard froze an overrun unit)
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`, `FreezeApplied`, `FreezeLifted`, `KillSwitchChanged`, `BoardDirectionGiven`, `UnitCascadeCancelled` (a person cancelled everything in a unit's subtree), `OrgBudgetFrozen` (the budget guard froze an overrun unit), `MandatePaused`, `MandateResumed`, `MandateWoken`, `MandateDeleted` (a keeper was paused, resumed, woken now, or deleted), `EscalationAnswered`, `EscalationCancelled` (an escalation was answered or cancelled; the record names the escalation, never its text)
 
 #### `AuthSchemeEnum`
 
@@ -7538,7 +7542,8 @@ The board of an organization (AA10.2), computed on every request.
 | `proposals` | `OrgProposal[]` | Proposals whose approval is `Pending`, newest change first, with `evidence` and without `diff`, at most `limit`. |
 | `spend` | `OrgUnitSpend[]` | The rows of `GET .../spend`. |
 | `latestBrief` | `Report?` | Newest report of kind `Brief` from an agent of the organization. |
-| `unhealthyReports` | `Report[]` | Newest `Degraded` and `Unhealthy` reports from its agents in the last 7 days, at most `limit`. |
+| `unhealthyReports` | `Report[]` | `Degraded` and `Unhealthy` reports from its agents in the last 7 days, one per author (its newest), newest first, at most `limit`. |
+| `unhealthyEarlierCounts` | `Dictionary<string, int>` | Keyed by a report identifier in `unhealthyReports`: how many earlier `Degraded` or `Unhealthy` reports the same author filed in the window. No entry when there are none. |
 | `freezes` | `Freeze[]` | Active freezes on the organization, its units, agents, or mandates, and an active `TenantAutonomy` freeze. |
 | `killSwitch` | `KillSwitchState` | The tenant's kill switch. |
 
@@ -7848,7 +7853,7 @@ The same shape holds a unit of the working tree and a unit in a revision's snaps
 | `maxIntervalSeconds` | `int` | 10 to 2592000, default 86400; lowered to `Autonomy.MaxIntervalSeconds` and raised to the minimum. |
 | `backoffFactor` | `double` | 1 to 10, default 2. |
 | `jitterPercent` | `int?` | 0 to 50; `null` uses `Autonomy.DefaultJitterPercent`. |
-| `budgetPerTickUsd`, `budgetPerDayUsd` | `double?` | 0 to 1000000, or `null` for no limit. A tick over its budget is refused or cancelled; a keeper over its daily budget shows `CapReached` until the next UTC day. See [docs/BRAKES.md](docs/BRAKES.md#spend-caps). |
+| `budgetPerTickUsd`, `budgetPerDayUsd` | `double?` | 0 to 1000000, or `null` for no limit. A negative value answers 400 `InvalidValue`; a value above the maximum clamps with a `ValueClamped` warning. A tick over its budget is refused or cancelled; a keeper over its daily budget shows `CapReached` until the next UTC day. See [docs/BRAKES.md](docs/BRAKES.md#spend-caps). |
 | `maxTokensPerTick` | `long?` | 0 to 100000000, or `null` for no limit. Enforced from AA3. |
 | `briefIntervalHours` | `int?` | Hours between briefs to the board (AA10.3), 1 to 720 (clamped with a `ValueClamped` warning), or `null` for no briefs. When the mandate's agent leads the root unit of a live organization and filed no `Brief` report within the interval, its tick input asks for one through `builtin/board-brief`. |
 | `source` | `MandateRevisionSourceEnum` | Who wrote it (`Board` for a board direction). Set by the server. |

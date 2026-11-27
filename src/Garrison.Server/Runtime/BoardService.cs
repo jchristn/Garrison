@@ -7,6 +7,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Keepers;
     using Garrison.Core.Models;
     using Garrison.Core.Organizations;
     using Garrison.Core.Requests;
@@ -195,10 +196,28 @@ namespace Garrison.Server.Runtime
                 List<Report> unhealthy = new List<Report>();
                 foreach (ReportHealthEnum health in new[] { ReportHealthEnum.Degraded, ReportHealthEnum.Unhealthy })
                 {
-                    ReportFilter filter = new ReportFilter { TenantId = tenantId, AuthorAgentIds = authors, Health = health, FromUtc = now.AddDays(-_UnhealthyReportDays), MaxResults = max };
+                    ReportFilter filter = new ReportFilter { TenantId = tenantId, AuthorAgentIds = authors, Health = health, FromUtc = now.AddDays(-_UnhealthyReportDays), MaxResults = 1000 };
                     unhealthy.AddRange((await _Server.Database.Reports.EnumerateAsync(filter, token).ConfigureAwait(false)).Objects);
                 }
-                board.UnhealthyReports = unhealthy.OrderByDescending(r => r.CreatedUtc).ThenByDescending(r => r.Id, StringComparer.Ordinal).Take(max).ToList();
+
+                // Needs attention shows each author once, at its newest unhealthy report, so a degraded keeper that files
+                // the same report every tick does not fill the list (UT-10). Its earlier ones are counted.
+                Dictionary<string, Report> newestByAuthor = new Dictionary<string, Report>(StringComparer.Ordinal);
+                List<Report> newest = new List<Report>();
+                Dictionary<string, int> earlier = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (Report report in unhealthy.OrderByDescending(r => r.CreatedUtc).ThenByDescending(r => r.Id, StringComparer.Ordinal))
+                {
+                    string key = String.IsNullOrEmpty(report.AuthorAgentId) ? report.Id : report.AuthorAgentId;
+                    if (newestByAuthor.TryGetValue(key, out Report? first))
+                    {
+                        earlier[first.Id] = (earlier.TryGetValue(first.Id, out int count) ? count : 0) + 1;
+                        continue;
+                    }
+                    newestByAuthor[key] = report;
+                    newest.Add(report);
+                }
+                board.UnhealthyReports = newest.Take(max).ToList();
+                board.UnhealthyEarlierCounts = board.UnhealthyReports.Where(r => earlier.ContainsKey(r.Id)).ToDictionary(r => r.Id, r => earlier[r.Id], StringComparer.Ordinal);
             }
 
             // Freezes over the organization, its units, agents, and mandates, and the kill switch.
@@ -250,7 +269,7 @@ namespace Garrison.Server.Runtime
         /// <returns>The published revision.</returns>
         /// <exception cref="ArgumentNullException">Thrown when ctx or organization is null.</exception>
         /// <exception cref="ValidationException">Thrown when the direction is missing or too long, or the change note is too long.</exception>
-        /// <exception cref="ConflictException">Thrown with BoardCeoMissing when the root unit has no lead or the lead has no mandate with a published revision in the live revision.</exception>
+        /// <exception cref="ConflictException">Thrown with BoardCeoMissing when the root unit has no lead or the lead has no mandate with a published revision in the live revision, or RevisionUnchanged when the direction is already the current one (nothing is published).</exception>
         public async Task<MandateRevision> DirectAsync(RequestContext ctx, Organization organization, BoardDirectionRequest? request, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -281,6 +300,10 @@ namespace Garrison.Server.Runtime
             MandateRevision next = Copy(current);
             next.Direction = direction.Trim();
             next.ChangeNote = String.IsNullOrWhiteSpace(request!.ChangeNote) ? "Board direction" : request.ChangeNote.Trim();
+            if (MandateValidator.SameContent(current, next))
+            {
+                throw new ConflictException("RevisionUnchanged", "Mandate " + mandate.Name + " already has this direction in its current revision " + current.Number + ". Nothing was published and the keeper was not woken.");
+            }
 
             MandateService mandates = _Server.Get<MandateService>();
             MandateRevision draft = await mandates.CreateRevisionAsync(ctx, mandate, next, MandateRevisionSourceEnum.Board, token).ConfigureAwait(false);

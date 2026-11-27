@@ -18,6 +18,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Services;
     using Garrison.Core.Settings;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Runtime;
@@ -51,6 +52,8 @@ namespace Test.Shared.Suites
             unit.Add(new TestCaseDescriptor("correctness-unit", "database-failure-classifier", "Pool exhaustion, too many clients, and Sqlite busy are Busy; refused connections and shutdowns are Unavailable; constraint errors are not (G-23, G-25)", ct => ClassifierAsync()));
             unit.Add(new TestCaseDescriptor("correctness-unit", "liveness-listener", "The liveness port answers GET /v1.0/api/health/live from its own thread, 404 elsewhere, and keeps answering while the REST listener's thread pool is saturated (G-24)", LivenessAsync));
             unit.Add(new TestCaseDescriptor("correctness-unit", "manifest-invalid", "An invalid enum or wrong type in a manifest spec returns ManifestInvalid naming the document, field, and allowed values, without type names or byte positions (G-26)", ManifestInvalidAsync));
+            unit.Add(new TestCaseDescriptor("correctness-unit", "body-type-errors", "A request body value of the wrong type is described by field path and plain type, enums list their values, and no .NET type name or byte position leaks (UT-13)", BodyTypeErrorsAsync));
+            unit.Add(new TestCaseDescriptor("correctness-unit", "listener-address", "A listener that cannot bind names itself, the host, and the port in the startup failure (UT-18)", ListenerAddressAsync));
             suites.Add(new TestSuiteDescriptor("correctness-unit", "Correctness fixes (unit)", unit));
 
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
@@ -167,6 +170,78 @@ namespace Test.Shared.Suites
                     return Encoding.UTF8.GetString(buffer.ToArray());
                 }
             }
+        }
+
+        private static Task BodyTypeErrorsAsync(CancellationToken token)
+        {
+            Dictionary<string, string> expected = new Dictionary<string, string>
+            {
+                { "{\"minIntervalSeconds\":\"soon\"}", "minIntervalSeconds must be a whole number." },
+                { "{\"wakeMode\":\"Sometimes\"}", "wakeMode must be one of Fixed, Backoff." },
+                { "{\"budgetPerTickUsd\":\"lots\"}", "budgetPerTickUsd must be a number." },
+                { "{\"signals\":[{\"name\":7}]}", "signals[0].name must be text." },
+                { "{\"signals\":{\"a\":1}}", "signals must be a list." },
+                { "{\"escalationTargetKind\":\"Boss\"}", "escalationTargetKind must be one of " }
+            };
+            foreach (KeyValuePair<string, string> pair in expected)
+            {
+                JsonException error = Assert.NotNull(Catch(pair.Key), "Deserializing " + pair.Key + " fails");
+                string message = JsonErrorDescriber.Describe(typeof(MandateRevision), error);
+                Assert.True(message.StartsWith(pair.Value, StringComparison.Ordinal), pair.Key + " reads \"" + pair.Value + "\": " + message);
+                Assert.True(JsonErrorDescriber.IsTypeMismatch(error), pair.Key + " is a type mismatch");
+                AssertNoInternals(message);
+                string untyped = JsonErrorDescriber.Describe(error);
+                Assert.True(!untyped.Contains("System.", StringComparison.Ordinal) && !untyped.Contains("Garrison.", StringComparison.Ordinal), "Without the target type the message still names no .NET type: " + untyped);
+            }
+            JsonException syntax = Assert.NotNull(Catch("{\"objective\": }"), "Broken JSON fails");
+            Assert.True(!JsonErrorDescriber.IsTypeMismatch(syntax) && JsonErrorDescriber.Describe(typeof(MandateRevision), syntax).StartsWith("The request body is not valid JSON: ", StringComparison.Ordinal), "Broken JSON keeps the parser's description");
+            Assert.Equal("signals[0].name", JsonErrorDescriber.FieldPath(Catch("{\"signals\":[{\"name\":7}]}")!) ?? String.Empty, "The field path drops the leading $.");
+            return Task.CompletedTask;
+        }
+
+        private static JsonException? Catch(string json)
+        {
+            try
+            {
+                Serializer.Deserialize<MandateRevision>(json);
+                return null;
+            }
+            catch (JsonException e)
+            {
+                return e;
+            }
+        }
+
+        private static Task ListenerAddressAsync(CancellationToken token)
+        {
+            TcpListener taken = new TcpListener(System.Net.IPAddress.Loopback, 0);
+            taken.Start();
+            try
+            {
+                int port = ((System.Net.IPEndPoint)taken.LocalEndpoint).Port;
+                ListenerStartException? failure = null;
+                try
+                {
+                    ListenerStartException.Run("REST", "127.0.0.1", port, () =>
+                    {
+                        TcpListener second = new TcpListener(System.Net.IPAddress.Loopback, port);
+                        second.Start();
+                        second.Stop();
+                    });
+                }
+                catch (ListenerStartException e)
+                {
+                    failure = e;
+                }
+                ListenerStartException thrown = Assert.NotNull(failure, "Binding a taken port fails");
+                Assert.True(thrown.Message.StartsWith("REST could not listen on 127.0.0.1:" + port + ": ", StringComparison.Ordinal) && thrown.Port == port && thrown.Hostname == "127.0.0.1" && thrown.InnerException is SocketException, "The message names the listener and the address: " + thrown.Message);
+                ListenerStartException.Run("REST", "127.0.0.1", port, () => { });
+            }
+            finally
+            {
+                taken.Stop();
+            }
+            return Task.CompletedTask;
         }
 
         private static async Task ManifestInvalidAsync(CancellationToken token)

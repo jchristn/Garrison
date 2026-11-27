@@ -19,11 +19,14 @@ There is no board object to create. Any person with the right permissions on an 
 | `proposals` | [Executive proposals](EXECUTIVES.md#proposals) waiting for a decision, newest first, with their `evidence` and without the diff |
 | `spend` | Spend against unit budgets, the same rows as `GET /organizations/{id}/spend` |
 | `latestBrief` | The newest report of kind `Brief` from an agent of the organization, or null |
-| `unhealthyReports` | Reports with health `Degraded` or `Unhealthy` from the organization's agents in the last 7 days, newest first |
+| `unhealthyReports` | Reports with health `Degraded` or `Unhealthy` from the organization's agents in the last 7 days, one per author: each author's newest, newest first |
+| `unhealthyEarlierCounts` | For a report in `unhealthyReports`, keyed by its identifier, how many earlier `Degraded` or `Unhealthy` reports the same author filed in those 7 days. A report with no earlier ones has no entry |
 | `freezes` | Active freezes on the organization, its units, or its agents, plus the tenant's kill switch freeze when it is on |
 | `killSwitch` | The tenant's [autonomy kill switch](BRAKES.md#the-kill-switch) |
 
 `limit` (1 to 100, default 20) caps `escalations`, `proposals`, and `unhealthyReports`. The other lists are short by nature and come back whole.
+
+A degraded keeper files a report on every tick, so `unhealthyReports` keeps only each author's newest one and counts the rest in `unhealthyEarlierCounts`. The dashboard's Needs attention list shows them as "and 6 earlier". Open the author's reports with `GET /reports?author={agent}` to read them all.
 
 Proposals leave out their diff so the response stays small. Open one with `GET /organizations/{id}/proposals/{draftId}` to see the diff, then decide it with `POST .../decide` as before.
 
@@ -69,7 +72,7 @@ Each `unitHealth` row reads the unit's newest report and a few facts about it:
 
 The CEO's next tick sees the direction, framed by a prompt template as the board's instruction ([KEEPERS.md](KEEPERS.md) covers ticks). Each direction is written to the audit log as `BoardDirectionGiven` with your identity, and the mandate's revision history keeps every one.
 
-Direction is allowed while the organization is frozen. A freeze stops the agents; it should not stop the board from deciding what they do when it lifts. An organization whose root unit has no lead, or whose lead has no mandate in the live revision, answers 409 `BoardCeoMissing`.
+Direction is allowed while the organization is frozen. A freeze stops the agents; it should not stop the board from deciding what they do when it lifts. An organization whose root unit has no lead, or whose lead has no mandate in the live revision, answers 409 `BoardCeoMissing`. Sending the direction the current revision already has answers 409 `RevisionUnchanged`: nothing is published, nothing is audited, and the CEO is not woken.
 
 ## Briefs
 
@@ -80,6 +83,8 @@ The asking happens in the tick. When the keeper is the CEO and its newest `Brief
 Filing any `Brief` report fires the notification event `BoardBrief` with the report's summary, as the other report events do ([NOTIFICATIONS.md](NOTIFICATIONS.md)). The board view's `latestBrief` and `ceo.lastBriefUtc` show the newest one, and `GET /reports?kind=Brief` lists the rest.
 
 The fake harness never files a brief. Briefs come from a CEO on a real harness that follows the brief section.
+
+A brief does not need a tick. A [board conversation](#talking-to-the-ceo) is an ordinary run on the CEO's deployment and keeps `garrison_file_report`, so the CEO may answer a question by filing a `Brief`, and that brief becomes `latestBrief` like any other. This is deliberate: the board can ask for an update now instead of waiting for the interval. Such a brief has no `mandateTickId`, which is how you tell it from one a tick asked for. Garrison only refuses `garrison_keeper_complete_tick` from a conversation, since the conversation is not a tick.
 
 ## Talking to the CEO
 

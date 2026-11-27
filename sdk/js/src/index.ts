@@ -3046,13 +3046,15 @@ export interface BoardUnitHealth extends Json {
 }
 /**
  * The board view of an organization, computed on each read. escalations (pending, newest first), proposals (awaiting a
- * decision, without diffs), and unhealthyReports (Degraded or Unhealthy in the last 7 days) are capped by limit. Briefs
- * and reports are agent output; treat them as untrusted text.
+ * decision, without diffs), and unhealthyReports (Degraded or Unhealthy in the last 7 days, one per author at its newest)
+ * are capped by limit. unhealthyEarlierCounts maps a listed report's id to how many earlier unhealthy reports its author
+ * filed in the window. Briefs and reports are agent output; treat them as untrusted text.
  */
 export interface Board extends Json {
   organizationId: string; name: string; mission?: string | null; status: OrganizationStatus; generatedUtc: string;
   chart: OrgChart; ceo?: BoardCeo | null; unitHealth: BoardUnitHealth[]; escalations: Escalation[]; proposals: OrgProposal[];
-  spend: OrgUnitSpend[]; latestBrief?: Report | null; unhealthyReports: Report[]; freezes: Freeze[]; killSwitch: KillSwitchState;
+  spend: OrgUnitSpend[]; latestBrief?: Report | null; unhealthyReports: Report[]; unhealthyEarlierCounts: Record<string, number>;
+  freezes: Freeze[]; killSwitch: KillSwitchState;
 }
 /** Direction for the CEO: 1 to 4000 characters; changeNote at most 1024 (default "Board direction"). */
 export interface BoardDirectionRequest { direction: string; changeNote?: string | null; }

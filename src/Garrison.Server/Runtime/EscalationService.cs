@@ -349,7 +349,7 @@ namespace Garrison.Server.Runtime
             escalation.Status = EscalationStatusEnum.Answered;
             escalation.AnswerChoice = answer.Choice;
             escalation.AnswerText = answer.Text;
-            await ResolveAsync(ctx, escalation, source, Who(ctx), "escalation.answered", "Answered escalation " + escalation.Id + (answer.Choice != null ? " with " + answer.Choice : String.Empty) + ".", token).ConfigureAwait(false);
+            await ResolveAsync(ctx, escalation, source, Who(ctx), "escalation.answered", "Answered escalation " + escalation.Id + (answer.Choice != null ? " with one of its options" : String.Empty) + ".", token).ConfigureAwait(false);
             return escalation;
         }
 
@@ -555,7 +555,10 @@ namespace Garrison.Server.Runtime
             {
                 throw new ConflictException("EscalationNotOpen", "Escalation " + escalation.Id + " was resolved by another request.");
             }
-            await AuditAsync(ctx, escalation, description, token).ConfigureAwait(false);
+            AuditEventTypeEnum eventType = escalation.Status == EscalationStatusEnum.Answered ? AuditEventTypeEnum.EscalationAnswered
+                : escalation.Status == EscalationStatusEnum.Cancelled ? AuditEventTypeEnum.EscalationCancelled
+                : AuditEventTypeEnum.ConfigurationChanged;
+            await _Audit.WriteAsync(ctx, eventType, "Escalation", escalation.Id, description, escalation.TenantId, token).ConfigureAwait(false);
             _Logging.Info(_Header + escalation.Id + " " + escalation.Status.ToString().ToLowerInvariant() + " (" + source + (by != null ? ", " + by : String.Empty) + ")");
             Raise(escalation, change);
             await AfterResolvedAsync(escalation, token).ConfigureAwait(false);

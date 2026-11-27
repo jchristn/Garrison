@@ -74,10 +74,16 @@ namespace Garrison.Sdk.Models
         public Report? LatestBrief { get; set; } = null;
 
         /// <summary>
-        /// Reports with health Degraded or Unhealthy from agents of the organization in the last 7 days, newest first, at
-        /// most the requested limit.
+        /// Reports with health Degraded or Unhealthy from agents of the organization in the last 7 days, one per author (its
+        /// newest), newest first, at most the requested limit.
         /// </summary>
         public List<Report> UnhealthyReports { get; set; } = new List<Report>();
+
+        /// <summary>
+        /// For a report in <see cref="UnhealthyReports"/>, keyed by its identifier: how many earlier Degraded or Unhealthy
+        /// reports its author filed in the same window. A report with no earlier ones has no entry.
+        /// </summary>
+        public Dictionary<string, int> UnhealthyEarlierCounts { get; set; } = new Dictionary<string, int>();
 
         /// <summary>
         /// Active freezes covering the organization, its units, or its agents, plus an active tenant autonomy freeze.

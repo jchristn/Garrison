@@ -154,6 +154,24 @@ namespace Garrison.Core.Enums
         UnitCascadeCancelled,
 
         /// <summary>The budget guard froze a unit whose subtree spend passed its budget plus the organization's freeze margin (AA11.5).</summary>
-        OrgBudgetFrozen
+        OrgBudgetFrozen,
+
+        /// <summary>A keeper (mandate) was paused, by a person or by an organization change. The record names the mandate and who paused it.</summary>
+        MandatePaused,
+
+        /// <summary>A keeper (mandate) was resumed.</summary>
+        MandateResumed,
+
+        /// <summary>A wake of a keeper (mandate) was requested now (the Wake action).</summary>
+        MandateWoken,
+
+        /// <summary>A keeper (mandate) was deleted.</summary>
+        MandateDeleted,
+
+        /// <summary>An escalation was answered, by a person, an agent, or its timeout's default answer. The record names the escalation, never the answer (AA-025).</summary>
+        EscalationAnswered,
+
+        /// <summary>An escalation was cancelled, by a person or by its timeout.</summary>
+        EscalationCancelled
     }
 }

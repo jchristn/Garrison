@@ -9,6 +9,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Enums;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
+    using Garrison.Core.Serialization;
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Services;
@@ -305,6 +306,19 @@ namespace Garrison.Server.Routes
             await RouteHelpers.JsonAsync(context, status, error).ConfigureAwait(false);
         }
 
+        private static async Task InvalidBodyAsync(HttpContextBase context, string message, string? field)
+        {
+            ErrorResponse error = new ErrorResponse("BadRequest", "InvalidBody", message);
+            error.RequestId = RouteHelpers.Context(context).RequestId;
+            if (!String.IsNullOrEmpty(field))
+            {
+                error.Fields = new Dictionary<string, string> { { field, message } };
+                error.Errors = error.Fields;
+                error.FieldCodes = new Dictionary<string, string> { { field, "InvalidType" } };
+            }
+            await RouteHelpers.JsonAsync(context, 400, error).ConfigureAwait(false);
+        }
+
         private async Task InvokeAsync(HttpContextBase context, Func<HttpContextBase, Task> handler)
         {
             RequestTelemetry.CaptureSpan(context);
@@ -314,7 +328,7 @@ namespace Garrison.Server.Routes
             }
             catch (RequestBodyException e)
             {
-                await RouteHelpers.ErrorAsync(context, 400, "InvalidBody", e.Message).ConfigureAwait(false);
+                await InvalidBodyAsync(context, e.Message, e.Field).ConfigureAwait(false);
             }
             catch (ValidationException e)
             {
@@ -357,7 +371,7 @@ namespace Garrison.Server.Routes
             }
             catch (JsonException e)
             {
-                await RouteHelpers.ErrorAsync(context, 400, "InvalidJson", e.Message).ConfigureAwait(false);
+                await RouteHelpers.ErrorAsync(context, 400, "InvalidJson", JsonErrorDescriber.Describe(e)).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

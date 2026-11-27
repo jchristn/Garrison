@@ -10,6 +10,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -267,17 +268,27 @@ namespace Garrison.Server.Routes
         }
 
         /// <summary>
-        /// Enum query parameter.
+        /// Enum query parameter, matched by name without regard to case. An absent or empty parameter is null. A value
+        /// that names no member is refused rather than ignored, so a typo in a filter never returns unfiltered data that
+        /// looks filtered.
         /// </summary>
         /// <typeparam name="T">Enum type.</typeparam>
         /// <param name="context">HTTP context.</param>
         /// <param name="key">Key.</param>
         /// <returns>Value or null.</returns>
+        /// <exception cref="ValidationException">Thrown (400, field code InvalidValue) when the value names no member; the message lists the allowed values.</exception>
         public static T? QueryEnum<T>(HttpContextBase context, string key) where T : struct, Enum
         {
             string? value = Query(context, key);
-            if (!String.IsNullOrEmpty(value) && Enum.TryParse<T>(value, true, out T parsed)) return parsed;
-            return null;
+            if (String.IsNullOrWhiteSpace(value)) return null;
+            string trimmed = value.Trim();
+            bool numeric = trimmed.Length > 0 && (Char.IsDigit(trimmed[0]) || trimmed[0] == '-' || trimmed[0] == '+');
+            if (!numeric && Enum.TryParse<T>(trimmed, true, out T parsed) && Enum.IsDefined(parsed)) return parsed;
+            string message = key + " must be one of " + String.Join(", ", Enum.GetNames<T>()) + ".";
+            throw new ValidationException(
+                "Query parameter " + key + " has an unknown value. " + message,
+                new Dictionary<string, string> { { key, message } },
+                new Dictionary<string, string> { { key, "InvalidValue" } });
         }
 
         /// <summary>
@@ -317,7 +328,7 @@ namespace Garrison.Server.Routes
             }
             catch (JsonException e)
             {
-                throw new RequestBodyException("Request body is not valid JSON for " + typeof(T).Name + ": " + e.Message, e);
+                throw new RequestBodyException(JsonErrorDescriber.Describe(typeof(T), e), JsonErrorDescriber.IsTypeMismatch(e) ? JsonErrorDescriber.FieldPath(e) : null, e);
             }
         }
 

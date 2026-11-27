@@ -136,6 +136,42 @@ namespace Garrison.Sdk.Enums
         SigningSecretRotated,
 
         /// <summary>A queued-run depth limit refused admission.</summary>
-        QueueFull
+        QueueFull,
+
+        /// <summary>A person applied a freeze.</summary>
+        FreezeApplied,
+
+        /// <summary>A person lifted a freeze.</summary>
+        FreezeLifted,
+
+        /// <summary>A person turned the autonomy kill switch on or off.</summary>
+        KillSwitchChanged,
+
+        /// <summary>A person gave direction to an organization's top agent from the board.</summary>
+        BoardDirectionGiven,
+
+        /// <summary>A person cancelled everything in an organization unit's subtree.</summary>
+        UnitCascadeCancelled,
+
+        /// <summary>The budget guard froze a unit whose subtree spend passed its budget plus the freeze margin.</summary>
+        OrgBudgetFrozen,
+
+        /// <summary>A keeper (mandate) was paused, by a person or by an organization change.</summary>
+        MandatePaused,
+
+        /// <summary>A keeper (mandate) was resumed.</summary>
+        MandateResumed,
+
+        /// <summary>A wake of a keeper (mandate) was requested now.</summary>
+        MandateWoken,
+
+        /// <summary>A keeper (mandate) was deleted.</summary>
+        MandateDeleted,
+
+        /// <summary>An escalation was answered. The record names the escalation, never the answer.</summary>
+        EscalationAnswered,
+
+        /// <summary>An escalation was cancelled.</summary>
+        EscalationCancelled
     }
 }

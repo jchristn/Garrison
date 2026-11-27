@@ -77,6 +77,8 @@ curl -s -X POST "$GARRISON/v1.0/api/tenants/default/escalations/esc_2xQ.../answe
 
 Answers are compare-and-set, so two people answering at once cannot both win. The second gets 409 `EscalationNotOpen`.
 
+Each answer is written to the audit log as `EscalationAnswered`, and each cancel as `EscalationCancelled`, with who did it; timeouts that answer or cancel are recorded the same way with the principal `timeout`. The record names the escalation and says whether an option was chosen. It never holds the question, the option labels, or the answer text, since the agent wrote the first two and the answer goes back to an agent (AA-025). Read the escalation itself for those.
+
 The answer reaches the agent as data. `builtin/escalation-answered` frames it between lines that carry a random marker and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. A question sent to another agent arrives through `builtin/inbox-delivery`, framed the same way, with a line naming the escalation to answer. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
 
 ## Timeouts

@@ -224,7 +224,7 @@ namespace Garrison.Server.Runtime
             }
             if (force && !String.IsNullOrEmpty(existing.ActiveRunId) && CancelRunAsync != null) await CancelRunAsync(existing.TenantId, existing.ActiveRunId, token).ConfigureAwait(false);
             bool deleted = await _Database.Mandates.DeleteAsync(existing.TenantId, existing.Id, token).ConfigureAwait(false);
-            await AuditAsync(ctx, existing.TenantId, existing.Id, "Deleted mandate " + existing.Name + (force ? " with force" : String.Empty) + ".", token).ConfigureAwait(false);
+            await AuditAsync(ctx, AuditEventTypeEnum.MandateDeleted, existing.TenantId, existing.Id, "Deleted mandate" + existing.Name + (force ? " with force" : String.Empty) + ".", token).ConfigureAwait(false);
             return deleted;
         }
 
@@ -265,7 +265,7 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>The mandate with its new current revision.</returns>
         /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
-        /// <exception cref="ConflictException">Thrown with RevisionPublished when the revision is not a draft, or RevisionMismatch when it belongs to another mandate.</exception>
+        /// <exception cref="ConflictException">Thrown with RevisionPublished when the revision is not a draft, RevisionMismatch when it belongs to another mandate, or RevisionUnchanged when its content matches the current revision (nothing is published and the keeper is not woken).</exception>
         public async Task<Mandate> PublishRevisionAsync(RequestContext ctx, Mandate mandate, MandateRevision revision, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -273,6 +273,14 @@ namespace Garrison.Server.Runtime
             if (revision == null) throw new ArgumentNullException(nameof(revision));
             if (revision.MandateId != mandate.Id) throw new ConflictException("RevisionMismatch", "Revision " + revision.Id + " does not belong to mandate " + mandate.Name + ".");
             if (revision.State != MandateRevisionStateEnum.Draft) throw new ConflictException("RevisionPublished", "Revision " + revision.Number + " of mandate " + mandate.Name + " is already published; draft a new revision instead.");
+            if (mandate.Status != MandateStatusEnum.Draft && !String.IsNullOrEmpty(mandate.CurrentRevisionId))
+            {
+                MandateRevision? current = await _Database.MandateRevisions.ReadAsync(mandate.TenantId, mandate.CurrentRevisionId, token).ConfigureAwait(false);
+                if (current != null && MandateValidator.SameContent(current, revision))
+                {
+                    throw new ConflictException("RevisionUnchanged", "Revision " + revision.Number + " of mandate " + mandate.Name + " is the same as the current revision " + current.Number + ". Change something before publishing; nothing was published and the keeper was not woken.");
+                }
+            }
             DateTime now = DateTime.UtcNow;
             if (!await _Database.MandateRevisions.PublishAsync(mandate.TenantId, revision.Id, now, token).ConfigureAwait(false))
             {
@@ -285,7 +293,7 @@ namespace Garrison.Server.Runtime
             if (revision.Number >= mandate.CurrentRevisionNumber)
             {
                 MandateStatusEnum status = mandate.Status == MandateStatusEnum.Draft ? MandateStatusEnum.Active : mandate.Status;
-                StartSchedule(mandate, revision, status);
+                StartSchedule(mandate, revision, status, PersonWake(ctx));
                 await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
             }
             await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Published revision " + revision.Number + " of mandate " + mandate.Name + " (" + mandate.Status + ").", token).ConfigureAwait(false);
@@ -358,7 +366,7 @@ namespace Garrison.Server.Runtime
             mandate.NextWakeUtc = null;
             mandate.PendingWakeSource = null;
             await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
-            await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Paused mandate " + mandate.Name + (String.IsNullOrWhiteSpace(reason) ? "." : ": " + reason.Trim()), token).ConfigureAwait(false);
+            await AuditAsync(ctx, AuditEventTypeEnum.MandatePaused, mandate.TenantId, mandate.Id, "Paused mandate" + mandate.Name + (String.IsNullOrWhiteSpace(reason) ? "." : ": " + reason.Trim()), token).ConfigureAwait(false);
             await AttachRevisionAsync(mandate, token).ConfigureAwait(false);
             return mandate;
         }
@@ -379,9 +387,9 @@ namespace Garrison.Server.Runtime
             if (mandate.Status == MandateStatusEnum.Active) return mandate;
             if (mandate.Status != MandateStatusEnum.Paused) throw new ConflictException("MandateNotPaused", "Mandate " + mandate.Name + " is " + mandate.Status + "; only a Paused mandate can be resumed.");
             MandateRevision revision = await CurrentRevisionAsync(mandate, token).ConfigureAwait(false);
-            StartSchedule(mandate, revision, MandateStatusEnum.Active);
+            StartSchedule(mandate, revision, MandateStatusEnum.Active, PersonWake(ctx));
             await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
-            await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Resumed mandate " + mandate.Name + ".", token).ConfigureAwait(false);
+            await AuditAsync(ctx, AuditEventTypeEnum.MandateResumed, mandate.TenantId, mandate.Id, "Resumed mandate" + mandate.Name + ".", token).ConfigureAwait(false);
             mandate.CurrentRevision = revision;
             return mandate;
         }
@@ -403,7 +411,7 @@ namespace Garrison.Server.Runtime
             {
                 throw new ConflictException("MandateNotActive", "Mandate " + mandate.Name + " is " + mandate.Status + "; only an Active mandate can be woken.");
             }
-            await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Requested a wake of mandate " + mandate.Name + ".", token).ConfigureAwait(false);
+            await AuditAsync(ctx, AuditEventTypeEnum.MandateWoken, mandate.TenantId, mandate.Id, "Requested a wake of mandate " + mandate.Name + ".", token).ConfigureAwait(false);
             return await FindAsync(mandate.TenantId, mandate.Id, token).ConfigureAwait(false) ?? mandate;
         }
 
@@ -448,6 +456,11 @@ namespace Garrison.Server.Runtime
 
         private void StartSchedule(Mandate mandate, MandateRevision revision, MandateStatusEnum status)
         {
+            StartSchedule(mandate, revision, status, null);
+        }
+
+        private void StartSchedule(Mandate mandate, MandateRevision revision, MandateStatusEnum status, WakeSourceEnum? source)
+        {
             KeeperIntervalResult start = _Intervals.Start(revision, DateTime.UtcNow);
             mandate.Status = status;
             mandate.CurrentRevisionId = revision.Id;
@@ -455,7 +468,14 @@ namespace Garrison.Server.Runtime
             mandate.CurrentIntervalSeconds = start.IntervalSeconds;
             mandate.ConsecutiveQuietTicks = 0;
             mandate.NextWakeUtc = status == MandateStatusEnum.Active ? start.NextWakeUtc : null;
-            mandate.PendingWakeSource = null;
+            mandate.PendingWakeSource = status == MandateStatusEnum.Active ? source : null;
+        }
+
+        private static WakeSourceEnum? PersonWake(RequestContext ctx)
+        {
+            // Publishing or resuming wakes the keeper now. When a person (or their credential) did it, the tick records
+            // Manual; an agent's own change through its run token keeps the schedule's Timer source.
+            return ctx.PrincipalType == PrincipalTypeEnum.Run ? null : WakeSourceEnum.Manual;
         }
 
         private async Task<MandateRevision> CurrentRevisionAsync(Mandate mandate, CancellationToken token)
@@ -475,7 +495,12 @@ namespace Garrison.Server.Runtime
 
         private async Task AuditAsync(RequestContext ctx, string tenantId, string mandateId, string description, CancellationToken token)
         {
-            await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Mandate", mandateId, description, tenantId, token).ConfigureAwait(false);
+            await AuditAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, tenantId, mandateId, description, token).ConfigureAwait(false);
+        }
+
+        private async Task AuditAsync(RequestContext ctx, AuditEventTypeEnum eventType, string tenantId, string mandateId, string description, CancellationToken token)
+        {
+            await _Audit.WriteAsync(ctx, eventType, "Mandate", mandateId, description, tenantId, token).ConfigureAwait(false);
         }
 
         #endregion

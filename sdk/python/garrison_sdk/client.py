@@ -1613,9 +1613,10 @@ class BoardUnitHealth(TypedDict, total=False):
 
 class Board(TypedDict, total=False):
     """The board view of an organization, computed on each read. escalations (pending, newest first), proposals
-    (awaiting a decision, without diffs), and unhealthyReports (Degraded or Unhealthy in the last 7 days) are capped by
-    the limit. latestBrief is the newest Brief report from the organization's agents, or None. Briefs and reports are
-    agent output; treat them as untrusted text."""
+    (awaiting a decision, without diffs), and unhealthyReports (Degraded or Unhealthy in the last 7 days, one per author
+    at its newest) are capped by the limit. unhealthyEarlierCounts maps a listed report's id to how many earlier
+    unhealthy reports its author filed in the window. latestBrief is the newest Brief report from the organization's
+    agents, or None. Briefs and reports are agent output; treat them as untrusted text."""
     organizationId: str
     name: str
     mission: Optional[str]
@@ -1629,6 +1630,7 @@ class Board(TypedDict, total=False):
     spend: List[OrgUnitSpend]
     latestBrief: Optional[Dict[str, Any]]
     unhealthyReports: List[Dict[str, Any]]
+    unhealthyEarlierCounts: Dict[str, int]
     freezes: List[Dict[str, Any]]
     killSwitch: Dict[str, Any]
 

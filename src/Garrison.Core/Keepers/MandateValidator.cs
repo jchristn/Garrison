@@ -165,7 +165,48 @@ namespace Garrison.Core.Keepers
             {
                 errors["escalationTargetKind"] = "Set escalationTargetKind with escalationTargetId.";
             }
+
+            // A negative limit is a typo, not a request for "nothing": clamped to 0 it would fail every tick, so it is
+            // refused the way the dashboard refuses it. Values above the maximum still clamp with a ValueClamped warning.
+            Negative(revision, "budgetPerTickUsd", "Enter an amount from 0 to 1000000.", errors, codes);
+            Negative(revision, "budgetPerDayUsd", "Enter an amount from 0 to 1000000.", errors, codes);
+            Negative(revision, "maxTokensPerTick", "Enter a number of tokens from 0 to 100000000.", errors, codes);
             if (errors.Count > 0) throw new ValidationException("The mandate revision is invalid.", errors, codes);
+        }
+
+        /// <summary>
+        /// Whether two revisions say the same thing: objective, definition of healthy, autonomy, escalation policy,
+        /// direction, escalation target, signals in order, wake mode, intervals, backoff, jitter, budgets, token limit, and
+        /// brief interval. Identity, number, state, source, author, change note, and timestamps are ignored; empty and
+        /// missing text are the same. Used to refuse publishing a revision that changes nothing.
+        /// </summary>
+        /// <param name="a">First revision.</param>
+        /// <param name="b">Second revision.</param>
+        /// <returns>True when their content is the same.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a or b is null.</exception>
+        public static bool SameContent(MandateRevision a, MandateRevision b)
+        {
+            if (a == null) throw new ArgumentNullException(nameof(a));
+            if (b == null) throw new ArgumentNullException(nameof(b));
+            if (!SameText(a.Objective, b.Objective)) return false;
+            if (!SameText(a.HealthyDefinition, b.HealthyDefinition)) return false;
+            if (!SameText(a.Autonomy, b.Autonomy)) return false;
+            if (!SameText(a.EscalationPolicy, b.EscalationPolicy)) return false;
+            if (!SameText(a.Direction, b.Direction)) return false;
+            if (a.EscalationTargetKind != b.EscalationTargetKind) return false;
+            if (!SameText(a.EscalationTargetId, b.EscalationTargetId)) return false;
+            if (a.WakeMode != b.WakeMode) return false;
+            if (a.MinIntervalSeconds != b.MinIntervalSeconds || a.MaxIntervalSeconds != b.MaxIntervalSeconds) return false;
+            if (a.BackoffFactor != b.BackoffFactor || a.JitterPercent != b.JitterPercent) return false;
+            if (a.BudgetPerTickUsd != b.BudgetPerTickUsd || a.BudgetPerDayUsd != b.BudgetPerDayUsd) return false;
+            if (a.MaxTokensPerTick != b.MaxTokensPerTick || a.BriefIntervalHours != b.BriefIntervalHours) return false;
+            if (a.Signals.Count != b.Signals.Count) return false;
+            for (int i = 0; i < a.Signals.Count; i++)
+            {
+                if (!SameText(a.Signals[i].Name, b.Signals[i].Name)) return false;
+                if (!SameText(a.Signals[i].Description, b.Signals[i].Description)) return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -218,6 +259,23 @@ namespace Garrison.Core.Keepers
         private static string Text(int value)
         {
             return value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static bool SameText(string? a, string? b)
+        {
+            string left = String.IsNullOrWhiteSpace(a) ? String.Empty : a.Trim();
+            string right = String.IsNullOrWhiteSpace(b) ? String.Empty : b.Trim();
+            return String.Equals(left, right, StringComparison.Ordinal);
+        }
+
+        private static void Negative(MandateRevision revision, string field, string message, Dictionary<string, string> errors, Dictionary<string, string> codes)
+        {
+            if (revision.Warnings == null) return;
+            FieldWarning? warning = revision.Warnings.FirstOrDefault(w => String.Equals(w.Field, field, StringComparison.Ordinal) && w.Code == "ValueClamped");
+            if (warning == null || String.IsNullOrEmpty(warning.Given)) return;
+            if (!Double.TryParse(warning.Given, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double given) || given >= 0) return;
+            errors[field] = message;
+            codes[field] = "InvalidValue";
         }
 
         #endregion

@@ -58,6 +58,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "channel", "A mandate:{id} subscriber receives tick.started when a tick's run starts and tick.completed with the outcome and next wake when it ends (" + provider + ")", ct => ChannelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "data-isolation", "mandates, mandate_revisions, mandate_revision_signals, and mandate_ticks: another tenant cannot read, list, publish, report, or wake them, and its own rows stay apart (" + provider + ")", ct => DataIsolationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp", "Management MCP tools for mandates, keeper tools visible only to keeper runs, and refusals for other callers (" + provider + ")", ct => McpAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "user-findings", "UT-04 unknown filters answer 400 InvalidValue, UT-06 pause, resume, wake, and delete are audited, UT-09 a negative budget is refused, UT-13 type errors name the field and a plain type, UT-14 an unchanged revision is not published and does not wake, UT-15 publish and resume wake as Manual (" + provider + ")", ct => UserFindingsAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Keepers (" + provider + ")", cases));
             }
             return suites;
@@ -412,6 +413,81 @@ spec:
                 Assert.Equal(204, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/mandates/" + draft.Id, null, token).ConfigureAwait(false)).StatusCode, "Delete an idle mandate");
                 EnumerationResult<MandateRevision> gone = await host.Server.Context.Database.MandateRevisions.EnumerateAsync(host.TenantId, draft.Id, new EnumerationQuery(), token).ConfigureAwait(false);
                 Assert.Equal(0, gone.Objects.Count, "Revisions are deleted with the mandate");
+            }
+        }
+
+        private static async Task UserFindingsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await ClusterAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                KeeperScheduler scheduler = host.Server.Context.Get<KeeperScheduler>();
+                Agent agent = await cluster.CreateAgentAsync("ut-keeper", "builtin/fake", null, token).ConfigureAwait(false);
+                string mandateHead = "{\"agentId\":\"" + agent.Id + "\",\"deploymentId\":\"ut-keeper-default\",";
+
+                // UT-04: an unknown filter value is refused, naming the parameter and the allowed values.
+                TestResponse bogus = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/mandates?status=Bogus", null, token).ConfigureAwait(false);
+                Code(bogus, 400, "InvalidValue", "An unknown status filter");
+                Assert.True(bogus.Body.Contains("status must be one of", StringComparison.Ordinal) && bogus.Body.Contains("Paused", StringComparison.Ordinal), "The error lists the allowed values: " + bogus.Body);
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/audit?eventType=NoSuchEvent", null, token).ConfigureAwait(false), 400, "InvalidValue", "An unknown audit event type");
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/mandates?status=42", null, token).ConfigureAwait(false), 400, "InvalidValue", "A number is not a status");
+                Assert.Equal(200, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/mandates?status=active", null, token).ConfigureAwait(false)).StatusCode, "Names match without regard to case");
+                Assert.Equal(200, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/mandates?status=", null, token).ConfigureAwait(false)).StatusCode, "An empty filter is no filter");
+
+                // UT-09: a negative budget is refused, not clamped to 0.
+                TestResponse negative = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", mandateHead + "\"name\":\"ut-negative\",\"currentRevision\":{\"objective\":\"Spend nothing.\",\"budgetPerTickUsd\":-5,\"budgetPerDayUsd\":-1}}", token).ConfigureAwait(false);
+                Code(negative, 400, "InvalidValue", "A negative budget");
+                Assert.True(negative.Body.Contains("budgetPerTickUsd", StringComparison.Ordinal) && negative.Body.Contains("budgetPerDayUsd", StringComparison.Ordinal) && negative.Body.Contains("from 0 to 1000000", StringComparison.Ordinal), "Both budgets are named: " + negative.Body);
+                Assert.True(await host.Server.Context.Database.Mandates.ReadByNameAsync(host.TenantId, "ut-negative", token).ConfigureAwait(false) == null, "Nothing was created");
+                TestResponse large = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", mandateHead + "\"name\":\"ut-large\",\"status\":\"Paused\",\"currentRevision\":{\"objective\":\"Spend a lot.\",\"budgetPerTickUsd\":5000000}}", token).ConfigureAwait(false);
+                Assert.True(large.StatusCode == 201 && large.Body.Contains("ValueClamped", StringComparison.Ordinal), "A budget over the maximum still clamps with a warning: " + large.Body);
+
+                // UT-13: a value of the wrong type names the field and a plain type, never a .NET type.
+                TestResponse typed = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", mandateHead + "\"name\":\"ut-typed\",\"currentRevision\":{\"objective\":\"x\",\"minIntervalSeconds\":\"soon\"}}", token).ConfigureAwait(false);
+                Code(typed, 400, "InvalidBody", "A string for a number");
+                Assert.True(typed.Body.Contains("currentRevision.minIntervalSeconds must be a whole number.", StringComparison.Ordinal) && typed.Body.Contains("InvalidType", StringComparison.Ordinal), "Field and plain type: " + typed.Body);
+                TestResponse mode = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", mandateHead + "\"name\":\"ut-mode\",\"currentRevision\":{\"objective\":\"x\",\"wakeMode\":\"Sometimes\"}}", token).ConfigureAwait(false);
+                Code(mode, 400, "InvalidBody", "An unknown wake mode");
+                Assert.True(mode.Body.Contains("currentRevision.wakeMode must be one of Fixed, Backoff.", StringComparison.Ordinal), "Enum values listed: " + mode.Body);
+                foreach (string leak in new[] { "System.Int32", "Garrison.Core", "BytePosition", "LineNumber" })
+                {
+                    Assert.True(!typed.Body.Contains(leak, StringComparison.Ordinal) && !mode.Body.Contains(leak, StringComparison.Ordinal), "No serializer internals (" + leak + "): " + typed.Body + " " + mode.Body);
+                }
+
+                // UT-15: publishing a revision wakes the keeper as Manual, and the tick records it.
+                Mandate draft = await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", Body("ut-pond", agent, null), 201, token).ConfigureAwait(false);
+                MandateRevision first = await HttpTestHelpers.SendAsync<MandateRevision>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/" + draft.Id + "/revisions", Revision("Keep the pond calm."), 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/" + draft.Id + "/revisions/" + first.Id + "/publish", null, 200, token).ConfigureAwait(false);
+                Mandate stored = (await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, draft.Id, token).ConfigureAwait(false))!;
+                Assert.True(stored.PendingWakeSource == WakeSourceEnum.Manual, "Publish leaves a Manual wake pending: " + stored.PendingWakeSource);
+
+                // UT-14: the same content again is not published and does not move the schedule.
+                MandateRevision same = await HttpTestHelpers.SendAsync<MandateRevision>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/" + draft.Id + "/revisions", Revision("Keep the pond calm."), 201, token).ConfigureAwait(false);
+                Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/" + draft.Id + "/revisions/" + same.Id + "/publish", null, token).ConfigureAwait(false), 409, "RevisionUnchanged", "Publishing an unchanged revision");
+                Mandate unchanged = (await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, draft.Id, token).ConfigureAwait(false))!;
+                Assert.True(unchanged.CurrentRevisionNumber == 1 && unchanged.NextWakeUtc == stored.NextWakeUtc, "The current revision and the next wake stay: " + Serializer.Serialize(unchanged));
+                MandateRevision sameDraft = await HttpTestHelpers.SendAsync<MandateRevision>(host.AdminClient, HttpMethod.Get, T(host) + "/mandates/" + draft.Id + "/revisions/" + same.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(MandateRevisionStateEnum.Draft, sameDraft.State, "The unchanged revision stays a draft");
+
+                Assert.True(await scheduler.SweepAsync(DateTime.UtcNow.AddSeconds(1), token).ConfigureAwait(false), "The sweep starts the tick");
+                List<MandateTick> ticks = await TicksOfAsync(host, draft.Id, token).ConfigureAwait(false);
+                Assert.True(ticks.Count == 1 && ticks[0].WakeSource == WakeSourceEnum.Manual, "The tick after a publish is Manual: " + Serializer.Serialize(ticks));
+                await WaitTickAsync(host, ticks[0].Id, token).ConfigureAwait(false);
+
+                // UT-06 and UT-15: pause, resume (a Manual wake), wake, and delete are audited with their own event types.
+                await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/ut-pond/pause", null, 200, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/ut-pond/resume", null, 200, token).ConfigureAwait(false);
+                Mandate resumed = (await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, draft.Id, token).ConfigureAwait(false))!;
+                Assert.True(resumed.PendingWakeSource == WakeSourceEnum.Manual, "Resume leaves a Manual wake pending: " + resumed.PendingWakeSource);
+                await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/ut-pond/wake", null, 202, token).ConfigureAwait(false);
+                Assert.Equal(204, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/mandates/ut-pond?force=true", null, token).ConfigureAwait(false)).StatusCode, "Delete");
+                foreach (AuditEventTypeEnum eventType in new[] { AuditEventTypeEnum.MandatePaused, AuditEventTypeEnum.MandateResumed, AuditEventTypeEnum.MandateWoken, AuditEventTypeEnum.MandateDeleted })
+                {
+                    AuditPage page = await host.Server.Context.Database.Audit.EnumerateAsync(new AuditFilter { TenantId = host.TenantId, EventType = eventType }, token).ConfigureAwait(false);
+                    Assert.True(page.Objects.Count == 1 && page.Objects[0].ResourceId == draft.Id && page.Objects[0].ResourceType == "Mandate" && !String.IsNullOrEmpty(page.Objects[0].PrincipalName), eventType + " is audited with the person: " + Serializer.Serialize(page.Objects));
+                    TestResponse filtered = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/audit?eventType=" + eventType, null, token).ConfigureAwait(false);
+                    Assert.True(filtered.StatusCode == 200 && filtered.Body.Contains(draft.Id, StringComparison.Ordinal), eventType + " filters over REST: " + filtered.Body);
+                }
             }
         }
 
