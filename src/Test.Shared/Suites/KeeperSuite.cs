@@ -8,6 +8,7 @@ namespace Test.Shared.Suites
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Keepers;
@@ -55,6 +56,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "replicas", "Three replicas sweeping 50 due mandates at once start exactly 50 ticks (" + provider + ")", ct => ReplicasAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifest kind Mandate: dry run, apply, unchanged re-apply, a changed revision publishes the next one, paused, agent immutability, export, and a studio draft with a mandate item validates (" + provider + ")", ct => ManifestsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "A mandate:{id} subscriber receives tick.started when a tick's run starts and tick.completed with the outcome and next wake when it ends (" + provider + ")", ct => ChannelAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "data-isolation", "mandates, mandate_revisions, mandate_revision_signals, and mandate_ticks: another tenant cannot read, list, publish, report, or wake them, and its own rows stay apart (" + provider + ")", ct => DataIsolationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp", "Management MCP tools for mandates, keeper tools visible only to keeper runs, and refusals for other callers (" + provider + ")", ct => McpAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Keepers (" + provider + ")", cases));
             }
@@ -273,6 +275,39 @@ spec:
             Assert.True(back.Status == MandateStatusEnum.CapReached && back.LastTickOutcome == TickOutcomeEnum.Unreported && back.PendingWakeSource == WakeSourceEnum.EscalationAnswer, "Enums round-trip");
             Assert.True(new Mandate().Id.StartsWith("mdt_", StringComparison.Ordinal) && new MandateRevision().Id.StartsWith("mdr_", StringComparison.Ordinal) && new MandateTick().Id.StartsWith("mtk_", StringComparison.Ordinal), "Identifier prefixes");
             return Task.CompletedTask;
+        }
+
+        private static async Task DataIsolationAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                Mandate mine = await db.Mandates.CreateAsync(new Mandate { TenantId = "ten_a", Name = "pond", AgentId = "agt_a", DeploymentId = "dep_a" }, token).ConfigureAwait(false);
+                Mandate theirs = await db.Mandates.CreateAsync(new Mandate { TenantId = "ten_b", Name = "pond", AgentId = "agt_b", DeploymentId = "dep_b" }, token).ConfigureAwait(false);
+                MandateRevision revision = new MandateRevision { TenantId = "ten_a", MandateId = mine.Id, Number = 1, Objective = "Keep the pond clean" };
+                revision.Signals = new List<MandateRevisionSignal> { new MandateRevisionSignal { Name = "clarity" } };
+                revision = await db.MandateRevisions.CreateAsync(revision, token).ConfigureAwait(false);
+                MandateTick tick = await db.MandateTicks.CreateAsync(new MandateTick { TenantId = "ten_a", MandateId = mine.Id, RevisionId = revision.Id, Summary = "all clear" }, token).ConfigureAwait(false);
+
+                Assert.True(await db.Mandates.ReadAsync("ten_b", mine.Id, token).ConfigureAwait(false) == null, "Another tenant cannot read the mandate");
+                Assert.Equal(theirs.Id, Assert.NotNull(await db.Mandates.ReadByNameAsync("ten_b", "pond", token).ConfigureAwait(false), "Same name in another tenant").Id, "A name lookup stays in its tenant");
+                EnumerationResult<Mandate> listed = await db.Mandates.EnumerateAsync("ten_b", null, null, null, new EnumerationQuery(), token).ConfigureAwait(false);
+                Assert.True(listed.Objects.Count == 1 && listed.Objects[0].Id == theirs.Id, "Another tenant lists only its own mandate");
+                Assert.True(!await db.Mandates.RequestWakeAsync("ten_b", mine.Id, WakeSourceEnum.Manual, DateTime.UtcNow, token).ConfigureAwait(false), "Another tenant cannot wake it");
+                Assert.True(!await db.Mandates.DeleteAsync("ten_b", mine.Id, token).ConfigureAwait(false), "Another tenant cannot delete it");
+
+                Assert.True(await db.MandateRevisions.ReadAsync("ten_b", revision.Id, token).ConfigureAwait(false) == null, "Another tenant cannot read the revision or its signals");
+                Assert.Equal(0L, (await db.MandateRevisions.EnumerateAsync("ten_b", mine.Id, new EnumerationQuery(), token).ConfigureAwait(false)).TotalRecords, "Another tenant lists no revisions");
+                Assert.True(!await db.MandateRevisions.PublishAsync("ten_b", revision.Id, DateTime.UtcNow, token).ConfigureAwait(false), "Another tenant cannot publish it");
+                MandateRevision own = Assert.NotNull(await db.MandateRevisions.ReadAsync("ten_a", revision.Id, token).ConfigureAwait(false), "Its tenant reads the revision");
+                Assert.True(own.State == MandateRevisionStateEnum.Draft && own.Signals.Count == 1 && own.Signals[0].Name == "clarity", "The revision stays a draft with its signal");
+
+                Assert.True(await db.MandateTicks.ReadAsync("ten_b", tick.Id, token).ConfigureAwait(false) == null, "Another tenant cannot read the tick");
+                Assert.Equal(0L, (await db.MandateTicks.EnumerateAsync("ten_b", mine.Id, null, new EnumerationQuery(), token).ConfigureAwait(false)).TotalRecords, "Another tenant lists no ticks");
+                Assert.Equal(0, (await db.MandateTicks.ListRecentAsync("ten_b", mine.Id, 10, token).ConfigureAwait(false)).Count, "Another tenant sees no recent ticks");
+                Assert.True(!await db.MandateTicks.TryReportAsync("ten_b", tick.Id, TickOutcomeEnum.Acted, "forged", null, token).ConfigureAwait(false), "Another tenant cannot report the tick");
+                MandateTick ownTick = Assert.NotNull(await db.MandateTicks.ReadAsync("ten_a", tick.Id, token).ConfigureAwait(false), "Its tenant reads the tick");
+                Assert.True(!ownTick.Reported && ownTick.Summary == "all clear", "The tick keeps its own summary");
+            }
         }
 
         private static async Task CrudAsync(DatabaseTypeEnum provider, CancellationToken token)

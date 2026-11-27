@@ -33,7 +33,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
             {expanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
           </button>
         ) : null}
-        <h4 className="org-unit-name">{unit.name}</h4>
+        <h3 className="org-unit-name">{unit.name}</h3>
         {report ? <ReportHealthBadge health={report.health} t={t} /> : null}
       </header>
       {unit.description ? <p className="org-unit-description">{unit.description}</p> : null}
@@ -83,7 +83,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
                   onBlur={() => setHighlight(null)}
                   {...tip(t('tips.organizations.chart.peer'))}
                 >
-                  {'↔ '}
+                  <span aria-hidden="true">{'↔ '}</span>
                   {p.peerUnitName || unitNames[p.peerUnitId] || p.peerUnitId}
                 </button>
               ))}

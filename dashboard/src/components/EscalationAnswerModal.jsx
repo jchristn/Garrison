@@ -67,6 +67,21 @@ export default function EscalationAnswerModal({ escalation, onClose, onAnswered 
     setErrors((x) => ({ ...x, choice: undefined }));
   };
 
+  // The options are one radio group: one tab stop (the chosen option, else the first), arrow keys move and choose.
+  const onChoiceKey = (event, index) => {
+    const keys = (escalation.options || []).map((o) => o.key);
+    let next = null;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') next = (index + 1) % keys.length;
+    else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') next = (index - 1 + keys.length) % keys.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = keys.length - 1;
+    if (next === null || keys.length === 0) return;
+    event.preventDefault();
+    pick(keys[next]);
+    const buttons = event.currentTarget.parentElement?.querySelectorAll('[role="radio"]');
+    buttons?.[next]?.focus();
+  };
+
   return (
     <Modal
       open
@@ -119,13 +134,15 @@ export default function EscalationAnswerModal({ escalation, onClose, onAnswered 
         {options && (
           <fieldset className="escalation-choices">
             <legend {...tip(t('tips.components.escalations.choice'))}>{t('components.escalations.choice')}</legend>
-            <div className="escalation-choice-list" role="radiogroup" aria-label={t('components.escalations.choice')}>
-              {escalation.options.map((o) => (
+            <div className="escalation-choice-list" role="radiogroup" aria-label={t('components.escalations.choice')} aria-describedby={errors.choice ? 'escalation-choice-error' : undefined}>
+              {escalation.options.map((o, i) => (
                 <button
                   key={o.key}
                   type="button"
                   role="radio"
                   aria-checked={form.choice === o.key}
+                  tabIndex={form.choice === o.key || (!escalation.options.some((x) => x.key === form.choice) && i === 0) ? 0 : -1}
+                  onKeyDown={(e) => onChoiceKey(e, i)}
                   className={`escalation-choice ${form.choice === o.key ? 'selected' : ''}`}
                   disabled={busy}
                   onClick={() => pick(o.key)}
@@ -138,7 +155,11 @@ export default function EscalationAnswerModal({ escalation, onClose, onAnswered 
                 </button>
               ))}
             </div>
-            {errors.choice && <div className="field-error">{errors.choice}</div>}
+            {errors.choice && (
+              <div className="field-error" id="escalation-choice-error">
+                {errors.choice}
+              </div>
+            )}
           </fieldset>
         )}
         {escalation.defaultAnswer && !(escalation.options || []).some((o) => o.key === escalation.defaultAnswer) && (

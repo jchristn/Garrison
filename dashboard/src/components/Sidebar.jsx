@@ -76,6 +76,7 @@ export default function Sidebar({ onNavigateMobile }) {
                     {hub.key === 'approvals' && pending > 0 && (
                       <span
                         className="sidebar-badge"
+                        role="img"
                         data-testid="approvals-badge"
                         aria-label={t('nav.approvalsPending', { count: pending })}
                         {...tip(reviewsPending ? t('tips.nav.approvalsBadgeCombined', { count: pending, approvals: approvalsPending ?? 0, reviews: reviewsPending }) : t('tips.nav.approvalsBadge', { count: pending }))}
@@ -86,6 +87,7 @@ export default function Sidebar({ onNavigateMobile }) {
                     {hub.key === 'autonomy' && openEscalations > 0 && (
                       <span
                         className="sidebar-badge"
+                        role="img"
                         data-testid="escalations-badge"
                         aria-label={t('nav.escalationsOpen', { count: openEscalations })}
                         {...tip(t('tips.nav.escalationsBadge', { count: openEscalations }))}

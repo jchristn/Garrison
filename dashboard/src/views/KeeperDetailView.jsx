@@ -319,7 +319,7 @@ export default function KeeperDetailView({ recordId }) {
       <PageHeader
         title={t('views.keeperDetail.heading', { name: m.name })}
         subtitle={
-          <span className="inline-meta">
+          <span className="inline-meta" aria-live="polite" data-testid="keeper-live-status">
             <CopyableId value={m.id} max={40} /> <MandateStatusBadge status={m.status} t={t} />
             {m.activeRunId && <Badge tone="info" tip={t('tips.resources.keepers.ticking')}>{t('resources.keepers.ticking')}</Badge>}
             {live ? (
@@ -391,13 +391,15 @@ export default function KeeperDetailView({ recordId }) {
           {rev ? <span className="text-muted">{` (${enumLabel(t, 'wakeMode', rev.wakeMode)})`}</span> : null}
         </Detail>
         <Detail label={t('resources.keepers.columns.lastTick')} tip={t('tips.resources.keepers.lastTick')}>
-          {m.lastTickUtc ? (
-            <span className="inline-meta">
-              {when(m.lastTickUtc)} <TickOutcomeBadge outcome={m.lastTickOutcome} t={t} />
-            </span>
-          ) : (
-            t('resources.keepers.neverTicked')
-          )}
+          <span aria-live="polite" data-testid="keeper-last-tick">
+            {m.lastTickUtc ? (
+              <span className="inline-meta">
+                {when(m.lastTickUtc)} <TickOutcomeBadge outcome={m.lastTickOutcome} t={t} />
+              </span>
+            ) : (
+              t('resources.keepers.neverTicked')
+            )}
+          </span>
         </Detail>
         <Detail label={t('views.keeperDetail.quietStreak')} tip={t('tips.views.keeperDetail.quietStreak')}>{formatNumber(m.consecutiveQuietTicks ?? 0, {}, lng)}</Detail>
         <Detail label={t('resources.keepers.columns.tickCount')} tip={t('tips.resources.keepers.tickCount')}>{formatNumber(m.tickCount ?? 0, {}, lng)}</Detail>

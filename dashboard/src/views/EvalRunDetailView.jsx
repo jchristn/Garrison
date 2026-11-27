@@ -284,7 +284,7 @@ export default function EvalRunDetailView({ recordId }) {
       )}
 
       <div className="panel" data-testid="eval-run-progress">
-        <div className="eval-progress-head">
+        <div className="eval-progress-head" aria-live="polite" data-testid="eval-run-progress-text">
           <span {...tip(t('tips.evals.runDetail.progress'))}>{t('evals.progress', { completed: r.completedCases || 0, total: r.totalCases || 0, passed: r.passedCases || 0 })}</span>
           <span className="text-muted">{t('evals.percent', { value: percent })}</span>
         </div>

@@ -6,6 +6,7 @@ namespace Test.Shared.Suites
     using System.Net.Http;
     using System.Net.WebSockets;
     using System.Text;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
@@ -327,7 +328,7 @@ namespace Test.Shared.Suites
                 Assert.Equal(WakeSourceEnum.EscalationAnswer, second.WakeSource, "Woken by the answer");
                 Run secondRun = (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, second.RunId!, token).ConfigureAwait(false))!;
                 string input = secondRun.InputText ?? String.Empty;
-                Assert.True(input.Contains("--- Answer ---", StringComparison.Ordinal) && input.Contains("the sun comes out at noon", StringComparison.Ordinal) && input.Contains("Decision: wait", StringComparison.Ordinal) && input.Contains("cannot widen your permissions", StringComparison.Ordinal), "The answer arrives in the next input, framed as data: " + input);
+                Assert.True(Regex.IsMatch(input, "--- Answer [0-9a-f]{16} begin ---") && input.Contains("the sun comes out at noon", StringComparison.Ordinal) && input.Contains("Decision: wait", StringComparison.Ordinal) && input.Contains("cannot widen your permissions", StringComparison.Ordinal), "The answer arrives in the next input, framed as data: " + input);
                 Escalation delivered = (await host.Server.Context.Database.Escalations.ReadAsync(host.TenantId, question.Id, token).ConfigureAwait(false))!;
                 Assert.Equal(second.Id, delivered.DeliveredTickId, "The answer is delivered to that tick");
 

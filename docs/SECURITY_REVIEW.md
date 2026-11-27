@@ -579,3 +579,184 @@ Results of the same checks run locally on 2026-10-14:
 | Trivy 0.75.0, dashboard image | Alpine 3.24.2: 3 HIGH (libexpat CVE-2026-93990, pcre2 CVE-2026-103111, tiff CVE-2026-4775), fixed in the next Alpine package releases. Rebuilding on a refreshed `nginx:alpine` base picks them up |
 
 None of the image findings are in Garrison's own dependencies. They are in the .NET runtime, Alpine packages, and the Node.js tooling the worker installs, and they clear when the images are rebuilt against current base images and a current npm, which is part of publishing images (not done here). Until the dashboard's `vitest` upgrade and the image rebuilds land, the npm and image jobs in the new workflow will fail.
+
+## Addendum: autonomous agents (AA12.9)
+
+Review date: 2026-11-26, against `feature/autonomous-agents` at `ea45b716` (schema 59). File and line references point at that commit with the fixes below applied. Schema versions 46 to 59 belong to 0.3.0. Version 45 was the last 0.2.0 migration (plan section 7.3).
+
+0.3.0 lets agents act without a person asking. Keepers wake on a schedule. Agents write memory, file reports, message each other, and raise escalations. Executives change the units below them, and candidate deployments run beside production as shadows and canaries. `docs/SECURITY.md` has the threat model for each feature, and this addendum checks that model against the code. For each threat it names the mitigation and the Touchstone case that exercises it. A test reference is `suite/case`, where `<provider>` is `sqlite` or `postgresql`. Every reference was checked against `src/Test.Shared/Suites`. The review found one weakness and fixed it (SR-27), added one missing test (SR-28), and left one item open (SR-29).
+
+### Summary
+
+| ID | Severity | Area | Status |
+|---|---|---|---|
+| AT-1 | Threat | Prompt injection through memory, reports, messages, and escalation answers | Mitigated; SR-27 fixed |
+| AT-2 | Threat | Self-modification: an agent changing its own mandate, authority, or budget | Mitigated |
+| AT-3 | Threat | Privilege escalation through drafts and change rules | Mitigated |
+| AT-4 | Threat | Loop cost: agents waking, messaging, and spending in a cycle | Mitigated |
+| AT-5 | Threat | Shadow and eval leakage: side effects and hidden cases | Mitigated in Garrison's MCP gateway; SR-29 open |
+| AT-6 | Threat | Tenant isolation of the 40 new tables | Mitigated; SR-28 test added |
+| SR-27 | Medium | Escalation questions and answers were fenced by fixed lines that the text itself could forge | Fixed |
+| SR-28 | Low | No data-layer isolation test for mandate revisions, signals, and ticks | Fixed: test added |
+| SR-29 | Medium | Shadow and eval restrictions are enforced in the MCP gateway, not on REST routes called with the run's token | Open |
+
+### AT-1: prompt injection through shared state
+
+**Threat:** a worker reads a hostile page and writes it into memory, a report, a message, or an escalation. A keeper, a manager, or an executive reads it later, and the text tells that reader to ignore its instructions (plan risk R2).
+
+**Mitigation:** decision AA-025. Text an agent wrote reaches a prompt only through a built-in template that frames it as data, with provenance, between begin and end lines that carry a random marker made for each render. Text that imitates an end line cannot close the block, and template syntax inside the text is never expanded.
+
+| Channel | Template | Code | Test |
+|---|---|---|---|
+| Memory recall | `builtin/memory-recall` | `src/Garrison.Core/Memory/MemoryRecallRenderer.cs:38` | `scoped-memory-<provider>/recall-template` |
+| A manager's digest of reports | `builtin/report-digest` | `src/Garrison.Core/Reports/ReportDigestRenderer.cs:36` | `reports-unit/digest-template`, `reports-<provider>/digest` |
+| Inbox delivery, including escalations sent to an agent | `builtin/inbox-delivery` | `src/Garrison.Core/Messaging/InboxDeliveryRenderer.cs:42` | `messaging-unit/delivery-template`, `messaging-<provider>/escalation` |
+| An escalation question to an agent, and answers back to the asker | `builtin/escalation-received`, `builtin/escalation-answered` | `src/Garrison.Server/Runtime/EscalationService.cs:502`, `:680` | `templates/escalation-templates`, `escalations-<provider>/keeper` |
+| Judge prompts | `builtin/eval-judge` | `src/Garrison.Core/Evaluation/EvalJudgePrompt.cs` | `eval-unit/scorers` |
+
+Board direction is the one deliberate exception. People with `Organization` permissions write it, and the template frames it as the board's instruction (`board-<provider>/direction`). A keeper's recent tick summaries in `builtin/keeper-tick` are its own notes and are framed as data without a marker.
+
+Framing lowers the risk but cannot remove it, because a model can still follow text it was told to treat as data. Scope rules limit what a successful injection can reach:
+
+- memory scopes follow the agent and its position (`src/Garrison.Server/Runtime/MemoryAccessPolicy.cs`, `scoped-memory-<provider>/policy-matrix`);
+- report visibility follows the chain of command (`src/Garrison.Server/Runtime/ReportVisibility.cs`, `reports-<provider>/visibility`);
+- messages travel only along app edges and the chart (`src/Garrison.Server/Runtime/MessageLinePolicy.cs`, `messaging-<provider>/lines`, `organizations-<provider>/chain`).
+
+### SR-27 Medium: escalation fences could be forged
+
+**Where:** `src/Garrison.Core/Seed/Prompts/escalation-received.md` and `escalation-answered.md`, rendered by `EscalationService.RenderAnswersAsync` and by the agent-routing path in `src/Garrison.Server/Runtime/EscalationService.cs`.
+
+**What was wrong:** memory, reports, messages, and judge prompts used a random marker. The two escalation templates fenced the question, context, and answer with fixed lines (`--- Answer ---` and `--- End of answer ---`). A raising agent could put `--- End of question ---` in its question, followed by instructions, and the agent asked to answer would see those instructions outside the data block. The same was true of an answer written by an `Agent` target and read by the keeper that asked.
+
+**Exploit class:** prompt injection between agents through the escalation channel.
+
+**Fix:** both renders now set a `boundary` of 8 random bytes in hex, and both templates put it on every begin and end line, the same way the memory, report, and inbox templates do. `docs/PROMPTS.md` documents the new variable. Tenant templates that replace these two should use it.
+
+**Test:** `templates/escalation-templates` now puts forged end lines in the hostile question, context, and answer and checks that the hostile text stays inside the marked block. `escalations-<provider>/keeper` checks that the marked block reaches a keeper tick.
+
+### AT-2: self-modification
+
+**Threat:** an agent rewrites what it is for: its own mandate, its authority, its budget, or anything above it (plan risk R3, decision AA-022).
+
+**Mitigation:**
+
+- Run tokens hold no write permission on `Mandate`, `Freeze`, `Organization`, or `ChangeRule` (`src/Garrison.Server/Services/AuthorizationService.cs:508`, `EvaluateRunAsync`). A keeper cannot publish a revision of its own mandate, lift a freeze, turn off the kill switch, or change the chart it sits in.
+- An executive's draft is checked against hard limits that no change rule or approval lifts (`src/Garrison.Core/Organizations/ExecutiveDraftValidator.cs:25-45`): `SelfModification` for its own agent, deployments, mandates, and unit; `OutsideSubtree` for anything above or beside it; `BudgetIncrease`; `AuthorityChange`; and `ForbiddenKind`. The limits are checked at validation, at request-apply, and again just before apply (`src/Garrison.Server/Services/StudioService.cs:854-890`).
+- An executive cannot grade its own change. A set that it or its subtree wrote does not count as a gate (`src/Garrison.Core/Evaluation/EvalGatePolicy.cs`).
+- Every executive apply publishes an organization revision with a revert draft, so one rollback undoes it.
+
+**Test:**
+
+- `executives-unit/limits`: one refusal each for `OutsideSubtree`, `SelfModification`, `ForbiddenKind`, `BudgetIncrease`, and `AuthorityChange`;
+- `executives-<provider>/apply`: a run token's direct mandate publish answers 403, and executive revisions carry source `Executive`;
+- `keepers-<provider>/mcp`: keeper tools are visible only to keeper runs, and management tools are refused to other callers;
+- `brakes-<provider>/mcp`: freeze tools are hidden from and refused to run tokens;
+- `board-<provider>/permissions`: run tokens are refused on board routes and tools;
+- `eval-unit/separation` and `eval-<provider>/separation`: self-authored sets do not gate.
+
+### AT-3: privilege escalation through drafts and change rules
+
+**Threat:** an agent widens its own reach by writing a change rule, minting another executive or architect, or applying a draft beyond what the person behind it may do.
+
+**Mitigation:**
+
+- Only people write change rules. Every mutation answers 403 `RulesArePeopleOnly` to a run token (`src/Garrison.Server/Runtime/ChangeRuleService.cs:196`).
+- A rule covers a change only when every changed field falls in a class the rule lists, within its limits, inside its unit's subtree. Unclassified fields always wait for a person (`src/Garrison.Core/Organizations/ChangeRuleMatcher.cs`).
+- A change to `managementAccess` is refused with `AuthorityChange`, and `OrgSubtree` needs an agent that leads exactly one unit.
+- A draft a rule covers applies as the person who started the run, and only when that person holds Create on `Manifest`.
+- A change rule can require a passing eval gate. Promotion gates count only approved set versions and runs over their cases.
+
+**Test:**
+
+- `executives-<provider>/rules`: a run token is refused on POST, PUT, and DELETE;
+- `executives-unit/matching` and `executives-unit/gate-matching`;
+- `executives-<provider>/deployments`: `NotAUnitLead` and `LeadsSeveralUnits`;
+- `executives-<provider>/apply`: an uncovered draft waits for a person;
+- `studio-<provider>/apply-approval` and `studio-<provider>/grant-mcp`: a draft changes nothing until a person with Create on `Manifest` approves it, and a `Drafts` token acts only for its person;
+- `eval-<provider>/gate-bypass` and `eval-<provider>/executive`.
+
+### AT-4: loop cost
+
+**Threat:** agents wake each other, reply to each other, or retry in a cycle and spend without bound.
+
+**Mitigation:**
+
+- Keeper intervals are clamped and back off on quiet ticks (`src/Garrison.Core/Keepers/KeeperIntervalCalculator.cs`). A mandate runs one tick at a time, and the claim is a compare-and-set across replicas.
+- Per-tick and per-day keeper budgets move a mandate to `CapReached` and escalate (`src/Garrison.Server/Runtime/KeeperScheduler.cs:369`).
+- Messages stop at the hop limit, the thread budget, and the per-line rate (`src/Garrison.Server/Runtime/MessageService.cs:457-467`). `Messaging.UrgentWakesPerHour` caps urgent wakes (`:534`), and mail that arrives during a tick is handled by one following run.
+- Unit budgets refuse runs with `BudgetExhausted`. The budget guard freezes a subtree that passes its budget plus the margin and cancels its runs (`src/Garrison.Server/Runtime/OrgBudgetGuard.cs`).
+- Freezes and the kill switch stop new runs and keeper wakes in the control plane, and eval runs have their own budget.
+
+**Test:**
+
+- `keeper-unit/intervals`, `keepers-<provider>/single-flight`, and `keepers-<provider>/replicas`;
+- `brakes-<provider>/caps`, `brakes-<provider>/keepers`, `brakes-<provider>/auto-freeze`, `brakes-<provider>/margin`, and `brakes-<provider>/cascade`;
+- `messaging-<provider>/guards`, `messaging-<provider>/coalesce`, `messaging-<provider>/urgent`, and `messaging-<provider>/replicas`;
+- `organizations-<provider>/budgets`;
+- `eval-<provider>/budget-cancel`.
+
+Shadow runs are billed like real runs and count toward agent spend and unit budgets. That is intended, and `docs/SECURITY.md` ("Shadow cost") tells operators to start with a small sample.
+
+### AT-5: shadow and eval leakage
+
+**Threat:** a shadow or eval run answers a real input, so anything it does happens for real: an email sent twice, a message to another agent, a memory write, a report. A run of a hidden eval case could also leak the expected answers to the executive under test.
+
+**Mitigation:** decisions AA-027 and AA-074.
+
+- The MCP gateway reads the run again on every call. It leaves effectful, agent, messaging, escalation, report, memory-write, keeper, draft, file, and run-control tools out of the tool list and refuses them with `ShadowRunRefused` or `EvalRunRefused` (`src/Garrison.Server/Runtime/ShadowRunPolicy.cs:105`, `src/Garrison.Server/Protocols/GarrisonMcpServer.cs:410`, `:658`).
+- Permission prompts from these runs are denied.
+- These runs get no file space write-back and no caller, conversation, trigger, app, mandate, or parent.
+- Hidden cases are redacted for every run token, and their case and judge runs are closed to every run token but their own (`src/Garrison.Server/Runtime/HiddenEvalRunPolicy.cs`).
+- Shadow and eval runs do not count toward canary decisions or performance rollups.
+
+**Test:**
+
+- `shadow-unit/policy`, `shadow-<provider>/refusals`, and `shadow-<provider>/trial`;
+- `eval-<provider>/eval-refusals`;
+- `eval-unit/separation` and `eval-<provider>/separation`: hidden cases are redacted;
+- `canary-<provider>/promote`: shadow and eval runs do not count;
+- `performance-<provider>/rollup`: eval runs are left out.
+
+What remains open is SR-29.
+
+### SR-29 Medium (open): shadow and eval restrictions stop at the MCP gateway
+
+**Where:** `src/Garrison.Server/Services/AuthorizationService.cs:508`. `EvaluateRunAsync` treats the token of a shadow or eval run like any other run token.
+
+**What is wrong:** the MCP gateway refuses effectful tools to a shadow or eval run, but the REST routes its token can reach are not shadow-aware. A run token may read and invoke agents and read, start, and cancel runs. A harness with network access to the control plane could call `POST /v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke` with its own token and start a real run from a shadow, within its agent's delegation policy. Harness built-in tools on harnesses that do not relay permission prompts are a related gap that `docs/SECURITY.md` already documents ("Shadow leakage").
+
+**Why it is open:** closing it needs a run-kind check on every REST route a run token can reach, with a test for each. That is more than a review fix. Until it lands, shadow and evaluate only deployments whose trust level, executor, and egress allowlist keep them away from the control plane's REST port and from anything else with side effects.
+
+**Recommendation:** in `EvaluateRunAsync`, refuse every operation other than Read when the token's run is a `Shadow` run or a restricted `Eval` run, and add a Touchstone case for each route family.
+
+### AT-6: tenant isolation of the new tables
+
+**Threat:** a request or a background sweep reads or changes another tenant's autonomy records.
+
+**Mitigation:**
+
+- All 40 tables created by schema versions 46 to 59 have a `tenantid` column, and every one is in `TableCatalog.AllTables`, so tenant deletion, backup, and retention cover it (`src/Garrison.Core/Database/TableCatalog.cs`).
+- Driver reads and writes take the tenant, enumerations refuse a filter without one (for example `src/Garrison.Core/Database/Ado/AdoAgentMessageMethods.cs:110`), and child tables are read only through their tenant-filtered parent.
+- Routes take the tenant from the `RequestContext` and answer 404 for another tenant's path (`src/Garrison.Server/Services/AuthorizationService.cs:176-178`).
+- The driver methods without a tenant parameter are leader sweeps and scheduler claims that act on identifiers they have already read: `ListDueAsync`, `TryClaimAsync`, `ListExpiredAsync`, `ReleaseStaleClaimsAsync`, `ListRunningAsync`, `ListActiveAsync`, and `PruneAsync`. No request reaches them.
+
+| Schema | Tables | Test |
+|---|---|---|
+| 46 | `mandates`, `mandate_revisions`, `mandate_revision_signals`, `mandate_ticks` | `keepers-<provider>/data-isolation` (new, SR-28), `keepers-<provider>/crud` |
+| 47 | `escalations`, `escalation_options` | `escalations-<provider>/routes` |
+| 48 | `freezes` | `brakes-<provider>/freezes` |
+| 49 | `memory_entries`, `memory_entry_tags` | `scoped-memory-<provider>/metadata`, `scoped-memory-<provider>/routes`, `scoped-memory/store-contract` (content files) |
+| 50 | `reports`, `report_metrics`, `report_issues`, `report_decisions` | `reports-<provider>/data`, `reports-<provider>/routes` |
+| 51 | `agent_messages`, `agent_message_artifacts` | `messaging-<provider>/data`, `messaging-<provider>/routes` |
+| 52 | `organizations`, `org_units`, `org_unit_members`, `org_unit_peer_lines`, `org_unit_budgets`, `org_revisions`, `org_revision_units`, `org_revision_members`, `org_revision_peer_lines`, `org_revision_budgets`, `org_revision_mandates` | `organizations-<provider>/data`, `organizations-<provider>/routes` |
+| 53 | `change_rules`, `change_rule_classes`, `change_rule_limits` | `executives-<provider>/rules` |
+| 54 | `eval_sets`, `eval_set_tags`, `eval_cases`, `eval_case_checks`, `eval_case_files`, `eval_runs`, `eval_case_results`, `eval_case_check_results`, `shadow_trials`, `canary_releases`, `canary_release_steps` | `evaluation-<provider>/sets`, `evaluation-<provider>/runs`, `evaluation-<provider>/shadow`, `evaluation-<provider>/canary`, `eval-<provider>/routes`, `shadow-<provider>/routes`, `canary-<provider>/routes` |
+| 55 to 59 | No new tables. New columns on `tenant_environments`, `eval_sets`, `change_rules`, `studio_drafts`, `mandate_revisions`, `conversations`, `organizations`, `triggers`, `eval_runs`, and `trigger_fires` | The cases of the tables that own the columns |
+
+### SR-28 Low: mandate child tables had no data-layer isolation test
+
+**Where:** `src/Test.Shared/Suites/KeeperSuite.cs`.
+
+**What was missing:** `keepers-<provider>/crud` checked cross-tenant 404 on the mandate routes, but no test read `mandate_revisions`, `mandate_revision_signals`, or `mandate_ticks` at the driver with another tenant's identifier.
+
+**Fix:** a new case, `keepers-<provider>/data-isolation`. It creates a mandate with a revision, a signal, and a tick in one tenant, and a mandate with the same name in another. It checks that the other tenant cannot read, list, wake, delete, publish, or report them, and that each tenant's name lookup stays inside it. It passes on Sqlite and PostgreSQL.

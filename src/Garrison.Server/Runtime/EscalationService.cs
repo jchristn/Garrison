@@ -4,6 +4,7 @@ namespace Garrison.Server.Runtime
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
+    using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
@@ -484,7 +485,7 @@ namespace Garrison.Server.Runtime
 
         /// <summary>
         /// Render the answers to a run's escalations through escalation-answered (AA2.8), for a keeper tick's input or a
-        /// Blocking escalation's resume prompt. The answers are framed as data.
+        /// Blocking escalation's resume prompt. The answers are framed as data between lines that carry a random marker.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
         /// <param name="escalations">Resolved escalations.</param>
@@ -498,12 +499,14 @@ namespace Garrison.Server.Runtime
             PromptTemplate template = await _Templates.ResolveAsync(tenantId, "escalation-answered", PromptTemplateKindEnum.Task, token).ConfigureAwait(false);
             TemplateContext context = new TemplateContext();
             List<object?> answers = new List<object?>();
+            string boundary = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
             foreach (Escalation e in escalations)
             {
                 EscalationOption? chosen = e.AnswerChoice == null ? null : e.Options.FirstOrDefault(o => String.Equals(o.Key, e.AnswerChoice, StringComparison.Ordinal));
                 answers.Add(new Dictionary<string, object?>
                 {
                     ["id"] = e.Id,
+                    ["boundary"] = boundary,
                     ["question"] = e.Question,
                     ["status"] = e.Status.ToString().ToLowerInvariant(),
                     ["resolvedBy"] = e.ResolvedBy,
@@ -674,6 +677,7 @@ namespace Garrison.Server.Runtime
                 context.Set("escalation", new Dictionary<string, object?>
                 {
                     ["id"] = escalation.Id,
+                    ["boundary"] = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant(),
                     ["question"] = escalation.Question,
                     ["context"] = escalation.Context,
                     ["severity"] = escalation.Severity.ToString(),

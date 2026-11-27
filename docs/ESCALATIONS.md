@@ -77,7 +77,7 @@ curl -s -X POST "$GARRISON/v1.0/api/tenants/default/escalations/esc_2xQ.../answe
 
 Answers are compare-and-set, so two people answering at once cannot both win. The second gets 409 `EscalationNotOpen`.
 
-The answer reaches the agent as data. `builtin/escalation-answered` frames it between markers and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. A question sent to another agent arrives through `builtin/inbox-delivery`, framed the same way, with a line naming the escalation to answer. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
+The answer reaches the agent as data. `builtin/escalation-answered` frames it between lines that carry a random marker and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. A question sent to another agent arrives through `builtin/inbox-delivery`, framed the same way, with a line naming the escalation to answer. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
 
 ## Timeouts
 
