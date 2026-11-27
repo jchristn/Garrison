@@ -14,6 +14,8 @@ const STEPS = [
   // AA10.8: keepers and their brakes, then the board that oversees an organization of them.
   { id: 'autonomy', selector: '[data-nav="autonomy"]' },
   { id: 'board', selector: '[data-nav="autonomy"]' },
+  // AA11.7: how the units and agents of an organization are doing, and the checks agents cannot grade.
+  { id: 'performance', selector: '[data-nav="autonomy"]' },
   { id: 'configure', selector: '[data-nav="configuration"]' },
   { id: 'observe', selector: '[data-nav="monitoring"]' }
 ];

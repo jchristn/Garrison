@@ -11,6 +11,8 @@ import OrgChartTree from '../components/OrgChartTree';
 import ProposalDiff from '../components/ProposalDiff';
 import ProposalEvidence from '../components/ProposalEvidence';
 import BoardCeoChat from '../components/BoardCeoChat';
+import CascadeCancelModal from '../components/CascadeCancelModal';
+import RollbackTicksChoice from '../components/RollbackTicksChoice';
 import StudioLink from '../components/studio/StudioLink';
 import { OrganizationStatusBadge, SpendBar } from '../components/OrganizationBadges';
 import { ReportHealthBadge } from '../components/ReportBadges';
@@ -31,6 +33,7 @@ import { enumLabel } from '../utils/enums';
 import { errorMessage, errorMessageWithDetail } from '../utils/errors';
 import { FREEZES_CHANGED_EVENT, freezeDenied } from '../utils/freezes';
 import { chartToUnits, orgDenied } from '../utils/organizations';
+import { cascadeDenied } from '../utils/performance';
 import { BOARD_LIMITS, attentionCount, capHits, directionBody, directionErrors, healthMap, organizationFreeze, proposalPending, spendByUnit } from '../utils/board';
 
 /** A panel title (h2) with the tooltip that explains it and an optional count. */
@@ -344,6 +347,8 @@ function Board({ organizationId }) {
   const [rollingBack, setRollingBack] = useState(false);
   const [rollbackError, setRollbackError] = useState(null);
   const [unitToFreeze, setUnitToFreeze] = useState('');
+  const [rollbackTicks, setRollbackTicks] = useState('Finish');
+  const [cascade, setCascade] = useState(null);
   const unmounted = useRef(false);
 
   useEffect(() => {
@@ -403,11 +408,13 @@ function Board({ organizationId }) {
   const revisionNumber = board.chart?.revisionNumber || 0;
   const rollbackBlocked = updateDenied || (revisionNumber < 2 ? t('tips.board.brakes.rollbackNone') : '');
   const attention = attentionCount(board);
+  const cancelAllDenied = cascadeDenied(t, permissions);
+  const pickedUnit = units.find((u) => u.id === unitToFreeze) || null;
 
   const rollback = async () => {
     setRollbackError(null);
     try {
-      const revision = await apiClient.rollbackOrganization(tenantId, orgId, { note: t('board.brakes.rollbackNote') });
+      const revision = await apiClient.rollbackOrganization(tenantId, orgId, { note: t('board.brakes.rollbackNote'), activeTicks: rollbackTicks });
       addToast({ type: 'success', message: t('board.brakes.rolledBack', { number: revision?.number ?? '' }) });
       setRollingBack(false);
       load();
@@ -455,7 +462,7 @@ function Board({ organizationId }) {
             <Empty text={t('board.chart.empty')} testId="board-chart-empty" />
           ) : (
             <>
-              <OrgChartTree units={units} t={t} lng={lng} spend={board.spend || []} health={healthMap(board)} />
+              <OrgChartTree units={units} t={t} lng={lng} spend={board.spend || []} health={healthMap(board)} onCancelAll={(unit) => setCascade(unit)} cancelAllDenied={cancelAllDenied} />
               <div className="table-scroll" tabIndex={0} role="region" aria-label={t('board.chart.health')}>
                 <table className="data-table compact" data-testid="board-unit-health">
                   <caption className="sr-only">{t('board.chart.health')}</caption>
@@ -691,6 +698,16 @@ function Board({ organizationId }) {
               >
                 {t('board.brakes.freezeUnit')}
               </button>
+              <button
+                type="button"
+                className="button-danger"
+                aria-disabled={cancelAllDenied || !pickedUnit ? 'true' : undefined}
+                onClick={() => !cancelAllDenied && pickedUnit && setCascade(pickedUnit)}
+                data-testid="board-cancel-all"
+                {...tip(cancelAllDenied || (pickedUnit ? t('tips.cascadeCancel.action') : t('tips.board.brakes.pickUnitFirst')))}
+              >
+                {t('cascadeCancel.action')}
+              </button>
             </div>
             <button
               type="button"
@@ -699,6 +716,7 @@ function Board({ organizationId }) {
               onClick={() => {
                 if (rollbackBlocked) return;
                 setRollbackError(null);
+                setRollbackTicks('Finish');
                 setRollingBack(true);
               }}
               data-testid="board-rollback"
@@ -737,6 +755,18 @@ function Board({ organizationId }) {
           }}
         />
       )}
+      {cascade && (
+        <CascadeCancelModal
+          organizationId={orgId}
+          unit={cascade}
+          onClose={() => setCascade(null)}
+          onDone={() => load()}
+          onFreeze={(unit) => {
+            setCascade(null);
+            setFreezing({ targetKind: 'OrgUnit', targetId: unit.id, targetName: unit.name });
+          }}
+        />
+      )}
       <ConfirmModal
         open={rollingBack}
         danger
@@ -744,6 +774,7 @@ function Board({ organizationId }) {
         message={t('board.brakes.rollbackMessage', { number: revisionNumber })}
         confirmLabel={t('board.brakes.rollback')}
         confirmTip={t('tips.board.brakes.rollback')}
+        details={<RollbackTicksChoice value={rollbackTicks} onChange={setRollbackTicks} t={t} />}
         error={rollbackError}
         onCancel={() => setRollingBack(false)}
         onConfirm={rollback}

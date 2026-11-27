@@ -8249,3 +8249,326 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "績效",
+    "tip": "組織各單位與代理程式嘅表現，以及代理程式無法自評嘅檢查"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "定期檢查"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "單位因超出預算而凍結"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "單位因超出預算而凍結",
+   "UnitCascadeCancelled": "已取消單位內嘅全部工作"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "等佢哋完成",
+   "Cancel": "取消佢哋"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "呢個組織仲未有生效嘅修訂。請先發佈一個修訂。"
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "預算凍結餘裕 (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "{{min}} 至 {{max}}，預設 {{default}}。支出超出預算達此比例嘅單位會被凍結，直到有人解除凍結。0 表示達到預算即凍結。"
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "評估集",
+    "evalJudgeAgentId": "評分代理程式",
+    "evalRecentInputCount": "最近輸入數"
+   },
+   "hints": {
+    "evalSetId": "檢查要執行嘅評估集。管理者可在績效頁面查看結果。",
+    "checkDeployment": "必填。檢查會以呢個部署嘅最近輸入對評估集重新執行。",
+    "evalRecentInputCount": "{{min}} 至 {{max}}，預設 {{default}}。每次檢查重播呢個部署最新輸入嘅數量。"
+   },
+   "errors": {
+    "evalSetRequired": "請選擇呢個檢查要執行嘅評估集。",
+    "deploymentRequired": "請選擇呢個檢查要評分嘅部署。",
+    "evalRecentInputCount": "請輸入 {{min}} 至 {{max}} 之間嘅整數。"
+   },
+   "setJudge": "評估集本身嘅評分代理程式",
+   "checkNotice": "定期檢查會用儲存佢嘅人嘅身分執行。代理程式唔可以建立、變更或者評分檢查。"
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "請輸入 {{min}} 至 {{max}} 之間嘅整數。"
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "績效",
+   "freezeMargin": "超出預算 {{percent}}% 時凍結"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "進行中嘅守護者巡檢"
+ },
+ "cascadeCancel": {
+  "action": "取消呢個單位內嘅全部工作",
+  "title": "取消 {{name}} 內嘅全部工作",
+  "message": "要唔要取消 {{name}} 同佢下面所有單位入面代理程式嘅每個排隊同執行緊嘅執行、守護者巡檢、未結上報同排隊訊息？呢個操作唔會凍結單位，新工作仍然可能重新開始。",
+  "reason": "原因",
+  "reasonPlaceholder": "為什麼要全部停止（可以留空）",
+  "keep": "繼續行",
+  "confirm": "全部取消",
+  "working": "取消緊...",
+  "done": "已取消 {{name}} 內嘅全部工作。",
+  "resultIntro": "{{name}} 內嘅全部工作已停止：",
+  "notFrozen": "呢個單位未凍結。凍結佢就可以阻止新工作開始。",
+  "freeze": "凍結單位",
+  "counts": {
+   "runsCancelled": "已取消嘅執行",
+   "ticksCancelled": "已取消嘅守護者巡檢",
+   "escalationsWithdrawn": "已撤回嘅上報",
+   "messagesExpired": "已過期嘅訊息"
+  }
+ },
+ "performance": {
+  "title": "績效",
+  "subtitle": "組織中每個單位與代理程式嘅表現：結果、成本、延遲、上報與評估分數。",
+  "heading": "{{name}} 嘅績效",
+  "range": "{{from}} 至 {{to}}",
+  "notFoundTitle": "無法查看績效",
+  "notFoundBody": "呢個組織唔存在，或者你冇權讀取。",
+  "unit": "單位",
+  "allUnits": "所有單位",
+  "lead": "負責人",
+  "sample": "執行 {{n}}",
+  "outcomes": "成功 {{succeeded}}，失敗 {{failed}}，取消 {{cancelled}}",
+  "evalScore_other": "{{count}} 次評估執行，得分 {{score}}",
+  "picker": {
+   "title": "選擇組織",
+   "emptyTitle": "仲未有組織",
+   "emptyBody": "請先建立一個由守護者組成嘅組織。佢嘅績效會喺呢度顯示。"
+  },
+  "window": {
+   "label": "時間範圍",
+   "24h": "24 小時",
+   "7d": "7 天",
+   "30d": "30 天",
+   "custom": "自訂",
+   "from": "開始日期",
+   "to": "結束日期",
+   "apply": "套用",
+   "errors": {
+    "from": "請選擇第一天。",
+    "to": "請選擇最後一天。",
+    "order": "最後一天不能早於第一天。",
+    "span": "時間範圍最多 {{max}} 天。"
+   }
+  },
+  "chart": {
+   "title": "各單位嘅成功率與成本",
+   "successRate": "成功率",
+   "cost": "成本",
+   "noRuns": "冇已結束嘅執行",
+   "rateLabel": "{{unit}} 嘅成功率：{{value}}",
+   "costLabel": "{{unit}} 嘅成本：{{value}}"
+  },
+  "columns": {
+   "unit": "單位",
+   "agent": "代理程式",
+   "runs": "執行",
+   "outcomes": "結果",
+   "successRate": "成功率",
+   "costUsd": "成本",
+   "latency": "延遲 p50 / p95 / p99",
+   "escalations": "上報",
+   "loopGuardRejections": "迴圈防護拒絕",
+   "evalScore": "評估分數",
+   "samples": "範例執行"
+  },
+  "units": {
+   "title": "單位",
+   "empty": "呢個時間範圍內生效嘅組織圖中冇單位。"
+  },
+  "agents": {
+   "title": "代理程式",
+   "empty": "生效嘅組織圖中冇代理程式。"
+  },
+  "checks": {
+   "title": "定期檢查",
+   "note": "檢查是依排程針對某個部署嘅最近輸入進行嘅評估執行。由人建立；代理程式無法評分或變更。",
+   "new": "新增檢查",
+   "empty": "冇針對呢個組織部署嘅定期檢查。",
+   "never": "未執行過",
+   "passed": "通過",
+   "failed": "低於門檻",
+   "columns": {
+    "check": "檢查",
+    "evalSet": "評估集",
+    "deployment": "部署",
+    "schedule": "排程",
+    "lastRun": "上次執行",
+    "lastScore": "上次得分",
+    "nextFire": "下次執行"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "績效",
+    "body": "績效分頁顯示組織中每個單位與代理程式在一段時間內嘅表現，以及不等代理程式自評、由人設定嘅定期檢查。"
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "績效",
+   "p1": "每個單位列涵蓋該單位及其下所有內容：時間範圍內建立嘅執行、執行結果、成功率（成功數除以成功數與失敗數嘅總和）、成本、延遲百分位、發起嘅上報、迴圈防護拒絕，以及針對該單位部署嘅評估執行平均分數。評估、影子與試驗場執行不計入。",
+   "p2": "定期檢查是 EvalSet 觸發器：依排程以已核准嘅評估集針對某個部署嘅最近輸入執行。只有人能建立佢哋，因呢個代理程式無法替自己嘅工作評分。"
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "績效：依單位與代理程式顯示結果、成本、延遲、上報與評估分數，以及定期檢查。"
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "每次觸發都會針對部署嘅最近輸入啟動一次評估集執行。只有人可以建立。"
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "某個單位嘅支出超出預算達組織設定嘅餘裕，預算守衛已將其凍結。"
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "預算守衛凍結了一個支出超出預算達組織餘裕嘅單位。",
+    "UnitCascadeCancelled": "有人取消了某個單位子樹中嘅每個執行、守護者巡檢、上報與排隊訊息。"
+   },
+   "rollbackActiveTicks": {
+    "Finish": "正在進行嘅巡檢會完成，但其守護者會留在恢復後嘅修訂上。",
+    "Cancel": "在恢復組織圖之前取消進行中巡檢嘅執行。"
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "單位可以超出預算多少（百分比）才會被預算守衛凍結：0 至 100，預設 10。"
+   },
+   "triggers": {
+    "evalSetId": "檢查每次觸發時執行嘅評估集。",
+    "evalJudgeAgentId": "為回答評分嘅代理程式。留空則使用評估集嘅評分代理程式。",
+    "evalRecentInputCount": "每次評估執行重播呢個部署最新輸入嘅數量，1 至 50。"
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "打開呢個組織依單位與代理程式區分嘅績效及其定期檢查。"
+   }
+  },
+  "rollbackTicks": {
+   "legend": "復原組織圖時，進行中嘅守護者巡檢要點樣處理。"
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "請先選擇一個單位。"
+   }
+  },
+  "cascadeCancel": {
+   "action": "停止呢個單位及其下所有單位嘅全部工作：執行、守護者巡檢、上報與排隊訊息。會要求確認。",
+   "confirm": "立即取消呢個單位子樹中嘅全部工作。呢個操作無法復原。",
+   "reason": "可以留空，最多 1024 個字元。會記錄在稽核記錄與被撤回嘅上報中。",
+   "freeze": "凍結呢個單位，在解除凍結前不會開始新工作。",
+   "counts": {
+    "runsCancelled": "子樹中代理程式被取消嘅排隊與執行中嘅執行。",
+    "ticksCancelled": "被取消嘅進行中守護者巡檢。",
+    "escalationsWithdrawn": "子樹中代理程式發起、已被撤回嘅未結上報。",
+    "messagesExpired": "寄給子樹中代理程式、已過期嘅排隊訊息。"
+   }
+  },
+  "performance": {
+   "refresh": "重新讀取所選時間範圍嘅績效。",
+   "unit": "顯示一個單位及其下所有內容，或顯示所有單位。",
+   "lead": "呢個代理程式負責其單位。",
+   "openAgent": "打開代理程式。",
+   "openRun": "打開呢個範例執行。",
+   "picker": {
+    "open": "打開呢個組織嘅績效。"
+   },
+   "window": {
+    "24h": "最近 24 小時。",
+    "7d": "最近 7 天。",
+    "30d": "最近 30 天。",
+    "custom": "選擇第一天與最後一天，相隔最多 90 天。",
+    "from": "時間範圍嘅第一天（UTC）。",
+    "to": "時間範圍嘅最後一天（UTC），包含當天。",
+    "apply": "讀取這些日期嘅績效。"
+   },
+   "chart": {
+    "title": "時間範圍內每個單位子樹嘅成功率與成本。",
+    "successRate": "成功嘅執行除以成功與失敗執行嘅總和。",
+    "cost": "單位子樹嘅支出，以最貴嘅單位為基準縮放。"
+   },
+   "columns": {
+    "unit": "單位。其列涵蓋其下所有內容。",
+    "agent": "代理程式及其所在嘅單位。",
+    "runs": "時間範圍內建立嘅執行，不含評估、影子與試驗場執行。",
+    "outcomes": "成功、失敗與已取消嘅執行。",
+    "successRate": "成功數除以成功數與失敗數嘅總和。冇執行結束時為空。",
+    "costUsd": "這些執行嘅支出（美元）。",
+    "latency": "已結束執行耗時嘅中位數、第 95 與第 99 百分位。",
+    "escalations": "發起嘅上報，以及發起上報嘅執行所佔比例。",
+    "loopGuardRejections": "被迴圈防護拒絕嘅訊息傳送與喚醒。",
+    "evalScore": "針對這些部署已完成評估執行嘅平均分數，包括定期檢查。",
+    "samples": "最多五個可查看嘅執行：先是最新嘅失敗執行，再來是最新嘅成功執行。"
+   },
+   "units": {
+    "title": "每個單位及其整個子樹嘅指標。"
+   },
+   "agents": {
+    "title": "生效組織圖中每個代理程式自己嘅指標。"
+   },
+   "checks": {
+    "title": "由人設定、依排程針對組織部署進行嘅評估執行。",
+    "new": "打開觸發器編輯器，並將目標設為定期檢查。",
+    "openSet": "打開評估集。",
+    "openRun": "打開上次評估執行及其案例結果。",
+    "passed": "上次執行達到評估集嘅門檻。",
+    "failed": "上次執行低於評估集嘅門檻。",
+    "columns": {
+     "check": "排定呢個檢查嘅觸發器，以及佢係咪啟用。",
+     "evalSet": "檢查執行嘅評估集。",
+     "deployment": "檢查重播其最近輸入嘅部署。",
+     "schedule": "觸發器嘅 cron 運算式。",
+     "lastRun": "上次評估執行嘅開始時間與狀態。撳一下打開該執行。",
+     "lastScore": "上次評估執行嘅得分，0 至 100%。",
+     "nextFire": "檢查下次執行嘅時間。"
+    }
+   }
+  }
+ }
+});

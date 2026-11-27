@@ -176,7 +176,7 @@ export const ENUMS = {
   fanOutGroupStatus: ['Running', 'Joined', 'TimedOut', 'BudgetExceeded', 'Cancelled'],
   fanOutJoinPolicy: ['All', 'Any', 'Quorum'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SecretRevealed', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull', 'FreezeApplied', 'FreezeLifted', 'KillSwitchChanged', 'BoardDirectionGiven'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SecretRevealed', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated', 'QueueFull', 'FreezeApplied', 'FreezeLifted', 'KillSwitchChanged', 'BoardDirectionGiven', 'OrgBudgetFrozen', 'UnitCascadeCancelled'],
   // Permission approvals (P12.3).
   approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
   approvalDecision: ['Allow', 'Deny'],
@@ -192,11 +192,12 @@ export const ENUMS = {
   pipelineReviewSource: ['User', 'Timeout', 'Cancelled'],
   // Triggers (P12.5): cron schedules and signed webhooks that start runs or pipeline runs.
   triggerType: ['Cron', 'Webhook'],
-  triggerTargetType: ['Agent', 'Pipeline'],
+  // AA11.3: EvalSet schedules eval runs against a deployment's recent inputs (a check agents cannot grade).
+  triggerTargetType: ['Agent', 'Pipeline', 'EvalSet'],
   triggerFireSource: ['Cron', 'Webhook', 'Manual'],
   triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
   // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
-  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'CanaryRolledBack', 'BoardBrief', 'Test'],
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'CanaryRolledBack', 'BoardBrief', 'OrgBudgetFrozen', 'Test'],
   notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
   runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger', 'Keeper', 'Message', 'Eval', 'Shadow'],
   // Keepers (AA1): mandates an agent keeps on a wake schedule, their revisions, and their ticks.
@@ -241,6 +242,8 @@ export const ENUMS = {
   evalSetOrigin: ['Human', 'Evaluator', 'Playground'],
   evalScorer: ['ExactMatch', 'Contains', 'JsonSchemaValid', 'Judge'],
   evalRunStatus: ['Pending', 'Running', 'Completed', 'Failed', 'Cancelled'],
+  // AA11.6: what an organization rollback does with keeper ticks in flight.
+  rollbackActiveTicks: ['Finish', 'Cancel'],
   evalRunTarget: ['AgentRevision', 'Deployment'],
   evalRunInputMode: ['Cases', 'RecentInputs'],
   shadowTrialStatus: ['Running', 'Completed', 'Stopped', 'Failed'],
@@ -398,7 +401,7 @@ export function pipelineReviewDecisionTone(decision) {
 }
 
 /** Events a notification endpoint can subscribe to (Test is only sent by the test action). */
-export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'CanaryRolledBack', 'BoardBrief'];
+export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'EscalationRaised', 'EscalationExpired', 'FreezeApplied', 'MandateCapReached', 'ReportUnhealthy', 'OrgProposalApplied', 'CanaryRolledBack', 'BoardBrief', 'OrgBudgetFrozen'];
 
 /**
  * Escalation targets a person can pick for a keeper's default (AA2): Manager needs an organization (AA7) and is refused
@@ -500,9 +503,15 @@ export function orgRevisionStateTone(state) {
 /**
  * Organization bounds, mirroring the server (AA7): an organization or unit name holds 1 to 128 characters, a
  * description at most 2000, a mission at most 8000, a lead or member title at most 128, and a revision note at most
- * 2000. A unit budget is a positive amount in US dollars.
+ * 2000. A unit budget is a positive amount in US dollars. The budget freeze margin (AA11.5) is 0 to 100 percent, default
+ * 10: a subtree is frozen when its spend reaches the budget plus that margin. A cascade cancel reason holds at most 1024.
  */
-export const ORGANIZATION_LIMITS = { nameMax: 128, descriptionMax: 2000, missionMax: 8000, titleMax: 128, noteMax: 2000 };
+export const ORGANIZATION_LIMITS = { nameMax: 128, descriptionMax: 2000, missionMax: 8000, titleMax: 128, noteMax: 2000, budgetFreezeMargin: { min: 0, max: 100, default: 10 }, cascadeReasonMax: 1024 };
+
+/**
+ * Performance window bounds (AA11.1): the default window is the last 7 days, and a custom window spans at most 90 days.
+ */
+export const PERFORMANCE_LIMITS = { defaultWindow: '7d', maxSpanDays: 90 };
 
 /**
  * Change rule bounds, mirroring the server (AA8): a name holds 1 to 128 characters, a description at most 2000, and a
@@ -562,7 +571,9 @@ export function messageUrgencyTone(urgency) {
 export const TRIGGER_LIMITS = {
   priority: { min: -100, max: 100, default: 0 },
   resultTextMaxChars: { min: 1, max: 16000, default: 1000 },
-  descriptionMax: 4000
+  descriptionMax: 4000,
+  // AA11.3: recent inputs an EvalSet trigger's eval run replays, 1 to 50 (default 20, the eval run default).
+  evalRecentInputCount: { min: 1, max: 50, default: 20 }
 };
 
 /**

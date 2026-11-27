@@ -59,6 +59,7 @@ import MessageThreadView from '../MessageThreadView';
 import OrganizationsView from '../OrganizationsView';
 import OrganizationDetailView from '../OrganizationDetailView';
 import BoardView from '../BoardView';
+import PerformanceView from '../PerformanceView';
 import ChangeRulesView from '../ChangeRulesView';
 import EvalSetsView from '../EvalSetsView';
 import EvalSetDetailView from '../EvalSetDetailView';
@@ -101,6 +102,7 @@ export const PAGE_VIEWS = {
   messages: MessagesView,
   organizations: OrganizationsView,
   board: BoardView,
+  performance: PerformanceView,
   changeRules: ChangeRulesView,
   evaluations: EvalSetsView,
   evalRuns: EvalRunsView,
@@ -145,6 +147,7 @@ export const DETAIL_VIEWS = {
   messageThreads: MessageThreadView,
   organizations: OrganizationDetailView,
   board: BoardView,
+  performance: PerformanceView,
   evaluations: EvalSetDetailView,
   evalRuns: EvalRunDetailView,
   shadowTrials: ShadowTrialDetailView,

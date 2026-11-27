@@ -1413,7 +1413,10 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/revisions/${enc(revisionId)}/publish`));
   }
 
-  /** Return to an earlier live revision. body: { revisionId? (the previous live one when omitted), note? }. */
+  /**
+   * Return to an earlier live revision. body: { revisionId? (the previous live one when omitted), note?, activeTicks?
+   * (Finish, the default, lets in-flight keeper ticks complete on the restored revisions; Cancel cancels them first) }.
+   */
   rollbackOrganization(tenantId, orgId, body = {}) {
     return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/rollback`), { body });
   }
@@ -1470,6 +1473,31 @@ class ApiClient {
    */
   decideOrgProposal(tenantId, orgId, draftId, body) {
     return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/proposals/${enc(draftId)}/decide`), { body });
+  }
+
+  // ------------------------------------------------------------------ performance and org-scale brakes (AA11)
+
+  /**
+   * Performance of an organization over a window: one row per unit (covering its subtree) and per agent with run
+   * outcomes, success rate, cost, latency percentiles, escalations, loop-guard rejections, and eval scores, plus the
+   * scheduled checks (EvalSet triggers) of its deployments. params: { fromUtc?, toUtc? } (ISO 8601; the last 7 days by
+   * default, at most 90 days, longer answers 400), unitId? (that unit's subtree; 404 outside the organization).
+   */
+  getOrganizationPerformance(tenantId, orgId, params = {}) {
+    const query = {};
+    for (const key of ['fromUtc', 'toUtc', 'unitId']) if (params?.[key]) query[key] = params[key];
+    return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/performance`), { query: Object.keys(query).length ? query : null });
+  }
+
+  /**
+   * Cancel everything in a unit's subtree of the live tree in one audited action: queued and running runs, in-flight
+   * keeper ticks, open escalations raised there (withdrawn), and queued messages to its agents (expired). body:
+   * { reason? (at most 1024 characters) }. Answers 200 with { organizationId, unitId, unitName, runsCancelled,
+   * ticksCancelled, escalationsWithdrawn, messagesExpired, runIds, completedUtc }; 404 when the unit is not in the
+   * organization; 409 OrganizationNotLive without a live revision. It does not freeze the unit.
+   */
+  cancelOrgUnitAll(tenantId, orgId, unitId, body = {}) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/units/${enc(unitId)}/cancel-all`), { body });
   }
 
   // ------------------------------------------------------------------ the board (AA10)

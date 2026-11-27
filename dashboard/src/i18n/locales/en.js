@@ -8289,3 +8289,327 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "Performance",
+    "tip": "How an organization's units and agents are doing, with the checks agents cannot grade"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "Scheduled check"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "Unit frozen over budget"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "Unit frozen over budget",
+   "UnitCascadeCancelled": "Everything in a unit cancelled"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "Let them finish",
+   "Cancel": "Cancel them"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "The organization has no live revision yet. Publish a revision first."
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "Budget freeze margin (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "From {{min}} to {{max}}, default {{default}}. A unit whose spend passes its budget by this much is frozen until a person lifts the freeze. 0 freezes at the budget."
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "Eval set",
+    "evalJudgeAgentId": "Judge agent",
+    "evalRecentInputCount": "Recent inputs"
+   },
+   "hints": {
+    "evalSetId": "The set the check runs. Results go to managers on the performance page.",
+    "checkDeployment": "Required. The check replays this deployment's recent inputs against the set.",
+    "evalRecentInputCount": "From {{min}} to {{max}}, default {{default}}. How many of the deployment's latest inputs each check replays."
+   },
+   "errors": {
+    "evalSetRequired": "Choose the eval set this check runs.",
+    "deploymentRequired": "Choose the deployment this check grades.",
+    "evalRecentInputCount": "Enter a whole number from {{min}} to {{max}}."
+   },
+   "setJudge": "The eval set's judge agent",
+   "checkNotice": "A scheduled check runs as the person who saved it. Agents cannot create, change, or grade checks."
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "Enter a whole number from {{min}} to {{max}}."
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "Performance",
+   "freezeMargin": "Frozen at {{percent}}% over budget"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "Keeper ticks in flight"
+ },
+ "cascadeCancel": {
+  "action": "Cancel everything in this unit",
+  "title": "Cancel everything in {{name}}",
+  "message": "Cancel every queued and running run, keeper tick, open escalation, and queued message of the agents in {{name}} and every unit below it? This does not freeze the unit, so new work can start again.",
+  "reason": "Reason",
+  "reasonPlaceholder": "Why everything stops (optional)",
+  "keep": "Keep running",
+  "confirm": "Cancel everything",
+  "working": "Cancelling...",
+  "done": "Everything in {{name}} was cancelled.",
+  "resultIntro": "Everything in {{name}} has stopped:",
+  "notFrozen": "The unit is not frozen. Freeze it to keep new work from starting.",
+  "freeze": "Freeze unit",
+  "counts": {
+   "runsCancelled": "Runs cancelled",
+   "ticksCancelled": "Keeper ticks cancelled",
+   "escalationsWithdrawn": "Escalations withdrawn",
+   "messagesExpired": "Messages expired"
+  }
+ },
+ "performance": {
+  "title": "Performance",
+  "subtitle": "How each unit and agent of an organization did: outcomes, cost, latency, escalations, and eval scores.",
+  "heading": "Performance of {{name}}",
+  "range": "From {{from}} to {{to}}",
+  "notFoundTitle": "Performance not available",
+  "notFoundBody": "The organization does not exist, or you cannot read it.",
+  "unit": "Unit",
+  "allUnits": "Every unit",
+  "lead": "Lead",
+  "sample": "Run {{n}}",
+  "outcomes": "{{succeeded}} ok, {{failed}} failed, {{cancelled}} cancelled",
+  "evalScore_one": "{{score}} over {{count}} eval run",
+  "evalScore_other": "{{score}} over {{count}} eval runs",
+  "picker": {
+   "title": "Pick an organization",
+   "emptyTitle": "No organizations yet",
+   "emptyBody": "Create an organization of keepers first. Its performance shows up here."
+  },
+  "window": {
+   "label": "Window",
+   "24h": "24 hours",
+   "7d": "7 days",
+   "30d": "30 days",
+   "custom": "Custom",
+   "from": "From",
+   "to": "To",
+   "apply": "Apply",
+   "errors": {
+    "from": "Choose the first day.",
+    "to": "Choose the last day.",
+    "order": "The last day must not be before the first.",
+    "span": "A window covers at most {{max}} days."
+   }
+  },
+  "chart": {
+   "title": "Success rate and cost by unit",
+   "successRate": "Success rate",
+   "cost": "Cost",
+   "noRuns": "No finished runs",
+   "rateLabel": "Success rate of {{unit}}: {{value}}",
+   "costLabel": "Cost of {{unit}}: {{value}}"
+  },
+  "columns": {
+   "unit": "Unit",
+   "agent": "Agent",
+   "runs": "Runs",
+   "outcomes": "Outcomes",
+   "successRate": "Success rate",
+   "costUsd": "Cost",
+   "latency": "Latency p50 / p95 / p99",
+   "escalations": "Escalations",
+   "loopGuardRejections": "Loop guard refusals",
+   "evalScore": "Eval score",
+   "samples": "Sample runs"
+  },
+  "units": {
+   "title": "Units",
+   "empty": "No unit is in the live chart for this window."
+  },
+  "agents": {
+   "title": "Agents",
+   "empty": "No agent is positioned in the live chart."
+  },
+  "checks": {
+   "title": "Scheduled checks",
+   "note": "Checks are eval runs on a schedule against a deployment's recent inputs. People create them; agents cannot grade or change them.",
+   "new": "New check",
+   "empty": "No scheduled check targets this organization's deployments.",
+   "never": "Not run yet",
+   "passed": "Passed",
+   "failed": "Below threshold",
+   "columns": {
+    "check": "Check",
+    "evalSet": "Eval set",
+    "deployment": "Deployment",
+    "schedule": "Schedule",
+    "lastRun": "Last run",
+    "lastScore": "Last score",
+    "nextFire": "Next run"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "Performance",
+    "body": "The Performance tab shows how each unit and agent of an organization did over a window, and the scheduled checks that grade them without letting agents grade themselves."
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "Performance",
+   "p1": "Each unit row covers the unit and everything below it: runs created in the window, how they ended, the success rate (succeeded over succeeded plus failed), cost, latency percentiles, escalations raised, loop-guard refusals, and the mean score of eval runs against the unit's deployments. Eval, shadow, and playground runs do not count.",
+   "p2": "Scheduled checks are EvalSet triggers: on their schedule they run an approved eval set against a deployment's recent inputs. Only people create them, so an agent cannot grade its own work."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "Performance: outcomes, cost, latency, escalations, and eval scores by unit and agent, with the scheduled checks."
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "Each fire starts an eval run of the set against the deployment's recent inputs. Only people can create these."
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "A unit's spend passed its budget by the organization's margin, and the budget guard froze it."
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "The budget guard froze a unit whose spend passed its budget by the organization's margin.",
+    "UnitCascadeCancelled": "Someone cancelled every run, keeper tick, escalation, and queued message in a unit's subtree."
+   },
+   "rollbackActiveTicks": {
+    "Finish": "Ticks already running complete, but their keepers stay on the restored revisions.",
+    "Cancel": "Runs of ticks in flight are cancelled before the chart is restored."
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "How far over a budget a unit may go before the budget guard freezes it, in percent: 0 to 100, default 10."
+   },
+   "triggers": {
+    "evalSetId": "The eval set the check runs on each fire.",
+    "evalJudgeAgentId": "The agent that grades the answers. Empty uses the eval set's judge.",
+    "evalRecentInputCount": "How many of the deployment's latest inputs each eval run replays, 1 to 50."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "Open this organization's performance by unit and agent, with its scheduled checks."
+   }
+  },
+  "rollbackTicks": {
+   "legend": "What happens to keeper ticks that are running when the chart rolls back."
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "Choose a unit first."
+   }
+  },
+  "cascadeCancel": {
+   "action": "Stop all work in this unit and below it: runs, keeper ticks, escalations, and queued messages. Asks for confirmation.",
+   "confirm": "Cancel everything in the unit's subtree now. This cannot be undone.",
+   "reason": "Optional, at most 1024 characters. Recorded in the audit log and on withdrawn escalations.",
+   "freeze": "Freeze the unit so no new work starts until the freeze is lifted.",
+   "counts": {
+    "runsCancelled": "Queued and running runs of agents in the subtree that were cancelled.",
+    "ticksCancelled": "Keeper ticks in flight that were cancelled.",
+    "escalationsWithdrawn": "Open escalations raised by agents in the subtree that were withdrawn.",
+    "messagesExpired": "Queued messages to agents in the subtree that expired."
+   }
+  },
+  "performance": {
+   "refresh": "Read the performance again for the chosen window.",
+   "unit": "Show one unit and everything below it, or every unit.",
+   "lead": "This agent leads its unit.",
+   "openAgent": "Open the agent.",
+   "openRun": "Open this sample run.",
+   "picker": {
+    "open": "Open the performance of this organization."
+   },
+   "window": {
+    "24h": "The last 24 hours.",
+    "7d": "The last 7 days.",
+    "30d": "The last 30 days.",
+    "custom": "Choose the first and last day, at most 90 days apart.",
+    "from": "The first day of the window (UTC).",
+    "to": "The last day of the window (UTC), included.",
+    "apply": "Read the performance for these days."
+   },
+   "chart": {
+    "title": "Success rate and cost of each unit's subtree in the window.",
+    "successRate": "Succeeded runs over succeeded plus failed runs.",
+    "cost": "Spend of the unit's subtree, scaled to the most expensive unit."
+   },
+   "columns": {
+    "unit": "The unit. Its row covers everything below it.",
+    "agent": "The agent and the unit it sits in.",
+    "runs": "Runs created in the window, without eval, shadow, and playground runs.",
+    "outcomes": "Succeeded, failed, and cancelled runs.",
+    "successRate": "Succeeded over succeeded plus failed. Empty when no run finished.",
+    "costUsd": "Spend of these runs in US dollars.",
+    "latency": "Median, 95th, and 99th percentile run time of finished runs.",
+    "escalations": "Escalations raised, with the share of runs that raised one.",
+    "loopGuardRejections": "Message sends and wakes the loop guard refused.",
+    "evalScore": "Mean score of completed eval runs against these deployments, scheduled checks included.",
+    "samples": "Up to five runs to look at: the newest failed first, then the newest succeeded."
+   },
+   "units": {
+    "title": "Each unit with the metrics of its whole subtree."
+   },
+   "agents": {
+    "title": "Each agent in the live chart with its own metrics."
+   },
+   "checks": {
+    "title": "Eval runs on a schedule against the organization's deployments, set up by people.",
+    "new": "Open the trigger editor with a scheduled check target.",
+    "openSet": "Open the eval set.",
+    "openRun": "Open the last eval run with its case results.",
+    "passed": "The last run reached the set's threshold.",
+    "failed": "The last run stayed below the set's threshold.",
+    "columns": {
+     "check": "The trigger that schedules the check, and whether it is active.",
+     "evalSet": "The eval set the check runs.",
+     "deployment": "The deployment whose recent inputs the check replays.",
+     "schedule": "The cron expression of the trigger.",
+     "lastRun": "When the last eval run started, and its status. Opens the run.",
+     "lastScore": "The score of the last eval run, 0 to 100 percent.",
+     "nextFire": "When the check runs next."
+    }
+   }
+  }
+ }
+});

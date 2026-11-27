@@ -87,7 +87,8 @@ function applyClientFilters(config, filters, rows) {
  * `loadLookups({ apiClient, tenantId, principal })` can load the caller's permissions); `fieldErrorSpecial(t)` refines
  * translated field codes (see fieldErrorMessages); `errorFields(error, t)` places a refusal that is not a validation
  * error (for example 409 AppSlugTaken) on a field; on a form with steps, saving with errors opens the first step
- * that has one (a custom field claims extra keys with `errorKeys`). `view: { label(t), tip(t), open(row, ctx) }` replaces
+ * that has one (a custom field claims extra keys with `errorKeys`). `createFromUrl(searchParams)` opens the create form
+ * preset from the URL (see below). `view: { label(t), tip(t), open(row, ctx) }` replaces
  * the View action and row clicks with a custom viewer (memory content, AA4.13); `intro(ctx)` also receives the
  * lookups, `filters`, and `setFilters`, so a panel above the table can drive server filters (the memory scope list).
  */
@@ -97,7 +98,7 @@ export default function ResourceView({ config }) {
   const { tenantId } = useApp();
   const { addToast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tableId = config.id;
   const ctx = useMemo(() => ({ apiClient, principal, tenantId, t, i18n, navigate, addToast }), [apiClient, principal, tenantId, t, i18n, navigate, addToast]);
 
@@ -226,6 +227,23 @@ export default function ResourceView({ config }) {
         .catch(() => setOptions({}));
     }
   };
+  // A link can open the create form preset (for example a new EvalSet trigger from the performance page):
+  // createFromUrl(searchParams) returns { data, clear } or null; data is merged over the blank record and the clear
+  // parameters leave the URL so a reload does not open the form again.
+  const createFromUrlDone = useRef(false);
+  useEffect(() => {
+    if (createFromUrlDone.current || !config.createFromUrl || !apiClient) return;
+    const preset = config.createFromUrl(searchParams);
+    if (!preset) return;
+    createFromUrlDone.current = true;
+    open('create', { ...(config.blank ? config.blank(ctx) : {}), ...(preset.data || {}) });
+    if ((preset.clear || []).length) {
+      const next = new URLSearchParams(searchParams);
+      for (const key of preset.clear) next.delete(key);
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, apiClient, searchParams]);
   // Read the pick lists again, for example after the person added a record on another page (a secret, a profile).
   const reloadOptions = useCallback(() => {
     if (!config.loadOptions) return;

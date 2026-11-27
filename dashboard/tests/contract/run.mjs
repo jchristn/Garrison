@@ -822,6 +822,8 @@ function routes(ids) {
     // The board (AA10.7): the aggregate of that organization and its (empty) board conversations.
     ['getBoard', tp(`organizations/${ids.organization}/board`)],
     ['listBoardConversations', tp(`organizations/${ids.organization}/board/conversations?${list}`)],
+    // Performance (AA11.7): the organization's rollups over the default window, with its (empty) checks.
+    ['getOrganizationPerformance', tp(`organizations/${ids.organization}/performance`)],
     // Evaluations (AA9.15): the approved set with its cases, and the (empty) run, shadow trial, and canary lists.
     ['listEvalSets', tp(`eval-sets?${list}&latestOnly=true`)],
     ['getEvalSet', tp(`eval-sets/${ids.evalSet}`)],

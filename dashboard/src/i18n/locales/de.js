@@ -8301,3 +8301,327 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "Leistung",
+    "tip": "Wie die Einheiten und Agenten einer Organisation arbeiten, mit den Prüfungen, die Agenten nicht bewerten können"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "Geplante Prüfung"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "Einheit wegen Budget gesperrt"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "Einheit wegen Budget gesperrt",
+   "UnitCascadeCancelled": "Alles in einer Einheit abgebrochen"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "Zu Ende laufen lassen",
+   "Cancel": "Abbrechen"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "Die Organisation hat noch keine Live-Revision. Veröffentlichen Sie zuerst eine Revision."
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "Budget-Sperrspanne (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "Von {{min}} bis {{max}}, Standard {{default}}. Eine Einheit, deren Ausgaben ihr Budget um so viel übersteigen, wird gesperrt, bis jemand die Sperre aufhebt. 0 sperrt beim Budget."
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "Eval-Set",
+    "evalJudgeAgentId": "Bewertender Agent",
+    "evalRecentInputCount": "Letzte Eingaben"
+   },
+   "hints": {
+    "evalSetId": "Das Set, das die Prüfung ausführt. Die Ergebnisse sehen Führungskräfte auf der Leistungsseite.",
+    "checkDeployment": "Pflichtfeld. Die Prüfung spielt die letzten Eingaben dieser Bereitstellung gegen das Set ab.",
+    "evalRecentInputCount": "Von {{min}} bis {{max}}, Standard {{default}}. Wie viele der neuesten Eingaben der Bereitstellung jede Prüfung abspielt."
+   },
+   "errors": {
+    "evalSetRequired": "Wählen Sie das Eval-Set, das diese Prüfung ausführt.",
+    "deploymentRequired": "Wählen Sie die Bereitstellung, die diese Prüfung bewertet.",
+    "evalRecentInputCount": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein."
+   },
+   "setJudge": "Der bewertende Agent des Eval-Sets",
+   "checkNotice": "Eine geplante Prüfung läuft als die Person, die sie gespeichert hat. Agenten können Prüfungen weder anlegen noch ändern oder bewerten."
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein."
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "Leistung",
+   "freezeMargin": "Gesperrt bei {{percent}} % über Budget"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "Laufende Wächter-Zyklen"
+ },
+ "cascadeCancel": {
+  "action": "Alles in dieser Einheit abbrechen",
+  "title": "Alles in {{name}} abbrechen",
+  "message": "Jeden wartenden und laufenden Lauf, Wächter-Zyklus, jede offene Eskalation und jede wartende Nachricht der Agenten in {{name}} und allen Einheiten darunter abbrechen? Die Einheit wird dabei nicht gesperrt, neue Arbeit kann also wieder beginnen.",
+  "reason": "Grund",
+  "reasonPlaceholder": "Warum alles anhält (optional)",
+  "keep": "Weiterlaufen lassen",
+  "confirm": "Alles abbrechen",
+  "working": "Wird abgebrochen...",
+  "done": "Alles in {{name}} wurde abgebrochen.",
+  "resultIntro": "Alles in {{name}} ist angehalten:",
+  "notFrozen": "Die Einheit ist nicht gesperrt. Sperren Sie sie, damit keine neue Arbeit beginnt.",
+  "freeze": "Einheit sperren",
+  "counts": {
+   "runsCancelled": "Abgebrochene Läufe",
+   "ticksCancelled": "Abgebrochene Wächter-Zyklen",
+   "escalationsWithdrawn": "Zurückgezogene Eskalationen",
+   "messagesExpired": "Abgelaufene Nachrichten"
+  }
+ },
+ "performance": {
+  "title": "Leistung",
+  "subtitle": "Wie jede Einheit und jeder Agent einer Organisation gearbeitet hat: Ergebnisse, Kosten, Latenz, Eskalationen und Eval-Werte.",
+  "heading": "Leistung von {{name}}",
+  "range": "Von {{from}} bis {{to}}",
+  "notFoundTitle": "Leistung nicht verfügbar",
+  "notFoundBody": "Die Organisation existiert nicht, oder Sie dürfen sie nicht lesen.",
+  "unit": "Einheit",
+  "allUnits": "Alle Einheiten",
+  "lead": "Leitung",
+  "sample": "Lauf {{n}}",
+  "outcomes": "{{succeeded}} erfolgreich, {{failed}} fehlgeschlagen, {{cancelled}} abgebrochen",
+  "evalScore_one": "{{score}} aus {{count}} Eval-Lauf",
+  "evalScore_other": "{{score}} aus {{count}} Eval-Läufen",
+  "picker": {
+   "title": "Organisation wählen",
+   "emptyTitle": "Noch keine Organisationen",
+   "emptyBody": "Legen Sie zuerst eine Organisation aus Wächtern an. Ihre Leistung erscheint hier."
+  },
+  "window": {
+   "label": "Zeitraum",
+   "24h": "24 Stunden",
+   "7d": "7 Tage",
+   "30d": "30 Tage",
+   "custom": "Eigener",
+   "from": "Von",
+   "to": "Bis",
+   "apply": "Anwenden",
+   "errors": {
+    "from": "Wählen Sie den ersten Tag.",
+    "to": "Wählen Sie den letzten Tag.",
+    "order": "Der letzte Tag darf nicht vor dem ersten liegen.",
+    "span": "Ein Zeitraum umfasst höchstens {{max}} Tage."
+   }
+  },
+  "chart": {
+   "title": "Erfolgsquote und Kosten nach Einheit",
+   "successRate": "Erfolgsquote",
+   "cost": "Kosten",
+   "noRuns": "Keine beendeten Läufe",
+   "rateLabel": "Erfolgsquote von {{unit}}: {{value}}",
+   "costLabel": "Kosten von {{unit}}: {{value}}"
+  },
+  "columns": {
+   "unit": "Einheit",
+   "agent": "Agent",
+   "runs": "Läufe",
+   "outcomes": "Ergebnisse",
+   "successRate": "Erfolgsquote",
+   "costUsd": "Kosten",
+   "latency": "Latenz p50 / p95 / p99",
+   "escalations": "Eskalationen",
+   "loopGuardRejections": "Abweisungen des Schleifenschutzes",
+   "evalScore": "Eval-Wert",
+   "samples": "Beispielläufe"
+  },
+  "units": {
+   "title": "Einheiten",
+   "empty": "Keine Einheit steht für diesen Zeitraum im Live-Organigramm."
+  },
+  "agents": {
+   "title": "Agenten",
+   "empty": "Kein Agent steht im Live-Organigramm."
+  },
+  "checks": {
+   "title": "Geplante Prüfungen",
+   "note": "Prüfungen sind geplante Eval-Läufe gegen die letzten Eingaben einer Bereitstellung. Menschen legen sie an; Agenten können sie weder bewerten noch ändern.",
+   "new": "Neue Prüfung",
+   "empty": "Keine geplante Prüfung zielt auf die Bereitstellungen dieser Organisation.",
+   "never": "Noch nicht gelaufen",
+   "passed": "Bestanden",
+   "failed": "Unter dem Schwellenwert",
+   "columns": {
+    "check": "Prüfung",
+    "evalSet": "Eval-Set",
+    "deployment": "Bereitstellung",
+    "schedule": "Zeitplan",
+    "lastRun": "Letzter Lauf",
+    "lastScore": "Letzter Wert",
+    "nextFire": "Nächster Lauf"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "Leistung",
+    "body": "Der Tab Leistung zeigt, wie jede Einheit und jeder Agent einer Organisation in einem Zeitraum gearbeitet hat, und die geplanten Prüfungen, die sie bewerten, ohne dass Agenten sich selbst bewerten."
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "Leistung",
+   "p1": "Jede Zeile einer Einheit umfasst die Einheit und alles darunter: im Zeitraum angelegte Läufe, wie sie endeten, die Erfolgsquote (erfolgreich geteilt durch erfolgreich plus fehlgeschlagen), Kosten, Latenzperzentile, ausgelöste Eskalationen, Abweisungen des Schleifenschutzes und den mittleren Wert der Eval-Läufe gegen die Bereitstellungen der Einheit. Eval-, Schatten- und Playground-Läufe zählen nicht.",
+   "p2": "Geplante Prüfungen sind EvalSet-Trigger: Nach ihrem Zeitplan führen sie ein freigegebenes Eval-Set gegen die letzten Eingaben einer Bereitstellung aus. Nur Menschen legen sie an, damit kein Agent seine eigene Arbeit bewertet."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "Leistung: Ergebnisse, Kosten, Latenz, Eskalationen und Eval-Werte nach Einheit und Agent, mit den geplanten Prüfungen."
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "Jede Auslösung startet einen Eval-Lauf des Sets gegen die letzten Eingaben der Bereitstellung. Nur Menschen können solche Trigger anlegen."
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "Die Ausgaben einer Einheit haben ihr Budget um die Spanne der Organisation überschritten, und der Budgetwächter hat sie gesperrt."
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "Der Budgetwächter hat eine Einheit gesperrt, deren Ausgaben ihr Budget um die Spanne der Organisation überschritten haben.",
+    "UnitCascadeCancelled": "Jemand hat jeden Lauf, Wächter-Zyklus, jede Eskalation und jede wartende Nachricht im Teilbaum einer Einheit abgebrochen."
+   },
+   "rollbackActiveTicks": {
+    "Finish": "Bereits laufende Zyklen werden beendet, ihre Wächter bleiben aber auf den wiederhergestellten Revisionen.",
+    "Cancel": "Läufe laufender Zyklen werden abgebrochen, bevor das Organigramm wiederhergestellt wird."
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "Wie weit eine Einheit ihr Budget überschreiten darf, bevor der Budgetwächter sie sperrt, in Prozent: 0 bis 100, Standard 10."
+   },
+   "triggers": {
+    "evalSetId": "Das Eval-Set, das die Prüfung bei jeder Auslösung ausführt.",
+    "evalJudgeAgentId": "Der Agent, der die Antworten bewertet. Leer verwendet den bewertenden Agenten des Eval-Sets.",
+    "evalRecentInputCount": "Wie viele der neuesten Eingaben der Bereitstellung jeder Eval-Lauf abspielt, 1 bis 50."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "Die Leistung dieser Organisation nach Einheit und Agent öffnen, mit ihren geplanten Prüfungen."
+   }
+  },
+  "rollbackTicks": {
+   "legend": "Was mit Wächter-Zyklen geschieht, die beim Zurücksetzen des Organigramms laufen."
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "Wählen Sie zuerst eine Einheit."
+   }
+  },
+  "cascadeCancel": {
+   "action": "Alle Arbeit in dieser Einheit und darunter anhalten: Läufe, Wächter-Zyklen, Eskalationen und wartende Nachrichten. Fragt nach einer Bestätigung.",
+   "confirm": "Jetzt alles im Teilbaum der Einheit abbrechen. Das lässt sich nicht rückgängig machen.",
+   "reason": "Optional, höchstens 1024 Zeichen. Wird im Audit-Protokoll und bei zurückgezogenen Eskalationen gespeichert.",
+   "freeze": "Die Einheit sperren, damit keine neue Arbeit beginnt, bis die Sperre aufgehoben wird.",
+   "counts": {
+    "runsCancelled": "Wartende und laufende Läufe von Agenten im Teilbaum, die abgebrochen wurden.",
+    "ticksCancelled": "Laufende Wächter-Zyklen, die abgebrochen wurden.",
+    "escalationsWithdrawn": "Offene Eskalationen von Agenten im Teilbaum, die zurückgezogen wurden.",
+    "messagesExpired": "Wartende Nachrichten an Agenten im Teilbaum, die abgelaufen sind."
+   }
+  },
+  "performance": {
+   "refresh": "Die Leistung für den gewählten Zeitraum erneut lesen.",
+   "unit": "Eine Einheit mit allem darunter zeigen, oder alle Einheiten.",
+   "lead": "Dieser Agent leitet seine Einheit.",
+   "openAgent": "Den Agenten öffnen.",
+   "openRun": "Diesen Beispiellauf öffnen.",
+   "picker": {
+    "open": "Die Leistung dieser Organisation öffnen."
+   },
+   "window": {
+    "24h": "Die letzten 24 Stunden.",
+    "7d": "Die letzten 7 Tage.",
+    "30d": "Die letzten 30 Tage.",
+    "custom": "Ersten und letzten Tag wählen, höchstens 90 Tage auseinander.",
+    "from": "Der erste Tag des Zeitraums (UTC).",
+    "to": "Der letzte Tag des Zeitraums (UTC), eingeschlossen.",
+    "apply": "Die Leistung für diese Tage lesen."
+   },
+   "chart": {
+    "title": "Erfolgsquote und Kosten des Teilbaums jeder Einheit im Zeitraum.",
+    "successRate": "Erfolgreiche Läufe geteilt durch erfolgreiche plus fehlgeschlagene Läufe.",
+    "cost": "Ausgaben des Teilbaums der Einheit, skaliert auf die teuerste Einheit."
+   },
+   "columns": {
+    "unit": "Die Einheit. Ihre Zeile umfasst alles darunter.",
+    "agent": "Der Agent und die Einheit, in der er sitzt.",
+    "runs": "Im Zeitraum angelegte Läufe, ohne Eval-, Schatten- und Playground-Läufe.",
+    "outcomes": "Erfolgreiche, fehlgeschlagene und abgebrochene Läufe.",
+    "successRate": "Erfolgreich geteilt durch erfolgreich plus fehlgeschlagen. Leer, wenn kein Lauf beendet wurde.",
+    "costUsd": "Ausgaben dieser Läufe in US-Dollar.",
+    "latency": "Median, 95. und 99. Perzentil der Laufzeit beendeter Läufe.",
+    "escalations": "Ausgelöste Eskalationen, mit dem Anteil der Läufe, die eine ausgelöst haben.",
+    "loopGuardRejections": "Nachrichten und Weckrufe, die der Schleifenschutz abgewiesen hat.",
+    "evalScore": "Mittlerer Wert abgeschlossener Eval-Läufe gegen diese Bereitstellungen, geplante Prüfungen eingeschlossen.",
+    "samples": "Bis zu fünf Läufe zum Ansehen: zuerst die neuesten fehlgeschlagenen, dann die neuesten erfolgreichen."
+   },
+   "units": {
+    "title": "Jede Einheit mit den Werten ihres ganzen Teilbaums."
+   },
+   "agents": {
+    "title": "Jeder Agent im Live-Organigramm mit seinen eigenen Werten."
+   },
+   "checks": {
+    "title": "Geplante Eval-Läufe gegen die Bereitstellungen der Organisation, von Menschen eingerichtet.",
+    "new": "Den Trigger-Editor mit einer geplanten Prüfung als Ziel öffnen.",
+    "openSet": "Das Eval-Set öffnen.",
+    "openRun": "Den letzten Eval-Lauf mit seinen Fallergebnissen öffnen.",
+    "passed": "Der letzte Lauf hat den Schwellenwert des Sets erreicht.",
+    "failed": "Der letzte Lauf blieb unter dem Schwellenwert des Sets.",
+    "columns": {
+     "check": "Der Trigger, der die Prüfung plant, und ob er aktiv ist.",
+     "evalSet": "Das Eval-Set, das die Prüfung ausführt.",
+     "deployment": "Die Bereitstellung, deren letzte Eingaben die Prüfung abspielt.",
+     "schedule": "Der Cron-Ausdruck des Triggers.",
+     "lastRun": "Wann der letzte Eval-Lauf begann, und sein Status. Öffnet den Lauf.",
+     "lastScore": "Der Wert des letzten Eval-Laufs, 0 bis 100 Prozent.",
+     "nextFire": "Wann die Prüfung das nächste Mal läuft."
+    }
+   }
+  }
+ }
+});

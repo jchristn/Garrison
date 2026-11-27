@@ -228,7 +228,7 @@ test('the guided tour stops at Autonomy and the board (AA10.8)', async ({ page }
   const card = page.locator('.tour-card');
   await expect(card).toBeVisible();
   const titles = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 9; i++) {
     titles.push(await card.locator('h3').textContent());
     await card.getByRole('button', { name: /^(Next|Done)$/ }).click();
   }

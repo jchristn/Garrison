@@ -248,7 +248,7 @@ describe('BoardView', () => {
     expect(api.rollbackOrganization).not.toHaveBeenCalled();
     await act(async () => q('[data-testid="confirm-button"]').click());
     await flush();
-    expect(api.rollbackOrganization).toHaveBeenCalledWith('default', 'org_0001', { note: en.board.brakes.rollbackNote });
+    expect(api.rollbackOrganization).toHaveBeenCalledWith('default', 'org_0001', { note: en.board.brakes.rollbackNote, activeTicks: 'Finish' });
   });
 
   it('lists organizations to pick from without a record ID', async () => {

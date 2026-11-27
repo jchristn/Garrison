@@ -80,6 +80,8 @@ export const NAV_SECTIONS = [
           { id: 'organizations', slug: 'organizations', detail: true },
           // AA10.7: the board of one organization (/dashboard/board/<id>); the tab itself picks the organization.
           { id: 'board', slug: 'board', detail: true },
+          // AA11.7: an organization's performance by unit and agent, with its scheduled checks (/dashboard/performance/<id>).
+          { id: 'performance', slug: 'performance', detail: true },
           { id: 'changeRules', slug: 'change-rules' },
           { id: 'evaluations', slug: 'evaluations', detail: true },
           { id: 'evalRuns', slug: 'eval-runs', detail: true },

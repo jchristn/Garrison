@@ -8319,3 +8319,327 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "Rendimiento",
+    "tip": "Cómo trabajan las unidades y los agentes de una organización, con las comprobaciones que los agentes no pueden calificar"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "Comprobación programada"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "Unidad congelada por presupuesto"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "Unidad congelada por presupuesto",
+   "UnitCascadeCancelled": "Todo cancelado en una unidad"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "Dejar que terminen",
+   "Cancel": "Cancelarlos"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "La organización aún no tiene una revisión en vigor. Publica primero una revisión."
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "Margen de congelación por presupuesto (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "De {{min}} a {{max}}, por defecto {{default}}. Una unidad cuyo gasto supere su presupuesto en este margen se congela hasta que una persona levante la congelación. 0 congela al llegar al presupuesto."
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "Conjunto de evaluación",
+    "evalJudgeAgentId": "Agente evaluador",
+    "evalRecentInputCount": "Entradas recientes"
+   },
+   "hints": {
+    "evalSetId": "El conjunto que ejecuta la comprobación. Los responsables ven los resultados en la página de rendimiento.",
+    "checkDeployment": "Obligatorio. La comprobación reproduce las entradas recientes de este despliegue contra el conjunto.",
+    "evalRecentInputCount": "De {{min}} a {{max}}, por defecto {{default}}. Cuántas de las últimas entradas del despliegue reproduce cada comprobación."
+   },
+   "errors": {
+    "evalSetRequired": "Elige el conjunto de evaluación que ejecuta esta comprobación.",
+    "deploymentRequired": "Elige el despliegue que califica esta comprobación.",
+    "evalRecentInputCount": "Introduce un número entero de {{min}} a {{max}}."
+   },
+   "setJudge": "El agente evaluador del conjunto",
+   "checkNotice": "Una comprobación programada se ejecuta como la persona que la guardó. Los agentes no pueden crear, cambiar ni calificar comprobaciones."
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "Introduce un número entero de {{min}} a {{max}}."
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "Rendimiento",
+   "freezeMargin": "Se congela al {{percent}} % sobre el presupuesto"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "Ciclos de guardián en curso"
+ },
+ "cascadeCancel": {
+  "action": "Cancelar todo en esta unidad",
+  "title": "Cancelar todo en {{name}}",
+  "message": "¿Cancelar cada ejecución en cola o en curso, ciclo de guardián, escalado abierto y mensaje en cola de los agentes de {{name}} y de todas las unidades que dependen de ella? La unidad no se congela, así que el trabajo nuevo puede volver a empezar.",
+  "reason": "Motivo",
+  "reasonPlaceholder": "Por qué se detiene todo (opcional)",
+  "keep": "Seguir ejecutando",
+  "confirm": "Cancelar todo",
+  "working": "Cancelando...",
+  "done": "Se canceló todo en {{name}}.",
+  "resultIntro": "Todo en {{name}} se ha detenido:",
+  "notFrozen": "La unidad no está congelada. Congélala para que no empiece trabajo nuevo.",
+  "freeze": "Congelar unidad",
+  "counts": {
+   "runsCancelled": "Ejecuciones canceladas",
+   "ticksCancelled": "Ciclos de guardián cancelados",
+   "escalationsWithdrawn": "Escalados retirados",
+   "messagesExpired": "Mensajes caducados"
+  }
+ },
+ "performance": {
+  "title": "Rendimiento",
+  "subtitle": "Cómo le fue a cada unidad y agente de una organización: resultados, coste, latencia, escalados y puntuaciones de evaluación.",
+  "heading": "Rendimiento de {{name}}",
+  "range": "Del {{from}} al {{to}}",
+  "notFoundTitle": "Rendimiento no disponible",
+  "notFoundBody": "La organización no existe o no puedes leerla.",
+  "unit": "Unidad",
+  "allUnits": "Todas las unidades",
+  "lead": "Responsable",
+  "sample": "Ejecución {{n}}",
+  "outcomes": "{{succeeded}} correctas, {{failed}} fallidas, {{cancelled}} canceladas",
+  "evalScore_one": "{{score}} en {{count}} ejecución de evaluación",
+  "evalScore_other": "{{score}} en {{count}} ejecuciones de evaluación",
+  "picker": {
+   "title": "Elige una organización",
+   "emptyTitle": "Aún no hay organizaciones",
+   "emptyBody": "Crea primero una organización de guardianes. Su rendimiento aparece aquí."
+  },
+  "window": {
+   "label": "Periodo",
+   "24h": "24 horas",
+   "7d": "7 días",
+   "30d": "30 días",
+   "custom": "Personalizado",
+   "from": "Desde",
+   "to": "Hasta",
+   "apply": "Aplicar",
+   "errors": {
+    "from": "Elige el primer día.",
+    "to": "Elige el último día.",
+    "order": "El último día no puede ser anterior al primero.",
+    "span": "Un periodo abarca como máximo {{max}} días."
+   }
+  },
+  "chart": {
+   "title": "Tasa de éxito y coste por unidad",
+   "successRate": "Tasa de éxito",
+   "cost": "Coste",
+   "noRuns": "Sin ejecuciones terminadas",
+   "rateLabel": "Tasa de éxito de {{unit}}: {{value}}",
+   "costLabel": "Coste de {{unit}}: {{value}}"
+  },
+  "columns": {
+   "unit": "Unidad",
+   "agent": "Agente",
+   "runs": "Ejecuciones",
+   "outcomes": "Resultados",
+   "successRate": "Tasa de éxito",
+   "costUsd": "Coste",
+   "latency": "Latencia p50 / p95 / p99",
+   "escalations": "Escalados",
+   "loopGuardRejections": "Rechazos de la protección contra bucles",
+   "evalScore": "Puntuación de evaluación",
+   "samples": "Ejecuciones de muestra"
+  },
+  "units": {
+   "title": "Unidades",
+   "empty": "Ninguna unidad está en el organigrama en vigor para este periodo."
+  },
+  "agents": {
+   "title": "Agentes",
+   "empty": "Ningún agente está en el organigrama en vigor."
+  },
+  "checks": {
+   "title": "Comprobaciones programadas",
+   "note": "Las comprobaciones son ejecuciones de evaluación programadas contra las entradas recientes de un despliegue. Las crean personas; los agentes no pueden calificarlas ni cambiarlas.",
+   "new": "Nueva comprobación",
+   "empty": "Ninguna comprobación programada apunta a los despliegues de esta organización.",
+   "never": "Aún no se ha ejecutado",
+   "passed": "Superada",
+   "failed": "Por debajo del umbral",
+   "columns": {
+    "check": "Comprobación",
+    "evalSet": "Conjunto de evaluación",
+    "deployment": "Despliegue",
+    "schedule": "Programación",
+    "lastRun": "Última ejecución",
+    "lastScore": "Última puntuación",
+    "nextFire": "Próxima ejecución"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "Rendimiento",
+    "body": "La pestaña Rendimiento muestra cómo le fue a cada unidad y agente de una organización en un periodo, y las comprobaciones programadas que los califican sin dejar que los agentes se califiquen a sí mismos."
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "Rendimiento",
+   "p1": "Cada fila de unidad abarca la unidad y todo lo que depende de ella: las ejecuciones creadas en el periodo, cómo terminaron, la tasa de éxito (correctas entre correctas más fallidas), el coste, los percentiles de latencia, los escalados abiertos, los rechazos de la protección contra bucles y la puntuación media de las ejecuciones de evaluación contra los despliegues de la unidad. Las ejecuciones de evaluación, sombra y entorno de pruebas no cuentan.",
+   "p2": "Las comprobaciones programadas son disparadores EvalSet: según su programación ejecutan un conjunto de evaluación aprobado contra las entradas recientes de un despliegue. Solo las personas las crean, así que un agente no puede calificar su propio trabajo."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "Rendimiento: resultados, coste, latencia, escalados y puntuaciones de evaluación por unidad y agente, con las comprobaciones programadas."
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "Cada disparo inicia una ejecución de evaluación del conjunto contra las entradas recientes del despliegue. Solo las personas pueden crearlas."
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "El gasto de una unidad superó su presupuesto en el margen de la organización y el guardián del presupuesto la congeló."
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "El guardián del presupuesto congeló una unidad cuyo gasto superó su presupuesto en el margen de la organización.",
+    "UnitCascadeCancelled": "Alguien canceló cada ejecución, ciclo de guardián, escalado y mensaje en cola del subárbol de una unidad."
+   },
+   "rollbackActiveTicks": {
+    "Finish": "Los ciclos que ya están en curso terminan, pero sus guardianes se quedan en las revisiones restauradas.",
+    "Cancel": "Las ejecuciones de los ciclos en curso se cancelan antes de restaurar el organigrama."
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "Cuánto puede superar una unidad su presupuesto antes de que el guardián del presupuesto la congele, en porcentaje: de 0 a 100, por defecto 10."
+   },
+   "triggers": {
+    "evalSetId": "El conjunto de evaluación que la comprobación ejecuta en cada disparo.",
+    "evalJudgeAgentId": "El agente que califica las respuestas. Vacío usa el evaluador del conjunto.",
+    "evalRecentInputCount": "Cuántas de las últimas entradas del despliegue reproduce cada ejecución de evaluación, de 1 a 50."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "Abrir el rendimiento de esta organización por unidad y agente, con sus comprobaciones programadas."
+   }
+  },
+  "rollbackTicks": {
+   "legend": "Qué pasa con los ciclos de guardián que están en curso cuando se revierte el organigrama."
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "Elige primero una unidad."
+   }
+  },
+  "cascadeCancel": {
+   "action": "Detener todo el trabajo de esta unidad y de las que dependen de ella: ejecuciones, ciclos de guardián, escalados y mensajes en cola. Pide confirmación.",
+   "confirm": "Cancelar ahora todo en el subárbol de la unidad. No se puede deshacer.",
+   "reason": "Opcional, como máximo 1024 caracteres. Se registra en la auditoría y en los escalados retirados.",
+   "freeze": "Congelar la unidad para que no empiece trabajo nuevo hasta que se levante la congelación.",
+   "counts": {
+    "runsCancelled": "Ejecuciones en cola y en curso de agentes del subárbol que se cancelaron.",
+    "ticksCancelled": "Ciclos de guardián en curso que se cancelaron.",
+    "escalationsWithdrawn": "Escalados abiertos de agentes del subárbol que se retiraron.",
+    "messagesExpired": "Mensajes en cola para agentes del subárbol que caducaron."
+   }
+  },
+  "performance": {
+   "refresh": "Leer de nuevo el rendimiento del periodo elegido.",
+   "unit": "Mostrar una unidad con todo lo que depende de ella, o todas las unidades.",
+   "lead": "Este agente dirige su unidad.",
+   "openAgent": "Abrir el agente.",
+   "openRun": "Abrir esta ejecución de muestra.",
+   "picker": {
+    "open": "Abrir el rendimiento de esta organización."
+   },
+   "window": {
+    "24h": "Las últimas 24 horas.",
+    "7d": "Los últimos 7 días.",
+    "30d": "Los últimos 30 días.",
+    "custom": "Elige el primer y el último día, con 90 días de diferencia como máximo.",
+    "from": "El primer día del periodo (UTC).",
+    "to": "El último día del periodo (UTC), incluido.",
+    "apply": "Leer el rendimiento de estos días."
+   },
+   "chart": {
+    "title": "Tasa de éxito y coste del subárbol de cada unidad en el periodo.",
+    "successRate": "Ejecuciones correctas entre correctas más fallidas.",
+    "cost": "Gasto del subárbol de la unidad, a escala de la unidad más cara."
+   },
+   "columns": {
+    "unit": "La unidad. Su fila abarca todo lo que depende de ella.",
+    "agent": "El agente y la unidad en la que está.",
+    "runs": "Ejecuciones creadas en el periodo, sin las de evaluación, sombra y entorno de pruebas.",
+    "outcomes": "Ejecuciones correctas, fallidas y canceladas.",
+    "successRate": "Correctas entre correctas más fallidas. Vacío si ninguna ejecución terminó.",
+    "costUsd": "Gasto de estas ejecuciones en dólares estadounidenses.",
+    "latency": "Mediana y percentiles 95 y 99 del tiempo de las ejecuciones terminadas.",
+    "escalations": "Escalados abiertos, con la proporción de ejecuciones que abrieron uno.",
+    "loopGuardRejections": "Envíos de mensajes y activaciones que rechazó la protección contra bucles.",
+    "evalScore": "Puntuación media de las ejecuciones de evaluación completadas contra estos despliegues, incluidas las comprobaciones programadas.",
+    "samples": "Hasta cinco ejecuciones para revisar: primero las fallidas más recientes, luego las correctas más recientes."
+   },
+   "units": {
+    "title": "Cada unidad con las métricas de todo su subárbol."
+   },
+   "agents": {
+    "title": "Cada agente del organigrama en vigor con sus propias métricas."
+   },
+   "checks": {
+    "title": "Ejecuciones de evaluación programadas contra los despliegues de la organización, configuradas por personas.",
+    "new": "Abrir el editor de disparadores con una comprobación programada como destino.",
+    "openSet": "Abrir el conjunto de evaluación.",
+    "openRun": "Abrir la última ejecución de evaluación con los resultados de sus casos.",
+    "passed": "La última ejecución alcanzó el umbral del conjunto.",
+    "failed": "La última ejecución quedó por debajo del umbral del conjunto.",
+    "columns": {
+     "check": "El disparador que programa la comprobación y si está activo.",
+     "evalSet": "El conjunto de evaluación que ejecuta la comprobación.",
+     "deployment": "El despliegue cuyas entradas recientes reproduce la comprobación.",
+     "schedule": "La expresión cron del disparador.",
+     "lastRun": "Cuándo empezó la última ejecución de evaluación y su estado. Abre la ejecución.",
+     "lastScore": "La puntuación de la última ejecución de evaluación, de 0 a 100 por ciento.",
+     "nextFire": "Cuándo se ejecuta la comprobación la próxima vez."
+    }
+   }
+  }
+ }
+});

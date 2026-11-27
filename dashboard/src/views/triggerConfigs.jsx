@@ -48,6 +48,7 @@ function field(id, t, name, type, extra = {}) {
 const safeList = (promise) => promise.then((r) => r.items || []).catch(() => []);
 const when = (value, lng) => (value ? <span {...tip(formatDateTime(value, lng))}>{formatRelativeTime(value, lng)}</span> : '-');
 const enumOpts = (t, group, values) => values.map((v) => ({ value: v, label: enumLabel(t, group, v) }));
+const evalSetLabel = (x) => (x?.version ? `${x.name} v${x.version}` : x?.name || x?.id);
 
 /** Ask before replacing a signing secret, then show the new one once. */
 function openRotate(ctx, record, kind) {
@@ -114,21 +115,31 @@ export const triggersConfig = {
     remove: (c, tenant, id) => c.deleteTrigger(tenant, id)
   },
   filters: [{ name: 'type', label: (t) => t('resources.triggers.columns.type'), options: ENUMS.triggerType, enumGroup: 'triggerType' }],
-  // Agent and pipeline names for the target column.
+  // Agent, pipeline, and eval set names for the target column.
   loadLookups: async ({ apiClient, tenantId }) => {
-    const [agents, pipelines] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), safeList(apiClient.listPipelines(tenantId, { pageNumber: 1, pageSize: 1000 }))]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), pipelines: Object.fromEntries(pipelines.map((p) => [p.id, p.name])) };
+    const [agents, pipelines, evalSets] = await Promise.all([
+      safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      safeList(apiClient.listPipelines(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      apiClient.listEvalSets ? safeList(apiClient.listEvalSets(tenantId, { pageNumber: 1, pageSize: 1000 })) : Promise.resolve([])
+    ]);
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), pipelines: Object.fromEntries(pipelines.map((p) => [p.id, p.name])), evalSets: Object.fromEntries(evalSets.map((x) => [x.id, evalSetLabel(x)])) };
   },
-  // Pick lists: agents, deployments (filtered by the chosen agent), pipelines, and Task templates for the input.
+  // Pick lists: agents, deployments (filtered by the chosen agent), pipelines, Task templates for the input, and the
+  // latest eval set versions for a scheduled check (AA11.3).
   loadOptions: async ({ apiClient, tenantId }) => {
-    const [agents, deployments, pipelines, templates] = await Promise.all([
+    const [agents, deployments, pipelines, templates, evalSets] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listPipelines(tenantId, { pageNumber: 1, pageSize: 1000 })),
-      safeList(apiClient.listPromptTemplates(tenantId, { pageNumber: 1, pageSize: 1000, kind: 'Task' }))
+      safeList(apiClient.listPromptTemplates(tenantId, { pageNumber: 1, pageSize: 1000, kind: 'Task' })),
+      apiClient.listEvalSets ? safeList(apiClient.listEvalSets(tenantId, { pageNumber: 1, pageSize: 1000, latestOnly: true })) : Promise.resolve([])
     ]);
-    return { agents, deployments, pipelines, templates };
+    return { agents, deployments, pipelines, templates, evalSets };
   },
+  // /dashboard/agents?tab=triggers&new=EvalSet[&deploymentId=...] opens a new scheduled check (the performance page's
+  // New check button).
+  createFromUrl: (params) =>
+    params.get('new') === 'EvalSet' ? { data: { targetType: 'EvalSet', deploymentId: params.get('deploymentId') || '', name: '' }, clear: ['new', 'deploymentId'] } : null,
   blank: () => blankTrigger(),
   toForm: (r) => triggerToForm(r),
   toDuplicate: (r) => triggerDuplicate(r),
@@ -141,7 +152,8 @@ export const triggersConfig = {
   },
   columns: ({ t, i18n, lookups }) => {
     const lng = i18n.language;
-    const target = (r) => (r.targetType === 'Pipeline' ? lookups?.pipelines?.[r.pipelineId] || r.pipelineId : lookups?.agents?.[r.agentId] || r.agentId);
+    const target = (r) =>
+      r.targetType === 'Pipeline' ? lookups?.pipelines?.[r.pipelineId] || r.pipelineId : r.targetType === 'EvalSet' ? lookups?.evalSets?.[r.evalSetId] || r.evalSetId : lookups?.agents?.[r.agentId] || r.agentId;
     return [
       col('triggers', t, 'name', (r) => <strong>{r.name}</strong>, { sortable: true, pinned: true }),
       col('triggers', t, 'type', (r) => <span {...tip(enumTip(t, 'triggerType', r.type))}>{enumLabel(t, 'triggerType', r.type)}</span>, { csv: (r) => r.type || '' }),
@@ -182,16 +194,25 @@ export const triggersConfig = {
     const { t, options, mode } = ctx;
     const id = 'triggers';
     const agents = options?.agents || [];
-    const deployments = (options?.deployments || []).filter((x) => !d?.agentId || x.agentId === d.agentId);
+    const check = d?.targetType === 'EvalSet';
+    const deployments = (options?.deployments || []).filter((x) => check || !d?.agentId || x.agentId === d.agentId);
+    const isAgent = (x) => x?.targetType !== 'Pipeline' && x?.targetType !== 'EvalSet';
+    const isCheck = (x) => x?.targetType === 'EvalSet';
+    const counts = TRIGGER_LIMITS.evalRecentInputCount;
     return [
       field(id, t, 'name', 'text', { required: true }),
       field(id, t, 'type', 'select', { required: true, options: enumOpts(t, 'triggerType', ENUMS.triggerType), readOnly: mode !== 'create' }),
       field(id, t, 'description', 'textarea', { rows: 2 }),
       field(id, t, 'targetType', 'select', { required: true, options: enumOpts(t, 'triggerTargetType', ENUMS.triggerTargetType) }),
-      field(id, t, 'agentId', 'select', { required: true, options: agents.map((a) => ({ value: a.id, label: a.displayName || a.name })), showIf: (x) => x?.targetType !== 'Pipeline' }),
-      field(id, t, 'deploymentId', 'select', { options: deployments.map((x) => ({ value: x.id, label: x.name })), noneLabel: t('resources.triggers.anyDeployment'), showIf: (x) => x?.targetType !== 'Pipeline' }),
+      field(id, t, 'agentId', 'select', { required: true, options: agents.map((a) => ({ value: a.id, label: a.displayName || a.name })), showIf: isAgent }),
+      field(id, t, 'evalSetId', 'select', { required: true, options: (options?.evalSets || []).map((x) => ({ value: x.id, label: evalSetLabel(x) })), showIf: isCheck }),
+      check
+        ? { ...field(id, t, 'deploymentId', 'select', { required: true, options: deployments.map((x) => ({ value: x.id, label: x.name })) }), hint: t('resources.triggers.hints.checkDeployment') }
+        : field(id, t, 'deploymentId', 'select', { options: deployments.map((x) => ({ value: x.id, label: x.name })), noneLabel: t('resources.triggers.anyDeployment'), showIf: isAgent }),
+      field(id, t, 'evalJudgeAgentId', 'select', { options: agents.map((a) => ({ value: a.id, label: a.displayName || a.name })), noneLabel: t('resources.triggers.setJudge'), showIf: isCheck }),
+      field(id, t, 'evalRecentInputCount', 'number', { min: counts.min, max: counts.max, hintValues: counts, showIf: isCheck }),
       field(id, t, 'pipelineId', 'select', { required: true, options: (options?.pipelines || []).map((p) => ({ value: p.id, label: p.name })), showIf: (x) => x?.targetType === 'Pipeline' }),
-      field(id, t, 'inputTemplateId', 'select', { options: (options?.templates || []).map((p) => ({ value: p.id, label: p.name })), noneLabel: t('resources.triggers.builtinTemplate') }),
+      field(id, t, 'inputTemplateId', 'select', { options: (options?.templates || []).map((p) => ({ value: p.id, label: p.name })), noneLabel: t('resources.triggers.builtinTemplate'), showIf: (x) => !isCheck(x) }),
       field(id, t, 'priority', 'number', { min: TRIGGER_LIMITS.priority.min, max: TRIGGER_LIMITS.priority.max, hintValues: TRIGGER_LIMITS.priority }),
       field(id, t, 'cronExpression', 'text', { required: true, placeholder: '0 9 * * 1-5', showIf: (x) => x?.type !== 'Webhook' }),
       field(id, t, 'timeZone', 'text', { placeholder: 'UTC', showIf: (x) => x?.type !== 'Webhook' }),
@@ -203,12 +224,20 @@ export const triggersConfig = {
       }
     ];
   },
-  formNotice: (d, { t }) =>
-    d?.runAsName || d?.runAsId ? (
-      <div className="info-banner" role="status" data-testid="trigger-run-as-notice">
-        {t('resources.triggers.runAsNotice', { name: d.runAsName || d.runAsId })}
-      </div>
-    ) : null,
+  formNotice: (d, { t }) => (
+    <>
+      {d?.targetType === 'EvalSet' && (
+        <div className="info-banner" role="status" data-testid="trigger-check-notice">
+          {t('resources.triggers.checkNotice')}
+        </div>
+      )}
+      {(d?.runAsName || d?.runAsId) && (
+        <div className="info-banner" role="status" data-testid="trigger-run-as-notice">
+          {t('resources.triggers.runAsNotice', { name: d.runAsName || d.runAsId })}
+        </div>
+      )}
+    </>
+  ),
   rowActions: (r, ctx) => [
     { label: ctx.t('resources.triggers.actions.fire'), tip: ctx.t('tips.resources.triggers.actions.fire'), onClick: () => ctx.setExtraModal(<TriggerFireModal trigger={r} onClose={() => ctx.setExtraModal(null)} onFired={() => ctx.reload?.()} />) },
     { label: ctx.t('resources.triggers.actions.fires'), tip: ctx.t('tips.resources.triggers.actions.fires'), onClick: () => ctx.setExtraModal(<TriggerFiresModal triggerId={r.id} triggerName={r.name} onClose={() => ctx.setExtraModal(null)} />) },

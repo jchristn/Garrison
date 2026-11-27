@@ -331,20 +331,29 @@ export function spendTone(row) {
 
 /** The organization form of the list page and the Edit details dialog. */
 export function organizationToForm(org) {
-  return { id: org?.id, name: org?.name || '', description: org?.description || '', mission: org?.mission || '' };
+  return { id: org?.id, name: org?.name || '', description: org?.description || '', mission: org?.mission || '', budgetFreezeMarginPercent: org?.budgetFreezeMarginPercent ?? ORGANIZATION_LIMITS.budgetFreezeMargin.default };
+}
+
+/** The budget freeze margin (AA11.5) of a form or record as a number, the default 10 when empty. */
+export function freezeMargin(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return ORGANIZATION_LIMITS.budgetFreezeMargin.default;
+  return Number(value);
 }
 
 /** The PUT body that keeps an organization's text and changes only its status. */
 export function statusBody(org, status) {
-  return { name: org.name, description: org.description || null, mission: org.mission || null, status };
+  return { name: org.name, description: org.description || null, mission: org.mission || null, budgetFreezeMarginPercent: freezeMargin(org.budgetFreezeMarginPercent), status };
 }
 
 /** The request body of an organization form. */
 export function organizationFormToBody(form) {
-  return { name: (form.name || '').trim(), description: text(form.description), mission: text(form.mission) };
+  return { name: (form.name || '').trim(), description: text(form.description), mission: text(form.mission), budgetFreezeMarginPercent: freezeMargin(form.budgetFreezeMarginPercent) };
 }
 
-/** Field errors of an organization form: a name of 1 to 128 characters, a description and mission within bounds. */
+/**
+ * Field errors of an organization form: a name of 1 to 128 characters, a description and mission within bounds, and a
+ * budget freeze margin that is a whole number from 0 to 100.
+ */
 export function organizationFormErrors(form, t) {
   const errors = {};
   const L = ORGANIZATION_LIMITS;
@@ -352,5 +361,7 @@ export function organizationFormErrors(form, t) {
   if (!name || name.length > L.nameMax) errors.name = t('organizations.form.errors.name', { max: L.nameMax });
   if ((form?.description || '').length > L.descriptionMax) errors.description = t('organizations.form.errors.text', { max: L.descriptionMax });
   if ((form?.mission || '').length > L.missionMax) errors.mission = t('organizations.form.errors.text', { max: L.missionMax });
+  const margin = freezeMargin(form?.budgetFreezeMarginPercent);
+  if (!Number.isInteger(margin) || margin < L.budgetFreezeMargin.min || margin > L.budgetFreezeMargin.max) errors.budgetFreezeMarginPercent = t('organizations.form.errors.margin', L.budgetFreezeMargin);
   return errors;
 }

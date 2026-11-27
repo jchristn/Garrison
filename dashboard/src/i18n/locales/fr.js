@@ -8315,3 +8315,327 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "Performances",
+    "tip": "Comment travaillent les unités et les agents d'une organisation, avec les contrôles que les agents ne peuvent pas noter"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "Contrôle planifié"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "Unité gelée pour dépassement de budget"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "Unité gelée pour dépassement de budget",
+   "UnitCascadeCancelled": "Tout annulé dans une unité"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "Les laisser finir",
+   "Cancel": "Les annuler"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "L'organisation n'a pas encore de révision en service. Publiez d'abord une révision."
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "Marge de gel sur budget (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "De {{min}} à {{max}}, {{default}} par défaut. Une unité dont les dépenses dépassent son budget de cette marge est gelée jusqu'à ce qu'une personne lève le gel. 0 gèle dès le budget atteint."
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "Jeu d'évaluation",
+    "evalJudgeAgentId": "Agent évaluateur",
+    "evalRecentInputCount": "Entrées récentes"
+   },
+   "hints": {
+    "evalSetId": "Le jeu que le contrôle exécute. Les responsables voient les résultats sur la page des performances.",
+    "checkDeployment": "Obligatoire. Le contrôle rejoue les entrées récentes de ce déploiement contre le jeu.",
+    "evalRecentInputCount": "De {{min}} à {{max}}, {{default}} par défaut. Combien des dernières entrées du déploiement chaque contrôle rejoue."
+   },
+   "errors": {
+    "evalSetRequired": "Choisissez le jeu d'évaluation que ce contrôle exécute.",
+    "deploymentRequired": "Choisissez le déploiement que ce contrôle note.",
+    "evalRecentInputCount": "Saisissez un nombre entier de {{min}} à {{max}}."
+   },
+   "setJudge": "L'agent évaluateur du jeu",
+   "checkNotice": "Un contrôle planifié s'exécute au nom de la personne qui l'a enregistré. Les agents ne peuvent ni créer, ni modifier, ni noter les contrôles."
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "Saisissez un nombre entier de {{min}} à {{max}}."
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "Performances",
+   "freezeMargin": "Gel à {{percent}} % au-dessus du budget"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "Cycles de gardien en cours"
+ },
+ "cascadeCancel": {
+  "action": "Tout annuler dans cette unité",
+  "title": "Tout annuler dans {{name}}",
+  "message": "Annuler chaque exécution en file ou en cours, cycle de gardien, escalade ouverte et message en file des agents de {{name}} et de toutes les unités en dessous ? L'unité n'est pas gelée, du travail nouveau peut donc reprendre.",
+  "reason": "Motif",
+  "reasonPlaceholder": "Pourquoi tout s'arrête (facultatif)",
+  "keep": "Continuer",
+  "confirm": "Tout annuler",
+  "working": "Annulation...",
+  "done": "Tout a été annulé dans {{name}}.",
+  "resultIntro": "Tout s'est arrêté dans {{name}} :",
+  "notFrozen": "L'unité n'est pas gelée. Gelez-la pour empêcher du travail nouveau de commencer.",
+  "freeze": "Geler l'unité",
+  "counts": {
+   "runsCancelled": "Exécutions annulées",
+   "ticksCancelled": "Cycles de gardien annulés",
+   "escalationsWithdrawn": "Escalades retirées",
+   "messagesExpired": "Messages expirés"
+  }
+ },
+ "performance": {
+  "title": "Performances",
+  "subtitle": "Comment chaque unité et chaque agent d'une organisation ont travaillé : résultats, coût, latence, escalades et scores d'évaluation.",
+  "heading": "Performances de {{name}}",
+  "range": "Du {{from}} au {{to}}",
+  "notFoundTitle": "Performances indisponibles",
+  "notFoundBody": "L'organisation n'existe pas, ou vous ne pouvez pas la lire.",
+  "unit": "Unité",
+  "allUnits": "Toutes les unités",
+  "lead": "Responsable",
+  "sample": "Exécution {{n}}",
+  "outcomes": "{{succeeded}} réussies, {{failed}} échouées, {{cancelled}} annulées",
+  "evalScore_one": "{{score}} sur {{count}} exécution d'évaluation",
+  "evalScore_other": "{{score}} sur {{count}} exécutions d'évaluation",
+  "picker": {
+   "title": "Choisir une organisation",
+   "emptyTitle": "Aucune organisation pour l'instant",
+   "emptyBody": "Créez d'abord une organisation de gardiens. Ses performances apparaissent ici."
+  },
+  "window": {
+   "label": "Période",
+   "24h": "24 heures",
+   "7d": "7 jours",
+   "30d": "30 jours",
+   "custom": "Personnalisée",
+   "from": "Du",
+   "to": "Au",
+   "apply": "Appliquer",
+   "errors": {
+    "from": "Choisissez le premier jour.",
+    "to": "Choisissez le dernier jour.",
+    "order": "Le dernier jour ne peut pas précéder le premier.",
+    "span": "Une période couvre au plus {{max}} jours."
+   }
+  },
+  "chart": {
+   "title": "Taux de réussite et coût par unité",
+   "successRate": "Taux de réussite",
+   "cost": "Coût",
+   "noRuns": "Aucune exécution terminée",
+   "rateLabel": "Taux de réussite de {{unit}} : {{value}}",
+   "costLabel": "Coût de {{unit}} : {{value}}"
+  },
+  "columns": {
+   "unit": "Unité",
+   "agent": "Agent",
+   "runs": "Exécutions",
+   "outcomes": "Résultats",
+   "successRate": "Taux de réussite",
+   "costUsd": "Coût",
+   "latency": "Latence p50 / p95 / p99",
+   "escalations": "Escalades",
+   "loopGuardRejections": "Refus de la protection anti-boucle",
+   "evalScore": "Score d'évaluation",
+   "samples": "Exécutions d'exemple"
+  },
+  "units": {
+   "title": "Unités",
+   "empty": "Aucune unité ne figure dans l'organigramme en service pour cette période."
+  },
+  "agents": {
+   "title": "Agents",
+   "empty": "Aucun agent ne figure dans l'organigramme en service."
+  },
+  "checks": {
+   "title": "Contrôles planifiés",
+   "note": "Les contrôles sont des exécutions d'évaluation planifiées sur les entrées récentes d'un déploiement. Des personnes les créent ; les agents ne peuvent ni les noter ni les modifier.",
+   "new": "Nouveau contrôle",
+   "empty": "Aucun contrôle planifié ne vise les déploiements de cette organisation.",
+   "never": "Pas encore exécuté",
+   "passed": "Réussi",
+   "failed": "Sous le seuil",
+   "columns": {
+    "check": "Contrôle",
+    "evalSet": "Jeu d'évaluation",
+    "deployment": "Déploiement",
+    "schedule": "Planification",
+    "lastRun": "Dernière exécution",
+    "lastScore": "Dernier score",
+    "nextFire": "Prochaine exécution"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "Performances",
+    "body": "L'onglet Performances montre comment chaque unité et chaque agent d'une organisation ont travaillé sur une période, et les contrôles planifiés qui les notent sans laisser les agents se noter eux-mêmes."
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "Performances",
+   "p1": "Chaque ligne d'unité couvre l'unité et tout ce qui se trouve en dessous : les exécutions créées sur la période, leur issue, le taux de réussite (réussies sur réussies plus échouées), le coût, les percentiles de latence, les escalades ouvertes, les refus de la protection anti-boucle et le score moyen des exécutions d'évaluation sur les déploiements de l'unité. Les exécutions d'évaluation, fantômes et de bac à sable ne comptent pas.",
+   "p2": "Les contrôles planifiés sont des déclencheurs EvalSet : selon leur planification, ils exécutent un jeu d'évaluation approuvé sur les entrées récentes d'un déploiement. Seules des personnes les créent, si bien qu'un agent ne peut pas noter son propre travail."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "Performances : résultats, coût, latence, escalades et scores d'évaluation par unité et par agent, avec les contrôles planifiés."
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "Chaque déclenchement lance une exécution d'évaluation du jeu sur les entrées récentes du déploiement. Seules des personnes peuvent en créer."
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "Les dépenses d'une unité ont dépassé son budget de la marge de l'organisation, et le garde-budget l'a gelée."
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "Le garde-budget a gelé une unité dont les dépenses ont dépassé son budget de la marge de l'organisation.",
+    "UnitCascadeCancelled": "Quelqu'un a annulé chaque exécution, cycle de gardien, escalade et message en file du sous-arbre d'une unité."
+   },
+   "rollbackActiveTicks": {
+    "Finish": "Les cycles déjà en cours se terminent, mais leurs gardiens restent sur les révisions restaurées.",
+    "Cancel": "Les exécutions des cycles en cours sont annulées avant la restauration de l'organigramme."
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "De combien une unité peut dépasser un budget avant que le garde-budget ne la gèle, en pourcentage : de 0 à 100, 10 par défaut."
+   },
+   "triggers": {
+    "evalSetId": "Le jeu d'évaluation que le contrôle exécute à chaque déclenchement.",
+    "evalJudgeAgentId": "L'agent qui note les réponses. Vide utilise l'évaluateur du jeu.",
+    "evalRecentInputCount": "Combien des dernières entrées du déploiement chaque exécution d'évaluation rejoue, de 1 à 50."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "Ouvrir les performances de cette organisation par unité et par agent, avec ses contrôles planifiés."
+   }
+  },
+  "rollbackTicks": {
+   "legend": "Ce qui arrive aux cycles de gardien en cours quand l'organigramme est rétabli."
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "Choisissez d'abord une unité."
+   }
+  },
+  "cascadeCancel": {
+   "action": "Arrêter tout le travail de cette unité et des unités en dessous : exécutions, cycles de gardien, escalades et messages en file. Demande une confirmation.",
+   "confirm": "Tout annuler maintenant dans le sous-arbre de l'unité. Impossible à défaire.",
+   "reason": "Facultatif, au plus 1024 caractères. Enregistré dans le journal d'audit et sur les escalades retirées.",
+   "freeze": "Geler l'unité pour qu'aucun travail nouveau ne commence avant la levée du gel.",
+   "counts": {
+    "runsCancelled": "Exécutions en file et en cours d'agents du sous-arbre qui ont été annulées.",
+    "ticksCancelled": "Cycles de gardien en cours qui ont été annulés.",
+    "escalationsWithdrawn": "Escalades ouvertes par des agents du sous-arbre qui ont été retirées.",
+    "messagesExpired": "Messages en file pour des agents du sous-arbre qui ont expiré."
+   }
+  },
+  "performance": {
+   "refresh": "Relire les performances de la période choisie.",
+   "unit": "Afficher une unité avec tout ce qui se trouve en dessous, ou toutes les unités.",
+   "lead": "Cet agent dirige son unité.",
+   "openAgent": "Ouvrir l'agent.",
+   "openRun": "Ouvrir cette exécution d'exemple.",
+   "picker": {
+    "open": "Ouvrir les performances de cette organisation."
+   },
+   "window": {
+    "24h": "Les dernières 24 heures.",
+    "7d": "Les 7 derniers jours.",
+    "30d": "Les 30 derniers jours.",
+    "custom": "Choisir le premier et le dernier jour, à 90 jours d'écart au plus.",
+    "from": "Le premier jour de la période (UTC).",
+    "to": "Le dernier jour de la période (UTC), inclus.",
+    "apply": "Lire les performances de ces jours."
+   },
+   "chart": {
+    "title": "Taux de réussite et coût du sous-arbre de chaque unité sur la période.",
+    "successRate": "Exécutions réussies sur réussies plus échouées.",
+    "cost": "Dépenses du sous-arbre de l'unité, à l'échelle de l'unité la plus coûteuse."
+   },
+   "columns": {
+    "unit": "L'unité. Sa ligne couvre tout ce qui se trouve en dessous.",
+    "agent": "L'agent et l'unité où il se trouve.",
+    "runs": "Exécutions créées sur la période, sans les exécutions d'évaluation, fantômes et de bac à sable.",
+    "outcomes": "Exécutions réussies, échouées et annulées.",
+    "successRate": "Réussies sur réussies plus échouées. Vide si aucune exécution ne s'est terminée.",
+    "costUsd": "Dépenses de ces exécutions en dollars américains.",
+    "latency": "Médiane et 95e et 99e centiles de la durée des exécutions terminées.",
+    "escalations": "Escalades ouvertes, avec la part des exécutions qui en ont ouvert une.",
+    "loopGuardRejections": "Envois de messages et réveils refusés par la protection anti-boucle.",
+    "evalScore": "Score moyen des exécutions d'évaluation terminées sur ces déploiements, contrôles planifiés compris.",
+    "samples": "Jusqu'à cinq exécutions à examiner : d'abord les échecs les plus récents, puis les réussites les plus récentes."
+   },
+   "units": {
+    "title": "Chaque unité avec les mesures de tout son sous-arbre."
+   },
+   "agents": {
+    "title": "Chaque agent de l'organigramme en service avec ses propres mesures."
+   },
+   "checks": {
+    "title": "Exécutions d'évaluation planifiées sur les déploiements de l'organisation, mises en place par des personnes.",
+    "new": "Ouvrir l'éditeur de déclencheurs avec un contrôle planifié comme cible.",
+    "openSet": "Ouvrir le jeu d'évaluation.",
+    "openRun": "Ouvrir la dernière exécution d'évaluation avec les résultats de ses cas.",
+    "passed": "La dernière exécution a atteint le seuil du jeu.",
+    "failed": "La dernière exécution est restée sous le seuil du jeu.",
+    "columns": {
+     "check": "Le déclencheur qui planifie le contrôle, et s'il est actif.",
+     "evalSet": "Le jeu d'évaluation que le contrôle exécute.",
+     "deployment": "Le déploiement dont le contrôle rejoue les entrées récentes.",
+     "schedule": "L'expression cron du déclencheur.",
+     "lastRun": "Quand la dernière exécution d'évaluation a commencé, et son statut. Ouvre l'exécution.",
+     "lastScore": "Le score de la dernière exécution d'évaluation, de 0 à 100 pour cent.",
+     "nextFire": "Quand le contrôle s'exécute la prochaine fois."
+    }
+   }
+  }
+ }
+});

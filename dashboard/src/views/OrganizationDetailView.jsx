@@ -13,6 +13,9 @@ import OrgChartTree from '../components/OrgChartTree';
 import OrgUnitModal from '../components/OrgUnitModal';
 import OrgRevisionDiff from '../components/OrgRevisionDiff';
 import OrgProposalsPanel from '../components/OrgProposalsPanel';
+import CascadeCancelModal from '../components/CascadeCancelModal';
+import FreezeModal from '../components/FreezeModal';
+import RollbackTicksChoice from '../components/RollbackTicksChoice';
 import { OrganizationStatusBadge, OrgRevisionStateBadge, SpendBar } from '../components/OrganizationBadges';
 import { Badge } from '../components/StatusBadge';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
@@ -28,6 +31,7 @@ import { ORGANIZATION_LIMITS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { upsertProposal } from '../utils/changeRules';
+import { cascadeDenied } from '../utils/performance';
 import { budgetOf, chartToUnits, diffIsEmpty, diffOrgUnits, orgDenied, orgErrorMessage, organizationFormErrors, organizationFormToBody, organizationToForm, spendOf, statusBody, treeOrder } from '../utils/organizations';
 
 const safeItems = (promise) => promise.then((r) => (Array.isArray(r) ? r : r?.items || [])).catch(() => []);
@@ -73,6 +77,9 @@ export default function OrganizationDetailView({ recordId }) {
   const [unitEditor, setUnitEditor] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [confirmError, setConfirmError] = useState(null);
+  const [rollbackTicks, setRollbackTicks] = useState('Finish');
+  const [cascade, setCascade] = useState(null);
+  const [freezing, setFreezing] = useState(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishNote, setPublishNote] = useState('');
   const [publishError, setPublishError] = useState('');
@@ -277,7 +284,7 @@ export default function OrganizationDetailView({ recordId }) {
         await apiClient.deleteOrgUnit(tenantId, org.id, confirm.unit.id);
         addToast({ type: 'success', message: t('organizations.toasts.unitRemoved', { name: confirm.unit.name }) });
       } else if (confirm.kind === 'rollback') {
-        const result = await apiClient.rollbackOrganization(tenantId, org.id, { revisionId: confirm.revision.id, note: t('organizations.rollback.note', { number: confirm.revision.number }) });
+        const result = await apiClient.rollbackOrganization(tenantId, org.id, { revisionId: confirm.revision.id, note: t('organizations.rollback.note', { number: confirm.revision.number }), activeTicks: rollbackTicks });
         addToast({ type: 'success', message: t('organizations.toasts.rolledBack', { number: confirm.revision.number, live: result?.number ?? '' }) });
       } else if (confirm.kind === 'retire') {
         await apiClient.updateOrganization(tenantId, org.id, statusBody(org, 'Retired'));
@@ -377,8 +384,18 @@ export default function OrganizationDetailView({ recordId }) {
   const detailFields = [
     { name: 'name', type: 'text', required: true, label: t('resources.organizations.fields.name'), tip: t('tips.resources.organizations.name') },
     { name: 'description', type: 'textarea', rows: 2, label: t('resources.organizations.fields.description'), tip: t('tips.resources.organizations.description') },
-    { name: 'mission', type: 'textarea', rows: 4, label: t('resources.organizations.fields.mission'), tip: t('tips.resources.organizations.mission') }
+    { name: 'mission', type: 'textarea', rows: 4, label: t('resources.organizations.fields.mission'), tip: t('tips.resources.organizations.mission') },
+    {
+      name: 'budgetFreezeMarginPercent',
+      type: 'number',
+      min: ORGANIZATION_LIMITS.budgetFreezeMargin.min,
+      max: ORGANIZATION_LIMITS.budgetFreezeMargin.max,
+      label: t('resources.organizations.fields.budgetFreezeMarginPercent'),
+      hint: t('resources.organizations.hints.budgetFreezeMarginPercent', ORGANIZATION_LIMITS.budgetFreezeMargin),
+      tip: t('tips.resources.organizations.budgetFreezeMarginPercent')
+    }
   ];
+  const cancelAllDenied = cascadeDenied(t, permissions);
 
   return (
     <div data-testid="organization-detail">
@@ -403,6 +420,9 @@ export default function OrganizationDetailView({ recordId }) {
           <>
             <StudioLink to={pathFor('board', org.id)} className="button button-secondary" testId="org-open-board" tipText={t('tips.views.organizationDetail.openBoard')}>
               {t('views.organizationDetail.openBoard')}
+            </StudioLink>
+            <StudioLink to={pathFor('performance', org.id)} className="button button-secondary" testId="org-open-performance" tipText={t('tips.views.organizationDetail.openPerformance')}>
+              {t('views.organizationDetail.openPerformance')}
             </StudioLink>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.organizationDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
@@ -455,6 +475,9 @@ export default function OrganizationDetailView({ recordId }) {
         </Detail>
         <Detail label={t('views.organizationDetail.units')} tipText={t('tips.views.organizationDetail.units')}>
           {formatNumber(units.length, {}, lng)}
+        </Detail>
+        <Detail label={t('resources.organizations.fields.budgetFreezeMarginPercent')} tipText={t('tips.resources.organizations.budgetFreezeMarginPercent')} testId="org-freeze-margin">
+          {t('views.organizationDetail.freezeMargin', { percent: org.budgetFreezeMarginPercent ?? ORGANIZATION_LIMITS.budgetFreezeMargin.default })}
         </Detail>
         <Detail label={t('resources.organizations.columns.createdUtc')} tipText={t('tips.resources.organizations.createdUtc')}>
           {when(org.createdUtc)}
@@ -529,6 +552,8 @@ export default function OrganizationDetailView({ recordId }) {
                 setConfirmError(null);
                 setConfirm({ kind: 'removeUnit', unit });
               }}
+              onCancelAll={published ? (unit) => setCascade(unit) : undefined}
+              cancelAllDenied={cancelAllDenied}
             />
           )}
         </section>
@@ -636,6 +661,7 @@ export default function OrganizationDetailView({ recordId }) {
                               onClick={() => {
                                 if (editBlocked || busy) return;
                                 setConfirmError(null);
+                                setRollbackTicks('Finish');
                                 setConfirm({ kind: 'rollback', revision: r });
                               }}
                               data-testid={`org-revision-rollback-${r.number}`}
@@ -774,6 +800,7 @@ export default function OrganizationDetailView({ recordId }) {
         message={confirm?.kind === 'rollback' ? t('views.organizationDetail.confirmRollback', { number: confirm.revision.number, live: org.currentRevisionNumber || '-' }) : ''}
         confirmLabel={t('views.organizationDetail.rollback')}
         confirmTip={t('tips.views.organizationDetail.rollback')}
+        details={<RollbackTicksChoice value={rollbackTicks} onChange={setRollbackTicks} t={t} />}
         error={confirmError}
         onConfirm={confirmAction}
         onCancel={() => setConfirm(null)}
@@ -801,6 +828,19 @@ export default function OrganizationDetailView({ recordId }) {
         onConfirm={confirmAction}
         onCancel={() => setConfirm(null)}
       />
+      {cascade && (
+        <CascadeCancelModal
+          organizationId={org.id}
+          unit={cascade}
+          onClose={() => setCascade(null)}
+          onDone={() => reloadAll()}
+          onFreeze={(unit) => {
+            setCascade(null);
+            setFreezing(unit);
+          }}
+        />
+      )}
+      {freezing && <FreezeModal targetKind="OrgUnit" targetId={freezing.id} targetName={freezing.name} onClose={() => setFreezing(null)} onDone={() => setFreezing(null)} />}
       <JsonViewerModal open={jsonOpen} value={org} onClose={() => setJsonOpen(false)} />
     </div>
   );

@@ -8315,3 +8315,327 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "Prestazioni",
+    "tip": "Come lavorano le unità e gli agenti di un'organizzazione, con i controlli che gli agenti non possono valutare"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "Controllo pianificato"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "Unità bloccata per budget superato"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "Unità bloccata per budget superato",
+   "UnitCascadeCancelled": "Tutto annullato in un'unità"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "Lasciarli finire",
+   "Cancel": "Annullarli"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "L'organizzazione non ha ancora una revisione in vigore. Pubblica prima una revisione."
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "Margine di blocco sul budget (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "Da {{min}} a {{max}}, predefinito {{default}}. Un'unità la cui spesa supera il budget di questo margine viene bloccata finché una persona non rimuove il blocco. 0 blocca al raggiungimento del budget."
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "Set di valutazione",
+    "evalJudgeAgentId": "Agente valutatore",
+    "evalRecentInputCount": "Input recenti"
+   },
+   "hints": {
+    "evalSetId": "Il set eseguito dal controllo. I responsabili vedono i risultati nella pagina delle prestazioni.",
+    "checkDeployment": "Obbligatorio. Il controllo riesegue gli input recenti di questa distribuzione sul set.",
+    "evalRecentInputCount": "Da {{min}} a {{max}}, predefinito {{default}}. Quanti degli ultimi input della distribuzione riesegue ogni controllo."
+   },
+   "errors": {
+    "evalSetRequired": "Scegli il set di valutazione eseguito da questo controllo.",
+    "deploymentRequired": "Scegli la distribuzione valutata da questo controllo.",
+    "evalRecentInputCount": "Inserisci un numero intero da {{min}} a {{max}}."
+   },
+   "setJudge": "L'agente valutatore del set",
+   "checkNotice": "Un controllo pianificato viene eseguito come la persona che lo ha salvato. Gli agenti non possono creare, modificare o valutare i controlli."
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "Inserisci un numero intero da {{min}} a {{max}}."
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "Prestazioni",
+   "freezeMargin": "Bloccata al {{percent}}% oltre il budget"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "Cicli del custode in corso"
+ },
+ "cascadeCancel": {
+  "action": "Annulla tutto in questa unità",
+  "title": "Annulla tutto in {{name}}",
+  "message": "Annullare ogni esecuzione in coda o in corso, ciclo del custode, escalation aperta e messaggio in coda degli agenti di {{name}} e di ogni unità sottostante? L'unità non viene bloccata, quindi il nuovo lavoro può ripartire.",
+  "reason": "Motivo",
+  "reasonPlaceholder": "Perché si ferma tutto (facoltativo)",
+  "keep": "Continua",
+  "confirm": "Annulla tutto",
+  "working": "Annullamento in corso...",
+  "done": "È stato annullato tutto in {{name}}.",
+  "resultIntro": "Tutto in {{name}} si è fermato:",
+  "notFrozen": "L'unità non è bloccata. Bloccala per impedire che inizi nuovo lavoro.",
+  "freeze": "Blocca unità",
+  "counts": {
+   "runsCancelled": "Esecuzioni annullate",
+   "ticksCancelled": "Cicli del custode annullati",
+   "escalationsWithdrawn": "Escalation ritirate",
+   "messagesExpired": "Messaggi scaduti"
+  }
+ },
+ "performance": {
+  "title": "Prestazioni",
+  "subtitle": "Come hanno lavorato ogni unità e ogni agente di un'organizzazione: esiti, costo, latenza, escalation e punteggi di valutazione.",
+  "heading": "Prestazioni di {{name}}",
+  "range": "Dal {{from}} al {{to}}",
+  "notFoundTitle": "Prestazioni non disponibili",
+  "notFoundBody": "L'organizzazione non esiste oppure non puoi leggerla.",
+  "unit": "Unità",
+  "allUnits": "Tutte le unità",
+  "lead": "Responsabile",
+  "sample": "Esecuzione {{n}}",
+  "outcomes": "{{succeeded}} riuscite, {{failed}} non riuscite, {{cancelled}} annullate",
+  "evalScore_one": "{{score}} su {{count}} esecuzione di valutazione",
+  "evalScore_other": "{{score}} su {{count}} esecuzioni di valutazione",
+  "picker": {
+   "title": "Scegli un'organizzazione",
+   "emptyTitle": "Ancora nessuna organizzazione",
+   "emptyBody": "Crea prima un'organizzazione di custodi. Le sue prestazioni compaiono qui."
+  },
+  "window": {
+   "label": "Periodo",
+   "24h": "24 ore",
+   "7d": "7 giorni",
+   "30d": "30 giorni",
+   "custom": "Personalizzato",
+   "from": "Dal",
+   "to": "Al",
+   "apply": "Applica",
+   "errors": {
+    "from": "Scegli il primo giorno.",
+    "to": "Scegli l'ultimo giorno.",
+    "order": "L'ultimo giorno non può precedere il primo.",
+    "span": "Un periodo copre al massimo {{max}} giorni."
+   }
+  },
+  "chart": {
+   "title": "Tasso di successo e costo per unità",
+   "successRate": "Tasso di successo",
+   "cost": "Costo",
+   "noRuns": "Nessuna esecuzione terminata",
+   "rateLabel": "Tasso di successo di {{unit}}: {{value}}",
+   "costLabel": "Costo di {{unit}}: {{value}}"
+  },
+  "columns": {
+   "unit": "Unità",
+   "agent": "Agente",
+   "runs": "Esecuzioni",
+   "outcomes": "Esiti",
+   "successRate": "Tasso di successo",
+   "costUsd": "Costo",
+   "latency": "Latenza p50 / p95 / p99",
+   "escalations": "Escalation aperte",
+   "loopGuardRejections": "Rifiuti della protezione dai cicli",
+   "evalScore": "Punteggio di valutazione",
+   "samples": "Esecuzioni di esempio"
+  },
+  "units": {
+   "title": "Unità",
+   "empty": "Nessuna unità è nell'organigramma in vigore per questo periodo."
+  },
+  "agents": {
+   "title": "Agenti",
+   "empty": "Nessun agente è nell'organigramma in vigore."
+  },
+  "checks": {
+   "title": "Controlli pianificati",
+   "note": "I controlli sono esecuzioni di valutazione pianificate sugli input recenti di una distribuzione. Le persone li creano; gli agenti non possono valutarli né modificarli.",
+   "new": "Nuovo controllo",
+   "empty": "Nessun controllo pianificato riguarda le distribuzioni di questa organizzazione.",
+   "never": "Non ancora eseguito",
+   "passed": "Superato",
+   "failed": "Sotto la soglia",
+   "columns": {
+    "check": "Controllo",
+    "evalSet": "Set di valutazione",
+    "deployment": "Distribuzione",
+    "schedule": "Pianificazione",
+    "lastRun": "Ultima esecuzione",
+    "lastScore": "Ultimo punteggio",
+    "nextFire": "Prossima esecuzione"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "Prestazioni",
+    "body": "La scheda Prestazioni mostra come hanno lavorato ogni unità e ogni agente di un'organizzazione in un periodo, e i controlli pianificati che li valutano senza lasciare che gli agenti si valutino da soli."
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "Prestazioni",
+   "p1": "Ogni riga di unità copre l'unità e tutto ciò che sta sotto: le esecuzioni create nel periodo, come sono terminate, il tasso di successo (riuscite su riuscite più non riuscite), il costo, i percentili di latenza, le escalation aperte, i rifiuti della protezione dai cicli e il punteggio medio delle esecuzioni di valutazione sulle distribuzioni dell'unità. Le esecuzioni di valutazione, ombra e di prova non contano.",
+   "p2": "I controlli pianificati sono trigger EvalSet: secondo la loro pianificazione eseguono un set di valutazione approvato sugli input recenti di una distribuzione. Solo le persone li creano, così un agente non può valutare il proprio lavoro."
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "Prestazioni: esiti, costo, latenza, escalation e punteggi di valutazione per unità e agente, con i controlli pianificati."
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "Ogni attivazione avvia un'esecuzione di valutazione del set sugli input recenti della distribuzione. Solo le persone possono crearli."
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "La spesa di un'unità ha superato il budget del margine dell'organizzazione e il guardiano del budget l'ha bloccata."
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "Il guardiano del budget ha bloccato un'unità la cui spesa ha superato il budget del margine dell'organizzazione.",
+    "UnitCascadeCancelled": "Qualcuno ha annullato ogni esecuzione, ciclo del custode, escalation e messaggio in coda nel sottoalbero di un'unità."
+   },
+   "rollbackActiveTicks": {
+    "Finish": "I cicli già in corso terminano, ma i loro custodi restano sulle revisioni ripristinate.",
+    "Cancel": "Le esecuzioni dei cicli in corso vengono annullate prima di ripristinare l'organigramma."
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "Di quanto un'unità può superare un budget prima che il guardiano del budget la blocchi, in percentuale: da 0 a 100, predefinito 10."
+   },
+   "triggers": {
+    "evalSetId": "Il set di valutazione che il controllo esegue a ogni attivazione.",
+    "evalJudgeAgentId": "L'agente che valuta le risposte. Vuoto usa il valutatore del set.",
+    "evalRecentInputCount": "Quanti degli ultimi input della distribuzione riesegue ogni esecuzione di valutazione, da 1 a 50."
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "Apri le prestazioni di questa organizzazione per unità e agente, con i suoi controlli pianificati."
+   }
+  },
+  "rollbackTicks": {
+   "legend": "Cosa succede ai cicli del custode in corso quando l'organigramma viene ripristinato."
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "Scegli prima un'unità."
+   }
+  },
+  "cascadeCancel": {
+   "action": "Ferma tutto il lavoro di questa unità e di quelle sottostanti: esecuzioni, cicli del custode, escalation e messaggi in coda. Chiede conferma.",
+   "confirm": "Annulla ora tutto nel sottoalbero dell'unità. Non si può annullare.",
+   "reason": "Facoltativo, al massimo 1024 caratteri. Registrato nel registro di audit e sulle escalation ritirate.",
+   "freeze": "Blocca l'unità perché nessun nuovo lavoro inizi finché il blocco non viene rimosso.",
+   "counts": {
+    "runsCancelled": "Esecuzioni in coda e in corso di agenti del sottoalbero che sono state annullate.",
+    "ticksCancelled": "Cicli del custode in corso che sono stati annullati.",
+    "escalationsWithdrawn": "Escalation aperte da agenti del sottoalbero che sono state ritirate.",
+    "messagesExpired": "Messaggi in coda per agenti del sottoalbero che sono scaduti."
+   }
+  },
+  "performance": {
+   "refresh": "Rileggi le prestazioni del periodo scelto.",
+   "unit": "Mostra un'unità con tutto ciò che sta sotto, oppure tutte le unità.",
+   "lead": "Questo agente guida la sua unità.",
+   "openAgent": "Apri l'agente.",
+   "openRun": "Apri questa esecuzione di esempio.",
+   "picker": {
+    "open": "Apri le prestazioni di questa organizzazione."
+   },
+   "window": {
+    "24h": "Le ultime 24 ore.",
+    "7d": "Gli ultimi 7 giorni.",
+    "30d": "Gli ultimi 30 giorni.",
+    "custom": "Scegli il primo e l'ultimo giorno, a non più di 90 giorni di distanza.",
+    "from": "Il primo giorno del periodo (UTC).",
+    "to": "L'ultimo giorno del periodo (UTC), incluso.",
+    "apply": "Leggi le prestazioni di questi giorni."
+   },
+   "chart": {
+    "title": "Tasso di successo e costo del sottoalbero di ogni unità nel periodo.",
+    "successRate": "Esecuzioni riuscite su riuscite più non riuscite.",
+    "cost": "Spesa del sottoalbero dell'unità, in scala rispetto all'unità più costosa."
+   },
+   "columns": {
+    "unit": "L'unità. La sua riga copre tutto ciò che sta sotto.",
+    "agent": "L'agente e l'unità in cui si trova.",
+    "runs": "Esecuzioni create nel periodo, senza quelle di valutazione, ombra e di prova.",
+    "outcomes": "Esecuzioni riuscite, non riuscite e annullate.",
+    "successRate": "Riuscite su riuscite più non riuscite. Vuoto se nessuna esecuzione è terminata.",
+    "costUsd": "Spesa di queste esecuzioni in dollari statunitensi.",
+    "latency": "Mediana e 95° e 99° percentile della durata delle esecuzioni terminate.",
+    "escalations": "Escalation aperte, con la quota di esecuzioni che ne hanno aperta una.",
+    "loopGuardRejections": "Invii di messaggi e risvegli rifiutati dalla protezione dai cicli.",
+    "evalScore": "Punteggio medio delle esecuzioni di valutazione completate su queste distribuzioni, controlli pianificati inclusi.",
+    "samples": "Fino a cinque esecuzioni da guardare: prima le più recenti non riuscite, poi le più recenti riuscite."
+   },
+   "units": {
+    "title": "Ogni unità con le metriche di tutto il suo sottoalbero."
+   },
+   "agents": {
+    "title": "Ogni agente dell'organigramma in vigore con le proprie metriche."
+   },
+   "checks": {
+    "title": "Esecuzioni di valutazione pianificate sulle distribuzioni dell'organizzazione, impostate da persone.",
+    "new": "Apri l'editor dei trigger con un controllo pianificato come destinazione.",
+    "openSet": "Apri il set di valutazione.",
+    "openRun": "Apri l'ultima esecuzione di valutazione con i risultati dei suoi casi.",
+    "passed": "L'ultima esecuzione ha raggiunto la soglia del set.",
+    "failed": "L'ultima esecuzione è rimasta sotto la soglia del set.",
+    "columns": {
+     "check": "Il trigger che pianifica il controllo, e se è attivo.",
+     "evalSet": "Il set di valutazione eseguito dal controllo.",
+     "deployment": "La distribuzione di cui il controllo riesegue gli input recenti.",
+     "schedule": "L'espressione cron del trigger.",
+     "lastRun": "Quando è iniziata l'ultima esecuzione di valutazione, e il suo stato. Apre l'esecuzione.",
+     "lastScore": "Il punteggio dell'ultima esecuzione di valutazione, da 0 a 100 percento.",
+     "nextFire": "Quando il controllo viene eseguito la prossima volta."
+    }
+   }
+  }
+ }
+});

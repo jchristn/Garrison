@@ -8250,3 +8250,326 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "绩效",
+    "tip": "组织各单元和智能体的表现，以及智能体无法自评的检查"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "定期检查"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "单元因超预算被冻结"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "单元因超预算被冻结",
+   "UnitCascadeCancelled": "已取消单元内的全部工作"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "让其完成",
+   "Cancel": "取消它们"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "该组织还没有已上线的修订版。请先发布一个修订版。"
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "预算冻结余量 (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "{{min}} 到 {{max}}，默认 {{default}}。支出超出预算达到此比例的单元会被冻结，直到有人解除冻结。0 表示达到预算即冻结。"
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "评估集",
+    "evalJudgeAgentId": "评分智能体",
+    "evalRecentInputCount": "最近输入数"
+   },
+   "hints": {
+    "evalSetId": "检查要运行的评估集。管理者可在绩效页面查看结果。",
+    "checkDeployment": "必填。检查会用该部署的最近输入对评估集重新运行。",
+    "evalRecentInputCount": "{{min}} 到 {{max}}，默认 {{default}}。每次检查重放该部署最新输入的数量。"
+   },
+   "errors": {
+    "evalSetRequired": "请选择此检查要运行的评估集。",
+    "deploymentRequired": "请选择此检查要评分的部署。",
+    "evalRecentInputCount": "请输入 {{min}} 到 {{max}} 之间的整数。"
+   },
+   "setJudge": "评估集自带的评分智能体",
+   "checkNotice": "定期检查以保存它的人的身份运行。智能体无法创建、修改或评分检查。"
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "请输入 {{min}} 到 {{max}} 之间的整数。"
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "绩效",
+   "freezeMargin": "超出预算 {{percent}}% 时冻结"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "进行中的守护者巡检"
+ },
+ "cascadeCancel": {
+  "action": "取消此单元内的全部工作",
+  "title": "取消 {{name}} 内的全部工作",
+  "message": "要取消 {{name}} 及其下所有单元中智能体的每个排队和运行中的运行、守护者巡检、未结上报和排队消息吗？此操作不会冻结单元，新工作仍可能重新开始。",
+  "reason": "原因",
+  "reasonPlaceholder": "为什么要全部停止（可选）",
+  "keep": "继续运行",
+  "confirm": "全部取消",
+  "working": "正在取消...",
+  "done": "已取消 {{name}} 内的全部工作。",
+  "resultIntro": "{{name}} 内的全部工作已停止：",
+  "notFrozen": "该单元未被冻结。冻结它可阻止新工作开始。",
+  "freeze": "冻结单元",
+  "counts": {
+   "runsCancelled": "已取消的运行",
+   "ticksCancelled": "已取消的守护者巡检",
+   "escalationsWithdrawn": "已撤回的上报",
+   "messagesExpired": "已过期的消息"
+  }
+ },
+ "performance": {
+  "title": "绩效",
+  "subtitle": "组织中每个单元和智能体的表现：结果、成本、延迟、上报和评估分数。",
+  "heading": "{{name}} 的绩效",
+  "range": "{{from}} 至 {{to}}",
+  "notFoundTitle": "无法查看绩效",
+  "notFoundBody": "该组织不存在，或你无权读取。",
+  "unit": "单元",
+  "allUnits": "所有单元",
+  "lead": "负责人",
+  "sample": "运行 {{n}}",
+  "outcomes": "成功 {{succeeded}}，失败 {{failed}}，取消 {{cancelled}}",
+  "evalScore_other": "{{count}} 次评估运行，得分 {{score}}",
+  "picker": {
+   "title": "选择组织",
+   "emptyTitle": "还没有组织",
+   "emptyBody": "请先创建一个由守护者组成的组织。它的绩效会显示在这里。"
+  },
+  "window": {
+   "label": "时间范围",
+   "24h": "24 小时",
+   "7d": "7 天",
+   "30d": "30 天",
+   "custom": "自定义",
+   "from": "开始日期",
+   "to": "结束日期",
+   "apply": "应用",
+   "errors": {
+    "from": "请选择第一天。",
+    "to": "请选择最后一天。",
+    "order": "最后一天不能早于第一天。",
+    "span": "时间范围最多 {{max}} 天。"
+   }
+  },
+  "chart": {
+   "title": "各单元的成功率和成本",
+   "successRate": "成功率",
+   "cost": "成本",
+   "noRuns": "没有已结束的运行",
+   "rateLabel": "{{unit}} 的成功率：{{value}}",
+   "costLabel": "{{unit}} 的成本：{{value}}"
+  },
+  "columns": {
+   "unit": "单元",
+   "agent": "智能体",
+   "runs": "运行",
+   "outcomes": "结果",
+   "successRate": "成功率",
+   "costUsd": "成本",
+   "latency": "延迟 p50 / p95 / p99",
+   "escalations": "上报",
+   "loopGuardRejections": "循环防护拒绝",
+   "evalScore": "评估分数",
+   "samples": "示例运行"
+  },
+  "units": {
+   "title": "单元",
+   "empty": "此时间范围内已上线的架构图中没有单元。"
+  },
+  "agents": {
+   "title": "智能体",
+   "empty": "已上线的架构图中没有智能体。"
+  },
+  "checks": {
+   "title": "定期检查",
+   "note": "检查是按计划针对某个部署的最近输入运行的评估。由人创建；智能体无法评分或修改。",
+   "new": "新建检查",
+   "empty": "没有针对此组织部署的定期检查。",
+   "never": "尚未运行",
+   "passed": "通过",
+   "failed": "低于阈值",
+   "columns": {
+    "check": "检查",
+    "evalSet": "评估集",
+    "deployment": "部署",
+    "schedule": "计划",
+    "lastRun": "上次运行",
+    "lastScore": "上次得分",
+    "nextFire": "下次运行"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "绩效",
+    "body": "绩效标签页显示组织中每个单元和智能体在一段时间内的表现，以及不让智能体自评、由人设置的定期检查。"
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "绩效",
+   "p1": "每个单元行涵盖该单元及其下所有内容：时间范围内创建的运行、运行结果、成功率（成功数除以成功数与失败数之和）、成本、延迟百分位、发起的上报、循环防护拒绝，以及针对该单元部署的评估运行平均分。评估、影子和试验场运行不计入。",
+   "p2": "定期检查是 EvalSet 触发器：按计划用已批准的评估集针对某个部署的最近输入运行。只有人能创建它们，因此智能体无法给自己的工作评分。"
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "绩效：按单元和智能体显示结果、成本、延迟、上报和评估分数，以及定期检查。"
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "每次触发都会针对部署的最近输入启动一次评估集运行。只有人可以创建。"
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "某个单元的支出超出预算达到组织设定的余量，预算守卫已将其冻结。"
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "预算守卫冻结了一个支出超出预算达到组织余量的单元。",
+    "UnitCascadeCancelled": "有人取消了某个单元子树中的每个运行、守护者巡检、上报和排队消息。"
+   },
+   "rollbackActiveTicks": {
+    "Finish": "正在进行的巡检会完成，但其守护者保持在恢复后的修订版上。",
+    "Cancel": "在恢复架构图之前取消进行中巡检的运行。"
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "单元可以超出预算多少（百分比）后才会被预算守卫冻结：0 到 100，默认 10。"
+   },
+   "triggers": {
+    "evalSetId": "检查每次触发时运行的评估集。",
+    "evalJudgeAgentId": "为回答评分的智能体。留空则使用评估集的评分智能体。",
+    "evalRecentInputCount": "每次评估运行重放该部署最新输入的数量，1 到 50。"
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "打开此组织按单元和智能体划分的绩效及其定期检查。"
+   }
+  },
+  "rollbackTicks": {
+   "legend": "回滚架构图时，正在进行的守护者巡检如何处理。"
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "请先选择一个单元。"
+   }
+  },
+  "cascadeCancel": {
+   "action": "停止此单元及其下所有单元的全部工作：运行、守护者巡检、上报和排队消息。会要求确认。",
+   "confirm": "立即取消该单元子树中的全部工作。此操作无法撤销。",
+   "reason": "可选，最多 1024 个字符。会记录在审计日志和被撤回的上报中。",
+   "freeze": "冻结该单元，在解除冻结前不会开始新工作。",
+   "counts": {
+    "runsCancelled": "子树中智能体被取消的排队和运行中的运行。",
+    "ticksCancelled": "被取消的进行中守护者巡检。",
+    "escalationsWithdrawn": "子树中智能体发起、已被撤回的未结上报。",
+    "messagesExpired": "发给子树中智能体、已过期的排队消息。"
+   }
+  },
+  "performance": {
+   "refresh": "重新读取所选时间范围的绩效。",
+   "unit": "显示一个单元及其下所有内容，或显示所有单元。",
+   "lead": "此智能体负责其单元。",
+   "openAgent": "打开智能体。",
+   "openRun": "打开此示例运行。",
+   "picker": {
+    "open": "打开此组织的绩效。"
+   },
+   "window": {
+    "24h": "最近 24 小时。",
+    "7d": "最近 7 天。",
+    "30d": "最近 30 天。",
+    "custom": "选择第一天和最后一天，相隔最多 90 天。",
+    "from": "时间范围的第一天（UTC）。",
+    "to": "时间范围的最后一天（UTC），包含当天。",
+    "apply": "读取这些日期的绩效。"
+   },
+   "chart": {
+    "title": "时间范围内每个单元子树的成功率和成本。",
+    "successRate": "成功的运行除以成功与失败运行之和。",
+    "cost": "单元子树的支出，以最贵的单元为基准缩放。"
+   },
+   "columns": {
+    "unit": "单元。其行涵盖其下的所有内容。",
+    "agent": "智能体及其所在的单元。",
+    "runs": "时间范围内创建的运行，不含评估、影子和试验场运行。",
+    "outcomes": "成功、失败和已取消的运行。",
+    "successRate": "成功数除以成功数与失败数之和。没有运行结束时为空。",
+    "costUsd": "这些运行的支出（美元）。",
+    "latency": "已结束运行耗时的中位数、第 95 和第 99 百分位。",
+    "escalations": "发起的上报，以及发起上报的运行所占比例。",
+    "loopGuardRejections": "被循环防护拒绝的消息发送和唤醒。",
+    "evalScore": "针对这些部署已完成评估运行的平均分，包括定期检查。",
+    "samples": "最多五个可查看的运行：先是最新的失败运行，然后是最新的成功运行。"
+   },
+   "units": {
+    "title": "每个单元及其整个子树的指标。"
+   },
+   "agents": {
+    "title": "已上线架构图中每个智能体自己的指标。"
+   },
+   "checks": {
+    "title": "由人设置、按计划针对组织部署运行的评估。",
+    "new": "打开触发器编辑器，并将目标设为定期检查。",
+    "openSet": "打开评估集。",
+    "openRun": "打开上次评估运行及其用例结果。",
+    "passed": "上次运行达到了评估集的阈值。",
+    "failed": "上次运行低于评估集的阈值。",
+    "columns": {
+     "check": "安排该检查的触发器，以及它是否启用。",
+     "evalSet": "检查运行的评估集。",
+     "deployment": "检查重放其最近输入的部署。",
+     "schedule": "触发器的 cron 表达式。",
+     "lastRun": "上次评估运行的开始时间及其状态。点击打开该运行。",
+     "lastScore": "上次评估运行的得分，0 到 100%。",
+     "nextFire": "检查下次运行的时间。"
+    }
+   }
+  }
+ }
+});

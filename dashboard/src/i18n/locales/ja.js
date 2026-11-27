@@ -8249,3 +8249,326 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Performance signals and org-scale brakes (AA11.7): the Performance page under Autonomy with its window picker, unit
+// and agent tables, chart, and scheduled checks; the EvalSet trigger target; the budget freeze margin; cancel
+// everything in a unit; the rollback's in-flight ticks choice; the OrgBudgetFrozen and UnitCascadeCancelled labels;
+// and the tour stop.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "performance": {
+    "label": "パフォーマンス",
+    "tip": "組織の組織単位とエージェントの働きぶりと、エージェントが採点できないチェック"
+   }
+  }
+ },
+ "enums": {
+  "triggerTargetType": {
+   "EvalSet": "定期チェック"
+  },
+  "notificationEvent": {
+   "OrgBudgetFrozen": "予算超過で組織単位を凍結"
+  },
+  "auditEventType": {
+   "OrgBudgetFrozen": "予算超過で組織単位を凍結",
+   "UnitCascadeCancelled": "組織単位のすべてを取り消し"
+  },
+  "rollbackActiveTicks": {
+   "Finish": "完了まで実行",
+   "Cancel": "取り消す"
+  }
+ },
+ "errorCodes": {
+  "OrganizationNotLive": "この組織にはまだ公開リビジョンがありません。先にリビジョンを公開してください。"
+ },
+ "resources": {
+  "organizations": {
+   "fields": {
+    "budgetFreezeMarginPercent": "予算凍結の余裕幅 (%)"
+   },
+   "hints": {
+    "budgetFreezeMarginPercent": "{{min}} から {{max}}、既定値は {{default}} です。支出が予算をこの割合だけ超えた組織単位は、人が解除するまで凍結されます。0 は予算に達した時点で凍結します。"
+   }
+  },
+  "triggers": {
+   "fields": {
+    "evalSetId": "評価セット",
+    "evalJudgeAgentId": "採点エージェント",
+    "evalRecentInputCount": "最近の入力数"
+   },
+   "hints": {
+    "evalSetId": "チェックで実行するセットです。結果はパフォーマンスページで管理者に表示されます。",
+    "checkDeployment": "必須です。チェックはこのデプロイメントの最近の入力をセットに対して再実行します。",
+    "evalRecentInputCount": "{{min}} から {{max}}、既定値は {{default}} です。各チェックで再実行するデプロイメントの最新入力の数です。"
+   },
+   "errors": {
+    "evalSetRequired": "このチェックで実行する評価セットを選んでください。",
+    "deploymentRequired": "このチェックで採点するデプロイメントを選んでください。",
+    "evalRecentInputCount": "{{min}} から {{max}} までの整数を入力してください。"
+   },
+   "setJudge": "評価セットの採点エージェント",
+   "checkNotice": "定期チェックは保存した人として実行されます。エージェントはチェックを作成、変更、採点できません。"
+  }
+ },
+ "organizations": {
+  "form": {
+   "errors": {
+    "margin": "{{min}} から {{max}} までの整数を入力してください。"
+   }
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "openPerformance": "パフォーマンス",
+   "freezeMargin": "予算を {{percent}}% 超えると凍結"
+  }
+ },
+ "rollbackTicks": {
+  "legend": "実行中のキーパーのティック"
+ },
+ "cascadeCancel": {
+  "action": "この組織単位のすべてを取り消す",
+  "title": "{{name}} のすべてを取り消す",
+  "message": "{{name}} とその配下のすべての組織単位にいるエージェントについて、待機中と実行中の実行、キーパーのティック、未解決のエスカレーション、待機中のメッセージをすべて取り消しますか？組織単位は凍結されないため、新しい作業は再び始まる可能性があります。",
+  "reason": "理由",
+  "reasonPlaceholder": "すべてを止める理由 (任意)",
+  "keep": "実行を続ける",
+  "confirm": "すべて取り消す",
+  "working": "取り消し中...",
+  "done": "{{name}} のすべてを取り消しました。",
+  "resultIntro": "{{name}} のすべてが停止しました:",
+  "notFrozen": "組織単位は凍結されていません。新しい作業が始まらないよう凍結してください。",
+  "freeze": "組織単位を凍結",
+  "counts": {
+   "runsCancelled": "取り消した実行",
+   "ticksCancelled": "取り消したキーパーのティック",
+   "escalationsWithdrawn": "取り下げたエスカレーション",
+   "messagesExpired": "期限切れにしたメッセージ"
+  }
+ },
+ "performance": {
+  "title": "パフォーマンス",
+  "subtitle": "組織の各組織単位とエージェントの成果: 結果、コスト、レイテンシ、エスカレーション、評価スコア。",
+  "heading": "{{name}} のパフォーマンス",
+  "range": "{{from}} から {{to}} まで",
+  "notFoundTitle": "パフォーマンスを表示できません",
+  "notFoundBody": "組織が存在しないか、読み取る権限がありません。",
+  "unit": "組織単位",
+  "allUnits": "すべての組織単位",
+  "lead": "リーダー",
+  "sample": "実行 {{n}}",
+  "outcomes": "成功 {{succeeded}}、失敗 {{failed}}、取り消し {{cancelled}}",
+  "evalScore_other": "{{count}} 件の評価実行で {{score}}",
+  "picker": {
+   "title": "組織を選ぶ",
+   "emptyTitle": "組織はまだありません",
+   "emptyBody": "まずキーパーの組織を作成してください。そのパフォーマンスがここに表示されます。"
+  },
+  "window": {
+   "label": "期間",
+   "24h": "24 時間",
+   "7d": "7 日間",
+   "30d": "30 日間",
+   "custom": "カスタム",
+   "from": "開始日",
+   "to": "終了日",
+   "apply": "適用",
+   "errors": {
+    "from": "最初の日を選んでください。",
+    "to": "最後の日を選んでください。",
+    "order": "最後の日は最初の日より前にできません。",
+    "span": "期間は最大 {{max}} 日です。"
+   }
+  },
+  "chart": {
+   "title": "組織単位ごとの成功率とコスト",
+   "successRate": "成功率",
+   "cost": "コスト",
+   "noRuns": "完了した実行なし",
+   "rateLabel": "{{unit}} の成功率: {{value}}",
+   "costLabel": "{{unit}} のコスト: {{value}}"
+  },
+  "columns": {
+   "unit": "組織単位",
+   "agent": "エージェント",
+   "runs": "実行",
+   "outcomes": "結果",
+   "successRate": "成功率",
+   "costUsd": "コスト",
+   "latency": "レイテンシ p50 / p95 / p99",
+   "escalations": "エスカレーション",
+   "loopGuardRejections": "ループガードの拒否",
+   "evalScore": "評価スコア",
+   "samples": "サンプル実行"
+  },
+  "units": {
+   "title": "組織単位",
+   "empty": "この期間の公開組織図に組織単位がありません。"
+  },
+  "agents": {
+   "title": "エージェント",
+   "empty": "公開組織図に配置されたエージェントがありません。"
+  },
+  "checks": {
+   "title": "定期チェック",
+   "note": "チェックは、デプロイメントの最近の入力に対してスケジュールどおりに行う評価実行です。作成するのは人で、エージェントは採点も変更もできません。",
+   "new": "新しいチェック",
+   "empty": "この組織のデプロイメントを対象とする定期チェックはありません。",
+   "never": "未実行",
+   "passed": "合格",
+   "failed": "しきい値未満",
+   "columns": {
+    "check": "チェック",
+    "evalSet": "評価セット",
+    "deployment": "デプロイメント",
+    "schedule": "スケジュール",
+    "lastRun": "前回の実行",
+    "lastScore": "前回のスコア",
+    "nextFire": "次回の実行"
+   }
+  }
+ },
+ "tour": {
+  "steps": {
+   "performance": {
+    "title": "パフォーマンス",
+    "body": "パフォーマンスタブには、組織の各組織単位とエージェントが期間内にどう働いたかと、エージェント自身に採点させずに評価する定期チェックが表示されます。"
+   }
+  }
+ },
+ "explainers": {
+  "performance": {
+   "title": "パフォーマンス",
+   "p1": "組織単位の各行は、その組織単位と配下すべてを対象にします。期間内に作成された実行、その結果、成功率 (成功数を成功数と失敗数の合計で割った値)、コスト、レイテンシのパーセンタイル、発生したエスカレーション、ループガードの拒否、組織単位のデプロイメントに対する評価実行の平均スコアです。評価、シャドー、プレイグラウンドの実行は数えません。",
+   "p2": "定期チェックは EvalSet トリガーです。スケジュールに従って、承認済みの評価セットをデプロイメントの最近の入力に対して実行します。作成できるのは人だけなので、エージェントが自分の仕事を採点することはできません。"
+  }
+ },
+ "tips": {
+  "nav": {
+   "tabs": {
+    "performance": "パフォーマンス: 組織単位とエージェントごとの結果、コスト、レイテンシ、エスカレーション、評価スコアと定期チェック。"
+   }
+  },
+  "enums": {
+   "triggerTargetType": {
+    "EvalSet": "起動のたびに、デプロイメントの最近の入力に対してセットの評価実行を開始します。作成できるのは人だけです。"
+   },
+   "notificationEvent": {
+    "OrgBudgetFrozen": "組織単位の支出が組織の余裕幅を超えて予算を上回り、予算ガードが凍結しました。"
+   },
+   "auditEventType": {
+    "OrgBudgetFrozen": "支出が組織の余裕幅を超えて予算を上回った組織単位を、予算ガードが凍結しました。",
+    "UnitCascadeCancelled": "誰かが組織単位の配下にあるすべての実行、キーパーのティック、エスカレーション、待機中のメッセージを取り消しました。"
+   },
+   "rollbackActiveTicks": {
+    "Finish": "実行中のティックは完了しますが、そのキーパーは復元されたリビジョンのままです。",
+    "Cancel": "組織図を復元する前に、実行中のティックの実行を取り消します。"
+   }
+  },
+  "resources": {
+   "organizations": {
+    "budgetFreezeMarginPercent": "予算ガードが凍結する前に、組織単位が予算をどれだけ超えてよいかの割合です。0 から 100、既定値は 10 です。"
+   },
+   "triggers": {
+    "evalSetId": "チェックが起動のたびに実行する評価セットです。",
+    "evalJudgeAgentId": "回答を採点するエージェントです。空欄なら評価セットの採点エージェントを使います。",
+    "evalRecentInputCount": "各評価実行で再実行するデプロイメントの最新入力の数です。1 から 50 です。"
+   }
+  },
+  "views": {
+   "organizationDetail": {
+    "openPerformance": "この組織の組織単位とエージェントごとのパフォーマンスと定期チェックを開きます。"
+   }
+  },
+  "rollbackTicks": {
+   "legend": "組織図をロールバックするときに実行中のキーパーのティックをどうするか。"
+  },
+  "board": {
+   "brakes": {
+    "pickUnitFirst": "先に組織単位を選んでください。"
+   }
+  },
+  "cascadeCancel": {
+   "action": "この組織単位とその配下のすべての作業を止めます。実行、キーパーのティック、エスカレーション、待機中のメッセージが対象です。確認を求めます。",
+   "confirm": "組織単位の配下にあるすべてを今すぐ取り消します。元に戻せません。",
+   "reason": "任意、1024 文字以内です。監査ログと取り下げたエスカレーションに記録されます。",
+   "freeze": "凍結を解除するまで新しい作業が始まらないよう、組織単位を凍結します。",
+   "counts": {
+    "runsCancelled": "取り消した、配下のエージェントの待機中と実行中の実行です。",
+    "ticksCancelled": "取り消した実行中のキーパーのティックです。",
+    "escalationsWithdrawn": "取り下げた、配下のエージェントが発生させた未解決のエスカレーションです。",
+    "messagesExpired": "期限切れにした、配下のエージェント宛ての待機中のメッセージです。"
+   }
+  },
+  "performance": {
+   "refresh": "選んだ期間のパフォーマンスを読み直します。",
+   "unit": "1 つの組織単位とその配下、またはすべての組織単位を表示します。",
+   "lead": "このエージェントは組織単位のリーダーです。",
+   "openAgent": "エージェントを開きます。",
+   "openRun": "このサンプル実行を開きます。",
+   "picker": {
+    "open": "この組織のパフォーマンスを開きます。"
+   },
+   "window": {
+    "24h": "直近 24 時間です。",
+    "7d": "直近 7 日間です。",
+    "30d": "直近 30 日間です。",
+    "custom": "最初の日と最後の日を選びます。最大 90 日間です。",
+    "from": "期間の最初の日 (UTC) です。",
+    "to": "期間の最後の日 (UTC) で、この日も含みます。",
+    "apply": "この期間のパフォーマンスを読み込みます。"
+   },
+   "chart": {
+    "title": "期間内の各組織単位の配下全体の成功率とコストです。",
+    "successRate": "成功した実行を、成功と失敗の合計で割った値です。",
+    "cost": "組織単位の配下全体の支出で、最も高い組織単位を基準にしています。"
+   },
+   "columns": {
+    "unit": "組織単位です。その行は配下すべてを対象にします。",
+    "agent": "エージェントと、その所属する組織単位です。",
+    "runs": "期間内に作成された実行です。評価、シャドー、プレイグラウンドの実行は除きます。",
+    "outcomes": "成功、失敗、取り消しの実行数です。",
+    "successRate": "成功数を成功数と失敗数の合計で割った値です。完了した実行がなければ空欄です。",
+    "costUsd": "これらの実行の支出 (米ドル) です。",
+    "latency": "完了した実行の所要時間の中央値、95 パーセンタイル、99 パーセンタイルです。",
+    "escalations": "発生したエスカレーションと、エスカレーションを発生させた実行の割合です。",
+    "loopGuardRejections": "ループガードが拒否したメッセージ送信と起動です。",
+    "evalScore": "これらのデプロイメントに対する完了した評価実行の平均スコアで、定期チェックも含みます。",
+    "samples": "確認用の最大 5 件の実行です。最新の失敗が先、その後に最新の成功です。"
+   },
+   "units": {
+    "title": "各組織単位と、その配下全体の指標です。"
+   },
+   "agents": {
+    "title": "公開組織図の各エージェントと、その指標です。"
+   },
+   "checks": {
+    "title": "組織のデプロイメントに対してスケジュールどおりに行う、人が設定した評価実行です。",
+    "new": "定期チェックを対象にしたトリガーエディターを開きます。",
+    "openSet": "評価セットを開きます。",
+    "openRun": "前回の評価実行とケースの結果を開きます。",
+    "passed": "前回の実行はセットのしきい値に達しました。",
+    "failed": "前回の実行はセットのしきい値に届きませんでした。",
+    "columns": {
+     "check": "チェックをスケジュールするトリガーと、それが有効かどうかです。",
+     "evalSet": "チェックで実行する評価セットです。",
+     "deployment": "チェックで最近の入力を再実行するデプロイメントです。",
+     "schedule": "トリガーの cron 式です。",
+     "lastRun": "前回の評価実行の開始時刻と状態です。実行を開きます。",
+     "lastScore": "前回の評価実行のスコアで、0 から 100 パーセントです。",
+     "nextFire": "次にチェックを実行する時刻です。"
+    }
+   }
+  }
+ }
+});

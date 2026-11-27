@@ -99,7 +99,7 @@ describe('navigation', () => {
 
   it('mirrors the server enums', () => {
     expect(ENUMS.triggerType).toEqual(['Cron', 'Webhook']);
-    expect(ENUMS.triggerTargetType).toEqual(['Agent', 'Pipeline']);
+    expect(ENUMS.triggerTargetType).toEqual(['Agent', 'Pipeline', 'EvalSet']);
     expect(ENUMS.triggerFireOutcome).toEqual(['Started', 'Failed', 'Skipped']);
     expect(ENUMS.notificationDeliveryStatus).toEqual(['Pending', 'Delivering', 'Succeeded', 'Failed']);
     expect(SUBSCRIBABLE_NOTIFICATION_EVENTS).not.toContain('Test');

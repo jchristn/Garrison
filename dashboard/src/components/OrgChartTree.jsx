@@ -11,7 +11,7 @@ import { agentText, appText, childrenByParent, mandateText, spendOf } from '../u
  * lines are named; pointing at one highlights the peer's card.
  */
 function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
-  const { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, highlight, setHighlight, unitNames } = ctx;
+  const { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied, highlight, setHighlight, unitNames } = ctx;
   const report = health?.[unit.id];
   const rows = spendOf(spend, unit.id);
   const lead = agentText(unit.leadAgentId, unit.leadAgentName, names);
@@ -104,17 +104,33 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
           ))}
         </div>
       )}
-      {editable && (
+      {(editable || onCancelAll) && (
         <div className="org-unit-actions">
-          <button type="button" className="button-ghost button-sm" onClick={() => onEdit(unit)} data-testid="org-unit-edit" {...tip(t('tips.organizations.chart.edit'))}>
-            {t('common.actions.edit')}
-          </button>
-          <button type="button" className="button-ghost button-sm" onClick={() => onAdd(unit)} data-testid="org-unit-add-child" {...tip(t('tips.organizations.chart.addChild'))}>
-            <PlusIcon size={14} /> {t('organizations.chart.addChild')}
-          </button>
-          <button type="button" className="button-ghost button-sm" onClick={() => onRemove(unit)} data-testid="org-unit-remove" {...tip(t('tips.organizations.chart.remove'))}>
-            <TrashIcon size={14} /> {t('common.actions.remove')}
-          </button>
+          {editable && (
+            <>
+              <button type="button" className="button-ghost button-sm" onClick={() => onEdit(unit)} data-testid="org-unit-edit" {...tip(t('tips.organizations.chart.edit'))}>
+                {t('common.actions.edit')}
+              </button>
+              <button type="button" className="button-ghost button-sm" onClick={() => onAdd(unit)} data-testid="org-unit-add-child" {...tip(t('tips.organizations.chart.addChild'))}>
+                <PlusIcon size={14} /> {t('organizations.chart.addChild')}
+              </button>
+              <button type="button" className="button-ghost button-sm" onClick={() => onRemove(unit)} data-testid="org-unit-remove" {...tip(t('tips.organizations.chart.remove'))}>
+                <TrashIcon size={14} /> {t('common.actions.remove')}
+              </button>
+            </>
+          )}
+          {onCancelAll && (
+            <button
+              type="button"
+              className="button-ghost button-sm org-unit-cancel-all"
+              aria-disabled={cancelAllDenied ? 'true' : undefined}
+              onClick={() => !cancelAllDenied && onCancelAll(unit)}
+              data-testid="org-unit-cancel-all"
+              {...tip(cancelAllDenied || t('tips.cascadeCancel.action'))}
+            >
+              {t('cascadeCancel.action')}
+            </button>
+          )}
         </div>
       )}
     </article>
@@ -142,9 +158,10 @@ function Branch({ units, map, ctx, collapsed, toggle }) {
  * The organization chart (AA7.14): the tree of units, root first, each unit's children nested below it with a line to
  * its parent. Branches collapse and expand. Drawn as nested lists so it reflows to one column on a phone.
  * units: the working-tree shape (see chartToUnits for the live chart). names: { agents, mandates, apps } lookups.
- * spend: rows from GET /spend. health: { [unitId]: latest report }.
+ * spend: rows from GET /spend. health: { [unitId]: latest report }. onCancelAll(unit), when given, adds "Cancel everything
+ * in this unit" to every card (AA11.4); cancelAllDenied is the tooltip that disables it when the caller may not.
  */
-export default function OrgChartTree({ units, t, lng, names = {}, spend = [], health = {}, editable = false, onEdit, onAdd, onRemove }) {
+export default function OrgChartTree({ units, t, lng, names = {}, spend = [], health = {}, editable = false, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied = '' }) {
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [highlight, setHighlight] = useState(null);
   const list = Array.isArray(units) ? units : [];
@@ -157,7 +174,7 @@ export default function OrgChartTree({ units, t, lng, names = {}, spend = [], he
       else next.add(id);
       return next;
     });
-  const ctx = { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, highlight, setHighlight, unitNames };
+  const ctx = { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied, highlight, setHighlight, unitNames };
   return (
     <div className="org-tree" data-testid="org-chart">
       <Branch units={map.get(null) || []} map={map} ctx={ctx} collapsed={collapsed} toggle={toggle} />

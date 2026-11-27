@@ -569,7 +569,7 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
 
   // Guided tour, every stop.
   await page.locator('.sidebar-utility').nth(1).click();
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 9; i++) {
     await audit(page, `tour step ${i + 1}`);
     const next = page.locator('.tour-card').getByRole('button', { name: /^(Next|Done)$/ });
     await next.click();

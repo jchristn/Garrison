@@ -220,9 +220,9 @@ describe('organization helpers', () => {
   });
 
   it('builds organization bodies and permission reasons', () => {
-    expect(organizationFormToBody({ name: '  Ops ', description: ' ', mission: 'Pay refunds.' })).toEqual({ name: 'Ops', description: null, mission: 'Pay refunds.' });
+    expect(organizationFormToBody({ name: '  Ops ', description: ' ', mission: 'Pay refunds.' })).toEqual({ name: 'Ops', description: null, mission: 'Pay refunds.', budgetFreezeMarginPercent: 10 });
     expect(organizationFormErrors({ name: '' }, t).name).toBe('Give the organization a name of 1 to 128 characters.');
-    expect(statusBody(organization(1), 'Retired')).toEqual({ name: 'Refund operations', description: 'Runs refunds end to end.', mission: 'Pay every valid refund within a day.', status: 'Retired' });
+    expect(statusBody(organization(1), 'Retired')).toEqual({ name: 'Refund operations', description: 'Runs refunds end to end.', mission: 'Pay every valid refund within a day.', budgetFreezeMarginPercent: 10, status: 'Retired' });
     expect(orgDenied(t, { grants: [{ resourceTypes: ['Organization'], operations: ['Read'], permissionType: 'Permit' }] }, 'Update')).toBe('You may not do this. It needs Update on Organization.');
     expect(orgDenied(t, null, 'Update')).toBe('');
   });
@@ -234,8 +234,8 @@ describe('organizations list configuration', () => {
     const cols = organizationsConfig.columns({ t, i18n });
     expect(cols.map((c) => c.key)).toEqual(['name', 'status', 'currentRevisionNumber', 'description', 'createdUtc', 'mission', 'id']);
     expect(cols.filter((c) => !c.defaultHidden).map((c) => c.key)).toEqual(['name', 'status', 'currentRevisionNumber', 'description', 'createdUtc']);
-    expect(organizationsConfig.fields({}, { t }).map((f) => f.name)).toEqual(['name', 'description', 'mission']);
-    expect(organizationsConfig.toBody({ name: 'Ops', description: '', mission: '' })).toEqual({ name: 'Ops', description: null, mission: null });
+    expect(organizationsConfig.fields({}, { t }).map((f) => f.name)).toEqual(['name', 'description', 'mission', 'budgetFreezeMarginPercent']);
+    expect(organizationsConfig.toBody({ name: 'Ops', description: '', mission: '' })).toEqual({ name: 'Ops', description: null, mission: null, budgetFreezeMarginPercent: 10 });
     organizationsConfig.afterCreate({ id: 'org_0099' }, { navigate });
     expect(navigate).toHaveBeenCalledWith('/dashboard/organizations/org_0099');
     expect(organizationsConfig.detailPath({ id: 'org_0001' })).toBe('/dashboard/organizations/org_0001');
@@ -322,7 +322,7 @@ describe('organization page', () => {
     expect(q('.modal').textContent).toContain('Make revision 1 live again in place of revision 2?');
     await click(q('[data-testid="confirm-button"]'));
     await flush();
-    expect(apiClient.rollbackOrganization).toHaveBeenCalledWith('default', 'org_0001', { revisionId: 'orv_0001', note: 'Rolled back to revision 1 from the dashboard.' });
+    expect(apiClient.rollbackOrganization).toHaveBeenCalledWith('default', 'org_0001', { revisionId: 'orv_0001', note: 'Rolled back to revision 1 from the dashboard.', activeTicks: 'Finish' });
   });
 
   it('shows why a unit with children cannot be removed', async () => {
@@ -347,7 +347,7 @@ describe('organization page', () => {
     expect(q('[data-testid="org-publish"]').getAttribute('aria-disabled')).toBe('true');
     await click(q('[data-testid="org-reactivate"]'));
     await flush();
-    expect(apiClient.updateOrganization).toHaveBeenCalledWith('default', 'org_0001', { name: 'Refund operations', description: 'Runs refunds end to end.', mission: 'Pay every valid refund within a day.', status: 'Active' });
+    expect(apiClient.updateOrganization).toHaveBeenCalledWith('default', 'org_0001', { name: 'Refund operations', description: 'Runs refunds end to end.', mission: 'Pay every valid refund within a day.', budgetFreezeMarginPercent: 10, status: 'Active' });
   });
 });
 

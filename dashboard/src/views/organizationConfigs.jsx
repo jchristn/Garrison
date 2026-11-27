@@ -33,7 +33,7 @@ async function copyId(ctx, id) {
 
 /**
  * Organizations (AA7.14): by name, with status, the live revision number, and when each was created. Create asks for
- * the name, description, and mission and opens the new organization, which starts as Draft with no units; units,
+ * the name, description, mission, and budget freeze margin (AA11.5) and opens the new organization, which starts as Draft with no units; units,
  * budgets, publishing, and rollback live on the organization's page. Edit changes the name, description, and mission.
  * Delete removes the organization with its units, revisions, and unit and organization memory.
  */
@@ -79,7 +79,8 @@ export const organizationsConfig = {
     return [
       field(t, 'name', 'text', { required: true, placeholder: 'refund-operations', hintValues: { max: L.nameMax } }),
       field(t, 'description', 'textarea', { rows: 2, hintValues: { max: L.descriptionMax } }),
-      field(t, 'mission', 'textarea', { rows: 4, hintValues: { max: L.missionMax } })
+      field(t, 'mission', 'textarea', { rows: 4, hintValues: { max: L.missionMax } }),
+      field(t, 'budgetFreezeMarginPercent', 'number', { min: L.budgetFreezeMargin.min, max: L.budgetFreezeMargin.max, hintValues: L.budgetFreezeMargin })
     ];
   },
   rowActions: (r, ctx) => [

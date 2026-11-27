@@ -22,6 +22,9 @@ export function blankTrigger() {
     deploymentId: '',
     pipelineId: '',
     inputTemplateId: '',
+    evalSetId: '',
+    evalJudgeAgentId: '',
+    evalRecentInputCount: TRIGGER_LIMITS.evalRecentInputCount.default,
     priority: TRIGGER_LIMITS.priority.default,
     cronExpression: '0 9 * * *',
     timeZone: 'UTC',
@@ -38,6 +41,9 @@ export function triggerToForm(r) {
     deploymentId: r.deploymentId ?? '',
     pipelineId: r.pipelineId ?? '',
     inputTemplateId: r.inputTemplateId ?? '',
+    evalSetId: r.evalSetId ?? '',
+    evalJudgeAgentId: r.evalJudgeAgentId ?? '',
+    evalRecentInputCount: r.evalRecentInputCount ?? TRIGGER_LIMITS.evalRecentInputCount.default,
     priority: r.priority ?? 0,
     cronExpression: r.cronExpression ?? '',
     timeZone: r.timeZone || 'UTC',
@@ -45,20 +51,34 @@ export function triggerToForm(r) {
   };
 }
 
-/** The request body for create and update: only the fields the target and type use. */
+/** The trigger's target: Agent (the default), Pipeline, or EvalSet (a scheduled check, AA11.3). */
+export function triggerTarget(d) {
+  return d?.targetType === 'Pipeline' || d?.targetType === 'EvalSet' ? d.targetType : 'Agent';
+}
+
+/**
+ * The request body for create and update: only the fields the target and type use. An EvalSet target sends the set,
+ * the deployment whose recent inputs it replays, the judge agent (null for the set's own), and the recent input count.
+ */
 export function triggerToBody(d) {
   const blank = (v) => (v === undefined || v === null || String(v).trim() === '' ? null : String(v).trim());
-  const agent = d.targetType !== 'Pipeline';
+  const target = triggerTarget(d);
+  const agent = target === 'Agent';
+  const check = target === 'EvalSet';
   const cron = d.type !== 'Webhook';
+  const count = Number(d.evalRecentInputCount);
   return {
     name: (d.name || '').trim(),
     description: blank(d.description),
     type: d.type || 'Cron',
-    targetType: agent ? 'Agent' : 'Pipeline',
+    targetType: target,
     agentId: agent ? blank(d.agentId) : null,
-    deploymentId: agent ? blank(d.deploymentId) : null,
-    pipelineId: agent ? null : blank(d.pipelineId),
-    inputTemplateId: blank(d.inputTemplateId),
+    deploymentId: agent || check ? blank(d.deploymentId) : null,
+    pipelineId: target === 'Pipeline' ? blank(d.pipelineId) : null,
+    evalSetId: check ? blank(d.evalSetId) : null,
+    evalJudgeAgentId: check ? blank(d.evalJudgeAgentId) : null,
+    evalRecentInputCount: check ? (Number.isFinite(count) && String(d.evalRecentInputCount ?? '').trim() !== '' ? count : TRIGGER_LIMITS.evalRecentInputCount.default) : null,
+    inputTemplateId: check ? null : blank(d.inputTemplateId),
     priority: Number.isFinite(Number(d.priority)) ? Number(d.priority) : 0,
     cronExpression: cron ? blank(d.cronExpression) : null,
     timeZone: cron ? blank(d.timeZone) || 'UTC' : 'UTC',
@@ -82,7 +102,10 @@ export function looksLikeCron(value) {
   return v.split(/\s+/).length === 5;
 }
 
-/** Field errors for a trigger form, keyed like the server's (name, agentId, pipelineId, cronExpression, priority). */
+/**
+ * Field errors for a trigger form, keyed like the server's (name, agentId, pipelineId, evalSetId, deploymentId,
+ * evalRecentInputCount, cronExpression, priority).
+ */
 export function triggerErrors(d, t) {
   const errors = {};
   const range = TRIGGER_LIMITS.priority;
@@ -90,6 +113,12 @@ export function triggerErrors(d, t) {
   if ((d.description || '').length > TRIGGER_LIMITS.descriptionMax) errors.description = t('resources.triggers.errors.description', { max: TRIGGER_LIMITS.descriptionMax });
   if (d.targetType === 'Pipeline') {
     if (!d.pipelineId) errors.pipelineId = t('resources.triggers.errors.pipelineRequired');
+  } else if (d.targetType === 'EvalSet') {
+    const c = TRIGGER_LIMITS.evalRecentInputCount;
+    const n = Number(d.evalRecentInputCount);
+    if (!d.evalSetId) errors.evalSetId = t('resources.triggers.errors.evalSetRequired');
+    if (!d.deploymentId) errors.deploymentId = t('resources.triggers.errors.deploymentRequired');
+    if (d.evalRecentInputCount !== null && d.evalRecentInputCount !== '' && d.evalRecentInputCount !== undefined && (!Number.isInteger(n) || n < c.min || n > c.max)) errors.evalRecentInputCount = t('resources.triggers.errors.evalRecentInputCount', c);
   } else if (!d.agentId) {
     errors.agentId = t('resources.triggers.errors.agentRequired');
   }

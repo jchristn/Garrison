@@ -1713,6 +1713,7 @@ export function organization(i, withUnits = false) {
     rootUnitId: i === 1 ? 'oun_0001' : null,
     currentRevisionId: row.revision ? `orv_${pad(row.revision)}` : null,
     currentRevisionNumber: row.revision || 0,
+    budgetFreezeMarginPercent: 10,
     createdBy: 'usr_admin',
     createdUtc: iso(1000 - i * 100),
     lastUpdateUtc: iso(30)
@@ -1795,6 +1796,8 @@ function organizationRoutes(method, url, parts) {
   const full = known ? organization(i, true) : { ...organization(1, true), id: parts[1] };
   if (parts.length === 2) return full;
   const units = full.units || [];
+  if (parts[2] === 'units' && parts[4] === 'cancel-all') return cascadeCancelResult(parts[3]);
+  if (parts[2] === 'performance') return i === 1 || !known ? performance(url) : emptyPerformance(full);
   if (parts[2] === 'units') {
     if (parts.length === 3) return method === 'POST' ? orgUnit('oun_0099', 'New unit') : units;
     return units.find((u) => u.id === parts[3]) || { ...orgUnit(parts[3], 'Unit'), organizationId: full.id };
@@ -1812,6 +1815,75 @@ function organizationRoutes(method, url, parts) {
   if (parts[2] === 'rollback') return { ...orgRevision(1), id: 'orv_0004', number: 4, state: 'Published', rollbackOfRevisionId: 'orv_0001', publishedUtc: iso(0) };
   if (parts[2] === 'board' || parts[2] === 'direction') return boardRoutes(method, url, parts, i === 1 || !known ? 1 : i);
   return {};
+}
+
+// ---------------------------------------------------------------- performance and org-scale brakes (AA11.7)
+
+// org_0001 over the window: Leadership's subtree ran 40 runs (34 ok, 4 failed, 2 cancelled), Billing 25 with a low
+// success rate and the most cost, Support 5 with no finished run. echo-agent leads Leadership; agent-2 leads Billing
+// and agent-3 sits in it. One scheduled check (trg_0099, refund-answers v2 on dep_0001) last ran evr_0001 and stayed
+// below its threshold. A cascade cancel of a unit stops 3 runs, 1 tick, 2 escalations, and 4 messages.
+
+function perfMetrics(runs, succeeded, failed, cancelled, cost, extra = {}) {
+  const finished = succeeded + failed;
+  return {
+    runs,
+    succeeded,
+    failed,
+    cancelled,
+    successRate: finished ? succeeded / finished : null,
+    costUsd: cost,
+    latencyP50Ms: finished ? 1200 : null,
+    latencyP95Ms: finished ? 4800 : null,
+    latencyP99Ms: finished ? 9100 : null,
+    escalationsRaised: extra.escalations ?? 0,
+    escalationRate: runs ? (extra.escalations ?? 0) / runs : null,
+    loopGuardRejections: extra.loopGuard ?? 0,
+    evalScore: extra.evalScore ?? null,
+    evalRuns: extra.evalRuns ?? 0,
+    sampleRunIds: extra.samples || []
+  };
+}
+
+/** GET /organizations/{id}/performance for org_0001; unitId=oun_0002 restricts it to Billing. */
+export function performance(url = null) {
+  const params = url?.searchParams || new URLSearchParams();
+  const toUtc = params.get('toUtc') || iso(0);
+  const fromUtc = params.get('fromUtc') || new Date(new Date(toUtc).getTime() - 7 * 86400000).toISOString();
+  const units = [
+    { unitId: 'oun_0001', unitName: 'Leadership', parentUnitId: null, leadAgentId: 'agt_0001', metrics: perfMetrics(70, 52, 12, 6, 18.4, { escalations: 3, loopGuard: 2, evalScore: 0.5, evalRuns: 1, samples: ['run_0003', 'run_0001'] }) },
+    { unitId: 'oun_0002', unitName: 'Billing', parentUnitId: 'oun_0001', leadAgentId: 'agt_0002', metrics: perfMetrics(25, 15, 8, 2, 9.75, { escalations: 2, loopGuard: 2 }) },
+    { unitId: 'oun_0003', unitName: 'Support', parentUnitId: 'oun_0001', leadAgentId: 'agt_0004', metrics: perfMetrics(5, 0, 0, 5, 0.5) }
+  ];
+  const agents = [
+    { agentId: 'agt_0001', agentName: 'echo-agent', unitId: 'oun_0001', unitName: 'Leadership', isLead: true, metrics: perfMetrics(40, 37, 4, 0, 8.15, { escalations: 1, evalScore: 0.5, evalRuns: 1, samples: ['run_0003', 'run_0001'] }) },
+    { agentId: 'agt_0002', agentName: 'agent-2', unitId: 'oun_0002', unitName: 'Billing', isLead: true, metrics: perfMetrics(15, 9, 5, 1, 6.5, { escalations: 2, loopGuard: 2 }) },
+    { agentId: 'agt_0003', agentName: 'agent-3', unitId: 'oun_0002', unitName: 'Billing', isLead: false, metrics: perfMetrics(10, 6, 3, 1, 3.25) },
+    { agentId: 'agt_0004', agentName: 'agent-4', unitId: 'oun_0003', unitName: 'Support', isLead: true, metrics: perfMetrics(5, 0, 0, 5, 0.5) }
+  ];
+  const restrict = params.get('unitId');
+  const check = { triggerId: 'trg_0099', triggerName: 'refund-answers-nightly', active: true, evalSetId: 'evs_0001', evalSetName: 'refund-answers', deploymentId: 'dep_0001', agentId: 'agt_0001', cronExpression: '0 3 * * *', nextFireUtc: iso(-300), lastEvalRunId: 'evr_0001', lastRunUtc: iso(400), lastStatus: 'Completed', lastScore: 0.5, lastPassed: false };
+  return {
+    organizationId: 'org_0001',
+    name: 'Refund operations',
+    fromUtc,
+    toUtc,
+    generatedUtc: iso(0),
+    units: restrict ? units.filter((u) => u.unitId === restrict) : units,
+    agents: restrict ? agents.filter((a) => a.unitId === restrict) : agents,
+    checks: restrict && restrict !== 'oun_0001' ? [] : [check]
+  };
+}
+
+/** The performance of an organization with no live units. */
+function emptyPerformance(org) {
+  return { organizationId: org.id, name: org.name, fromUtc: iso(7 * 1440), toUtc: iso(0), generatedUtc: iso(0), units: [], agents: [], checks: [] };
+}
+
+/** POST /organizations/{id}/units/{unitId}/cancel-all. */
+export function cascadeCancelResult(unitId = 'oun_0002') {
+  const names = { oun_0001: 'Leadership', oun_0002: 'Billing', oun_0003: 'Support' };
+  return { organizationId: 'org_0001', unitId, unitName: names[unitId] || 'Unit', runsCancelled: 3, ticksCancelled: 1, escalationsWithdrawn: 2, messagesExpired: 4, runIds: ['run_0001', 'run_0002', 'run_0003'], completedUtc: iso(0) };
 }
 
 // ---------------------------------------------------------------- the board (AA10.7)
