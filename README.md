@@ -8,11 +8,13 @@
 
 **Build, deploy, and run agentic apps on the agent harnesses you already use.** Garrison is a self-hosted, multi-tenant platform for agentic applications. Underneath is a horizontally elastic runtime that turns Claude Code, Codex, Gemini CLI, Mux, opencode, pi, provider APIs, and any command-line agent into managed services on workers you operate. On top of it, Garrison Agent Studio is where those agents become apps: an architect agent drafts them with you, you review the diff and try the draft in a playground, a person approves the change, and the app goes live at its own URL with its own chat UI.
 
+Version 0.3.0 adds agents that work without being asked. A keeper holds a standing job and wakes on a schedule to look after it. Keepers message each other, file reports upward, and raise a hand when they should not decide alone. Put them in an organization and they get a chart, budgets, executives that propose changes to the units below them, and a board of people at the top. See [autonomous agents](#autonomous-agents).
+
 Both halves share one model. An app built in the studio is made of the same agents, deployments, prompt templates, and permissions you would configure by hand, so nothing the studio produces is a black box, and anything you build by hand can be opened in the studio later. Every agent stays reachable over REST, MCP, and A2A, and every run, studio runs included, lands in the same run history, transcripts, and telemetry.
 
 Workers pull leased work from the control plane over outbound connections and never touch the database. Control-plane replicas and workers scale independently, PostgreSQL holds shared state for multi-replica installs, and Kubernetes assets cover minikube, K3S, and production clusters.
 
-[Website](https://usegarrison.ai) · [Studio quickstart](#studio-quickstart) · [Documentation](docs/README.md) · [Architecture](docs/ARCHITECTURE.md) · [Comparison](#how-garrison-compares) · [API reference](REST_API.md) · [Changelog](CHANGELOG.md)
+[Website](https://usegarrison.ai) · [Studio quickstart](#studio-quickstart) · [Autonomous agents](#autonomous-agents) · [Documentation](docs/README.md) · [Architecture](docs/ARCHITECTURE.md) · [Comparison](#how-garrison-compares) · [API reference](REST_API.md) · [Changelog](CHANGELOG.md)
 
 ## Build, test, deploy, run, operate, observe
 
@@ -21,9 +23,10 @@ Garrison covers an agentic app from the first sketch to the dashboards you watch
 | Stage | What you get | Read |
 |---|---|---|
 | Build | The agent architect, an agent that designs apps with you in a studio draft. Built-in and cloneable architect prompts. Versioned agent assets (skills, reference files, document templates). A capability catalog that puts Garrison agents, MCP tools, and host tools side by side | [Studio](docs/STUDIO.md), [architect](docs/ARCHITECT.md), [assets](docs/ASSETS.md), [capabilities](docs/CAPABILITIES.md) |
-| Test | A playground that runs a draft as an unpublished revision, and a compile preview that shows the exact command line, placed asset paths, and file space mount for a revision and environment | [Studio playground](docs/STUDIO.md#playground) |
+| Test | A playground that runs a draft as an unpublished revision, and a compile preview that shows the exact command line, placed asset paths, and file space mount for a revision and environment. Eval sets, shadow trials, and canary releases that score a changed agent before it carries all the traffic | [Studio playground](docs/STUDIO.md#playground), [evaluations](docs/EVALS.md) |
 | Deploy | A draft applies only through a `DraftApply` approval a person decides. Applying publishes agent revisions and deploys to `dev`; promotion moves a whole app to `staging` and `prod`, and rollback restores the previous pins | [Studio](docs/STUDIO.md#applying-a-draft), [revisions and environments](docs/REVISIONS.md), [apps](docs/APPS.md#app-revisions-and-promotion) |
 | Run and scale | Pull-based leasing with fencing, Process and KubernetesJob executors, durable continuation, parallel fan-out with gather, and conversation file spaces shared by every agent in a delegation tree | [Architecture](docs/ARCHITECTURE.md), [fan-out](docs/FAN_OUT.md), [file spaces](docs/FILE_SPACES.md), [scaling](docs/SCALING.md) |
+| Run unattended | Keepers on a schedule with backoff, escalations, messages between agents, reports, shared memory, organizations with budgets and executives, a board view, and brakes at every level | [Keepers](docs/KEEPERS.md), [organizations](docs/ORGANIZATIONS.md), [the board](docs/BOARD.md), [brakes](docs/BRAKES.md) |
 | Operate and manage | Agentic apps with a branded end-user chat UI, a file panel, and a shareable URL; RBAC with tenant and resource scopes, quotas, triggers, notifications, and approvals | [Apps](docs/APPS.md), [app UI](docs/APP_UI.md), [security](docs/SECURITY.md) |
 | Observe | Runs, run trees with fan-out groups, transcripts, analytics, Prometheus metrics, OpenTelemetry traces, and Grafana dashboards | [Telemetry](docs/TELEMETRY.md), [transcripts](docs/TRANSCRIPTS.md) |
 
@@ -77,6 +80,28 @@ curl -s -X POST $API/approvals/$APPROVAL/decide -H "Authorization: Bearer $TOKEN
 ```
 
 Open http://127.0.0.1:8080/apps/desk/ and send a message; the fake harness echoes it back. From here, [docs/QUICKSTART.md](docs/QUICKSTART.md#9-build-an-app-in-the-studio) shows the playground and promotion, [docs/ARCHITECT.md](docs/ARCHITECT.md) shows how to let the architect write drafts with you, and [examples/agentic-apps](examples/agentic-apps/README.md) has three complete apps to apply: a support triage desk, a document converter, and a research app that fans out to two researchers and hands back a PDF.
+
+## Autonomous agents
+
+Everything above starts because somebody asked: a person invokes an agent, a trigger fires, an app user sends a message. Version 0.3.0 adds agents that keep working when nobody is asking, along with the controls that decide how long they run before a person looks and what stops them when nobody does.
+
+**Keepers.** A keeper is an agent with a mandate, a standing job such as "keep the status page healthy". Garrison wakes it on a schedule, and each wake is a tick: one ordinary run of the keeper's deployment, with the same leases, quotas, transcripts, and telemetry as any other run. The keeper ends the tick by saying how it went (`Quiet`, `Acted`, `Attention`, or `Escalated`). In Backoff mode quiet ticks stretch the interval toward a maximum and anything else snaps it back to the minimum, so a keeper with nothing to do costs little. Only one tick of a mandate runs at a time, and a person publishes the revisions that say what the job is ([docs/KEEPERS.md](docs/KEEPERS.md)).
+
+**Asking for a decision.** Any run can call `garrison_escalate` to put a question to a person, to everyone holding a role, or to another agent, with optional choices, a default answer, and a timeout. Escalations are non-blocking unless the run asks otherwise, so a keeper can ask and carry on. A blocking escalation suspends the run through durable continuation until someone answers ([docs/ESCALATIONS.md](docs/ESCALATIONS.md)).
+
+**Teams.** The agents of an app can hand work to each other with no person relaying it. They send messages along the app's edges: normal mail waits for the recipient's next tick, and urgent mail wakes it now. Hop limits, per-thread budgets, and per-line rates keep two agents from paging each other forever, and a refused message is stored with the reason it was refused ([docs/MESSAGING.md](docs/MESSAGING.md)). Agents file immutable reports upward with health, metrics, issues, and decisions ([docs/REPORTS.md](docs/REPORTS.md)), and the members of an app share an app memory scope on top of each agent's private one ([docs/AGENT_MEMORY.md](docs/AGENT_MEMORY.md)).
+
+**Organizations.** An organization is a tree of units. Each unit has a lead agent and members, and can have peer lines to other units and day or month budgets that cap what its whole subtree spends. The lead of the root unit is the CEO. Messaging, reports, memory, escalations, freezes, and budgets all read the same chart, so an agent's manager is the same agent whichever feature asks. Nothing in an organization takes effect until a person publishes a revision of it, and rollback brings back an earlier one ([docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md)).
+
+A unit lead whose deployment has `managementAccess: OrgSubtree` is an executive. It writes studio drafts that change the units below it: retune a keeper, hire a worker, edit a prompt that only its workers use. It can never touch itself, its own unit, anything above it, secrets, authority grants, or a budget going up, and no rule or approval lifts those limits. Its drafts wait for a person unless every change matches a change rule that a person wrote, and a rule can demand a passing eval first ([docs/EXECUTIVES.md](docs/EXECUTIVES.md), [docs/EVALS.md](docs/EVALS.md)).
+
+**The board.** Above the CEO sit the people who run the organization. One call returns the chart, each unit's health, open escalations, proposals waiting for a decision, spend, the CEO's latest brief, freezes, and the kill switch. From there a board member gives the CEO direction, which Garrison publishes as a new revision of the CEO's mandate, talks to the CEO in a conversation, and decides proposals. The built-in `BoardMember` role grants that and little else ([docs/BOARD.md](docs/BOARD.md)).
+
+**Brakes.** Every brake works whether or not the agent cooperates. A freeze stops one agent, deployment, keeper, app, unit, or organization until a person lifts it. A spend cap stops a keeper that has used up its tick or day budget. A unit budget stops a subtree, and an overrun past the organization's margin freezes the unit on its own. The kill switch stops every keeper in the tenant, and one action cancels everything running in a unit's subtree. The control plane enforces all of these before a run exists, and run tokens never hold the freeze permissions, so an agent cannot lift a freeze on itself ([docs/BRAKES.md](docs/BRAKES.md)).
+
+Text an agent writes (memory, reports, messages, escalation answers, briefs) is untrusted, and it reaches another agent's prompt only through a template that frames it as data, never as instructions. Every change a run makes with its run token goes through the epoch-fenced effect journal, so a run that lost its lease cannot send a message or file a report twice. [docs/SECURITY.md](docs/SECURITY.md) has the threat model.
+
+Step 10 of the [quickstart](docs/QUICKSTART.md#10-run-an-autonomous-organization) builds a one-unit organization on the fake harness, reads the board, and gives the CEO direction, with no model credentials. Two complete examples go further. [`examples/autonomous/gerbil/`](examples/autonomous/gerbil/) is one keeper that watches a page, remembers when it was last healthy, and escalates when it goes down. [`examples/autonomous/site-reliability-org/`](examples/autonomous/site-reliability-org/) is an organization with a reliability lead as CEO, uptime, latency, and dependency keepers, peer lines, budgets, change rules, and an approved eval set.
 
 ## The runtime
 
@@ -144,9 +169,9 @@ The control plane compiles each run into a fully resolved execution spec: comman
 
 | Path | Contents |
 |---|---|
-| `src/Garrison.Core` | Models, data layer (Sqlite and Postgresql), security, template renderer, invocation compiler, manifests, studio and revision services |
+| `src/Garrison.Core` | Models, data layer (Sqlite and Postgresql), security, template renderer, invocation compiler, manifests, studio and revision services, and the autonomy rules the compiler and server share (executive draft validation, change rule matching, the organization context in prompts, eval scorers) |
 | `src/Garrison.Harnesses` | Process runner, output parsers, MCP pre-flight, harness probes |
-| `src/Garrison.Server` | Control plane: REST, A2A, WebSocket, MCP (Voltaic), app gateway, scheduler, node protocol |
+| `src/Garrison.Server` | Control plane: REST, A2A, WebSocket, MCP (Voltaic), app gateway, scheduler, node protocol, and the autonomy services (keeper scheduler, escalations, messaging, reports, chain of command, executives, evals, shadow trials, canaries, freezes, the board) |
 | `src/Garrison.Worker` | Worker node: registration, heartbeat, lease loop, Process and KubernetesJob executors, asset and file space sync |
 | `src/Garrison.FakeHarness` | Deterministic harness for tests, smoke tests, and the examples |
 | `src/Test.*` | Touchstone suites with console, xUnit, and NUnit runners |
@@ -156,7 +181,7 @@ The control plane compiles each run into a fully resolved execution spec: comman
 | `docker/` | Docker Compose stack, update and factory reset scripts |
 | `k8s/` | Kustomize base, components, overlays, Helm chart, scripts |
 | `docs/` | Guides and references; [docs/README.md](docs/README.md) is the index |
-| `examples/` | A multi-agent manifest, a fan-out manifest, the [example agentic apps](examples/agentic-apps/README.md), and a script that validates an install end to end |
+| `examples/` | A multi-agent manifest, a fan-out manifest, the [example agentic apps](examples/agentic-apps/README.md), the autonomous examples under `examples/autonomous/` (a keeper and an organization), and a script that validates an install end to end |
 
 ## Getting started
 
@@ -258,7 +283,7 @@ Authentication is the same on the first four: a bearer session token from `POST 
 | JavaScript and TypeScript | [sdk/js](sdk/js) | `@garrison/sdk` (includes an app gateway client) |
 | Go | [sdk/go](sdk/go) | `github.com/jchristn/Garrison/sdk/go` |
 
-All four cover revisions and promotion, assets, file spaces, capabilities, fan-out groups, apps, studio drafts, architects and architect prompts, and the playground. Each SDK has a README and a test harness, and `scripts/run-sdk-harnesses.sh` starts a local server and worker and runs all four. None of the packages is published to NuGet, PyPI, or npm yet, and the Go module has no tagged release, so install them from this repository; each SDK README shows how.
+All four cover revisions and promotion, assets, file spaces, capabilities, fan-out groups, apps, studio drafts, architects and architect prompts, and the playground. Since 0.3.0 they also cover keepers, escalations, freezes and the kill switch, memory, reports, messages, organizations, change rules and proposals, eval sets and runs, shadow trials, canary releases, the board, and performance. Each SDK has a README and a test harness, and `scripts/run-sdk-harnesses.sh` starts a local server and worker and runs all four. None of the packages is published to NuGet, PyPI, or npm yet, and the Go module has no tagged release, so install them from this repository; each SDK README shows how.
 
 ## Building and testing
 
@@ -280,7 +305,7 @@ The Postgresql suites expect a server at `127.0.0.1:55432` (user `postgres`, pas
 
 ## Documentation
 
-[docs/README.md](docs/README.md) is the full index. The studio and app guides are a good place to start:
+[docs/README.md](docs/README.md) is the full index. The studio, app, and autonomy guides are a good place to start:
 
 | Topic | Guide |
 |---|---|
@@ -293,6 +318,12 @@ The Postgresql suites expect a server at `127.0.0.1:55432` (user `postgres`, pas
 | Conversation file spaces | [docs/FILE_SPACES.md](docs/FILE_SPACES.md) |
 | Capability catalog and choosing a capability source | [docs/CAPABILITIES.md](docs/CAPABILITIES.md) |
 | Fan-out and gather | [docs/FAN_OUT.md](docs/FAN_OUT.md) |
+| Keepers: standing jobs, ticks, and backoff | [docs/KEEPERS.md](docs/KEEPERS.md) |
+| Escalations, messages between agents, and reports | [docs/ESCALATIONS.md](docs/ESCALATIONS.md), [docs/MESSAGING.md](docs/MESSAGING.md), [docs/REPORTS.md](docs/REPORTS.md) |
+| Organizations, executives, and change rules | [docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md), [docs/EXECUTIVES.md](docs/EXECUTIVES.md) |
+| The board | [docs/BOARD.md](docs/BOARD.md) |
+| Eval sets, shadow trials, and canary releases | [docs/EVALS.md](docs/EVALS.md) |
+| Freezes, spend caps, unit budgets, and the kill switch | [docs/BRAKES.md](docs/BRAKES.md) |
 | First steps on a running stack | [docs/QUICKSTART.md](docs/QUICKSTART.md) |
 | Configuration, security, scaling, telemetry | [docs/CONFIGURATION.md](docs/CONFIGURATION.md), [docs/SECURITY.md](docs/SECURITY.md), [docs/SCALING.md](docs/SCALING.md), [docs/TELEMETRY.md](docs/TELEMETRY.md) |
 
@@ -300,9 +331,15 @@ The website at [usegarrison.ai](https://usegarrison.ai) tells the same story wit
 
 ## Status
 
-`v0.2.0` is the Agent Studio release. The runtime underneath (multi-replica control planes, Kubernetes per-run isolation, conversations, approvals, pipelines, remote agents, optional quotas, durable checkpoints, replaceable memory, and observability) carries over from 0.1, and the studio, apps, revisions, assets, file spaces, capability catalog, and fan-out are new. Daily quota enforcement and durable suspension stay opt-in. Saved eval sets and eval gates before promotion are planned for a later release.
+`v0.3.0` is the autonomous agents release: keepers, escalations, brakes, scoped memory, reports, messaging, organizations, executives and change rules, eval sets with promotion gates, shadow trials and canary releases, the board, and performance rollups. The Agent Studio from 0.2.0 (drafts, the architect, apps, revisions, assets, file spaces, the capability catalog, and fan-out) and the runtime from 0.1 (multi-replica control planes, Kubernetes per-run isolation, conversations, approvals, pipelines, remote agents, optional quotas, durable checkpoints, and observability) carry over. Daily quota enforcement and durable suspension stay opt-in, and agent memory stays off until you enable it.
 
-See [the scope matrix](docs/REMAINING_PLAN_MATRIX.md) for completed and deferred runtime work, [the latest acceptance report](docs/testing/D063_VALIDATION.md) for the bounded local recovery, continuation, and cache evidence, and [CHANGELOG.md](CHANGELOG.md) for what changed in this release. Larger capacity acceptance is deferred; those results do not establish a universal throughput or latency guarantee.
+Autonomy is the newest and least proven part of an alpha product. Try a keeper on the fake harness first, then give it a real harness with a small spend cap, and keep the kill switch in reach while you learn how it behaves.
+
+See [the scope matrix](docs/REMAINING_PLAN_MATRIX.md) for completed and deferred work, [the active plan](AUTONOMOUS_AGENTS_PLAN.md) for each 0.3.0 task, [the latest acceptance report](docs/testing/D063_VALIDATION.md) for the bounded local recovery, continuation, and cache evidence, and [CHANGELOG.md](CHANGELOG.md) for what changed in this release. Larger capacity acceptance is deferred; those results do not establish a universal throughput or latency guarantee.
+
+## AOT support
+
+Garrison does not support native AOT. The server and worker serialize with reflection-based `System.Text.Json`, and the server builds its OpenAPI document by reflecting over its models, so neither survives trimming. There is no `Test.Aot` project. The images ship framework-dependent builds on the .NET 10 runtime image, and the libraries target `net8.0` and `net10.0`.
 
 ## License
 

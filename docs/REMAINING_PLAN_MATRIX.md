@@ -1,5 +1,30 @@
 # Remaining Plan Scope Matrix
 
+## 0.3.0 autonomous agents
+
+Updated 2026-11-26. The 0.3.0 release is tracked task by task in [AUTONOMOUS_AGENTS_PLAN.md](../AUTONOMOUS_AGENTS_PLAN.md), which is the source of truth for its scope; this matrix only records where it stands and which older deferred items it settles. Every feature phase, AA0 to AA11, is done. What remains is validation and release: the reference examples, story trials on a real harness, simulated users, and the security and accessibility addenda (AA12), then the documentation, website, Postman, SDK, test, image, and merge tasks of AA13. The k3s multi-replica validation and the 72-hour soak were removed from the plan (AA-029), and the month-long keeper trial was dropped in favor of short trials (AA-076).
+
+| Phase | Capability | Scope |
+|---|---|---|
+| AA0 | Branch, version 0.3.0, plan wiring | Complete |
+| AA1 | Mandates, wake schedules, and keepers ([KEEPERS.md](KEEPERS.md)) | Complete |
+| AA2 | Escalations ([ESCALATIONS.md](ESCALATIONS.md)) | Complete |
+| AA3 | Freezes, spend caps, kill switch ([BRAKES.md](BRAKES.md)) | Complete |
+| AA4 | Scoped memory with provenance ([AGENT_MEMORY.md](AGENT_MEMORY.md)) | Complete |
+| AA5 | Reports ([REPORTS.md](REPORTS.md)) | Complete |
+| AA6 | Mailboxes, wake on message, loop guards ([MESSAGING.md](MESSAGING.md)) | Complete |
+| AA7 | Organizations and the chain of command ([ORGANIZATIONS.md](ORGANIZATIONS.md)) | Complete |
+| AA8 | Executive authority and change rules ([EXECUTIVES.md](EXECUTIVES.md)) | Complete |
+| AA9 | Eval sets and gates, shadow trials, canary releases ([EVALS.md](EVALS.md)); absorbs the deferred AD11 | Complete |
+| AA10 | The board ([BOARD.md](BOARD.md)) | Complete |
+| AA11 | Performance signals and org-scale brakes | Complete |
+| AA12 | Examples, trials, benchmarks, simulated users, security and accessibility addenda | In progress |
+| AA13 | Release | In progress |
+
+Three items below change status because of AA9. Canary releases cover traffic splitting by deployment weight with error-rate and eval-score thresholds (P12.24) and automated step promotion with rollback (P12.45). Shadow trials compare a candidate's outputs with its source's on real inputs, which covers part of P12.23; a general view comparing any two runs stays deferred.
+
+## 0.1 and 0.2 scope (D-063)
+
 Updated 2026-10-16 under D-063. The user selected execution/recovery/tenant scheduling, SDK and test coverage, key lifecycle, accessibility, notices and launch assets, plus feasible performance, Postman/Compose and optional NotDory work. P12.25/P12.26/P15.12 are permanently dropped; P15.13 through P15.17 stay deferred. D-063 additionally removes further P15.11 audit work, defers P14.15, accepts bounded local recovery without CI, removes the arbitrary continuation population target and limits cache acceptance to a small repeated experiment. Daily quota enforcement remains opt-in and off by default.
 
 The task census is 0 partial tasks, 1 conditional task (P10.25), 22 deferred tasks, 1 skipped SDK-publication task (P6.20), and 5 dropped tasks. Partial means implementation/testing exists but required acceptance, scale, depth, or coverage remains. Completed engineering and remaining acceptance evidence are separated below; the broad backend verification covers 909 unique cases with every case passing after the documented PostgreSQL infrastructure rerun; latest-source review regressions, dashboard, distributed effect and real-CLI evidence are recorded with their limits.
@@ -40,8 +65,8 @@ Initial image publication (P7.5) is historical; current rebuilt images, SDK pack
 | P12.21 | Marketplace manifest bundle import/export | Complete | D-054. `GET .../manifests/export` with `kinds`, `resources`, `followReferences`, and `includeBuiltIn`; a `Bundle` document lists required secrets (names only), artifact stores, and built-ins, and apply fails with `MissingSecret` until they exist; round trip to a fresh tenant and idempotent re-apply tested. Import is the existing apply. MCP, SDKs, dashboard export picker. See `docs/MANIFESTS.md` |
 | P12.22 | Schema-generated Invoke input forms | Complete | D-054. `inputSchema` (a JSON object in the API) validated as JSON Schema on save (`InvalidJsonSchema`) and enforced at invoke over REST, MCP, A2A, and delegation (`InputNotJson`, `InputSchemaViolation`, keys such as `input.topic`); dashboard Invoke form generated from the schema with a raw JSON toggle and field errors; SDKs type the field |
 | P12.47 | Validate pipeline handoff input against the next agent's input schema | Complete (D-059) | Same rule and field codes as P12.22. SQLite/PostgreSQL `handoff-input-schema` regressions cover valid JSON, invalid JSON/schema, preview diagnostics, and failure before execution; full Touchstone net10 passes 832/832 across SQLite and PostgreSQL (0 failed, 0 skipped); final net8/net10 solution build has 0 warnings/errors |
-| P12.23 | Compare runs across deployments | Deferred | Evaluation UI |
-| P12.24 | Traffic splitting experiments | Deferred | Outcome metrics by deployment |
+| P12.23 | Compare runs across deployments | Partly covered (0.3.0) | Shadow trials (AA9.7) compare a candidate deployment's outputs with its source's; a general run comparison view remains deferred |
+| P12.24 | Traffic splitting experiments | Complete (0.3.0) | Canary releases (AA9.8) move traffic between two deployments in weight steps, with error-rate and eval-score thresholds per step. See docs/EVALS.md |
 | P12.25 | Kubernetes/vault secret providers | Dropped (D-061) | User 2026-10-16: removed permanently from scope; ID retained for history. |
 | P12.26 | Dashboard OIDC login | Dropped (D-061) | User 2026-10-16: removed permanently from scope; ID retained for history. |
 | P12.27 | Markdown/JSON transcript export | Complete | D-054. `GET .../runs/{id}/transcript` and `GET .../conversations/{id}/transcript` (`format`, `includeThinking`), secrets redacted, capped by `Transcripts.*` settings; MCP tools, SDKs, dashboard Export buttons. See `docs/TRANSCRIPTS.md` |
@@ -59,7 +84,7 @@ Initial image publication (P7.5) is historical; current rebuilt images, SDK pack
 | P12.42 | Harness parse-preview endpoint and UI | Deferred | Makes harness configuration easier to debug |
 | P12.43 | Re-run with pinned deployment/template versions | Deferred | Needs deployment version history |
 | P12.44 | Compare compiled execution specs | Deferred | Depends on recorded/reconstructed configuration |
-| P12.45 | Canary promotion/rollback recommendations | Deferred | Depends on traffic experiments; operator approves changes |
+| P12.45 | Canary promotion/rollback recommendations | Complete (0.3.0) | Canary releases (AA9.8): a person starts the release, the leader advances it step by step and rolls the weights back when a threshold is crossed, and CanaryRolledBack is notified |
 | P12.46 | Git/workspace caching | Complete small-scale acceptance (D-063) | Three repeated 4 MiB HTTPS rounds verify exact tree bytes/modes across uncached/cold/warm clones and prepared transfer/restore. Warm mirrors receive zero pack bytes and 566 HTTP response-body bytes; cold setup and archive costs remain explicit. No production-network scale gate. See docs/testing/D063_CACHE.md. |
 | P13.20 | Telemetry coverage audit including D-060 paths | Complete (D-062) | D-062: new gateway/broker/run/continuation/workspace/snapshot/memory/scheduler stages audited and instrumented, fixed labels, nested spans, failure/cancellation and throwing-consumer isolation tested. Prometheus application/memory/workspace measurements, Alloy OTLP to Tempo nested SQL spans and 14 Grafana dashboards verified live. Base Compose starts observability by default, superseding D-002 for local deployment. See docs/testing/D062_TELEMETRY.md. |
 | P14.15 | Load the control plane to failure | Deferred (D-063) | User defers for time/resource limits. Existing 10000/10000 success and failed latency budgets remain recorded; no additional capacity acceptance required now. |

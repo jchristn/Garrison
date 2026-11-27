@@ -1,8 +1,8 @@
 # Architecture
 
-Garrison is two things built on one model. The runtime is a control plane for headless agent harnesses: it accepts requests to run an agent over REST, MCP, or A2A, turns each request into a fully resolved command line, and hands that to a worker that pulls it. The studio (Garrison Agent Studio) sits on top of the runtime and uses it to build, test, deploy, and serve agentic apps: drafts, the agent architect, the playground, promotion, and an end-user app gateway. Nothing in the studio bypasses the runtime. The architect is an agent, playground runs are runs, and an app's conversation is a series of runs with its entry agent.
+Garrison is two things built on one model. The runtime is a control plane for headless agent harnesses: it accepts requests to run an agent over REST, MCP, or A2A, turns each request into a fully resolved command line, and hands that to a worker that pulls it. The studio (Garrison Agent Studio) sits on top of the runtime and uses it to build, test, deploy, and serve agentic apps: drafts, the agent architect, the playground, promotion, and an end-user app gateway. Nothing in the studio bypasses the runtime. The architect is an agent, playground runs are runs, and an app's conversation is a series of runs with its entry agent. Autonomy, new in 0.3.0, follows the same rule: keepers, organizations, executives, and evaluations start ordinary runs and decide when to start them ([Autonomy on top of the runtime](#autonomy-on-top-of-the-runtime)).
 
-This page describes the parts, how a run moves through them, and the decisions that shape the design. `archive/GARRISON_PLAN.md` and `archive/AGENT_DESIGN_DEPLOY_PLAN.md` have the full decision logs.
+This page describes the parts, how a run moves through them, and the decisions that shape the design. `archive/GARRISON_PLAN.md` and `archive/AGENT_DESIGN_DEPLOY_PLAN.md` have the full decision logs, and `AUTONOMOUS_AGENTS_PLAN.md` has the 0.3.0 decisions.
 
 ## The parts
 
@@ -14,6 +14,7 @@ This page describes the parts, how a run moves through them, and the decisions t
                  |  MCP (proxy -> Voltaic loopback) :8701    (app sessions only)                 |
                  |  studio: drafts, diff, DraftApply approvals, playground, promotion            |   control plane ("Command")
                  |  scheduler, fan-out groups, capability catalog, file space and asset service  |   N replicas; shared state
+                 |  autonomy: keepers, mailboxes, org resolver, executives, evals, brakes        |
                  |  Prometheus :9464                                                             |
                  +---------------------------------------+---------------------------------------+
                                                          |
@@ -115,6 +116,84 @@ The studio adds no second execution path. It adds configuration that is reviewed
 
 **The app gateway.** An agentic app maps a slug to an entry agent and its deployment in the app's live environment. `/v1.0/apps/{slug}/` accepts only app session tokens, starts conversations on the entry deployment, and streams turn events and file changes as server-sent events that resume after `Last-Event-ID`. Runs started through an app run as the app, with the end user recorded as the caller, and the app's edges supply each member's delegation allow list. The `app-ui/` single-page app is served by the dashboard image under `/apps/`. See [APPS.md](APPS.md) and [APP_UI.md](APP_UI.md).
 
+## Autonomy on top of the runtime
+
+Version 0.3.0 lets agents start work on their own, and it does so the same way the studio did: without a second execution path. A keeper tick is a run of kind `Keeper`, a message that wakes an agent with no keeper is a run of kind `Message`, and every eval case and shadow copy is a run of kind `Eval` or `Shadow`. Leases, fencing, quotas, transcripts, and telemetry apply to all of them unchanged. What 0.3.0 adds sits around that path: a scheduler that decides when to start a run, mailboxes and reports that carry text between runs, an org resolver that says who stands where, and two reviewed paths for change, one for executives and one for evaluation. `AUTONOMOUS_AGENTS_PLAN.md` holds the decisions (AA-nnn) behind each piece.
+
+```text
+   people: board members, operators                  runs: a run token calling Garrison's MCP server
+   (REST, MCP, dashboard, SDKs)                       gateway on every call: session, lease epoch, ShadowRunPolicy,
+        |                                             then the effect journal for every non-read tool
+        | freezes, direction, answers,                    |
+        | change rules, approval decisions                | send_message  file_report  escalate  memory writes
+        |                                                 | studio draft tools  keeper_complete_tick
+        v                                                 v
+ +--------------------------------------------------------------------------------------------------------+
+ |  org resolver: ChainOfCommand. The live revision of every Active or Frozen organization, cached by     |
+ |  revision ID (snapshots never change). Managers, chains, direct reports, subtrees, reporting and peer  |
+ |  lines. Asked by MessageLinePolicy, ReportVisibility, MemoryAccessPolicy, escalation routing,          |
+ |  FreezeService, OrgBudgetGuard, and ExecutiveAuthority, so they all agree on who manages whom.         |
+ +-----------+--------------------------+---------------------------+-------------------------+----------+
+             |                          |                           |                         |
+   mailboxes                  executive path               evaluation path            brakes
+   agent_messages rows        draft written by an          EvalRunner (leader):       FreezeService cache
+   loop guards first;         OrgSubtree run               case runs of kind Eval,    (FreezesChanged on
+   Rejected rows kept         ExecutiveDraftValidator      scorers and judge runs     the backplane)
+   Normal: Queued until       ChangeClassifier             EvalGateService gates      mandate spend caps
+   the next delivery          ChangeRuleMatcher + gates    promotion, rules, canary   OrgBudgetGuard and
+   Urgent: wake the keeper    covered: apply as the        ShadowTrialService copies  the overrun freeze
+   or start a Message run     person; else DraftApply      finished runs as Shadow    kill switch freeze
+             |                          |                           |                         |
+             v                          v                           v                         v
+ +--------------------------------------------------------------------------------------------------------+
+ |  keeper scheduler (KeeperScheduler, leader sweep): finish ended ticks, claim due wakes with one        |
+ |  compare-and-set on the mandate's next wake and active tick, record Skipped wakes, start Keeper runs.  |
+ |  Tick input: keeper-tick + escalation-answered + memory-recall + report-digest + board-brief +         |
+ |  inbox-delivery, every agent-written part framed as data.                                              |
+ +--------------------------------------------------+-----------------------------------------------------+
+                                                    |
+     RunService admission: freezes, unit budgets ---+--> Queued --> lease --> compile (system prompt gains
+     (a refused run is never created)                    keeper-system, org-context, executive-system) --> worker
+```
+
+### The keeper scheduler
+
+`KeeperScheduler` runs on the leader's maintenance pass, every `Autonomy.SchedulerSweepSeconds`. Each sweep first finishes ticks whose run has ended: a run that never called `garrison_keeper_complete_tick` records `Unreported`, or `Failed` when the run failed or timed out, and the next wake is computed from the outcome and the revision's schedule (AA-014, AA-036). Run completion finishes the tick at once as well; the sweep is the backstop for runs that ended by cancellation, timeout, a lost node, or a replica that died between the claim and the run (AA-032). The sweep then claims due mandates with one compare-and-set on the mandate's next wake time and active tick, so any number of replicas start exactly one tick per wake. A timer wake that comes due while a tick still runs is recorded as `Skipped` and moves on by one interval; a manual, message, or escalation-answer wake waits and starts when the running tick ends (AA-037).
+
+Before starting a tick the scheduler checks the brakes that apply to wakes: freezes in the mandate's scope, the kill switch, the revision's day budget (which moves the mandate to `CapReached`), and the unit budgets above the agent (a breach records a `Skipped` tick with `BudgetExhausted`, tells the capped unit's manager, and freezes the unit once spend passes the organization's margin). Then it renders the tick's input. `builtin/keeper-tick` says why the keeper woke and how recent ticks went, and the answered escalations, recalled memory, subordinates' new reports, the board brief request for a CEO, and claimed mail follow, each rendered by its own template. The compiler appends `builtin/keeper-system` to the system prompt of every keeper run, and `builtin/org-context` and `builtin/executive-system` when the agent holds a position in a live organization or leads a unit as an executive ([KEEPERS.md](KEEPERS.md), [PROMPTS.md](PROMPTS.md)).
+
+### Mailboxes
+
+An agent's mailbox is its rows in `agent_messages`. `MessageService` checks every send before it stores it: the recipient must not be frozen, a line must join the two agents (an app edge, a reporting or peer line from the org resolver, or a reply in a thread, per `MessageLinePolicy`), and the hop limit, thread budget, and per-line rate must hold. A refused message is stored as `Rejected` with its reason, so a loop shows up in the console instead of vanishing. A send from a run derives a key from the run and the message content, so a replayed send returns the first message.
+
+Normal mail stays `Queued` until a delivery claims it with a compare-and-set: the recipient keeper's next tick, a `garrison_read_inbox` call, or a `Message` run. Urgent mail brings the recipient keeper's next wake forward to now (wake source `Message`), or starts a `Message` run on the agent's default deployment when it has no keeper, as the person behind the sender (`WakeCaller`). Urgent wakes are capped per recipient per hour, and while the kill switch is on urgent mail waits like normal mail. Because a keeper runs one tick at a time, ten messages that arrive during a tick are handled by the one tick that follows ([MESSAGING.md](MESSAGING.md)).
+
+### The org resolver
+
+`ChainOfCommand` is the one place that answers organization questions at run time: where an agent sits in each live organization, its managers, the chain above it, its direct reports, the agents in a unit's subtree, and whether a reporting or peer line joins two agents. Only organizations that are `Active` or `Frozen` and have a published revision count. Published revisions never change, so their units are cached in memory by revision ID; the list of live organizations is read on every call, so a publish or rollback on one replica is seen by every other replica on its next question, with no backplane message needed.
+
+Escalation routing to a manager, report visibility, memory scopes, message lines, `OrgUnit` freezes, unit budgets, and executive authority all ask it, so they never disagree about who manages whom. The compiler reads the same live revision through `OrgContextLoader` in `Garrison.Core` to render `builtin/org-context` for member runs ([ORGANIZATIONS.md](ORGANIZATIONS.md#the-chain-of-command)).
+
+### The executive path
+
+An executive is a run whose deployment has `managementAccess: OrgSubtree` and whose agent leads exactly one unit in a live organization. `ExecutiveAuthority` works that position out from the live chart on every call, so an agent that stops leading a unit loses its authority at once, including over drafts it already wrote. The executive writes an ordinary studio draft through the studio MCP tools, and the draft records the unit it was written from.
+
+Every diff of such a draft, and every request to apply it, runs the executive review in `StudioService`. `ExecutiveDraftValidator` (in `Garrison.Core`) applies the hard limits of AA-022: every changed item must lie strictly below the executive's unit, and nothing may touch the executive's own agent, deployments, mandates, or unit, anything above it, a secret or credential reference, a budget going up, or any deployment's `managementAccess`. `ChangeClassifier` sorts each change into change classes, and `ChangeRuleMatcher` matches them against the person-written change rules in force, with eval gates read from `EvalGateService`. A draft that breaks a hard limit is refused with `DraftInvalid`. A draft that rules fully cover, started by a person who holds Create on `Manifest`, applies at once as that person through a `DraftApply` approval decided with source `Rule`. Anything else waits for a person like any draft. Each executive apply publishes one organization revision and saves a revert draft, so an organization rollback also undoes what the executive changed ([EXECUTIVES.md](EXECUTIVES.md)).
+
+### The evaluation path
+
+`EvalRunner` drives eval runs from the leader's maintenance pass, so a run a former leader was driving resumes on the new one. It runs each case as a run of kind `Eval`, against a deployment or against an agent revision on an ephemeral copy in the `draft` environment, at most `Evaluation.MaxConcurrentCases` at a time. Each output is scored with its checks (`ExactMatch`, `Contains`, `JsonSchemaValid`, or `Judge`, where `EvalJudgeRunner` starts the judge agent as another `Eval` run). Case and judge runs carry idempotency keys derived from the eval run and the case order, and status changes are compare-and-set, so two replicas never double-run a case. The runner stops starting cases when spend reaches the eval run's budget.
+
+`EvalGateService` turns results into decisions. A promotion into an environment that names an eval set needs a completed eval run of that revision on the latest version of the set a person approved. A change rule's gate also accepts a set written by an evaluator agent outside the executive's subtree (AA-024), and hidden cases never reach the proposer's run tokens (`HiddenEvalRunPolicy`). `ShadowTrialService` copies a sample of a source deployment's finished runs to a candidate as `Shadow` runs, after the source run has finished and off its completion path. `CanaryService` moves deployment weights in steps on the leader's sweep and rolls them back when the error rate or eval score crosses its threshold. Eval and shadow run tokens are restricted by `ShadowRunPolicy` on every gateway call: they may read, and every tool the effect journal would record is refused (AA-027, AA-074) ([EVALS.md](EVALS.md)).
+
+### Brakes
+
+Freezes, spend caps, unit budgets, and the kill switch are checked in the control plane, at admission in `RunService` and before each keeper wake, so a refused run is never created and the brake holds whatever the agent does. `FreezeService` keeps each tenant's active freezes in a short cache; a change drops the entry locally and publishes `FreezesChanged` on the backplane, and every entry expires after 30 seconds in case a message is lost (AA-047). The kill switch is itself a freeze with target kind `TenantAutonomy` (AA-046). `OrgBudgetGuard` refuses runs of agents in a subtree that has spent its unit budget, and `OrgBrakeService` cancels everything in a unit's subtree in one audited action. Run tokens never hold the Freeze permissions ([BRAKES.md](BRAKES.md)).
+
+### Text between agents
+
+Memory, reports, messages, escalation answers, and briefs are written by agents and read by other agents, so they are a prompt-injection channel. They are untrusted data (AA-025): each reaches a prompt only through its template (`builtin/memory-recall`, `builtin/report-digest`, `builtin/inbox-delivery`, `builtin/escalation-answered`, and so on), framed as data with its provenance and never as instructions. The memory, report, and message templates put the text between begin and end markers chosen at random for every render, so the text cannot close its own frame. Every mutation a run makes through its run token goes through the gateway's effect journal (AA-026), which records the operation as `Authorized`, `Dispatched`, and `Completed` under the run's lease epoch; a run whose lease moved on is refused before anything is written. Sends, filings, and escalations also deduplicate a replay from the same run, so a recovered run does not double-send ([SECURITY.md](SECURITY.md), [effect safety](effect-safety.md)).
+
 ## Design decisions
 
 **Workers pull.** The control plane never opens a connection to a worker. Workers need only outbound access to the REST port, which makes them easy to run in other clusters, behind NAT, or on developer machines, and lets the two halves scale on their own.
@@ -169,6 +248,12 @@ Tenant
  |    +- Approval (including DraftApply), child waits, FanOutGroup --- members
  |    +- EffectOperation, EffectCheckpoint, RunDatabaseUsage
  |    +- Artifact metadata (Database, Filesystem or S3 content)
+ +- Mandate --- MandateRevision, MandateTick (each tick points at its Keeper run)
+ +- Escalation   Freeze (including the TenantAutonomy kill switch)   AgentMessage
+ +- MemoryEntry --- tags (content in the memory provider)   Report --- metrics, issues, decisions
+ +- Organization --- OrgUnit (lead, members, peer lines, budgets) --- OrgRevision (unit snapshots)
+ +- ChangeRule   EvalSet --- EvalCase (checks, files) --- EvalRun --- EvalCaseResult
+ +- ShadowTrial   CanaryRelease --- steps
  +- Secret --- CredentialLease (broker metadata, never issued token values)
  +- AuditRecord, ManifestApply
 NodePool (optional tenant dedication) --- Node (labels, capabilities, tool labels)
@@ -192,7 +277,7 @@ The first four use the same tenants, credentials, and RBAC. The app gateway acce
 
 ## Further reading
 
-[STUDIO.md](STUDIO.md), [ARCHITECT.md](ARCHITECT.md), and [APPS.md](APPS.md) cover the studio and apps; `docs/HARNESSES.md` and `docs/PROMPTS.md` cover configuration; `docs/MANIFESTS.md` covers declarative configuration; `docs/SECURITY.md`, `docs/SCALING.md`, and `docs/TELEMETRY.md` cover operations; `docs/DOCKER.md` and `docs/KUBERNETES.md` cover deployment and `docs/QUICKSTART.md` a first multi-agent setup; `docs/DEVELOPMENT.md` covers building and testing.
+[STUDIO.md](STUDIO.md), [ARCHITECT.md](ARCHITECT.md), and [APPS.md](APPS.md) cover the studio and apps; [KEEPERS.md](KEEPERS.md), [ORGANIZATIONS.md](ORGANIZATIONS.md), [EXECUTIVES.md](EXECUTIVES.md), [EVALS.md](EVALS.md), [BOARD.md](BOARD.md), and [BRAKES.md](BRAKES.md) cover autonomy; `docs/HARNESSES.md` and `docs/PROMPTS.md` cover configuration; `docs/MANIFESTS.md` covers declarative configuration; `docs/SECURITY.md`, `docs/SCALING.md`, and `docs/TELEMETRY.md` cover operations; `docs/DOCKER.md` and `docs/KUBERNETES.md` cover deployment and `docs/QUICKSTART.md` a first multi-agent setup; `docs/DEVELOPMENT.md` covers building and testing.
 
 
 ## Executor capability negotiation

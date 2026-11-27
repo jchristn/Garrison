@@ -12,9 +12,9 @@ A multi-tenant control plane that runs headless agent harnesses (Claude Code, Co
 
 | Path | Contents |
 |---|---|
-| `src/Garrison.Core` | Models, enums, settings models, data layer (Sqlite, Postgresql), security primitives, template renderer, invocation compiler, services. |
+| `src/Garrison.Core` | Models, enums, settings models, data layer (Sqlite, Postgresql), security primitives, template renderer, invocation compiler, services. Autonomy rules that need no server live here too: `Organizations/` (executive draft validation, change classes, change rule matching, org context), `Evaluation/` (scorers, judge parsing, canary step decisions, shadow sampling), `Keepers/`, `Messaging/`, `Reports/`, `Memory/`, `Escalations/`. |
 | `src/Garrison.Harnesses` | Output parsers, MCP config writers, process runner, harness probes. |
-| `src/Garrison.Server` | Control plane ("Command"): Watson 7 host, routes, auth, scheduler, node protocol, MCP (Voltaic), A2A gateway. |
+| `src/Garrison.Server` | Control plane ("Command"): Watson 7 host, routes, auth, scheduler, node protocol, MCP (Voltaic), A2A gateway. `Runtime/` holds the autonomy services: `KeeperScheduler`, `MessageService`, `ReportService`, `EscalationService`, `ChainOfCommand` (the org resolver), `ExecutiveAuthority`, `ChangeRuleService`, `EvalRunner`, `ShadowTrialService`, `CanaryService`, `FreezeService`, `OrgBudgetGuard`, `BoardService`. |
 | `src/Garrison.Worker` | Worker node ("Post"): registration, heartbeat, lease loop, process executor. |
 | `src/Garrison.FakeHarness` | Deterministic harness used by tests and smoke tests. |
 | `src/Test.*` | Touchstone suites and runners. |
@@ -23,7 +23,8 @@ A multi-tenant control plane that runs headless agent harnesses (Claude Code, Co
 | `sdk/{csharp,python,js,go}` | SDKs, each with a README and a test harness. |
 | `docker/` | Docker Compose stack (`compose.yaml`), `update.{sh,bat}`, `factory/reset.{sh,bat}`. |
 | `k8s/` | Kustomize base, components, overlays (minikube, k3s, production), Helm chart, scripts. |
-| `docs/` | Architecture, configuration, harnesses, prompts, manifests, Kubernetes, security, scaling, telemetry, i18n. |
+| `docs/` | Architecture, configuration, harnesses, prompts, manifests, Kubernetes, security, scaling, telemetry, i18n, and the autonomy guides (keepers, escalations, brakes, memory, reports, messaging, organizations, executives, evals, board). `docs/README.md` is the index. |
+| `examples/` | Manifests, the agentic app examples, and the autonomy examples under `examples/autonomous/` (`gerbil`, `site-reliability-org`). |
 
 ## Build and test
 
@@ -88,6 +89,17 @@ These come from `~/Code/Agents/requirements` and apply to every change.
 - Every prompt and every piece of text sent to a harness comes from a `PromptTemplate`. No hard-coded prompt text in the run path.
 - Workers never touch the database. The control plane compiles an `ExecutionSpec` and ships it with the lease.
 - Loopback is always `127.0.0.1`, never `localhost`.
+
+### Autonomy rules
+
+Agents in 0.3.0 start work, write to each other, and change configuration without a person in the loop. These rules keep that safe, and any change to keepers, messaging, reports, memory, escalations, organizations, executives, evals, or brakes must keep them. `docs/ARCHITECTURE.md` ("Autonomy on top of the runtime") and `docs/SECURITY.md` ("Executive authority") explain the mechanics.
+
+- **No self-modification (AA-022).** No agent path may change the agent's own agent record, deployments, mandates, or unit, anything above it in the chart, a secret or credential reference, any `managementAccess`, or a budget upward. This is permanent, not a deferred feature. Executive drafts are checked by `ExecutiveDraftValidator` (`Garrison.Core/Organizations`) at diff, at request-apply, and again just before apply; a kind or field an executive may newly touch must be added there, and no change rule or human approval may lift a hard limit. Change rules are written only by people (AA-023): rule routes answer 403 `RulesArePeopleOnly` to run tokens and the rule-writing tools are hidden from runs. Run tokens never hold the Freeze permissions and are refused on the mandate publish route.
+- **Agent-written data is untrusted (AA-025).** Memory, reports, messages, escalation answers, briefs, and keeper tick summaries reach a prompt only through their `PromptTemplate` (`memory-recall`, `report-digest`, `inbox-delivery`, `escalation-answered`, `keeper-tick`), framed as data with provenance, never interpolated into instructions. Keep the random begin and end markers the renderers use. Audit records and logs name such a record, never its text.
+- **Run-token mutations go through the effect journal (AA-026).** A run changes state only through a Garrison MCP tool whose operation is not `Read`, so `GarrisonMcpServer` checks the session and lease epoch and records the call as `Authorized`, `Dispatched`, and `Completed` before and after it runs (`EffectClassificationRules.RequiresJournal`). Do not add a REST route or side channel that lets a run token mutate around the gateway. Make a replay from the same run return the first result, the way messages, reports, and escalations derive a key from the run and the content.
+- **Shadow and eval runs cannot act (AA-027, AA-074).** A new tool that writes, sends, files, remembers, or drafts must be refused by `ShadowRunPolicy` for runs of kind `Shadow` and `Eval`.
+- **One run path (AA-013).** Keeper ticks, message wakes, eval cases, and shadow copies are runs of their own `RunKindEnum`. Start them through `RunService`, which applies freezes and unit budgets at admission, and never through a parallel execution path. Scheduled work (keeper wakes, eval drivers, canary steps) runs on the leader's maintenance pass and claims what it starts with a compare-and-set, so several replicas start it once.
+- **One chain of command.** Organization questions (manager, chain, subtree, lines) go through `ChainOfCommand`, which reads only published revisions of live organizations. Do not compute reporting lines from the working tree.
 
 ### Writing
 
