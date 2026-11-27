@@ -104,26 +104,26 @@ Each finding lists its steps against the seeded instance. Identifiers in steps (
 
 | ID | Severity | Category | Title | Recommendation | Decision |
 |---|---|---|---|---|---|
-| UT-01 | S2 | Defect | An organization-scoped board member cannot use the brakes, escalations, reports, or the CEO's keeper | Fix now | Pending |
-| UT-02 | S2 | Defect | Organization-scoped grants match the identifier but not the name | Fix now | Pending |
-| UT-03 | S3 | Nonconformance | Viewers see enabled write buttons on the Autonomy pages | Fix now | Pending |
-| UT-04 | S3 | Defect | Unknown filter values are ignored and return everything | Fix now | Pending |
-| UT-05 | S3 | Defect | The Board tab shows a permission error and an empty-state call to action together | Fix with UT-01 | Pending |
-| UT-06 | S3 | Gap | Keeper pause, resume, wake, delete, and escalation answers are not audited | Fix later | Pending |
-| UT-07 | S3 | Friction | Run set shows 80 and 1.00 as hints, and leaving them gives no threshold and no budget | Fix now | Pending |
-| UT-08 | S3 | Question | A board conversation can file briefs | Discuss | Pending |
-| UT-09 | S3 | Question | A negative budget over REST becomes 0 and the keeper fails every tick | Discuss | Pending |
-| UT-10 | S3 | Friction | Needs attention lists every repeat report from the last 7 days | Fix later | Pending |
-| UT-11 | S4 | Defect | The interval chart repeats time labels | Fix later | Pending |
-| UT-12 | S4 | Friction | The escalation page names the keeper by identifier | Fix later | Pending |
-| UT-13 | S4 | Defect | Type errors name .NET types | Fix later | Pending |
-| UT-14 | S4 | Friction | Publishing an unchanged revision is allowed and wakes the keeper | Fix later | Pending |
-| UT-15 | S4 | Question | Wakes a person caused are recorded as Schedule | Discuss | Pending |
-| UT-16 | S4 | Friction | The Autonomy tab bar hides Shadow trials and Canary releases at desktop width | Fix later | Pending |
-| UT-17 | S4 | Friction | The cancel-all control looks like plain text | Fix later | Pending |
-| UT-18 | S4 | Friction | "Address already in use" does not name the address | Fix later | Pending |
-| UT-19 | S4 | Question | Every MCP tool is listed to every principal | Leave as is | Pending |
-| UT-20 | S4 | Question | An unsupported method answers 404 RouteNotFound, not 405 | Leave as is | Pending |
+| UT-01 | S2 | Defect | An organization-scoped board member cannot use the brakes, escalations, reports, or the CEO's keeper | Fix now | Fixed (2dcefb20) |
+| UT-02 | S2 | Defect | Organization-scoped grants match the identifier but not the name | Fix now | Fixed (2dcefb20) |
+| UT-03 | S3 | Nonconformance | Viewers see enabled write buttons on the Autonomy pages | Fix now | Fixed (9619b26c) |
+| UT-04 | S3 | Defect | Unknown filter values are ignored and return everything | Fix now | Fixed (4fd92f09, ebc34803) |
+| UT-05 | S3 | Defect | The Board tab shows a permission error and an empty-state call to action together | Fix with UT-01 | Fixed (2dcefb20, 9619b26c) |
+| UT-06 | S3 | Gap | Keeper pause, resume, wake, delete, and escalation answers are not audited | Fix later | Fixed (4fd92f09, ebc34803) |
+| UT-07 | S3 | Friction | Run set shows 80 and 1.00 as hints, and leaving them gives no threshold and no budget | Fix now | Fixed (9619b26c) |
+| UT-08 | S3 | Question | A board conversation can file briefs | Discuss | Kept as is (user decision 2026-11-26); documented in BOARD.md (4fd92f09) |
+| UT-09 | S3 | Question | A negative budget over REST becomes 0 and the keeper fails every tick | Discuss | Fixed (4fd92f09) |
+| UT-10 | S3 | Friction | Needs attention lists every repeat report from the last 7 days | Fix later | Fixed (4fd92f09, ebc34803) |
+| UT-11 | S4 | Defect | The interval chart repeats time labels | Fix later | Fixed (9619b26c) |
+| UT-12 | S4 | Friction | The escalation page names the keeper by identifier | Fix later | Fixed (9619b26c) |
+| UT-13 | S4 | Defect | Type errors name .NET types | Fix later | Fixed (4fd92f09, ebc34803) |
+| UT-14 | S4 | Friction | Publishing an unchanged revision is allowed and wakes the keeper | Fix later | Fixed (4fd92f09, ebc34803) |
+| UT-15 | S4 | Question | Wakes a person caused are recorded as Schedule | Discuss | Fixed (4fd92f09, 9619b26c) |
+| UT-16 | S4 | Friction | The Autonomy tab bar hides Shadow trials and Canary releases at desktop width | Fix later | Fixed (9619b26c) |
+| UT-17 | S4 | Friction | The cancel-all control looks like plain text | Fix later | Fixed (9619b26c) |
+| UT-18 | S4 | Friction | "Address already in use" does not name the address | Fix later | Fixed (4fd92f09) |
+| UT-19 | S4 | Question | Every MCP tool is listed to every principal | Leave as is | Fixed (2dcefb20) |
+| UT-20 | S4 | Question | An unsupported method answers 404 RouteNotFound, not 405 | Leave as is | Fixed (2dcefb20, 420f1691) |
 
 ### UT-01: An organization-scoped board member cannot use the brakes, escalations, reports, or the CEO's keeper
 
@@ -531,6 +531,6 @@ These were checked and behaved as documented. They are listed so the user knows 
 | Input, output, and behavior probes | Done |
 | Documentation examples and Postman run as written | Done for the Autonomy examples, the SDK README board example, and the Autonomy Postman folders |
 | Every finding has id, severity, category, surface, user, oracle, steps, expected, actual, and evidence | Done |
-| User shown a summary, asked which findings to address, decisions recorded | Waiting for the user. Every Decision is Pending |
+| User shown a summary, asked which findings to address, decisions recorded | Done 2026-11-26: the user approved fixing all 20, kept UT-08 as is, chose 400 for UT-09 and a Manual source for UT-15. Every finding's Decision column records the fix |
 | Nothing fixed without approval; approved fixes verified on a fresh instance | Nothing was fixed. Verification follows the user's decisions |
 | Instance torn down | Done: the server, worker, and dashboard dev server were stopped and the scratch database was left in the session scratchpad only |
