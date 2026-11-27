@@ -10,7 +10,7 @@ The gateway shares the REST listener (port 8700 by default). Agents are addresse
 | `GET /v1.0/a2a/{tenantId}` | Read on Agent | Cards for every exposed agent in the tenant, as a JSON array |
 | `POST /v1.0/a2a/{tenantId}/{agentName}` | Any REST scheme | JSON-RPC endpoint |
 
-An agent that does not exist or is not exposed answers 404 for its card and `-32001` on the JSON-RPC endpoint. So does an agent in a tenant other than the caller's, unless the caller is a system administrator.
+An agent that does not exist or is not exposed answers 404 for its card and `-32001` on the JSON-RPC endpoint. An inactive agent also answers 404 for its card, but a message to it gets the inactive-agent conflict described under Errors. So does an agent in a tenant other than the caller's, unless the caller is a system administrator.
 
 Only agents are exposed over A2A. Pipelines (`docs/PIPELINES.md`) have no agent card and no A2A endpoint; start them over REST, MCP, or an SDK. An agent that is a pipeline stage still has its own card, and a message sent to it runs that agent alone, outside any pipeline.
 
@@ -54,6 +54,8 @@ One renderer builds every card: this route, `GET /v1.0/a2a/{tenantId}`, and `GET
 ## Authentication
 
 The card advertises bearer authentication, and that is what most A2A clients send, but the JSON-RPC endpoint accepts every scheme REST accepts: session tokens, `x-access-key` and `x-secret-key`, signed requests, the administrator API key, and run tokens. Sending a message needs Execute on Agent; reading, listing, and subscribing need Read on Run; cancelling needs Update on Run. A refusal is JSON-RPC error `-32007`.
+
+The token of a `Shadow` or `Eval` run can read but not act (AA-027, AA-074): `SendMessage`, `SendStreamingMessage`, and `CancelTask` with it answer `-32007`, and the message explains that the run is a shadow or eval run. `GetTask`, `ListTasks`, and `SubscribeToTask` still work. REST refuses the same token with 403 and `ShadowRunRefused` or `EvalRunRefused` (see `docs/EVALS.md`).
 
 ## Methods
 
@@ -146,6 +148,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
 | The run's conversation: its identifier, or the client `contextId` it was created for. Runs outside a conversation (REST runs and delegated runs) report their delegation chain's root run | `contextId` |
 | `Pending`, `Queued` | `TASK_STATE_SUBMITTED` |
 | `Leased`, `Running`, `Cancelling` | `TASK_STATE_WORKING` |
+| `Suspended` (durably suspended, for example waiting on a blocking escalation or an approval; see `docs/CONTINUATION.md`) | `TASK_STATE_INPUT_REQUIRED` |
 | `Succeeded` | `TASK_STATE_COMPLETED` |
 | `Cancelled` | `TASK_STATE_CANCELED` |
 | `Rejected` | `TASK_STATE_REJECTED` |
@@ -191,7 +194,7 @@ A task can also fail on its own when a worker run guard stops it: the status mes
 | `-32007` | The caller does not have the needed permission |
 | `-32603` | The database had no free connections (`data.code` `DatabaseBusy`) or could not be reached (`DatabaseUnavailable`). Sent with HTTP 503 and a `Retry-After` header; retry after that many seconds |
 
-Conflicts that REST reports as 409, such as an inactive agent, an agent with no active deployment, or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `NoActiveDeployment: Agent docs-echo has no active deployment with a weight above zero, so it cannot run. ...`. The same applies to `QuotaExceeded` and to `DelegationCapacityExhausted`, which REST reports as 429: a run that sends a blocking or streaming message to another agent is recorded as waiting on the child task first, and the message fails with that code when waiting could leave no capacity to run the child (see `docs/SCALING.md`). A `SendMessage` with `returnImmediately` is never refused this way. JSON-RPC errors are sent with HTTP 200, except a reused `messageId` with different content, which is sent with HTTP 409, and database failures, which are sent with HTTP 503.
+Conflicts that REST reports as 409, such as an inactive agent, an agent with no active deployment, or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `NoActiveDeployment: Agent docs-echo has no active deployment with a weight above zero, so it cannot run. ...`. A message to a frozen agent or deployment answers `Frozen` the same way, and starts no task (see `docs/BRAKES.md`). The same applies to `QuotaExceeded` and to `DelegationCapacityExhausted`, which REST reports as 429: a run that sends a blocking or streaming message to another agent is recorded as waiting on the child task first, and the message fails with that code when waiting could leave no capacity to run the child (see `docs/SCALING.md`). A `SendMessage` with `returnImmediately` is never refused this way. JSON-RPC errors are sent with HTTP 200, except a reused `messageId` with different content, which is sent with HTTP 409, and database failures, which are sent with HTTP 503.
 
 Garrison errors also carry `data` with a stable machine code, so clients do not need to parse the message:
 
@@ -214,4 +217,4 @@ Garrison errors also carry `data` with a stable machine code, so clients do not 
 
 ## Calling Garrison agents from Garrison agents
 
-Garrison agents normally delegate over MCP (see `MCP_API.md`), but a run token works here too. Calling remote A2A agents from inside Garrison (agents of kind `Remote`) is not available yet; invoking one fails with `RemoteAgentNotSupported`.
+Garrison agents normally delegate over MCP (see `MCP_API.md`), but a run token works here too. To call an A2A agent that runs somewhere else, register it as an agent of kind `Remote` with `remoteProtocol` `A2A`; a worker sends it the message and reports the result as an ordinary run (see `docs/REMOTE_AGENTS.md`).

@@ -23048,6 +23048,119 @@
           ]
         },
         {
+          "name": "List organizations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations?search={{orgName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{orgName}}"
+                }
+              ]
+            },
+            "description": "Organizations by name. search matches part of the name; maxResults and skip page the list. A principal whose grants are scoped to organizations sees only those."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the organization is listed', function () { pm.expect(json.objects.map(function (o) { return o.id; })).to.include(pm.collectionVariables.get('orgId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List the units of the working tree",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units"
+              ]
+            },
+            "description": "The working tree, root first. Changes here go live only when a revision is published."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two units, root first', function () { pm.expect(json.length).to.eql(2); pm.expect(json[0].id).to.eql(pm.collectionVariables.get('orgRootUnitId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get a unit by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units/engineering",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units",
+                "engineering"
+              ]
+            },
+            "description": "A unit of the working tree, by identifier or name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the child unit', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('orgChildUnitId')); pm.expect(json.parentUnitId).to.eql(pm.collectionVariables.get('orgRootUnitId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Chart before the first publish",
           "request": {
             "method": "GET",
@@ -23472,6 +23585,43 @@
           ]
         },
         {
+          "name": "Get a revision with its snapshot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/revisions/{{orgRevisionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "revisions",
+                "{{orgRevisionId}}"
+              ]
+            },
+            "description": "A revision with the units it snapshot. The first revision was superseded by the later publishes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('revision 1 with its two units', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('orgRevisionId')); pm.expect(json.number).to.eql(1); pm.expect(json.units.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Read an unknown organization",
           "request": {
             "method": "GET",
@@ -23491,6 +23641,128 @@
               ]
             },
             "description": "An organization that does not exist, or belongs to another tenant, answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add a unit to remove",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units"
+              ]
+            },
+            "description": "A unit without a lead, added to the working tree so the next request can remove it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"scratch\",\n  \"parentUnitId\": \"board\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "if (json.id) pm.collectionVariables.set('orgScratchUnitId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove a unit without children",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units/{{orgScratchUnitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units",
+                "{{orgScratchUnitId}}"
+              ]
+            },
+            "description": "Removes the unit from the working tree, with the peer lines that point at it. A unit that still has children is refused."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the removed unit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/units/{{orgScratchUnitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "units",
+                "{{orgScratchUnitId}}"
+              ]
+            },
+            "description": "A removed unit answers 404."
           },
           "event": [
             {
@@ -23794,6 +24066,57 @@
               ]
             },
             "description": "A draft that is not one of the organization's proposals answers 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decide an unknown proposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/proposals/sdr_postman_missing/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "proposals",
+                "sdr_postman_missing",
+                "decide"
+              ]
+            },
+            "description": "allow true applies a proposal that waits for approval and records it as an org revision; allow false sends it back to the executive with the reason. A draft that is not one of the organization's proposals answers 404, and one that is not waiting answers 409 ProposalNotPending.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"allow\": false,\n  \"reason\": \"Postman: there is no such proposal.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "event": [
             {
@@ -30563,6 +30886,14 @@
       "value": ""
     },
     {
+      "key": "modelPriceId",
+      "value": ""
+    },
+    {
+      "key": "usageQuotaId",
+      "value": ""
+    },
+    {
       "key": "bareAgentId",
       "value": ""
     },
@@ -30921,6 +31252,10 @@
     },
     {
       "key": "orgChildUnitId",
+      "value": ""
+    },
+    {
+      "key": "orgScratchUnitId",
       "value": ""
     },
     {
