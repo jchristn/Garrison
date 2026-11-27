@@ -170,6 +170,40 @@ test('the guided tour stops at Performance', async ({ page }) => {
   await expect(card).toBeHidden();
 });
 
+// AA13.9: plain-list's check mark used to become a third grid cell in each chart row, which pushed the bars under the
+// unit name into the narrow first column, and "No finished runs" overflowed its fixed 5.5rem value column.
+test('chart rows keep the bars beside the unit name and every value inside its card', async ({ page }) => {
+  await login(page);
+  for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate((l) => localStorage.setItem('garrison.locale', l), locale);
+    await page.goto('/dashboard/performance/org_0001');
+    await expect(page.getByTestId('performance-chart').locator('[data-chart-unit]')).toHaveCount(3);
+    const layout = await page.evaluate(() => {
+      const card = document.querySelector('[data-testid="performance-chart"]').getBoundingClientRect();
+      return [...document.querySelectorAll('[data-chart-unit]')].map((row) => {
+        const name = row.querySelector('.perf-chart-unit').getBoundingClientRect();
+        const bars = row.querySelector('.perf-chart-bars').getBoundingClientRect();
+        const marker = getComputedStyle(row, '::before').content;
+        const values = [...row.querySelectorAll('.perf-bar-value')].map((v) => v.getBoundingClientRect());
+        return {
+          marker,
+          barsWide: bars.width > card.width / 2,
+          besideName: bars.top < name.bottom,
+          valuesInside: values.every((v) => v.left >= card.left - 1 && v.right <= card.right + 1)
+        };
+      });
+    });
+    for (const row of layout) {
+      expect(row.marker === 'none' || row.marker === 'normal', `${locale} marker`).toBe(true);
+      expect(row.valuesInside, `${locale} values inside the card`).toBe(true);
+      if (width >= 1280) expect(row.besideName, 'bars beside the unit name').toBe(true);
+      else expect(row.barsWide, 'bars use the card width on a phone').toBe(true);
+    }
+  }
+  await page.evaluate(() => localStorage.setItem('garrison.locale', 'en'));
+});
+
 test('passes an accessibility scan and lays out performance at desktop and phone widths', async ({ page }, testInfo) => {
   await login(page);
   const scan = async (label) => {

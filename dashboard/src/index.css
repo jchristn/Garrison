@@ -1323,7 +1323,9 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .studio-chat-resizable .studio-row-between > .studio-chat-controls { width: 100%; flex-wrap: nowrap; justify-content: flex-start; }
 .studio-chat-controls select { width: auto; min-width: 0; flex: 1 1 10rem; max-width: 20rem; }
 .studio-chat-controls > .button, .studio-chat-controls > button { flex-shrink: 0; white-space: nowrap; }
-.studio-chat-resize { position: absolute; bottom: 2px; right: 2px; width: 16px; height: 16px; min-height: 0; padding: 0; border: 0; border-radius: 2px; cursor: ns-resize; touch-action: none; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-text-muted) 3px 4px); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.studio-chat-resize { position: absolute; bottom: 2px; inset-inline-end: 2px; width: 16px; height: 16px; min-height: 0; padding: 0; border: 0; border-radius: 2px; cursor: ns-resize; touch-action: none; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-text-muted) 3px 4px); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+/* The grip sits in the inline-end corner, so its triangle mirrors in right-to-left locales. */
+[dir='rtl'] .studio-chat-resize { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--color-text-muted) 3px 4px); clip-path: polygon(0 0, 100% 100%, 0 100%); }
 .studio-chat-resize:focus-visible { clip-path: none; outline: 2px solid var(--color-primary); outline-offset: 1px; }
 @media (max-width: 900px) {
   .studio-chat-resizable .studio-row-between > .studio-chat-controls { flex-wrap: wrap; justify-content: flex-start; }
@@ -1575,7 +1577,7 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .wizard-resume-header h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 .wizard-draft-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--spacing-sm); }
 .wizard-draft-list li { min-width: 0; }
-.wizard-draft-card { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-md); text-align: left; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); white-space: normal; }
+.wizard-draft-card { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-md); text-align: start; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); white-space: normal; }
 .wizard-draft-card:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .wizard-draft-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .wizard-draft-info { display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; }
@@ -1820,9 +1822,12 @@ td.message-subject-cell { display: table-cell; }
 td.eval-text-cell { min-width: 8rem; max-width: 28rem; }
 .eval-row-actions { justify-content: flex-end; flex-wrap: wrap; }
 .eval-current-row td { font-weight: 600; }
-.eval-current-row td:first-child { box-shadow: inset 4px 0 0 var(--color-primary); padding-left: calc(var(--spacing-sm) + 4px); }
+.eval-current-row td:first-child { box-shadow: inset 4px 0 0 var(--color-primary); padding-inline-start: calc(var(--spacing-sm) + 4px); }
 tr.eval-result-failing td:first-child { font-weight: 600; color: var(--color-danger); }
-tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-danger); padding-left: calc(var(--spacing-sm) + 4px); }
+tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-danger); padding-inline-start: calc(var(--spacing-sm) + 4px); }
+/* The row marker sits on the inline start, so it moves to the right edge in right-to-left locales. */
+[dir='rtl'] .eval-current-row td:first-child { box-shadow: inset -4px 0 0 var(--color-primary); }
+[dir='rtl'] tr.eval-result-failing td:first-child { box-shadow: inset -4px 0 0 var(--color-danger); }
 .eval-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--font-size-sm); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--spacing-sm); margin: 0; max-height: 320px; overflow: auto; }
 .eval-progress-head { display: flex; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; margin-bottom: var(--spacing-xs); }
 .eval-progress { height: 8px; border-radius: var(--radius-sm); background: var(--color-surface-alt); overflow: hidden; }
@@ -1893,13 +1898,15 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 .perf-legend-rate::before, .perf-bar-rate .perf-bar-fill { background: var(--color-success); }
 .perf-legend-cost::before, .perf-bar-cost .perf-bar-fill { background: var(--color-info); }
 .perf-chart-rows { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* The rows are grid items; plain-list's check mark would become a third grid cell and push the bars under the name. */
+.perf-chart-rows li::before { content: none; }
 .perf-chart-row { display: grid; grid-template-columns: minmax(6rem, 12rem) minmax(0, 1fr); gap: var(--spacing-sm); align-items: center; }
 .perf-chart-unit { font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .perf-chart-bars { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.perf-bar { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: var(--spacing-xs); align-items: center; }
+.perf-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(5.5rem, max-content); gap: var(--spacing-xs); align-items: center; }
 .perf-bar-track { height: 8px; border-radius: 4px; background: var(--color-surface-alt); border: 1px solid var(--color-border); overflow: hidden; }
 .perf-bar-fill { height: 100%; }
-.perf-bar-value { font-size: var(--font-size-xs); color: var(--color-text-secondary); text-align: end; white-space: nowrap; }
+.perf-bar-value { font-size: var(--font-size-xs); color: var(--color-text-secondary); text-align: end; max-width: 10rem; overflow-wrap: anywhere; }
 .cascade-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--spacing-sm); margin: var(--spacing-sm) 0; }
 .cascade-count { border: 1px solid var(--color-border); border-radius: 6px; padding: var(--spacing-sm); }
 .cascade-count dt { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
