@@ -301,6 +301,22 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<int> RequeueDeliveredAsync(string tenantId, string runId, DateTime nowUtc, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            return await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET status = 'Queued', deliveredrunid = NULL, deliveredutc = NULL, lastupdateutc = @now " +
+                "WHERE tenantid = @tenantid AND deliveredrunid = @runid AND status = 'Delivered';",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "runid", runId);
+                    AdoDatabaseDriver.Add(command, "now", nowUtc);
+                }, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<int> ReleaseStaleClaimsAsync(DateTime olderThanUtc, CancellationToken token = default)
         {
             return await _Driver.NonQueryAsync(

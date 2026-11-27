@@ -14,7 +14,7 @@ A message has:
 | `threadId`, `parentMessageId` | The thread it belongs to (the identifier of its first message) and the message it replies to |
 | `hopCount` | How many agent-to-agent hops led to it. See [Loop guards](#loop-guards) |
 | `expiresUtc` | Optional. An undelivered message past this time expires |
-| `status` | `Queued`, `Delivered`, `Acknowledged`, `Expired`, or `Rejected` |
+| `status` | `Queued`, `Delivered`, `Acknowledged`, `Expired`, or `Rejected`. Messages delivered to a keeper tick whose run fails before it reports go back to `Queued` for the next tick |
 
 Garrison adds the sender (agent, run, or person), the run it was delivered to, and when it was sent, delivered, and acknowledged. A message whose `status` is `Rejected` carries `rejectionReason` and `rejectionDetail`.
 

@@ -235,6 +235,20 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<int> ReleaseDeliveredAsync(string tenantId, string tickId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(tickId)) throw new ArgumentNullException(nameof(tickId));
+            return await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET deliveredtickid = NULL WHERE tenantid = @tenantid AND deliveredtickid = @tick;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tick", tickId);
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                }, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<Dictionary<string, long>> CountRaisedByAgentAsync(string tenantId, List<string> agentIds, DateTime fromUtc, DateTime toUtc, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

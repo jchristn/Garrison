@@ -60,7 +60,7 @@ When the author holds a position in a live organization, Garrison stamps the rep
 
 ## Reports in a manager's tick
 
-When a keeper's agent manages other agents, each tick's input carries the reports they filed since the keeper's previous tick began, the newest `Reports.DigestMaxReports` of them (20 by default, 0 turns this off), oldest first. They are rendered through `builtin/report-digest` (a tenant `Fragment` template named `report-digest` replaces it). Each report sits between a begin line and an end line that carry a marker chosen at random for every render, with its author, kind, health, and time, so text inside a report cannot end its block early or pass as instructions. The keeper's own reports and reports from agents it does not manage are left out. See [PROMPTS.md](PROMPTS.md).
+When a keeper's agent manages other agents, each tick's input carries the reports they filed since the keeper's previous tick began (a previous tick that failed before it reported does not count, so its reports are carried again), the newest `Reports.DigestMaxReports` of them (20 by default, 0 turns this off), oldest first. They are rendered through `builtin/report-digest` (a tenant `Fragment` template named `report-digest` replaces it). Each report sits between a begin line and an end line that carry a marker chosen at random for every render, with its author, kind, health, and time, so text inside a report cannot end its block early or pass as instructions. The keeper's own reports and reports from agents it does not manage are left out. See [PROMPTS.md](PROMPTS.md).
 
 ## Metrics over time
 

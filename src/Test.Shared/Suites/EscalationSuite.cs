@@ -56,6 +56,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "routing", "User, role, and keeper default targets, an Agent target answered by a run of its deployment, ManagerUnavailable, and TargetRequired (" + provider + ")", ct => RoutingAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "timeouts", "UseDefaultAnswer, Cancel, EscalateUp to the keeper default (the child's answer answers the parent), and Expired, with an injected clock (" + provider + ")", ct => TimeoutsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "keeper", "A scripted keeper escalates and finishes its tick; the answer wakes it once with the answer in its next input (" + provider + ")", ct => KeeperAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "redeliver", "AA12.7 a tick whose run fails before it reports gives back the escalation answer and the mail it carried, and the next tick delivers them (" + provider + ")", ct => RedeliverAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "blocking", "A Blocking escalation suspends a fake run, the answer resumes it on another worker, and runs that cannot suspend are refused with BlockingUnsupported (" + provider + ")", ct => BlockingAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp", "Run-only and user tools, a run sees its own and addressed escalations only, replayed raise, withdraw, answer by the target agent, and garrison_list_escalations (" + provider + ")", ct => McpAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "channel", "An escalations subscriber receives the open count, then raised, answered, and expired events (" + provider + ")", ct => ChannelAsync(provider, ct)));
@@ -338,6 +339,59 @@ namespace Test.Shared.Suites
                 Mandate after = (await host.Server.Context.Database.Mandates.ReadAsync(host.TenantId, mandate.Id, token).ConfigureAwait(false))!;
                 Assert.True(after.PendingWakeSource == null && after.NextWakeUtc > DateTime.UtcNow.AddMinutes(50), "No second wake: " + Serializer.Serialize(after));
                 Assert.Equal(0, (await host.Server.Context.Database.Escalations.ListUndeliveredAsync(host.TenantId, mandate.Id, token).ConfigureAwait(false)).Count, "Nothing left to deliver");
+            }
+        }
+
+        private static async Task RedeliverAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await KeeperSuite.ClusterAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                host.Server.Context.Get<MaintenanceService>().Escalations = null;
+                KeeperScheduler scheduler = host.Server.Context.Get<KeeperScheduler>();
+                await KeeperSuite.ApplyScriptProfileAsync(host, token).ConfigureAwait(false);
+                string escalate = "garrison,garrison_escalate," + Serializer.Serialize(new { question = "The gate is stuck. Force it?", options = new[] { new { key = "force" }, new { key = "wait" } }, targetKind = "Role", targetId = "AgentOperator" });
+                string complete = "garrison,garrison_keeper_complete_tick," + Serializer.Serialize(new { outcome = "Escalated", summary = "Asked about the gate." });
+                Agent agent = await cluster.CreateAgentAsync("gate-keeper", "keeper-script", null, token, deployment =>
+                {
+                    deployment.Parameters = new List<DeploymentParameter> { new DeploymentParameter { Name = "step1", Value = escalate }, new DeploymentParameter { Name = "step2", Value = complete } };
+                }).ConfigureAwait(false);
+                Agent sender = await cluster.CreateAgentAsync("gate-sender", token: token).ConfigureAwait(false);
+                Mandate mandate = await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates", KeeperSuite.Body("gate", agent, KeeperSuite.Revision("Keep the gate working.", WakeModeEnum.Backoff, 3600, 7200)), 201, token).ConfigureAwait(false);
+                Assert.True(await scheduler.SweepAsync(DateTime.UtcNow.AddSeconds(1), token).ConfigureAwait(false), "The first tick starts");
+                MandateTick first = await KeeperSuite.WaitTickAsync(host, (await KeeperSuite.TicksOfAsync(host, mandate.Id, token).ConfigureAwait(false)).Single().Id, token).ConfigureAwait(false);
+                Escalation question = (await HttpTestHelpers.SendAsync<EnumerationResult<Escalation>>(host.AdminClient, HttpMethod.Get, T(host) + "/escalations?mandateId=" + mandate.Id, null, 200, token).ConfigureAwait(false)).Objects.Single();
+
+                // The next run fails before it reports: the fake harness exits with --fail and never completes the tick.
+                Deployment deployment = (await host.Server.Context.Database.Deployments.ListByAgentAsync(host.TenantId, agent.Id, token).ConfigureAwait(false)).Single();
+                deployment.Parameters = new List<DeploymentParameter> { new DeploymentParameter { Name = "fail", Value = "true" } };
+                await host.Server.Context.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                AgentMessage mail = await host.Server.Context.Database.AgentMessages.CreateAsync(new AgentMessage { TenantId = host.TenantId, ThreadId = "amg_gatethread", SenderAgentId = sender.Id, SenderAgentName = sender.Name, SenderPrincipalType = PrincipalTypeEnum.Run, RecipientAgentId = agent.Id, RecipientAgentName = agent.Name, Subject = "Hinge report", Body = "The left hinge is rusted." }, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Escalation>(host.AdminClient, HttpMethod.Post, T(host) + "/escalations/" + question.Id + "/answer", new EscalationAnswerRequest { Choice = "wait", Text = "A locksmith comes at noon." }, 200, token).ConfigureAwait(false);
+                Assert.True(await scheduler.SweepAsync(DateTime.UtcNow.AddSeconds(1), token).ConfigureAwait(false), "The answer's tick starts");
+                MandateTick failed = await KeeperSuite.WaitTickAsync(host, (await KeeperSuite.TicksOfAsync(host, mandate.Id, token).ConfigureAwait(false)).First(t => t.Id != first.Id).Id, token).ConfigureAwait(false);
+                Run failedRun = (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, failed.RunId!, token).ConfigureAwait(false))!;
+                Assert.True(failed.Outcome == TickOutcomeEnum.Failed && !failed.Reported, "The tick failed before reporting: " + Serializer.Serialize(failed));
+                Assert.True((failedRun.InputText ?? String.Empty).Contains("A locksmith comes at noon.", StringComparison.Ordinal) && (failedRun.InputText ?? String.Empty).Contains("The left hinge is rusted.", StringComparison.Ordinal), "The failed run carried the answer and the mail: " + failedRun.InputText);
+
+                Escalation released = (await host.Server.Context.Database.Escalations.ReadAsync(host.TenantId, question.Id, token).ConfigureAwait(false))!;
+                Assert.True(released.DeliveredTickId == null, "The answer is no longer marked delivered to the failed tick: " + released.DeliveredTickId);
+                Assert.Equal(1, (await host.Server.Context.Database.Escalations.ListUndeliveredAsync(host.TenantId, mandate.Id, token).ConfigureAwait(false)).Count, "The answer waits for the next tick");
+                AgentMessage requeued = (await host.Server.Context.Database.AgentMessages.ReadAsync(host.TenantId, mail.Id, token).ConfigureAwait(false))!;
+                Assert.True(requeued.Status == MessageStatusEnum.Queued && requeued.DeliveredRunId == null, "The mail is queued again: " + Serializer.Serialize(requeued));
+
+                // The harness works again; the next tick carries both, once.
+                deployment.Parameters = new List<DeploymentParameter> { new DeploymentParameter { Name = "step1", Value = complete } };
+                await host.Server.Context.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Mandate>(host.AdminClient, HttpMethod.Post, T(host) + "/mandates/" + mandate.Id + "/wake", null, 202, token).ConfigureAwait(false);
+                Assert.True(await scheduler.SweepAsync(DateTime.UtcNow.AddSeconds(1), token).ConfigureAwait(false), "The next tick starts");
+                MandateTick third = await KeeperSuite.WaitTickAsync(host, (await KeeperSuite.TicksOfAsync(host, mandate.Id, token).ConfigureAwait(false)).First(t => t.Id != first.Id && t.Id != failed.Id).Id, token).ConfigureAwait(false);
+                Run thirdRun = (await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, third.RunId!, token).ConfigureAwait(false))!;
+                string input = thirdRun.InputText ?? String.Empty;
+                Assert.True(input.Contains("A locksmith comes at noon.", StringComparison.Ordinal) && input.Contains("The left hinge is rusted.", StringComparison.Ordinal), "The next tick carries the answer and the mail: " + input);
+                Assert.True(third.Outcome == TickOutcomeEnum.Escalated, "The tick reported: " + Serializer.Serialize(third));
+                Assert.Equal(third.Id, (await host.Server.Context.Database.Escalations.ReadAsync(host.TenantId, question.Id, token).ConfigureAwait(false))!.DeliveredTickId, "Delivered to the tick that reported");
+                Assert.Equal(MessageStatusEnum.Delivered, (await host.Server.Context.Database.AgentMessages.ReadAsync(host.TenantId, mail.Id, token).ConfigureAwait(false))!.Status, "The mail is delivered to it");
             }
         }
 

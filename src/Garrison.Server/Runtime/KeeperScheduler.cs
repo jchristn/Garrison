@@ -660,8 +660,25 @@ namespace Garrison.Server.Runtime
                 tick.ErrorMessage = run.ErrorMessage;
             }
             await _Database.MandateTicks.UpdateAsync(tick, token).ConfigureAwait(false);
+            if (outcome == TickOutcomeEnum.Failed && !tick.Reported) await RedeliverAsync(mandate, tick, nowUtc).ConfigureAwait(false);
             Finished(mandate, tick);
             return true;
+        }
+
+        private async Task RedeliverAsync(Mandate mandate, MandateTick tick, DateTime nowUtc)
+        {
+            // AA12.7: a tick whose run failed before it reported may never have read the answers and mail its input carried.
+            // They go back to be delivered with the next tick instead of being lost.
+            try
+            {
+                int answers = await _Database.Escalations.ReleaseDeliveredAsync(mandate.TenantId, tick.Id, CancellationToken.None).ConfigureAwait(false);
+                int mail = String.IsNullOrEmpty(tick.RunId) ? 0 : await _Database.AgentMessages.RequeueDeliveredAsync(mandate.TenantId, tick.RunId, nowUtc, CancellationToken.None).ConfigureAwait(false);
+                if (answers > 0 || mail > 0) _Logging.Info(_Header + "mandate " + mandate.Id + " (" + mandate.Name + ") tick " + tick.Id + " failed before reporting; " + answers + " escalation answer(s) and " + mail + " message(s) go to the next tick");
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _Logging.Warn(_Header + "mandate " + mandate.Id + " tick " + tick.Id + " could not release its deliveries: " + e.Message);
+            }
         }
 
         private static TickOutcomeEnum Outcome(MandateTick tick, Run? run, string? errorCode)
@@ -677,7 +694,8 @@ namespace Garrison.Server.Runtime
             // Reports filed since the previous tick that started a run began; the first tick sees those since the mandate
             // was created.
             EnumerationResult<MandateTick> recent = await _Database.MandateTicks.EnumerateAsync(mandate.TenantId, mandate.Id, null, new EnumerationQuery { MaxResults = 10 }, token).ConfigureAwait(false);
-            MandateTick? previous = recent.Objects.Where(t => t.Id != tick.Id && !String.IsNullOrEmpty(t.RunId)).OrderByDescending(t => t.StartedUtc).FirstOrDefault();
+            // A tick that failed before it reported may not have read its digest, so its reports are carried again (AA12.7).
+            MandateTick? previous = recent.Objects.Where(t => t.Id != tick.Id && !String.IsNullOrEmpty(t.RunId) && !(t.Outcome == TickOutcomeEnum.Failed && !t.Reported)).OrderByDescending(t => t.StartedUtc).FirstOrDefault();
             return previous?.StartedUtc ?? mandate.CreatedUtc;
         }
 

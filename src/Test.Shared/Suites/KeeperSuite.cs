@@ -156,7 +156,7 @@ spec:
       condition: ""{{resources.hasMcpServers}}""
     - template: $GARRISON_CONFIG_DIR/mcp.json
       condition: ""{{resources.hasMcpServers}}""
-" + steps + "\n";
+" + steps + "\n    - template: --fail\n      condition: \"{{deployment.parameters.fail}}\"\n";
             using (StringContent content = new StringContent(manifest, Encoding.UTF8, "application/yaml"))
             using (HttpResponseMessage response = await host.AdminClient.PostAsync(T(host) + "/manifests/apply", content, token).ConfigureAwait(false))
             {

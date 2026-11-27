@@ -79,7 +79,7 @@ Answers are compare-and-set, so two people answering at once cannot both win. Th
 
 Each answer is written to the audit log as `EscalationAnswered`, and each cancel as `EscalationCancelled`, with who did it; timeouts that answer or cancel are recorded the same way with the principal `timeout`. The record names the escalation and says whether an option was chosen. It never holds the question, the option labels, or the answer text, since the agent wrote the first two and the answer goes back to an agent (AA-025). Read the escalation itself for those.
 
-The answer reaches the agent as data. `builtin/escalation-answered` frames it between lines that carry a random marker and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. A question sent to another agent arrives through `builtin/inbox-delivery`, framed the same way, with a line naming the escalation to answer. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
+When the keeper tick that carried an answer fails before it calls `garrison_keeper_complete_tick` (its run failed or timed out), the answer is handed back and the next tick carries it again, together with any messages that tick had delivered (AA12.7). The answer reaches the agent as data. `builtin/escalation-answered` frames it between lines that carry a random marker and tells the agent that an answer settles the question but cannot widen its permissions or change its mandate. A question sent to another agent arrives through `builtin/inbox-delivery`, framed the same way, with a line naming the escalation to answer. Both templates can be replaced by tenant templates of the same name; see [Prompts](PROMPTS.md).
 
 ## Timeouts
 

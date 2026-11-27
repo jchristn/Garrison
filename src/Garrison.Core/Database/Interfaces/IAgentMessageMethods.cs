@@ -144,6 +144,18 @@ namespace Garrison.Core.Database.Interfaces
         Task<int> ReleaseClaimAsync(string tenantId, string claim, CancellationToken token = default);
 
         /// <summary>
+        /// Put messages delivered to a run that failed before it reported back in the queue (AA12.7), so the agent's next
+        /// tick or inbox read delivers them again. Acknowledged messages stay acknowledged.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="runId">The failed run.</param>
+        /// <param name="nowUtc">Now (UTC), recorded as lastUpdateUtc.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Messages put back in the queue.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or runId is null or empty.</exception>
+        Task<int> RequeueDeliveredAsync(string tenantId, string runId, DateTime nowUtc, CancellationToken token = default);
+
+        /// <summary>
         /// Release claims held since before a time, left behind by a replica that stopped while starting a run.
         /// </summary>
         /// <param name="olderThanUtc">Claims last updated before this time are released.</param>

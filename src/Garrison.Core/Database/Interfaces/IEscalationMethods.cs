@@ -106,6 +106,17 @@ namespace Garrison.Core.Database.Interfaces
         Task<int> MarkDeliveredAsync(string tenantId, List<string> ids, string tickId, CancellationToken token = default);
 
         /// <summary>
+        /// Undo <see cref="MarkDeliveredAsync"/> for a tick whose run failed before it reported (AA12.7), so the next tick
+        /// carries the answers again. Bookkeeping only: lastUpdateUtc does not change.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="tickId">Tick identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Number of escalations released.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or tickId is null or empty.</exception>
+        Task<int> ReleaseDeliveredAsync(string tenantId, string tickId, CancellationToken token = default);
+
+        /// <summary>
         /// Count the tenant's Open escalations.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
