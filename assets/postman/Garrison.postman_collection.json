@@ -9287,7 +9287,7 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('branding', function () { pm.expect(json.displayName).to.eql('Postman Desk'); pm.expect(json.anonymousAllowed).to.eql(true); });",
-                  "pm.test('look and feel', function () { pm.expect(json.backgroundColor).to.eql('#F6F8FA'); pm.expect(json.headerColor).to.eql('#0D1117'); pm.expect(json.agentBubbleColor).to.eql('#EAEEF2'); pm.expect(json.conversationListColor).to.eql('#F0F3F6'); pm.expect(json.composerColor).to.eql('#FFFFFF'); pm.expect(json.filesColor).to.eql('#F0F3F6'); pm.expect(json.fontFamily).to.eql('Serif'); pm.expect(json.faviconUrl).to.eql(null); });"
+                  "pm.test('look and feel', function () { pm.expect(json.backgroundColor).to.eql('#F6F8FA'); pm.expect(json.headerColor).to.eql('#0D1117'); pm.expect(json.agentBubbleColor).to.eql('#EAEEF2'); pm.expect(json.conversationListColor).to.eql('#F0F3F6'); pm.expect(json.composerColor).to.eql('#FFFFFF'); pm.expect(json.filesColor).to.eql('#F0F3F6'); pm.expect(json.fontFamily).to.eql('Serif'); pm.expect(json.faviconUrl === undefined || json.faviconUrl === null, 'no favicon').to.eql(true); });"
                 ]
               }
             }
@@ -20096,7 +20096,7 @@
                 "revisions"
               ]
             },
-            "description": "Drafts a keeper revision that names a default escalation target: the role TenantAdmin. The keeper's escalations go there when it names no target, and a timed-out escalation with EscalateUp is passed up to it. Kinds are User (user ID or email), Role (ID or name), Agent (ID or name), and Manager (refused with ManagerUnavailable until organizations exist).",
+            "description": "Drafts a keeper revision that names a default escalation target: the role TenantAdmin. The keeper's escalations go there when it names no target, and a timed-out escalation with EscalateUp is passed up to it. Kinds are User (user ID or email), Role (ID or name), Agent (ID or name), and Manager (the raising agent's lead in its live organization, refused with ManagerUnavailable when the agent holds no position).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"objective\": \"Keep the Postman queue short and ask before deleting anything.\",\n  \"escalationTargetKind\": \"Role\",\n  \"escalationTargetId\": \"TenantAdmin\",\n  \"wakeMode\": \"Fixed\",\n  \"minIntervalSeconds\": 3600,\n  \"changeNote\": \"Escalate to tenant admins\"\n}",
@@ -20448,7 +20448,7 @@
     },
     {
       "name": "Freezes and Kill switch",
-      "description": "Brakes (AA3): a freeze stops one agent, deployment, keeper (mandate), or app until someone lifts it. New runs in scope answer 409 Frozen, keepers in scope stop ticking, and cancelActiveRuns also cancels the runs already in scope. The autonomy kill switch stops every keeper in the tenant at once while ordinary invocations keep working. The freezes WebSocket channel streams freezes.active, freeze.applied, freeze.lifted, and killswitch.changed. A keeper's daily spend cap (budgetPerDayUsd) is set on its revision; reaching it shows status CapReached until the next UTC day.",
+      "description": "Brakes (AA3): a freeze stops one agent, deployment, keeper (mandate), app, org unit, or organization until someone lifts it. New runs in scope answer 409 Frozen, keepers in scope stop ticking, and cancelActiveRuns also cancels the runs already in scope. The autonomy kill switch stops every keeper in the tenant at once while ordinary invocations keep working. The freezes WebSocket channel streams freezes.active, freeze.applied, freeze.lifted, and killswitch.changed. A keeper's daily spend cap (budgetPerDayUsd) is set on its revision; reaching it shows status CapReached until the next UTC day.",
       "item": [
         {
           "name": "Freeze the keeper",
@@ -20473,7 +20473,7 @@
                 "freezes"
               ]
             },
-            "description": "Freezes the keeper from the Mandates folder. targetKind is Agent, Deployment, Mandate, or App, and targetId takes an identifier or a name. New runs in scope answer 409 Frozen and keepers in scope stop ticking; set cancelActiveRuns to also cancel the runs already in scope. The keeper shows status Frozen until the freeze is lifted. Needs Create on Freeze (TenantAdmin, Editor, or AgentOperator.Brakes); run tokens never can.",
+            "description": "Freezes the keeper from the Mandates folder. targetKind is Agent, Deployment, Mandate, App, OrgUnit, or Organization, and targetId takes an identifier or a name. New runs in scope answer 409 Frozen and keepers in scope stop ticking; set cancelActiveRuns to also cancel the runs already in scope. The keeper shows status Frozen until the freeze is lifted. Needs Create on Freeze (TenantAdmin, Editor, or AgentOperator.Brakes); run tokens never can.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"targetKind\": \"Mandate\",\n  \"targetId\": \"{{mandateId}}\",\n  \"reason\": \"Postman: pause the keeper while the queue is investigated\",\n  \"cancelActiveRuns\": false\n}",
@@ -28436,9 +28436,271 @@
       ]
     },
     {
+      "name": "Inference endpoint examples (v0.2.0)",
+      "description": "Creates one shared Ollama runtime profile with bearer authentication and an architect that references it. No model request is made. Set inferenceSecretId to a saved BearerToken secret to use your own; while it holds the placeholder, the folder uses a throwaway BearerToken secret it creates. Cleanup deletes the architect, the profile, and the throwaway secret.",
+      "item": [
+        {
+          "name": "Create a throwaway bearer secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets"
+              ]
+            },
+            "description": "Creates a BearerToken secret with a placeholder value. When inferenceSecretId still holds its placeholder (sec_replace_with_saved_token), the profile below references this secret instead; the value is never sent to a model.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-inference-{{suffix}}\",\n  \"kind\": \"BearerToken\",\n  \"value\": \"postman-placeholder-token\",\n  \"description\": \"Created by Postman for the inference endpoint examples\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('inferenceFixtureSecretId', json.id);",
+                  "var configured = pm.variables.get('inferenceSecretId');",
+                  "if (!configured || configured.indexOf('sec_replace') === 0) { pm.collectionVariables.set('inferenceSecretId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read provider adapter for saved connection",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles/hrn_builtin_provider_api"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Provider template is readable\", () => pm.response.to.have.status(200));",
+                  "const profile = pm.response.json();",
+                  "profile.name = \"ollama-connection-\" + pm.variables.get(\"suffix\");",
+                  "profile.runtimeConfiguration = { model: pm.variables.get(\"inferenceModel\"), inferenceEndpoint: { protocol: \"Ollama\", baseUrl: pm.variables.get(\"inferenceBaseUrl\"), authenticationType: \"BearerToken\", credentials: [{ name: \"\", location: \"Header\", secretId: pm.variables.get(\"inferenceSecretId\") }] } };",
+                  "pm.collectionVariables.set(\"savedRuntimeProfileBody\", JSON.stringify(profile));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save reusable Ollama runtime profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles",
+            "body": {
+              "mode": "raw",
+              "raw": "{{savedRuntimeProfileBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Connection created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"runtimeProfileId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create native Ollama bearer architect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects"
+              ]
+            },
+            "description": "Reference the saved Ollama connection created by the preceding requests. Endpoint and authentication settings remain on the shared profile.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ollama-architect-{{suffix}}\",\n  \"harnessProfileId\": \"{{runtimeProfileId}}\",\n  \"architectPromptTemplateId\": \"builtin/agent-architect-guided\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('inferenceArchitectId', json.id);",
+                  "pm.test('uses the saved connection', function () { pm.expect(json.harnessProfileId).to.eql(pm.collectionVariables.get('runtimeProfileId')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
+        {
+          "name": "Delete inference architect",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects/{{inferenceArchitectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "studio",
+                "architects",
+                "{{inferenceArchitectId}}"
+              ]
+            },
+            "description": "Deletes the architect the Inference endpoint examples folder created."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete inference runtime profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles/{{runtimeProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "harness-profiles",
+                "{{runtimeProfileId}}"
+              ]
+            },
+            "description": "Deletes the shared Ollama runtime profile the Inference endpoint examples folder saved."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete throwaway bearer secret",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets/{{inferenceFixtureSecretId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets",
+                "{{inferenceFixtureSecretId}}"
+              ]
+            },
+            "description": "Deletes the placeholder BearerToken secret the Inference endpoint examples folder created. A secret you configured in inferenceSecretId is left alone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Delete change rule",
           "request": {
@@ -30077,105 +30339,6 @@
           ]
         }
       ]
-    },
-    {
-      "name": "Inference endpoint examples (v0.2.0)",
-      "description": "Configure inferenceSecretId with a saved encrypted bearer token ID, then create one shared profile and an architect referencing it. No model request is made.",
-      "item": [
-        {
-          "name": "Read provider adapter for saved connection",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles/hrn_builtin_provider_api"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Provider template is readable\", () => pm.response.to.have.status(200));",
-                  "const profile = pm.response.json();",
-                  "profile.name = \"ollama-connection-\" + pm.variables.get(\"suffix\");",
-                  "profile.runtimeConfiguration = { model: pm.variables.get(\"inferenceModel\"), inferenceEndpoint: { protocol: \"Ollama\", baseUrl: pm.variables.get(\"inferenceBaseUrl\"), authenticationType: \"BearerToken\", credentials: [{ name: \"\", location: \"Header\", secretId: pm.variables.get(\"inferenceSecretId\") }] } };",
-                  "pm.collectionVariables.set(\"savedRuntimeProfileBody\", JSON.stringify(profile));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Save reusable Ollama runtime profile",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/harness-profiles",
-            "body": {
-              "mode": "raw",
-              "raw": "{{savedRuntimeProfileBody}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Connection created\", () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set(\"runtimeProfileId\", pm.response.json().id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create native Ollama bearer architect",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/studio/architects",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "studio",
-                "architects"
-              ]
-            },
-            "description": "Reference the saved Ollama connection created by the preceding requests. Endpoint and authentication settings remain on the shared profile.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"ollama-architect-{{suffix}}\",\n  \"harnessProfileId\": \"{{runtimeProfileId}}\",\n  \"architectPromptTemplateId\": \"builtin/agent-architect-guided\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        }
-      ]
     }
   ],
   "variable": [
@@ -30870,6 +31033,18 @@
     },
     {
       "key": "perfCheckTriggerId",
+      "value": ""
+    },
+    {
+      "key": "inferenceFixtureSecretId",
+      "value": ""
+    },
+    {
+      "key": "inferenceArchitectId",
+      "value": ""
+    },
+    {
+      "key": "savedRuntimeProfileBody",
       "value": ""
     }
   ]
