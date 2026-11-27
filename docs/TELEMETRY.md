@@ -94,6 +94,7 @@ Counters are created the first time something happens, so a series' first scrape
 | Are canaries rolling back? | `garrison_canary_transitions_total{result="rolled_back"}` against `promoted` |
 | Is the board steering, and is the top agent briefing it? | `garrison_board_directions_total` by `organization`, and `garrison_board_briefs_total` against the brief cadence the CEO mandates set |
 | Are scheduled checks running? | `garrison_evals_scheduled_checks_total` by `outcome`: a growing `failed` share means EvalSet triggers cannot start their eval runs, most often because the deployment has no recent inputs to replay. Scores are on `GET /organizations/{id}/performance` under `checks` |
+| Are the org-scale brakes in use? | `garrison_brakes_cascade_cancels_total` by `organization` for units stopped by hand, and `garrison_brakes_auto_freezes_total` by `period` for units the budget guard froze past their freeze margin |
 
 Cost metrics contain harness-reported cost or server estimates using operator-configured model rates. Missing prices or usage can leave cost unknown; these counters do not measure infrastructure, database hosting, collector expense or a provider invoice. Worker cost metrics contain reported harness cost, while server completion can add a configured estimate.
 
@@ -253,7 +254,7 @@ The packaged Grafana provisions one dashboard per section into the `Garrison` fo
 | Security and auth | `garrison-security` | node | Authentication failures by scheme and reason, rate limiting, authorization denials, tokens issued, secret decryption, Codex token refresh, audit records |
 | Integrations | `garrison-integrations` | node, service | Outbound calls by service and operation (control plane, Kubernetes, MCP servers, observability probes), their latency and errors, observability reachability |
 | Logs and traces | `garrison-logs` | component, node, tenant, agent, run | Log volume by level and component, error and warning rates, recent problem lines, trace search, telemetry pipeline health |
-| Autonomy | `garrison-autonomy` | node | Keeper ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies; escalations, brakes, memory, reports, messaging, organizations, executive proposals, shadow comparisons, canary transitions, eval runs, eval case duration p95, board directions, board briefs, and scheduled eval checks |
+| Autonomy | `garrison-autonomy` | node | Keeper ticks by outcome and wake source, skipped and failed wakes, tick start lag, and the intervals the scheduler applies; escalations, brakes, memory, reports, messaging, organizations, executive proposals, shadow comparisons, canary transitions, eval runs, eval case duration p95, board directions, board briefs, scheduled eval checks, cascade cancels, and budget auto-freezes |
 
 Dashboard JSON lives in `k8s/components/observability/dashboards` (mirrored byte for byte in the Helm chart, and mounted by Docker Compose), and `GET /v1.0/api/server-info` lists every UID under `observability.dashboards`.
 
@@ -319,6 +320,8 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_runs_guard_trips_total` | counter | `guard`, `tenant`, `agent`, `harness` | server | garrison-agents | Runs stopped by a guard: repetition, no_progress, output_limit, timeout, blocked |
 | `garrison_board_briefs_total` | counter | none | server | garrison-autonomy | Reports of kind Brief filed, usually by an organization's top agent for its board; carries no organization, agent, or report identifiers |
 | `garrison_board_directions_total` | counter | `organization` | server | garrison-autonomy | Board directions published as a new revision of an organization's top agent's mandate, by organization name; carries no person or mandate identifiers |
+| `garrison_brakes_auto_freezes_total` | counter | `period` | server | garrison-autonomy | Units the budget guard froze because their subtree spend passed the budget plus the organization's freeze margin, by budget period (day, month); carries no organization or unit identifiers |
+| `garrison_brakes_cascade_cancels_total` | counter | `organization` | server | garrison-autonomy | Cascade cancels of an organization unit's subtree (runs, ticks, escalations, and queued messages stopped in one action), by organization name; carries no unit, person, or run identifiers |
 | `garrison_canary_transitions_total` | counter | `result` | server | garrison-autonomy | Canary release transitions, by result (started, advanced, promoted, rolled_back, aborted); carries no release, agent, or deployment identifiers |
 | `garrison_escalation_answer_duration_seconds` | histogram, seconds | `target_kind` | server | garrison-autonomy | Time from raising an escalation to its answer, by target kind |
 | `garrison_escalations_total` | counter | `target_kind`, `severity`, `outcome` | server | garrison-autonomy | Escalations by target kind (user, role, agent, manager), severity (info, warning, urgent), and outcome (raised, answered, cancelled, withdrawn, expired, escalated) |
@@ -737,6 +740,7 @@ Every route registers through the route registrar, which records it in the opera
 | DELETE | `/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}"` | `DELETE /v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}"` | `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}"` | `PUT /v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}/cancel-all` | `route="/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}/cancel-all"` | `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}/cancel-all` | `route=/v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}/cancel-all` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/overview` | `route="/v1.0/api/tenants/{tenantId}/overview"` | `GET /v1.0/api/tenants/{tenantId}/overview` | `route=/v1.0/api/tenants/{tenantId}/overview` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/permissions` | `route="/v1.0/api/tenants/{tenantId}/permissions"` | `GET /v1.0/api/tenants/{tenantId}/permissions` | `route=/v1.0/api/tenants/{tenantId}/permissions` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/permissions` | `route="/v1.0/api/tenants/{tenantId}/permissions"` | `POST /v1.0/api/tenants/{tenantId}/permissions` | `route=/v1.0/api/tenants/{tenantId}/permissions` | garrison-http |
@@ -1061,6 +1065,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_studio_validate` | `tool="garrison_studio_validate"` | `mcp garrison_studio_validate` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_subordinate_performance` | `tool="garrison_subordinate_performance"` | `mcp garrison_subordinate_performance` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_test_notification_endpoint` | `tool="garrison_test_notification_endpoint"` | `mcp garrison_test_notification_endpoint` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_unit_cancel_all` | `tool="garrison_unit_cancel_all"` | `mcp garrison_unit_cancel_all` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_update_agent` | `tool="garrison_update_agent"` | `mcp garrison_update_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_update_agent_asset` | `tool="garrison_update_agent_asset"` | `mcp garrison_update_agent_asset` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_update_app` | `tool="garrison_update_app"` | `mcp garrison_update_app` | `[Mcp]` lines, `tenant=` | garrison-protocols |

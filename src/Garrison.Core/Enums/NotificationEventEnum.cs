@@ -77,6 +77,11 @@ namespace Garrison.Core.Enums
         /// A report of kind Brief was filed (AA10.3), usually by an organization's top agent for its board.
         /// </summary>
         BoardBrief,
+        /// <summary>
+        /// The budget guard froze a unit whose subtree spend passed its budget plus the organization's freeze margin
+        /// (AA11.5). The freeze stays until a person lifts it.
+        /// </summary>
+        OrgBudgetFrozen,
 
         /// <summary>
         /// A test notification sent by the test action. Endpoints cannot subscribe to it.

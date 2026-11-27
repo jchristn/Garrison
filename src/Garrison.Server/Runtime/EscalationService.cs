@@ -401,6 +401,31 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Withdraw an Open escalation on behalf of a person who stopped the work that raised it (AA11.4 cascade cancel):
+        /// it ends Withdrawn with the reason, resolved by that person, and escalations it was escalated up to are cancelled.
+        /// Cancel the raising run first; a blocked run is never resumed by this.
+        /// </summary>
+        /// <param name="ctx">The person or credential stopping the work.</param>
+        /// <param name="escalation">The escalation, read in the caller's tenant.</param>
+        /// <param name="reason">Why, or null; kept as the answer text.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The withdrawn escalation.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or escalation is null.</exception>
+        /// <exception cref="ConflictException">Thrown with EscalationNotOpen.</exception>
+        public async Task<Escalation> WithdrawForPersonAsync(RequestContext ctx, Escalation escalation, string? reason, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (escalation == null) throw new ArgumentNullException(nameof(escalation));
+            RequireOpen(escalation);
+            escalation.Status = EscalationStatusEnum.Withdrawn;
+            escalation.AnswerChoice = null;
+            escalation.AnswerText = String.IsNullOrWhiteSpace(reason) ? null : Truncate(reason.Trim(), EscalationValidator.MaxAnswerLength);
+            await ResolveAsync(ctx, escalation, EscalationResolutionSourceEnum.User, Who(ctx), "escalation.withdrawn", "Withdrew escalation " + escalation.Id + " while stopping the work that raised it.", token).ConfigureAwait(false);
+            await CloseChildrenAsync(escalation, token).ConfigureAwait(false);
+            return escalation;
+        }
+
+        /// <summary>
         /// Run the timeout action of every Open escalation whose timeout has passed, up to MaxExpiredPerSweep. Called by the
         /// leader's maintenance loop.
         /// </summary>

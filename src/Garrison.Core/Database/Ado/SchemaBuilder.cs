@@ -431,6 +431,10 @@ namespace Garrison.Core.Database.Ado
             v57.BuildVersion57();
             migrations.Add(new SchemaMigration(57, "Board briefs and board conversations", v57._Statements, v57._Columns));
 
+            // AA11.5: how far past a unit budget a subtree may spend before the budget guard freezes the unit.
+            SchemaBuilder v58 = new SchemaBuilder(catalog, dialect);
+            v58.BuildVersion58();
+            migrations.Add(new SchemaMigration(58, "Organization budget freeze margin", v58._Statements, v58._Columns));
             // AA11.3: scheduled checks. An EvalSet trigger names its eval set, judge, and recent input count; an eval run
             // records the trigger that started it and the judge it uses; a fire links the eval run it started.
             SchemaBuilder v59 = new SchemaBuilder(catalog, dialect);
@@ -502,6 +506,10 @@ namespace Garrison.Core.Database.Ado
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
         }
 
+        private void BuildVersion58()
+        {
+            SqlDialect d = _Dialect;
+            Column("organizations", "budgetfreezemarginpercent", d.TypeInt);
         private void BuildVersion59()
         {
             SqlDialect d = _Dialect;

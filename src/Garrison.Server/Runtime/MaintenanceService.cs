@@ -169,6 +169,12 @@ namespace Garrison.Server.Runtime
         public KeeperScheduler? Keepers { get; set; } = null;
 
         /// <summary>
+        /// Org unit budgets (AA11.5): the leader freezes overrun units every OrgBudgetGuard.FreezeSweepSeconds; null when not
+        /// wired.
+        /// </summary>
+        public OrgBudgetGuard? OrgBudgets { get; set; } = null;
+
+        /// <summary>
         /// Eval runner (AA9.3): the leader starts or resumes Pending and Running eval runs on every pass; null when not wired.
         /// </summary>
         public EvalRunner? Evaluations { get; set; } = null;
@@ -635,6 +641,19 @@ namespace Garrison.Server.Runtime
                         finally
                         {
                             // Starting ticks creates runs; that work is not a pause.
+                            _Pause.Touch();
+                        }
+                    }
+                    OrgBudgetGuard? orgBudgets = OrgBudgets;
+                    if (orgBudgets != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "org_budget_freezes", orgBudgets.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // A freeze cancels runs; that work is not a pause.
                             _Pause.Touch();
                         }
                     }

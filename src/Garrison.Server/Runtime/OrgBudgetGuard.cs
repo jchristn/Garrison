@@ -11,8 +11,12 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Models;
+    using Garrison.Core.Notifications;
     using Garrison.Core.Organizations;
+    using Garrison.Core.Requests;
+    using Garrison.Core.Security;
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using SyslogLogging;
@@ -22,7 +26,9 @@ namespace Garrison.Server.Runtime
     /// its budget for the current day or month is refused with 409 BudgetExhausted, and the capped unit's manager (the
     /// lead above it, or the person behind the run when the board is above) is told once per budget window. Spend is the
     /// known cost of the subtree's agents' runs completed in the window, read from the usage ledger and cached briefly.
-    /// Thread-safe.
+    /// A subtree whose spend reaches its budget plus the organization's freeze margin (AA11.5) is frozen once per unit,
+    /// period, and window, from <see cref="SweepAsync(CancellationToken)"/> and from the admission and keeper checks that
+    /// see the overrun; the board hears through OrgBudgetFrozen. Thread-safe.
     /// </summary>
     public class OrgBudgetGuard : IDisposable
     {
@@ -49,6 +55,62 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public EscalationService? Escalations { get; set; } = null;
 
+        /// <summary>
+        /// Freezes, used to freeze an overrun unit (AA11.5). Null turns automatic freezes off.
+        /// </summary>
+        public FreezeService? Freezes { get; set; } = null;
+
+        /// <summary>
+        /// Audit, for the OrgBudgetFrozen record. Null to skip the record.
+        /// </summary>
+        public AuditService? Audit { get; set; } = null;
+
+        /// <summary>
+        /// Notifications, for the OrgBudgetFrozen event. Null to skip it.
+        /// </summary>
+        public NotificationService? Notifications { get; set; } = null;
+
+        /// <summary>
+        /// Seconds between the leader's budget freeze sweeps. Default 60, minimum 5, maximum 3600.
+        /// </summary>
+        public int FreezeSweepSeconds
+        {
+            get
+            {
+                return _FreezeSweepSeconds;
+            }
+            set
+            {
+                _FreezeSweepSeconds = Math.Clamp(value, 5, 3600);
+            }
+        }
+
+        /// <summary>
+        /// Most live organizations one sweep reads, across tenants. Default 1000, minimum 1, maximum 100000.
+        /// </summary>
+        public int MaxOrganizationsPerSweep
+        {
+            get
+            {
+                return _MaxOrganizationsPerSweep;
+            }
+            set
+            {
+                _MaxOrganizationsPerSweep = Math.Clamp(value, 1, 100000);
+            }
+        }
+
+        /// <summary>
+        /// The name automatic freezes are created by. Fixed: "Garrison budget guard".
+        /// </summary>
+        public static string FreezerName
+        {
+            get
+            {
+                return "Garrison budget guard";
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -61,6 +123,10 @@ namespace Garrison.Server.Runtime
         private readonly ConcurrentDictionary<string, DateTime> _Notified = new ConcurrentDictionary<string, DateTime>(StringComparer.Ordinal);
         private readonly string _Header = "[Budgets] ";
         private int _SpendCacheSeconds = 15;
+        private int _FreezeSweepSeconds = 60;
+        private int _MaxOrganizationsPerSweep = 1000;
+        private DateTime _LastSweepUtc = DateTime.MinValue;
+        private readonly SemaphoreSlim _FreezeLock = new SemaphoreSlim(1, 1);
         private readonly GaugeRegistration _Gauge;
         private bool _Disposed = false;
 
@@ -147,6 +213,7 @@ namespace Garrison.Server.Runtime
             OrgBudgetBreach? breach = await FindBreachAsync(tenantId, agentId, DateTime.UtcNow, token).ConfigureAwait(false);
             if (breach == null) return;
             GarrisonMetrics.Count(GarrisonMetricCatalog.SpendCapHits, "scope", breach.Spend.Period == BudgetPeriodEnum.Month ? "org_unit_month" : "org_unit_day");
+            await FreezeIfOverrunAsync(breach, token).ConfigureAwait(false);
             await NotifyAsync(tenantId, agentId, breach, callerType, callerId, callerName, token).ConfigureAwait(false);
             throw new ConflictException("BudgetExhausted", Message(breach));
         }
@@ -163,6 +230,145 @@ namespace Garrison.Server.Runtime
             string period = breach.Spend.Period == BudgetPeriodEnum.Month ? "monthly" : "daily";
             return "Unit " + breach.Unit.Name + " of organization " + breach.Tree.Organization.Name + " has spent " + Usd(breach.Spend.SpentUsd) + " USD of its " + period + " budget of "
                 + Usd(breach.Spend.AmountUsd ?? 0) + " USD; runs in its subtree are refused until " + breach.Spend.WindowEndUtc.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture) + ".";
+        }
+
+        /// <summary>
+        /// True when a subtree's spend has reached its budget plus a freeze margin: amountUsd * (1 + margin / 100), with
+        /// some spend. A margin of 0 freezes at the budget.
+        /// </summary>
+        /// <param name="spend">Spend in one budget window.</param>
+        /// <param name="marginPercent">Margin, clamped to 0 to 100.</param>
+        /// <returns>True when the unit should be frozen.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when spend is null.</exception>
+        public static bool Overrun(OrgUnitSpend spend, int marginPercent)
+        {
+            if (spend == null) throw new ArgumentNullException(nameof(spend));
+            if (!spend.AmountUsd.HasValue || spend.SpentUsd <= 0) return false;
+            double threshold = spend.AmountUsd.Value * (1 + Math.Clamp(marginPercent, 0, 100) / 100.0);
+            return spend.SpentUsd >= threshold;
+        }
+
+        /// <summary>
+        /// Run one budget freeze sweep when <see cref="FreezeSweepSeconds"/> has passed since the last one (the leader's
+        /// maintenance step).
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when a unit was frozen.</returns>
+        public async Task<bool> SweepAsync(CancellationToken token)
+        {
+            DateTime now = DateTime.UtcNow;
+            if ((now - _LastSweepUtc).TotalSeconds < _FreezeSweepSeconds) return false;
+            _LastSweepUtc = now;
+            return await SweepAsync(now, token).ConfigureAwait(false) > 0;
+        }
+
+        /// <summary>
+        /// Freeze every unit of a live organization, in any tenant, whose subtree spend in a budget window has reached its
+        /// budget plus the organization's freeze margin. Used by the leader and by tests.
+        /// </summary>
+        /// <param name="utc">Time that selects the windows.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Units frozen by this sweep.</returns>
+        public async Task<int> SweepAsync(DateTime utc, CancellationToken token)
+        {
+            if (Freezes == null) return 0;
+            int frozen = 0;
+            foreach (Organization organization in await _Database.Organizations.ListLiveAcrossTenantsAsync(_MaxOrganizationsPerSweep, token).ConfigureAwait(false))
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    OrgTree? tree = await _Chain.TreeAsync(organization, token).ConfigureAwait(false);
+                    if (tree == null) continue;
+                    foreach (OrgUnit unit in tree.Units)
+                    {
+                        foreach (OrgUnitBudget budget in unit.Budgets)
+                        {
+                            OrgUnitSpend spend = await SpendAsync(organization.TenantId, tree, unit, budget, utc, token).ConfigureAwait(false);
+                            if (!Overrun(spend, organization.BudgetFreezeMarginPercent)) continue;
+                            if (await FreezeIfOverrunAsync(new OrgBudgetBreach(tree, unit, spend), token).ConfigureAwait(false) != null) frozen++;
+                        }
+                    }
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    _Logging.Warn(_Header + "budget freeze sweep failed for organization " + organization.Id + ": " + e.Message);
+                }
+            }
+            return frozen;
+        }
+
+        /// <summary>
+        /// Freeze a unit whose subtree spend has reached its budget plus the organization's freeze margin (AA11.5): an
+        /// OrgUnit freeze by "Garrison budget guard" with cancelActiveRuns, recorded as OrgBudgetFrozen, counted, and sent to
+        /// OrgBudgetFrozen endpoints. Nothing happens below the margin, when an active freeze already covers the unit (on
+        /// it, a unit above it, or its organization), or when the guard already froze it in this period's window (a person
+        /// lifting the freeze keeps it lifted until the window resets).
+        /// </summary>
+        /// <param name="breach">The exhausted budget.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The new freeze, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when breach is null.</exception>
+        public async Task<Freeze?> FreezeIfOverrunAsync(OrgBudgetBreach breach, CancellationToken token = default)
+        {
+            if (breach == null) throw new ArgumentNullException(nameof(breach));
+            FreezeService? freezes = Freezes;
+            if (freezes == null) return null;
+            Organization organization = breach.Tree.Organization;
+            if (!Overrun(breach.Spend, organization.BudgetFreezeMarginPercent)) return null;
+            await _FreezeLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                string tenantId = organization.TenantId;
+                if (await CoveredAsync(freezes, breach, token).ConfigureAwait(false)) return null;
+                if (await FrozenThisWindowAsync(breach, token).ConfigureAwait(false)) return null;
+
+                RequestContext guard = new RequestContext { TenantId = tenantId, PrincipalType = PrincipalTypeEnum.Administrator, PrincipalName = FreezerName };
+                Freeze request = new Freeze();
+                request.TargetKind = FreezeTargetKindEnum.OrgUnit;
+                request.TargetId = breach.Unit.Id;
+                request.Reason = FreezeReason(breach);
+                request.CancelActiveRuns = true;
+                Freeze freeze;
+                try
+                {
+                    freeze = await freezes.ApplyAsync(guard, tenantId, request, token).ConfigureAwait(false);
+                }
+                catch (ConflictException e) when (e.Code == "AlreadyFrozen")
+                {
+                    return null;
+                }
+
+                string period = breach.Spend.Period == BudgetPeriodEnum.Month ? "month" : "day";
+                GarrisonMetrics.Count(GarrisonMetricCatalog.AutoFreezes, "period", period);
+                _Logging.Warn(_Header + "froze unit " + breach.Unit.Id + " (" + breach.Unit.Name + ") of organization " + organization.Name + " as " + freeze.Id + ": " + request.Reason + " " + GarrisonTracing.LogFields("tenant", tenantId));
+                if (Audit != null)
+                {
+                    await Audit.WriteAsync(guard, AuditEventTypeEnum.OrgBudgetFrozen, "Freeze", freeze.Id, "Froze unit " + breach.Unit.Name + " of organization " + organization.Name + " (" + freeze.Id + "): " + request.Reason
+                        + (freeze.CancelledRunCount > 0 ? " Cancelled " + freeze.CancelledRunCount + " active run(s)." : String.Empty), tenantId, token).ConfigureAwait(false);
+                }
+                if (Notifications != null)
+                {
+                    try
+                    {
+                        await Notifications.QueueOrgBudgetFrozenAsync(tenantId, Summary(breach, freeze), breach.Tree.SubtreeAgentIds(breach.Unit.Id), token).ConfigureAwait(false);
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        _Logging.Warn(_Header + "could not queue the OrgBudgetFrozen notification for freeze " + freeze.Id + ": " + e.Message);
+                    }
+                }
+                return freeze;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _Logging.Warn(_Header + "could not freeze overrun unit " + breach.Unit.Id + ": " + e.Message);
+                return null;
+            }
+            finally
+            {
+                _FreezeLock.Release();
+            }
         }
 
         /// <summary>
@@ -235,6 +441,65 @@ namespace Garrison.Server.Runtime
 
         #region Private-Methods
 
+        private static async Task<bool> CoveredAsync(FreezeService freezes, OrgBudgetBreach breach, CancellationToken token)
+        {
+            HashSet<string> units = new HashSet<string>(StringComparer.Ordinal) { breach.Unit.Id };
+            foreach (OrgUnit above in breach.Tree.Ancestors(breach.Unit.Id)) units.Add(above.Id);
+            foreach (Freeze active in await freezes.ActiveAsync(breach.Tree.Organization.TenantId, token).ConfigureAwait(false))
+            {
+                if (active.TargetKind == FreezeTargetKindEnum.OrgUnit && units.Contains(active.TargetId)) return true;
+                if (active.TargetKind == FreezeTargetKindEnum.Organization && active.TargetId == breach.Tree.Organization.Id) return true;
+            }
+            return false;
+        }
+
+        private async Task<bool> FrozenThisWindowAsync(OrgBudgetBreach breach, CancellationToken token)
+        {
+            // The guard's freezes name their period and window in the reason; any of them, active or lifted, created inside
+            // this window means the unit was already frozen for it.
+            string marker = WindowMarker(breach.Spend);
+            FreezeFilter filter = new FreezeFilter { TenantId = breach.Tree.Organization.TenantId, TargetKind = FreezeTargetKindEnum.OrgUnit, TargetId = breach.Unit.Id, MaxResults = 100 };
+            EnumerationResult<Freeze> page = await _Database.Freezes.EnumerateAsync(filter, token).ConfigureAwait(false);
+            return page.Objects.Any(f => f.CreatedByName == FreezerName && f.CreatedUtc >= breach.Spend.WindowStartUtc && (f.Reason ?? String.Empty).Contains(marker, StringComparison.Ordinal));
+        }
+
+        private static string WindowMarker(OrgUnitSpend spend)
+        {
+            return (spend.Period == BudgetPeriodEnum.Month ? "monthly" : "daily") + " budget window starting " + Iso(spend.WindowStartUtc);
+        }
+
+        private static string FreezeReason(OrgBudgetBreach breach)
+        {
+            string period = breach.Spend.Period == BudgetPeriodEnum.Month ? "monthly" : "daily";
+            return "Budget guard: unit " + breach.Unit.Name + " of organization " + breach.Tree.Organization.Name + " spent " + Usd(breach.Spend.SpentUsd) + " USD against its " + period + " budget of "
+                + Usd(breach.Spend.AmountUsd ?? 0) + " USD, past the freeze margin of " + breach.Tree.Organization.BudgetFreezeMarginPercent + " percent, in the " + WindowMarker(breach.Spend)
+                + " (ends " + Iso(breach.Spend.WindowEndUtc) + "). The freeze stays until a person lifts it.";
+        }
+
+        private static NotificationBudgetFreezeSummary Summary(OrgBudgetBreach breach, Freeze freeze)
+        {
+            NotificationBudgetFreezeSummary summary = new NotificationBudgetFreezeSummary();
+            summary.FreezeId = freeze.Id;
+            summary.OrganizationId = breach.Tree.Organization.Id;
+            summary.OrganizationName = breach.Tree.Organization.Name;
+            summary.UnitId = breach.Unit.Id;
+            summary.UnitName = breach.Unit.Name;
+            summary.Period = breach.Spend.Period;
+            summary.SpentUsd = breach.Spend.SpentUsd;
+            summary.AmountUsd = breach.Spend.AmountUsd ?? 0;
+            summary.MarginPercent = breach.Tree.Organization.BudgetFreezeMarginPercent;
+            summary.WindowStartUtc = breach.Spend.WindowStartUtc;
+            summary.WindowEndUtc = breach.Spend.WindowEndUtc;
+            summary.CancelledRunCount = freeze.CancelledRunCount;
+            summary.FrozenUtc = freeze.CreatedUtc;
+            return summary;
+        }
+
+        private static string Iso(DateTime value)
+        {
+            return value.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        }
+
         private async Task<OrgUnitSpend> SpendAsync(string tenantId, OrgTree tree, OrgUnit unit, OrgUnitBudget budget, DateTime utc, CancellationToken token)
         {
             DateTime start = OrganizationService.WindowStart(budget.Period, utc);
@@ -265,7 +530,11 @@ namespace Garrison.Server.Runtime
         protected virtual void Dispose(bool disposing)
         {
             if (_Disposed) return;
-            if (disposing) _Gauge.Dispose();
+            if (disposing)
+            {
+                _Gauge.Dispose();
+                _FreezeLock.Dispose();
+            }
             _Disposed = true;
         }
 

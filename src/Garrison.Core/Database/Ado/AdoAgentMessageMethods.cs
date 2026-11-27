@@ -395,6 +395,40 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<AgentMessage>> ExpireQueuedForRecipientAsync(string tenantId, string recipientAgentId, DateTime nowUtc, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(recipientAgentId)) throw new ArgumentNullException(nameof(recipientAgentId));
+            List<AgentMessage> candidates = await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND recipientagentid = @recipient AND status = 'Queued' ORDER BY createdutc, id" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "recipient", recipientAgentId);
+                    AdoDatabaseDriver.Add(command, "max", Math.Max(1, limit));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                }, Map, token).ConfigureAwait(false);
+            List<AgentMessage> expired = new List<AgentMessage>();
+            foreach (AgentMessage message in candidates)
+            {
+                token.ThrowIfCancellationRequested();
+                int affected = await _Driver.NonQueryAsync(
+                    "UPDATE " + _Table + " SET status = 'Expired', deliveryclaim = NULL, claimedutc = NULL, lastupdateutc = @now WHERE id = @id AND tenantid = @tenantid AND status = 'Queued';",
+                    command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", message.Id);
+                        AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                        AdoDatabaseDriver.Add(command, "now", nowUtc);
+                    }, token).ConfigureAwait(false);
+                if (affected == 0) continue;
+                message.Status = MessageStatusEnum.Expired;
+                message.LastUpdateUtc = nowUtc;
+                expired.Add(message);
+            }
+            return expired;
+        }
+
+        /// <inheritdoc />
         public async Task<List<AgentMessage>> ListChangedAfterAsync(string tenantId, string recipientAgentId, DateTime afterUtc, string? afterId, int limit, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

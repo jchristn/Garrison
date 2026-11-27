@@ -14,7 +14,7 @@ namespace Garrison.Server.Routes
 
     /// <summary>
     /// Organization routes (AA7.11, plan section 7.4): organizations, units of the working tree, the chart, revisions,
-    /// publish, rollback, and spend. Every route filters by the request's tenant; another tenant's organization answers
+    /// publish, rollback, spend, and the cascade cancel of a unit's subtree (AA11.4). Every route filters by the request's tenant; another tenant's organization answers
     /// 404. Run tokens never hold Organization permissions; runs read their organization through garrison_org_chart and
     /// garrison_org_whoami.
     /// </summary>
@@ -71,7 +71,8 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, one + "/revisions", ResourceTypeEnum.Organization, OperationTypeEnum.Update, CreateRevisionAsync, "Snapshot the working tree as a Draft revision, pinning the current revision of every mandate it names", tag, typeof(OrgRevisionRequest), typeof(OrgRevision));
             routes.Scoped(HttpMethod.GET, one + "/revisions/{revId}", ResourceTypeEnum.Organization, OperationTypeEnum.Read, ReadRevisionAsync, "Read a revision with its snapshot", tag, null, typeof(OrgRevision));
             routes.Scoped(HttpMethod.POST, one + "/revisions/{revId}/publish", ResourceTypeEnum.Organization, OperationTypeEnum.Update, PublishAsync, "Make a Draft revision live: the chain of command, lines, and budgets follow it, its pinned mandate revisions become current, and a promotion record with subject Organization is written", tag, null, typeof(OrgRevision));
-            routes.Scoped(HttpMethod.POST, one + "/rollback", ResourceTypeEnum.Organization, OperationTypeEnum.Update, RollbackAsync, "Return to an earlier live revision (revisionId, or the previous one): publishes a copy of its snapshot, restores the working tree and pinned mandate revisions, and records the rollback", tag, typeof(OrgRollbackRequest), typeof(OrgRevision));
+            routes.Scoped(HttpMethod.POST, one + "/rollback", ResourceTypeEnum.Organization, OperationTypeEnum.Update, RollbackAsync, "Return to an earlier live revision (revisionId, or the previous one): publishes a copy of its snapshot, restores the working tree and pinned mandate revisions, and records the rollback. activeTicks Finish (default) lets in-flight keeper ticks complete; Cancel cancels their runs first. Mandates left outside the restored snapshot are paused", tag, typeof(OrgRollbackRequest), typeof(OrgRevision));
+            routes.Scoped(HttpMethod.POST, one + "/units/{unitId}/cancel-all", ResourceTypeEnum.Organization, OperationTypeEnum.Update, CancelAllAsync, "Cancel everything in a unit's subtree of the live tree in one audited action: queued and running runs (running runs go to Cancelling), their keeper ticks, open escalations its agents raised (withdrawn), and queued messages to them (expired). Does not freeze. 409 OrganizationNotLive without a live revision", tag, typeof(CascadeCancelRequest), typeof(CascadeCancelResult));
             routes.Scoped(HttpMethod.GET, one + "/spend", ResourceTypeEnum.Organization, OperationTypeEnum.Read, SpendAsync, "Spend of each unit's subtree against its budgets in the current day and month windows (live revision)", tag, null, typeof(List<OrgUnitSpend>));
         }
 
@@ -193,8 +194,16 @@ namespace Garrison.Server.Routes
         {
             Organization organization = await LoadAsync(http).ConfigureAwait(false);
             OrgRollbackRequest? body = RouteHelpers.Body<OrgRollbackRequest>(http);
-            OrgRevision revision = await _Organizations.RollbackAsync(RouteHelpers.Context(http), organization, body?.RevisionId, body?.Note, http.Token).ConfigureAwait(false);
+            OrgRevision revision = await _Organizations.RollbackAsync(RouteHelpers.Context(http), organization, body?.RevisionId, body?.Note, body?.ActiveTicks ?? RollbackActiveTicksEnum.Finish, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, revision).ConfigureAwait(false);
+        }
+
+        private async Task CancelAllAsync(HttpContextBase http)
+        {
+            Organization organization = await LoadAsync(http).ConfigureAwait(false);
+            CascadeCancelRequest? body = RouteHelpers.Body<CascadeCancelRequest>(http);
+            CascadeCancelResult result = await _Server.Get<OrgBrakeService>().CancelAllAsync(RouteHelpers.Context(http), organization, RouteHelpers.Param(http, "unitId"), body?.Reason, http.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, result).ConfigureAwait(false);
         }
 
         private async Task SpendAsync(HttpContextBase http)

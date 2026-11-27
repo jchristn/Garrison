@@ -713,6 +713,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `description`, `mission` | As in the REST API |
+| `budgetFreezeMarginPercent` | 0 to 100, default 10: how far past a unit budget its subtree may spend before the unit is frozen automatically. A value outside the range fails the document with field code `OutOfRange` on `spec.budgetFreezeMarginPercent`. Exports carry it when it is not 10. In an executive's draft, a change to it is refused like the description and mission |
 | `publish` | `false` writes the working tree without publishing it. Absent or `true` publishes it as a new revision when it differs from the live one. In an executive's draft the flag is ignored: the document is applied with `publish: false`, and the revision Garrison records for the apply publishes the tree ([EXECUTIVES.md](EXECUTIVES.md#revisions-revert-drafts-and-rollback)) |
 | `units` | The root unit, with every other unit nested under its parent in `units`. At most one root |
 | `units[].name` | Unique in the organization. A unit keeps its identifier across applies by name, so memory and history stay attached |

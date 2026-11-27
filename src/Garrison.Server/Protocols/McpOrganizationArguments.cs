@@ -22,6 +22,18 @@ namespace Garrison.Server.Protocols
         /// <summary>Mission (create, update).</summary>
         public string? Mission { get; set; } = null;
 
+        /// <summary>Percent past a unit budget before the budget guard freezes the unit, 0 to 100 (create, update; default 10 on create, unchanged on update).</summary>
+        public int? BudgetFreezeMarginPercent { get; set; } = null;
+
+        /// <summary>What happens to keeper ticks in flight (rollback): Finish (default) or Cancel.</summary>
+        public string? ActiveTicks { get; set; } = null;
+
+        /// <summary>Unit identifier or name in the live tree (garrison_unit_cancel_all).</summary>
+        public string? UnitId { get; set; } = null;
+
+        /// <summary>Why, at most 1024 characters (garrison_unit_cancel_all).</summary>
+        public string? Reason { get; set; } = null;
+
         /// <summary>Status: Retired, or Active to bring a retired organization back (update).</summary>
         public string? Status { get; set; } = null;
 

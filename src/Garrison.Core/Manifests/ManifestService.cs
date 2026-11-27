@@ -1658,6 +1658,9 @@ namespace Garrison.Core.Manifests
             if (organization.Name.Length > 128) throw new ValidationException("An organization name has at most 128 characters.", new Dictionary<string, string> { { "metadata.name", "At most 128 characters." } });
             organization.Description = String.IsNullOrWhiteSpace(spec.Description) ? null : spec.Description.Trim();
             organization.Mission = String.IsNullOrWhiteSpace(spec.Mission) ? null : spec.Mission.Trim();
+            if (spec.BudgetFreezeMarginPercent.HasValue && (spec.BudgetFreezeMarginPercent.Value < 0 || spec.BudgetFreezeMarginPercent.Value > 100))
+                throw new ValidationException("budgetFreezeMarginPercent is 0 to 100.", new Dictionary<string, string> { { "spec.budgetFreezeMarginPercent", "0 to 100." } }, new Dictionary<string, string> { { "spec.budgetFreezeMarginPercent", "OutOfRange" } });
+            organization.BudgetFreezeMarginPercent = spec.BudgetFreezeMarginPercent ?? 10;
 
             Organization? existing = await _Database.Organizations.ReadByNameAsync(tenantId, organization.Name, token).ConfigureAwait(false);
             List<OrgUnit> existingUnits = existing == null ? new List<OrgUnit>() : await _Database.Organizations.ListUnitsAsync(tenantId, existing.Id, token).ConfigureAwait(false);
@@ -1832,6 +1835,7 @@ namespace Garrison.Core.Manifests
             Dictionary<string, object?> tree = new Dictionary<string, object?>();
             if (organization.Description != null) tree["description"] = organization.Description;
             if (organization.Mission != null) tree["mission"] = organization.Mission;
+            if (organization.BudgetFreezeMarginPercent != 10) tree["budgetFreezeMarginPercent"] = (long)organization.BudgetFreezeMarginPercent;
             Dictionary<string, string> unitNames = units.ToDictionary(u => u.Id, u => u.Name, StringComparer.Ordinal);
             List<object?> roots = new List<object?>();
             foreach (OrgUnit root in units.Where(u => String.IsNullOrEmpty(u.ParentUnitId) || !unitNames.ContainsKey(u.ParentUnitId)))

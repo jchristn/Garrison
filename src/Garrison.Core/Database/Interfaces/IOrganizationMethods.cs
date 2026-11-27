@@ -83,6 +83,15 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Organization>> ListLiveAsync(string tenantId, CancellationToken token = default);
 
         /// <summary>
+        /// Organizations with a live revision whose status is Active or Frozen, in every tenant, oldest first. The budget
+        /// guard's sweep reads these (AA11.5).
+        /// </summary>
+        /// <param name="limit">Most organizations, 1 to 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Organizations.</returns>
+        Task<List<Organization>> ListLiveAcrossTenantsAsync(int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Delete an organization with its units and revisions.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

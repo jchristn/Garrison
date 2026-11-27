@@ -911,6 +911,7 @@ namespace Garrison.Server.Protocols
                     case "garrison_update_organization":
                     case "garrison_publish_org_revision":
                     case "garrison_rollback_organization":
+                    case "garrison_unit_cancel_all":
                         result = await OrganizationToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_board_get":
@@ -2174,7 +2175,7 @@ namespace Garrison.Server.Protocols
                 {
                     await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
                     if (arguments.Units != null && arguments.Units.Count > 0) await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
-                    Organization body = new Organization { Name = arguments.Name ?? String.Empty, Description = arguments.Description, Mission = arguments.Mission };
+                    Organization body = new Organization { Name = arguments.Name ?? String.Empty, Description = arguments.Description, Mission = arguments.Mission, BudgetFreezeMarginPercent = arguments.BudgetFreezeMarginPercent ?? 10 };
                     Organization organization = await ToolCallAsync(() => organizations.CreateAsync(caller, tenantId, body, token)).ConfigureAwait(false);
                     if (arguments.Units != null && arguments.Units.Count > 0)
                     {
@@ -2192,6 +2193,7 @@ namespace Garrison.Server.Protocols
                         Name = arguments.Name ?? organization.Name,
                         Description = arguments.Description ?? organization.Description,
                         Mission = arguments.Mission ?? organization.Mission,
+                        BudgetFreezeMarginPercent = arguments.BudgetFreezeMarginPercent ?? organization.BudgetFreezeMarginPercent,
                         Status = String.IsNullOrWhiteSpace(arguments.Status) ? organization.Status : ParseOr(arguments.Status, organization.Status, "status")
                     };
                     organization = await ToolCallAsync(() => organizations.UpdateAsync(caller, organization, body, token)).ConfigureAwait(false);
@@ -2221,11 +2223,22 @@ namespace Garrison.Server.Protocols
                     OrgRevision draft = revision;
                     return await ToolCallAsync(() => organizations.PublishAsync(caller, organization, draft, token)).ConfigureAwait(false);
                 }
+                case "garrison_unit_cancel_all":
+                {
+                    // AA11.4: people only; run tokens never see this tool, and the check stays here in case one names it.
+                    if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw ToolError("Forbidden", tool.Name + " is available only to people and API credentials.");
+                    Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, organization.Id, token).ConfigureAwait(false);
+                    if (String.IsNullOrWhiteSpace(arguments.UnitId)) throw ToolError("ValidationFailed", "unitId is required: the unit identifier or name in the live tree.");
+                    OrgBrakeService brakes = _Context.Get<OrgBrakeService>();
+                    return await ToolCallAsync(() => brakes.CancelAllAsync(caller, organization, arguments.UnitId, arguments.Reason, token)).ConfigureAwait(false);
+                }
                 default:
                 {
                     await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
                     Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
-                    return await ToolCallAsync(() => organizations.RollbackAsync(caller, organization, arguments.RevisionId, arguments.Note, token)).ConfigureAwait(false);
+                    RollbackActiveTicksEnum activeTicks = String.IsNullOrWhiteSpace(arguments.ActiveTicks) ? RollbackActiveTicksEnum.Finish : ParseOr(arguments.ActiveTicks, RollbackActiveTicksEnum.Finish, "activeTicks");
+                    return await ToolCallAsync(() => organizations.RollbackAsync(caller, organization, arguments.RevisionId, arguments.Note, activeTicks, token)).ConfigureAwait(false);
                 }
             }
         }

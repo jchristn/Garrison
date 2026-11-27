@@ -177,9 +177,10 @@ namespace Garrison.Core.Organizations
             }
             OrganizationSpec draft = ExecutiveDraftContext.Organization(item.Document!);
             OrganizationSpec live = ExecutiveDraftContext.Organization(item.Live);
-            if (!String.Equals(draft.Description ?? String.Empty, live.Description ?? String.Empty, StringComparison.Ordinal) || !String.Equals(draft.Mission ?? String.Empty, live.Mission ?? String.Empty, StringComparison.Ordinal))
+            if (!String.Equals(draft.Description ?? String.Empty, live.Description ?? String.Empty, StringComparison.Ordinal) || !String.Equals(draft.Mission ?? String.Empty, live.Mission ?? String.Empty, StringComparison.Ordinal)
+                || (draft.BudgetFreezeMarginPercent ?? 10) != (live.BudgetFreezeMarginPercent ?? 10))
             {
-                refusals.Add(Refuse(item, OutsideSubtree, "The organization's description and mission belong to the board."));
+                refusals.Add(Refuse(item, OutsideSubtree, "The organization's description, mission, and budget freeze margin belong to the board."));
             }
             foreach (string name in context.LiveUnits.Keys.Union(context.DraftUnits.Keys, StringComparer.OrdinalIgnoreCase).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
             {

@@ -4067,6 +4067,7 @@ An organization (AA7) is a tree of units with lead agents, members, peer lines, 
 | `GET /organizations/{id}/revisions/{revId}` | Read on `Organization` | `OrgRevision` with its snapshot, 200 |
 | `POST /organizations/{id}/revisions/{revId}/publish` | Update on `Organization` | `OrgRevision`, 200 |
 | `POST /organizations/{id}/rollback` | Update on `Organization` | `OrgRevision` (the new copy), 200 |
+| `POST /organizations/{id}/units/{unitId}/cancel-all` | Update on `Organization` | `CascadeCancelResult`, 200 |
 | `GET /organizations/{id}/spend` | Read on `Organization` | `OrgUnitSpend[]`, 200 |
 | `GET /organizations/{id}/proposals` | Read on `Organization` | `EnumerationResult<OrgProposal>`, newest change first, 200 |
 | `GET /organizations/{id}/proposals/{draftId}` | Read on `Organization` | `OrgProposal`, with `diff` while not applied, 200 |
@@ -4076,11 +4077,11 @@ Paths are relative to `/v1.0/api/tenants/{tenantId}`. `{id}` takes an identifier
 
 #### `POST /v1.0/api/tenants/{tenantId}/organizations`
 
-Create an organization from an `Organization` body: `name` is required; `description` and `mission` are optional. It starts as `Draft` with no units. Errors: 400 `ValidationFailed` (`name`, `description`, `mission` lengths); 409 `NameConflict`.
+Create an organization from an `Organization` body: `name` is required; `description`, `mission`, and `budgetFreezeMarginPercent` (0 to 100, default 10) are optional. It starts as `Draft` with no units. Errors: 400 `ValidationFailed` (`name`, `description`, `mission` lengths, `budgetFreezeMarginPercent` outside 0 to 100); 409 `NameConflict`.
 
 #### `PUT /v1.0/api/tenants/{tenantId}/organizations/{id}`
 
-Change `name`, `description`, and `mission`. `status` moves to `Retired` (from `Draft` or `Active`), or from `Retired` back to `Active` (or `Draft` if it was never published); leave it out to keep the status. Any other change answers 409 `StatusNotSettable`. Units are not changed here.
+Change `name`, `description`, `mission`, and `budgetFreezeMarginPercent` (0 to 100; a body without it sets the default 10, as `PUT` replaces these fields). `status` moves to `Retired` (from `Draft` or `Active`), or from `Retired` back to `Active` (or `Draft` if it was never published); leave it out to keep the status. Any other change answers 409 `StatusNotSettable`. Units are not changed here.
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/organizations/{id}`
 
@@ -4100,7 +4101,13 @@ Make a draft live. The previous live revision becomes `Superseded`, a `Draft` or
 
 #### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/rollback`
 
-Return to an earlier live revision with an optional `OrgRollbackRequest`: `revisionId`, or by default the revision live before the current one, and `note`. Garrison publishes a new revision that copies the earlier snapshot (`rollbackOfRevisionId`), restores its pinned mandate revisions, replaces the working tree with its units, and writes a `Rollback` promotion record that marks the replaced publish `RolledBack`. Errors: 404 (unknown revision); 409 `RevisionNeverPublished`, `AlreadyLive`, or `NothingToRollBack`.
+Return to an earlier live revision with an optional `OrgRollbackRequest`: `revisionId`, or by default the revision live before the current one, `note`, and `activeTicks`. Garrison publishes a new revision that copies the earlier snapshot (`rollbackOfRevisionId`), restores its pinned mandate revisions, replaces the working tree with its units, and writes a `Rollback` promotion record that marks the replaced publish `RolledBack`.
+
+Keeper ticks in flight follow `activeTicks`. With `Finish` (the default) they run to completion, but their mandates are already on the restored snapshot's revisions, and a tick that finishes later never moves a mandate's current revision. With `Cancel`, the runs of in-flight ticks of the organization's mandates (in the live snapshot or the restored one) are cancelled first, and their ticks end. Either way, after any executive reverts, every mandate the restored snapshot pins is put back on its pinned revision, and a mandate of the organization that would be left on a revision outside the snapshot is paused with the reason in its audit record: one in the live snapshot that the restored one does not name, one the restored tree names without a pin, or one whose pinned revision no longer exists. A frozen mandate in that position becomes `Paused`, so lifting its freeze does not wake it. The audit record of the rollback states the option, the tick runs cancelled, and the mandates paused. Errors: 400 (an unknown `activeTicks` value); 404 (unknown revision); 409 `RevisionNeverPublished`, `AlreadyLive`, or `NothingToRollBack`.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/units/{unitId}/cancel-all`
+
+Stop everything in a unit's subtree of the live tree in one action, with an optional `CascadeCancelRequest` (`reason`, at most 1024 characters). For every agent in the subtree, Garrison cancels its queued, pending, suspended, leased, and running runs through the normal cancellation path (queued runs end `Cancelled`; leased and running runs go to `Cancelling` and end when their worker stops), ends the keeper ticks those runs carry, withdraws the open escalations it raised (status `Withdrawn`, the reason as the answer text, resolved by the caller), and expires the queued messages addressed to it (status `Expired`, including messages a delivery had claimed but not yet handed over). One audit record of type `UnitCascadeCancelled` carries the counts, the reason, and the caller. The cascade does not freeze: apply an `OrgUnit` freeze to keep the subtree stopped. `{unitId}` takes an identifier or a unit name of the live tree. Errors: 400 `TooLong` (`reason`); 404 when the unit is not in the organization's live tree; 409 `OrganizationNotLive` before the first publish (or once retired). Counter `garrison.brakes.cascade_cancels`.
 
 #### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/spend`
 
@@ -5726,7 +5733,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`, `FreezeApplied`, `FreezeLifted`, `KillSwitchChanged`, `BoardDirectionGiven`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SecretRevealed`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`, `QueueFull`, `FreezeApplied`, `FreezeLifted`, `KillSwitchChanged`, `BoardDirectionGiven`, `UnitCascadeCancelled` (a person cancelled everything in a unit's subtree), `OrgBudgetFrozen` (the budget guard froze an overrun unit)
 
 #### `AuthSchemeEnum`
 
@@ -7645,6 +7652,7 @@ A scheduled check: an `EvalSet` trigger and the newest eval run it started.
 | `name` | `string` | 1 to 128 characters, unique in the tenant. |
 | `description` | `string?` | At most 2000 characters. |
 | `mission` | `string?` | At most 8000 characters. Member runs see it through `builtin/org-context`. |
+| `budgetFreezeMarginPercent` | `int` | How far past a unit budget its subtree may spend before the budget guard freezes the unit, in percent: the unit is frozen when its spend in a window reaches `amountUsd * (1 + margin / 100)`. Default 10, 0 (freeze at the budget) to 100; outside that range answers 400. |
 | `status` | `OrganizationStatusEnum` | `Draft` until the first publish, then `Active`; `Frozen` under an Organization freeze; `Retired`. |
 | `rootUnitId` | `string?` | Root unit of the working tree. Set by the server. |
 | `currentRevisionId`, `currentRevisionNumber` | `string?`, `int` | The live revision, or `null` and 0 before the first publish. Set by the server. |
@@ -7730,6 +7738,26 @@ The same shape holds a unit of the working tree and a unit in a revision's snaps
 |---|---|---|
 | `revisionId` | `string?` | Earlier live revision to return to; default the one live before the current one. |
 | `note` | `string?` | At most 2000 characters. |
+| `activeTicks` | `RollbackActiveTicksEnum` | `Finish` (default): in-flight keeper ticks complete under the restored revisions. `Cancel`: their runs are cancelled before the snapshot is restored. |
+
+#### `CascadeCancelRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `reason` | `string?` | Why, at most 1024 characters. Kept in the audit record and as the answer text of withdrawn escalations. |
+
+#### `CascadeCancelResult`
+
+| Field | Type | Description |
+|---|---|---|
+| `organizationId` | `string` | The organization. |
+| `unitId`, `unitName` | `string`, `string` | The root of the cancelled subtree. |
+| `runsCancelled` | `int` | Runs whose cancellation was requested. |
+| `ticksCancelled` | `int` | Of those, runs that carried a keeper tick. |
+| `escalationsWithdrawn` | `int` | Open escalations raised by the subtree's agents that were withdrawn. |
+| `messagesExpired` | `int` | Queued messages addressed to the subtree's agents that expired. |
+| `runIds` | `string[]` | The cancelled runs. |
+| `completedUtc` | `DateTime` | When the cascade finished. |
 
 #### `OrgChart`
 
@@ -7794,6 +7822,10 @@ The same shape holds a unit of the working tree and a unit in a revision's snaps
 #### `OrgRevisionStateEnum`
 
 `Draft`, `Published`, `Superseded`
+
+#### `RollbackActiveTicksEnum`
+
+`Finish` (default: in-flight keeper ticks complete under the restored revisions), `Cancel` (their runs are cancelled before the snapshot is restored)
 
 #### `BudgetPeriodEnum`
 
@@ -7970,7 +8002,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `NotificationEventEnum`
 
-`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `CanaryRolledBack` (a canary release crossed a threshold and its weights were restored), `BoardBrief` (a report of kind `Brief` was filed; the payload carries the report summary), `Test` (test sends only)
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `EscalationRaised`, `EscalationExpired`, `FreezeApplied` (including the kill switch turning on), `MandateCapReached`, `ReportUnhealthy`, `OrgProposalApplied` (change rules applied an executive's proposal), `CanaryRolledBack` (a canary release crossed a threshold and its weights were restored), `BoardBrief` (a report of kind `Brief` was filed; the payload carries the report summary), `OrgBudgetFrozen` (the budget guard froze a unit past its budget plus the freeze margin; the payload carries `budgetFreeze`), `Test` (test sends only)
 
 #### `NotificationDeliveryStatusEnum`
 

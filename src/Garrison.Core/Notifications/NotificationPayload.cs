@@ -89,6 +89,11 @@ namespace Garrison.Core.Notifications
         /// </summary>
         public NotificationCanarySummary? Canary { get; set; } = null;
 
+        /// <summary>
+        /// The unit the budget guard froze, for OrgBudgetFrozen (AA11.5).
+        /// </summary>
+        public NotificationBudgetFreezeSummary? BudgetFreeze { get; set; } = null;
+
         #endregion
 
         #region Constructors-and-Factories

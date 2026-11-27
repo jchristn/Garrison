@@ -247,6 +247,16 @@ namespace Garrison.Core.Telemetry
         /// </summary>
         public static readonly MetricDescriptor BoardBriefs = new MetricDescriptor("garrison.board.briefs", MetricKindEnum.Counter, "{brief}", "", "Reports of kind Brief filed, usually by an organization's top agent for its board; carries no organization, agent, or report identifiers", "server", "Autonomy", "garrison-autonomy");
 
+        /// <summary>
+        /// Cascade cancels of an organization unit's subtree (AA11.4).
+        /// </summary>
+        public static readonly MetricDescriptor CascadeCancels = new MetricDescriptor("garrison.brakes.cascade_cancels", MetricKindEnum.Counter, "{cancel}", "organization", "Cascade cancels of an organization unit's subtree (runs, ticks, escalations, and queued messages stopped in one action), by organization name; carries no unit, person, or run identifiers", "server", "Autonomy", "garrison-autonomy");
+
+        /// <summary>
+        /// Units frozen by the budget guard (AA11.5).
+        /// </summary>
+        public static readonly MetricDescriptor AutoFreezes = new MetricDescriptor("garrison.brakes.auto_freezes", MetricKindEnum.Counter, "{freeze}", "period", "Units the budget guard froze because their subtree spend passed the budget plus the organization's freeze margin, by budget period (day, month); carries no organization or unit identifiers", "server", "Autonomy", "garrison-autonomy");
+
         /// <summary>Keeper intervals applied after ticks (AA1).</summary>
         public static readonly MetricDescriptor KeeperInterval = new MetricDescriptor("garrison.keeper.interval", MetricKindEnum.Histogram, "s", "mode", "Interval scheduled after a keeper tick, before jitter, by wake mode (fixed, backoff)", "server", "Autonomy", "garrison-autonomy", TelemetryBuckets.Run);
 
@@ -532,7 +542,7 @@ namespace Garrison.Core.Telemetry
             SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, OrgProposals, BoardDirections, BoardBriefs, EvalRuns, EvalCaseDuration, EvalScheduledChecks, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, OrgProposals, BoardDirections, BoardBriefs, CascadeCancels, AutoFreezes, EvalRuns, EvalCaseDuration, EvalScheduledChecks, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

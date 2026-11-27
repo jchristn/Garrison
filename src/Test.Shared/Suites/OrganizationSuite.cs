@@ -298,6 +298,10 @@ namespace Test.Shared.Suites
             {
                 OrgFixture f = await FixtureAsync(host, "budget", token).ConfigureAwait(false);
                 OrganizationService service = host.Server.Context.Get<OrganizationService>();
+                // A 100 percent freeze margin keeps the 1.5 of 1 USD overrun below the automatic freeze (AA11.5), so this case
+                // sees the refusal at the cap alone; BrakeSuite covers the freeze.
+                f.Org.BudgetFreezeMarginPercent = 100;
+                await host.Server.Context.Database.Organizations.UpdateAsync(f.Org, token).ConfigureAwait(false);
                 await service.UpdateUnitAsync(Admin(host), f.Org, f.Ops, new OrgUnit { Name = f.Ops.Name, ParentUnitId = f.Root.Id, LeadAgentId = f.Lead.Id, Members = new List<OrgUnitMember> { new OrgUnitMember { AgentId = f.Worker.Id } }, PeerLines = new List<OrgUnitPeerLine> { new OrgUnitPeerLine { PeerUnitId = f.Sales.Id } }, Budgets = new List<OrgUnitBudget> { new OrgUnitBudget { Period = BudgetPeriodEnum.Day, AmountUsd = 1 } } }, token).ConfigureAwait(false);
                 await service.PublishAsync(Admin(host), f.Org, await service.CreateRevisionAsync(Admin(host), f.Org, "Budget", token).ConfigureAwait(false), token).ConfigureAwait(false);
 

@@ -295,6 +295,17 @@ namespace Garrison.Server.Modules
             _Freezes.Chain = chain;
             OrgBudgetGuard orgBudgets = new OrgBudgetGuard(context.Database, chain, organizations, context.Logging);
             orgBudgets.Escalations = _Escalations;
+            // AA11.5: a subtree past its budget plus the organization's freeze margin is frozen, by the leader's sweep and by
+            // the admission and keeper checks that see it; the board hears through OrgBudgetFrozen.
+            orgBudgets.Freezes = _Freezes;
+            orgBudgets.Audit = context.Audit;
+            orgBudgets.Notifications = _Notifications;
+            _Maintenance.OrgBudgets = orgBudgets;
+            // AA11.4, AA11.6: the cascade cancel of a unit's subtree, and the tick cancellation a rollback with Cancel uses.
+            OrgBrakeService orgBrakes = new OrgBrakeService(context.Database, context.Audit, chain, _Runs, _Escalations, context.Logging);
+            orgBrakes.Keepers = _Keepers;
+            organizations.CancelTickRunAsync = (tenantId, runId, ct) => orgBrakes.CancelTickRunAsync(tenantId, runId, ct);
+            context.Register(orgBrakes);
             _Runs.OrgBudgets = orgBudgets;
             _Keepers.OrgBudgets = orgBudgets;
             context.Register(orgBudgets);

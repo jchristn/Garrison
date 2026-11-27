@@ -183,6 +183,19 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<AgentMessage>> ExpireAsync(DateTime nowUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Expire every queued message addressed to one recipient, claimed or not, whatever its expiry (AA11.4 cascade
+        /// cancel). A claimed message loses its claim, so the delivery that held it delivers nothing.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="recipientAgentId">Recipient agent identifier.</param>
+        /// <param name="nowUtc">Current time (UTC).</param>
+        /// <param name="limit">Most messages to expire. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The messages this call expired.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or recipientAgentId is null or empty.</exception>
+        Task<List<AgentMessage>> ExpireQueuedForRecipientAsync(string tenantId, string recipientAgentId, DateTime nowUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Messages to a recipient whose status changed after a cursor, in change order, for the agent-inbox channel.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

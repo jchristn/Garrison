@@ -20,6 +20,12 @@ namespace Garrison.Core.Manifests
         public string? Mission { get; set; } = null;
 
         /// <summary>
+        /// Percent past a unit's budget its subtree may spend before the budget guard freezes the unit (AA11.5), 0 to 100,
+        /// or null for the default 10.
+        /// </summary>
+        public int? BudgetFreezeMarginPercent { get; set; } = null;
+
+        /// <summary>
         /// Whether to publish the tree after writing it. Default true.
         /// </summary>
         public bool? Publish { get; set; } = null;

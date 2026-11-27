@@ -19,7 +19,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, name, description, mission, status, rootunitid, currentrevisionid, currentrevisionnumber, createdby, createdutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, name, description, mission, budgetfreezemarginpercent, status, rootunitid, currentrevisionid, currentrevisionnumber, createdby, createdutc, lastupdateutc";
         private static readonly string _UnitColumns = "id, tenantid, organizationid, parentunitid, name, description, leadagentid, leadtitle, leadmandateid, appid, createdutc, lastupdateutc";
 
         private readonly AdoDatabaseDriver _Driver;
@@ -87,7 +87,7 @@ namespace Garrison.Core.Database.Ado
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
-            await _Driver.NonQueryAsync("UPDATE " + _Table + " SET name = @name, description = @description, mission = @mission, status = @status, rootunitid = @rootunitid, currentrevisionid = @currentrevisionid, currentrevisionnumber = @currentrevisionnumber, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
+            await _Driver.NonQueryAsync("UPDATE " + _Table + " SET name = @name, description = @description, mission = @mission, budgetfreezemarginpercent = @budgetfreezemarginpercent, status = @status, rootunitid = @rootunitid, currentrevisionid = @currentrevisionid, currentrevisionnumber = @currentrevisionnumber, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
                 command => Bind(command, obj), token).ConfigureAwait(false);
             return obj;
         }
@@ -159,6 +159,17 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             return await _Driver.QueryAsync("SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND status IN ('Active', 'Frozen') AND currentrevisionid IS NOT NULL ORDER BY createdutc ASC, id ASC;",
                 command => AdoDatabaseDriver.Add(command, "tenantid", tenantId), Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Organization>> ListLiveAcrossTenantsAsync(int limit, CancellationToken token = default)
+        {
+            return await _Driver.QueryAsync("SELECT * FROM " + _Table + " WHERE status IN ('Active', 'Frozen') AND currentrevisionid IS NOT NULL ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 100000));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                }, Map, token).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -490,6 +501,7 @@ namespace Garrison.Core.Database.Ado
             obj.Name = AdoConverters.Str(reader, "name");
             obj.Description = AdoConverters.NullableStr(reader, "description");
             obj.Mission = AdoConverters.NullableStr(reader, "mission");
+            obj.BudgetFreezeMarginPercent = AdoConverters.NullableInt(reader, "budgetfreezemarginpercent") ?? 10;
             obj.Status = AdoConverters.Enum(reader, "status", OrganizationStatusEnum.Draft);
             obj.RootUnitId = AdoConverters.NullableStr(reader, "rootunitid");
             obj.CurrentRevisionId = AdoConverters.NullableStr(reader, "currentrevisionid");
@@ -511,6 +523,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "name", obj.Name);
             AdoDatabaseDriver.Add(command, "description", obj.Description);
             AdoDatabaseDriver.Add(command, "mission", obj.Mission);
+            AdoDatabaseDriver.Add(command, "budgetfreezemarginpercent", obj.BudgetFreezeMarginPercent);
             AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
             AdoDatabaseDriver.Add(command, "rootunitid", obj.RootUnitId);
             AdoDatabaseDriver.Add(command, "currentrevisionid", obj.CurrentRevisionId);

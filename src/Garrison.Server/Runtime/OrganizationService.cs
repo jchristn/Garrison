@@ -43,6 +43,12 @@ namespace Garrison.Server.Runtime
         public Func<RequestContext, string, string, CancellationToken, Task<bool>>? ApplyRevertAsync { get; set; } = null;
 
         /// <summary>
+        /// Cancels the run of a keeper tick in flight and finishes the tick (AA11.6, rollback with activeTicks Cancel), with
+        /// the tenant and the run. Returns true when a cancellation was requested. Null leaves ticks to finish.
+        /// </summary>
+        public Func<string, string, CancellationToken, Task<bool>>? CancelTickRunAsync { get; set; } = null;
+
+        /// <summary>
         /// Tree validator with the configured limits.
         /// </summary>
         public OrgTreeValidator Validator
@@ -614,8 +620,33 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown with NothingToRollBack, RevisionNeverPublished, AlreadyLive, OrganizationRetired, or AgentInactive.</exception>
         public async Task<OrgRevision> RollbackAsync(RequestContext ctx, Organization organization, string? targetRevisionId, string? note, CancellationToken token = default)
         {
+            return await RollbackAsync(ctx, organization, targetRevisionId, note, RollbackActiveTicksEnum.Finish, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Roll an organization back to an earlier published revision (AA7.4, AA11.6), choosing what happens to keeper ticks
+        /// in flight. Finish lets them complete; Cancel cancels their runs before the snapshot is restored. Either way, every
+        /// mandate the restored snapshot pins is moved to its pinned revision (again after any executive revert), and a
+        /// mandate of the organization left outside the snapshot (no longer in it, named by it without a pin, or pinned to a
+        /// revision that no longer exists) is paused with the reason recorded, so no mandate of the organization stays on a
+        /// revision outside the restored snapshot. A tick that finishes later never moves a mandate's current revision.
+        /// </summary>
+        /// <param name="ctx">Authorized caller (Organization Update).</param>
+        /// <param name="organization">Organization.</param>
+        /// <param name="targetRevisionId">Revision to return to, or null for the one live before the current one.</param>
+        /// <param name="note">Why, at most 2000 characters, or null.</param>
+        /// <param name="activeTicks">Finish (the default) or Cancel.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The new live revision.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or organization is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the note is too long or activeTicks is not a known value.</exception>
+        /// <exception cref="NotFoundException">Thrown when the target revision is not a revision of this organization.</exception>
+        /// <exception cref="ConflictException">Thrown with NothingToRollBack, RevisionNeverPublished, AlreadyLive, OrganizationRetired, or AgentInactive.</exception>
+        public async Task<OrgRevision> RollbackAsync(RequestContext ctx, Organization organization, string? targetRevisionId, string? note, RollbackActiveTicksEnum activeTicks, CancellationToken token = default)
+        {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (organization == null) throw new ArgumentNullException(nameof(organization));
+            if (!Enum.IsDefined(activeTicks)) throw new ValidationException("The request is invalid.", new Dictionary<string, string> { { "activeTicks", "activeTicks is Finish or Cancel." } });
             EnsureEditable(organization);
             CheckLength(note, 2000, "note");
             OrgRevision? target;
@@ -635,6 +666,22 @@ namespace Garrison.Server.Runtime
                 if (previous == null) throw new ConflictException("NothingToRollBack", "Organization " + organization.Name + " has no earlier live revision to return to.");
                 target = await _Database.Organizations.ReadRevisionAsync(organization.TenantId, previous.Id, token).ConfigureAwait(false);
                 if (target == null) throw new ConflictException("NothingToRollBack", "The earlier live revision of organization " + organization.Name + " could not be read.");
+            }
+
+            // AA11.6: the mandates of the live snapshot and of the restored one; with Cancel, their ticks in flight stop first.
+            OrgRevision? live = String.IsNullOrEmpty(organization.CurrentRevisionId) ? null : await _Database.Organizations.ReadRevisionAsync(organization.TenantId, organization.CurrentRevisionId, token).ConfigureAwait(false);
+            HashSet<string> involved = MandatesOf(live);
+            involved.UnionWith(MandatesOf(target));
+            int cancelledTicks = 0;
+            if (activeTicks == RollbackActiveTicksEnum.Cancel && CancelTickRunAsync != null)
+            {
+                foreach (string mandateId in involved)
+                {
+                    token.ThrowIfCancellationRequested();
+                    Mandate? ticking = await _Database.Mandates.ReadAsync(organization.TenantId, mandateId, token).ConfigureAwait(false);
+                    if (ticking == null || String.IsNullOrEmpty(ticking.ActiveTickId) || String.IsNullOrEmpty(ticking.ActiveRunId)) continue;
+                    if (await CancelTickRunAsync(organization.TenantId, ticking.ActiveRunId, token).ConfigureAwait(false)) cancelledTicks++;
+                }
             }
 
             OrgRevision copy = new OrgRevision();
@@ -667,7 +714,13 @@ namespace Garrison.Server.Runtime
                     if (await ApplyRevertAsync(ctx, organization.TenantId, revision.RevertDraftId!, token).ConfigureAwait(false)) reverted++;
                 }
             }
-            await AuditAsync(ctx, organization, "Rolled organization " + organization.Name + " back to revision " + target.Number + " as revision " + copy.Number + (reverted > 0 ? ", undoing " + reverted + " executive apply" + (reverted == 1 ? String.Empty : "s") : String.Empty) + ".", token).ConfigureAwait(false);
+            // AA11.6: the pins win over anything a revert published, and a mandate outside the snapshot stops ticking.
+            int paused = await EnforceSnapshotAsync(ctx, organization, target, copy.Number, involved, token).ConfigureAwait(false);
+            string ticks = activeTicks == RollbackActiveTicksEnum.Cancel
+                ? " In-flight ticks: Cancel (" + cancelledTicks + " tick run" + (cancelledTicks == 1 ? String.Empty : "s") + " cancelled)."
+                : " In-flight ticks: Finish.";
+            string pausedText = paused > 0 ? " Paused " + paused + " mandate" + (paused == 1 ? String.Empty : "s") + " outside the restored snapshot." : String.Empty;
+            await AuditAsync(ctx, organization, "Rolled organization " + organization.Name + " back to revision " + target.Number + " as revision " + copy.Number + (reverted > 0 ? ", undoing " + reverted + " executive apply" + (reverted == 1 ? String.Empty : "s") : String.Empty) + "." + ticks + pausedText, token).ConfigureAwait(false);
             await NotifyAsync(organization, "RolledBack", token).ConfigureAwait(false);
             return await _Database.Organizations.ReadRevisionAsync(organization.TenantId, copy.Id, token).ConfigureAwait(false) ?? copy;
         }
@@ -774,6 +827,76 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static HashSet<string> MandatesOf(OrgRevision? revision)
+        {
+            HashSet<string> ids = new HashSet<string>(StringComparer.Ordinal);
+            if (revision == null) return ids;
+            foreach (OrgRevisionMandate pin in revision.Mandates) if (!String.IsNullOrEmpty(pin.MandateId)) ids.Add(pin.MandateId);
+            foreach (OrgUnit unit in revision.Units)
+            {
+                if (!String.IsNullOrEmpty(unit.LeadMandateId)) ids.Add(unit.LeadMandateId);
+                foreach (OrgUnitMember member in unit.Members) if (!String.IsNullOrEmpty(member.MandateId)) ids.Add(member.MandateId);
+            }
+            return ids;
+        }
+
+        private async Task<int> EnforceSnapshotAsync(RequestContext ctx, Organization organization, OrgRevision target, int copyNumber, HashSet<string> involved, CancellationToken token)
+        {
+            Dictionary<string, OrgRevisionMandate> pins = new Dictionary<string, OrgRevisionMandate>(StringComparer.Ordinal);
+            foreach (OrgRevisionMandate pin in target.Mandates) if (!String.IsNullOrEmpty(pin.MandateId)) pins[pin.MandateId] = pin;
+            int paused = 0;
+            foreach (string mandateId in involved.OrderBy(m => m, StringComparer.Ordinal))
+            {
+                token.ThrowIfCancellationRequested();
+                Mandate? mandate = await _Database.Mandates.ReadAsync(organization.TenantId, mandateId, token).ConfigureAwait(false);
+                if (mandate == null) continue;
+                string why;
+                if (pins.TryGetValue(mandateId, out OrgRevisionMandate? pin))
+                {
+                    if (mandate.CurrentRevisionId == pin.MandateRevisionId) continue;
+                    MandateRevision? pinned = await _Database.MandateRevisions.ReadAsync(organization.TenantId, pin.MandateRevisionId, token).ConfigureAwait(false);
+                    if (pinned != null && pinned.MandateId == mandate.Id && pinned.State != MandateRevisionStateEnum.Draft)
+                    {
+                        await _Mandates.RestoreRevisionAsync(ctx, mandate, pinned, "organization " + organization.Name + " rollback to revision " + target.Number, token).ConfigureAwait(false);
+                        continue;
+                    }
+                    why = "organization " + organization.Name + " rolled back to revision " + target.Number + " (as revision " + copyNumber + "), which pins revision " + pin.MandateRevisionNumber + " of this mandate; that revision no longer exists";
+                }
+                else
+                {
+                    // Named by the restored tree without a pin (it had no published revision then), or no longer in it.
+                    if (String.IsNullOrEmpty(mandate.CurrentRevisionId)) continue;
+                    why = "organization " + organization.Name + " rolled back to revision " + target.Number + " (as revision " + copyNumber + "), whose snapshot does not pin this mandate";
+                }
+                if (await PauseOutsideAsync(ctx, mandate, why, token).ConfigureAwait(false)) paused++;
+            }
+            return paused;
+        }
+
+        private async Task<bool> PauseOutsideAsync(RequestContext ctx, Mandate mandate, string why, CancellationToken token)
+        {
+            if (mandate.Status == MandateStatusEnum.Active || mandate.Status == MandateStatusEnum.CapReached)
+            {
+                try
+                {
+                    await _Mandates.PauseAsync(ctx, mandate, why, token).ConfigureAwait(false);
+                    return true;
+                }
+                catch (ConflictException)
+                {
+                    // Its status changed meanwhile; read it again below.
+                    Mandate? again = await _Database.Mandates.ReadAsync(mandate.TenantId, mandate.Id, token).ConfigureAwait(false);
+                    if (again == null || again.Status != MandateStatusEnum.Frozen) return false;
+                    mandate = again;
+                }
+            }
+            if (mandate.Status != MandateStatusEnum.Frozen) return false;
+            // A frozen mandate would return to Active when its freeze is lifted; it goes to Paused instead.
+            if (!await _Database.Mandates.TrySetStatusAsync(mandate.TenantId, mandate.Id, MandateStatusEnum.Frozen, MandateStatusEnum.Paused, null, token).ConfigureAwait(false)) return false;
+            await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Mandate", mandate.Id, "Paused frozen mandate " + mandate.Name + ": " + why, mandate.TenantId, token).ConfigureAwait(false);
+            return true;
+        }
 
         private async Task GoLiveAsync(RequestContext ctx, Organization organization, OrgRevision revision, PromotionKindEnum kind, string? previousLiveRevisionId, CancellationToken token)
         {
@@ -1032,7 +1155,9 @@ namespace Garrison.Server.Runtime
             if (name.Length < 1 || name.Length > 128 || name.Any(Char.IsControl)) errors["name"] = "An organization name has 1 to 128 characters and no control characters.";
             if (body.Description != null && body.Description.Length > 2000) errors["description"] = "At most 2000 characters.";
             if (body.Mission != null && body.Mission.Length > 8000) errors["mission"] = "At most 8000 characters.";
+            if (body.BudgetFreezeMarginPercent < 0 || body.BudgetFreezeMarginPercent > 100) errors["budgetFreezeMarginPercent"] = "0 to 100 percent past the budget; 0 freezes at the budget.";
             if (errors.Count > 0) throw new ValidationException("The organization is invalid.", errors);
+            target.BudgetFreezeMarginPercent = body.BudgetFreezeMarginPercent;
             target.Name = name;
             target.Description = String.IsNullOrWhiteSpace(body.Description) ? null : body.Description.Trim();
             target.Mission = String.IsNullOrWhiteSpace(body.Mission) ? null : body.Mission.Trim();

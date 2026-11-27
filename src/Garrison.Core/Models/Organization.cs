@@ -71,6 +71,14 @@ namespace Garrison.Core.Models
         public string? Mission { get; set; } = null;
 
         /// <summary>
+        /// How far past a unit's budget its subtree may spend before the budget guard freezes the unit (AA11.5), in percent
+        /// of the budget: the unit is frozen when its spend in a window reaches amountUsd * (1 + margin / 100). Default 10,
+        /// minimum 0 (freeze at the budget), maximum 100. The organization routes, MCP tools, and manifests refuse values
+        /// outside the range with 400.
+        /// </summary>
+        public int BudgetFreezeMarginPercent { get; set; } = 10;
+
+        /// <summary>
         /// Lifecycle status. Default Draft; the first publish makes it Active.
         /// </summary>
         public OrganizationStatusEnum Status { get; set; } = OrganizationStatusEnum.Draft;

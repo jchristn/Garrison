@@ -514,10 +514,11 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_test_notification_endpoint` | NotificationEndpoint.Execute on the resolved ID | `endpoint`; returns the delivery |
 | `garrison_list_organizations` | Organization.Read | none; optional `search`, `skip`, `maxResults` (1 to 100, default 25) |
 | `garrison_get_organization` | Organization.Read | `organization` (name or ID); returns it with its working tree of units |
-| `garrison_create_organization` | Organization.Create, and Organization.Update with `units` | `name`; optional `description`, `mission`, and `units` (the working tree: each unit's `name`, `parentUnitId`, `leadAgentId`, `leadTitle`, `leadMandateId`, `appId`, `members`, `peerLines`, `budgets`; agents, mandates, apps, and units may be named). Nothing is live until published |
-| `garrison_update_organization` | Organization.Update | `organization`; optional `name`, `description`, `mission`, `status` (`Retired`, or `Active` to bring one back), and `units`, which replace the whole working tree |
+| `garrison_create_organization` | Organization.Create, and Organization.Update with `units` | `name`; optional `description`, `mission`, `budgetFreezeMarginPercent` (0 to 100, default 10), and `units` (the working tree: each unit's `name`, `parentUnitId`, `leadAgentId`, `leadTitle`, `leadMandateId`, `appId`, `members`, `peerLines`, `budgets`; agents, mandates, apps, and units may be named). Nothing is live until published |
+| `garrison_update_organization` | Organization.Update | `organization`; optional `name`, `description`, `mission`, `budgetFreezeMarginPercent` (0 to 100; left out, it is kept), `status` (`Retired`, or `Active` to bring one back), and `units`, which replace the whole working tree |
 | `garrison_publish_org_revision` | Organization.Update | `organization`; optional `revisionId` (a draft to publish; without it the working tree is snapshotted and published in one step), `note` |
-| `garrison_rollback_organization` | Organization.Update | `organization`; optional `revisionId` (default the revision live before the current one), `note`. Publishes a copy of the earlier revision and restores its pinned mandate revisions |
+| `garrison_rollback_organization` | Organization.Update | `organization`; optional `revisionId` (default the revision live before the current one), `note`, `activeTicks` (`Finish`, the default, or `Cancel`). Publishes a copy of the earlier revision and restores its pinned mandate revisions; mandates left outside the restored snapshot are paused |
+| `garrison_unit_cancel_all` | Organization.Update on the resolved ID | `organization`, `unitId` (identifier or name in the live tree); optional `reason` (at most 1024). Cancels the subtree's queued and running runs and their ticks, withdraws its agents' open escalations, and expires queued messages to them, in one audited action; returns the `CascadeCancelResult`. Does not freeze. `OrganizationNotLive` before the first publish. People only |
 | `garrison_board_get` | Organization.Read on the resolved ID | `organization`; optional `limit` (1 to 100, default 20). Returns the `Board`: chart and unit health, the CEO, open escalations, pending proposals with evidence, spend, the latest brief, recent unhealthy reports, freezes, and the kill switch |
 | `garrison_board_direct` | Organization.Update on the resolved ID | `organization`, `direction` (1 to 4000 characters); optional `changeNote` (at most 1024). Publishes a copy of the CEO mandate's current revision with the direction and source `Board`; `BoardCeoMissing` when the root unit has no lead with a mandate |
 
@@ -575,7 +576,7 @@ People shape an organization with `garrison_create_organization` and `garrison_u
 
 A unit lead's run reads how its subtree performed with `garrison_subordinate_performance` (AA11.2), the run view of `GET /organizations/{id}/performance`. It sees only units at or below the unit its agent leads, and the scheduled checks people set on those deployments; agents cannot create, change, or cancel those checks (EvalSet triggers and their eval runs are written by people).
 
-The board tools `garrison_board_get` and `garrison_board_direct` (AA10) are management tools for people: run tokens never see them. They authorize on the organization's identifier, so a `BoardMember` assigned to one organization uses them for that organization only.
+The board tools `garrison_board_get` and `garrison_board_direct` (AA10) and the cascade cancel `garrison_unit_cancel_all` (AA11.4) are management tools for people: run tokens never see them. They authorize on the organization's identifier, so a `BoardMember` assigned to one organization uses them for that organization only.
 
 ## Executives and change rules
 

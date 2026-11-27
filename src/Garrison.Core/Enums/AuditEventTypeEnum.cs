@@ -148,6 +148,12 @@ namespace Garrison.Core.Enums
         KillSwitchChanged,
 
         /// <summary>A person gave direction to an organization's top agent from the board (AA10.5).</summary>
-        BoardDirectionGiven
+        BoardDirectionGiven,
+
+        /// <summary>A person cancelled everything in an organization unit's subtree: runs, ticks, escalations, and queued messages (AA11.4).</summary>
+        UnitCascadeCancelled,
+
+        /// <summary>The budget guard froze a unit whose subtree spend passed its budget plus the organization's freeze margin (AA11.5).</summary>
+        OrgBudgetFrozen
     }
 }

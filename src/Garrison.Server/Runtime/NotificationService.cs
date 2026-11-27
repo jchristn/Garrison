@@ -235,6 +235,37 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Queue OrgBudgetFrozen notifications (AA11.5) for every active endpoint of the tenant that subscribes to it, when the
+        /// budget guard froze a unit. Unlike the swept events, this one is queued by the guard at once; the event key
+        /// (budget-freeze: and the freeze identifier) keeps a repeat from queuing twice. An endpoint filtered to an agent
+        /// hears about units whose subtree holds that agent; one filtered to a deployment hears none.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="summary">The frozen unit, spend, and freeze.</param>
+        /// <param name="subtreeAgentIds">Agents of the frozen unit's subtree, for agent-filtered endpoints.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Deliveries queued.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or summary is null.</exception>
+        public async Task<int> QueueOrgBudgetFrozenAsync(string tenantId, NotificationBudgetFreezeSummary summary, IReadOnlyCollection<string>? subtreeAgentIds, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (summary == null) throw new ArgumentNullException(nameof(summary));
+            List<NotificationEndpoint> endpoints = await _Database.NotificationEndpoints.ListActiveAsync(token).ConfigureAwait(false);
+            int queued = 0;
+            foreach (NotificationEndpoint endpoint in endpoints)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!Subscribed(endpoint, tenantId, NotificationEventEnum.OrgBudgetFrozen, summary.FrozenUtc)) continue;
+                if (!String.IsNullOrEmpty(endpoint.DeploymentId)) continue;
+                if (!String.IsNullOrEmpty(endpoint.AgentId) && (subtreeAgentIds == null || !subtreeAgentIds.Contains(endpoint.AgentId))) continue;
+                NotificationPayload payload = NewPayload(endpoint, NotificationEventEnum.OrgBudgetFrozen, summary.FrozenUtc, "/freezes/" + summary.FreezeId);
+                payload.BudgetFreeze = summary;
+                if (await QueueAsync(endpoint, NotificationEventEnum.OrgBudgetFrozen, "budget-freeze:" + summary.FreezeId, "Freeze", summary.FreezeId, payload, token).ConfigureAwait(false)) queued++;
+            }
+            return queued;
+        }
+
+        /// <summary>
         /// Delay before the next attempt after a number of failed attempts: InitialBackoffSeconds doubled for each attempt
         /// after the first, capped at MaxBackoffSeconds.
         /// </summary>

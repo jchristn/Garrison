@@ -315,6 +315,7 @@ namespace Garrison.Server.Runtime
                 if (breach != null)
                 {
                     bool skippedBudget = await SkipAsync(mandate, source, expected, nowUtc, "BudgetExhausted", OrgBudgetGuard.Message(breach) + " This wake was skipped.", token).ConfigureAwait(false);
+                    if (skippedBudget) await OrgBudgets.FreezeIfOverrunAsync(breach, token).ConfigureAwait(false);
                     if (skippedBudget) await OrgBudgets.NotifyAsync(mandate.TenantId, mandate.AgentId, breach, mandate.RunAsType, mandate.RunAsId, "keeper:" + mandate.Name, token).ConfigureAwait(false);
                     return skippedBudget;
                 }

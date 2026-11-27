@@ -333,6 +333,22 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ConflictException">Thrown with MandateNotActive when it is not Active or CapReached.</exception>
         public async Task<Mandate> PauseAsync(RequestContext ctx, Mandate mandate, CancellationToken token = default)
         {
+            return await PauseAsync(ctx, mandate, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Pause a mandate with a reason recorded in the audit record: no further wakes are scheduled. A tick in flight
+        /// finishes.
+        /// </summary>
+        /// <param name="ctx">Authorized caller (Mandate Execute), or the principal of the change that pauses it.</param>
+        /// <param name="mandate">Mandate.</param>
+        /// <param name="reason">Why, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The mandate.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or mandate is null.</exception>
+        /// <exception cref="ConflictException">Thrown with MandateNotActive when it is not Active or CapReached.</exception>
+        public async Task<Mandate> PauseAsync(RequestContext ctx, Mandate mandate, string? reason, CancellationToken token = default)
+        {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (mandate == null) throw new ArgumentNullException(nameof(mandate));
             if (mandate.Status == MandateStatusEnum.Paused) return mandate;
@@ -342,7 +358,7 @@ namespace Garrison.Server.Runtime
             mandate.NextWakeUtc = null;
             mandate.PendingWakeSource = null;
             await _Database.Mandates.UpdateScheduleAsync(mandate, token).ConfigureAwait(false);
-            await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Paused mandate " + mandate.Name + ".", token).ConfigureAwait(false);
+            await AuditAsync(ctx, mandate.TenantId, mandate.Id, "Paused mandate " + mandate.Name + (String.IsNullOrWhiteSpace(reason) ? "." : ": " + reason.Trim()), token).ConfigureAwait(false);
             await AttachRevisionAsync(mandate, token).ConfigureAwait(false);
             return mandate;
         }
