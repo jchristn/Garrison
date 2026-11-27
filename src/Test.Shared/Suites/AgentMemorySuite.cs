@@ -108,6 +108,10 @@ namespace Test.Shared.Suites
                     {
                         await client.ConnectAsync(host, bearer, token).ConfigureAwait(false);
                         await client.CallAsync<AgentMemoryResult>("garrison_memory_write", new { key = "from-run", value = "saved by active run" }, token).ConfigureAwait(false);
+                        // Empty optional strings (as models send them) mean the run's own agent, not another scope.
+                        await client.CallAsync<AgentMemoryResult>("garrison_memory_write", new { agent = "", scope = "Agent", scopeId = "", key = "blank-scope", value = "own agent" }, token).ConfigureAwait(false);
+                        Assert.Equal("own agent", await host.Server.Context.Get<IAgentMemoryStore>().ReadAsync(host.TenantId, agent.Id, "blank-scope", token).ConfigureAwait(false), "blank agent and scopeId write the run's own scope");
+                        await client.ExpectErrorAsync("garrison_memory_read", new { agent = "", scopeId = other.Id, key = "context" }, "Forbidden", token).ConfigureAwait(false);
                         await client.ExpectErrorAsync("garrison_memory_read", new { agent = other.Id, key = "context" }, "Forbidden", token).ConfigureAwait(false);
                         run.LeaseExpiresUtc = DateTime.UtcNow.AddSeconds(-1);
                         await host.Server.Context.Database.Runs.UpdateAsync(run, token).ConfigureAwait(false);

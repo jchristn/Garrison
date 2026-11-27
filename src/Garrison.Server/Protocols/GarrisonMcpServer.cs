@@ -1597,10 +1597,13 @@ namespace Garrison.Server.Protocols
                 if (run == null) throw ToolError("NotFound", "The active run was not found.");
                 Agent agent = await _Context.Database.Agents.ReadAsync(tenantId, run.AgentId, token).ConfigureAwait(false)
                     ?? throw ToolError("NotFound", "The run agent was not found.");
-                if (arguments.Agent != null && arguments.Agent != agent.Id && arguments.Agent != agent.Name) throw ToolError("Forbidden", "Run memory is scoped to its own agent.");
+                // An empty or blank agent or scopeId means "not given", as it does for the App and org scopes: models
+                // often fill optional string arguments with "".
+                string? namedAgent = String.IsNullOrWhiteSpace(arguments.Agent) ? null : arguments.Agent.Trim();
+                if (namedAgent != null && namedAgent != agent.Id && namedAgent != agent.Name) throw ToolError("Forbidden", "Run memory is scoped to its own agent.");
                 if (kind == MemoryScopeKindEnum.Agent)
                 {
-                    string? named = arguments.ScopeId;
+                    string? named = String.IsNullOrWhiteSpace(arguments.ScopeId) ? null : arguments.ScopeId.Trim();
                     if (named != null && named != agent.Id && named != agent.Name) throw ToolError("Forbidden", "A run uses only its own agent's Agent scope.");
                     scopeId = agent.Id;
                 }
