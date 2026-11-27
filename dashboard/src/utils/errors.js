@@ -75,6 +75,8 @@ export function errorDetail(t, err) {
 
 /** True when the error indicates the endpoint does not exist on this server yet. */
 export function isMissingEndpoint(err) {
+  // A server that has the path but not the method answers 405 MethodNotAllowed (UT-20); treat it as missing too.
+  if (err?.status === 405 && err?.code === 'MethodNotAllowed') return true;
   return err?.status === 404 && (err?.code === 'RouteNotFound' || err?.code === 'Http404');
 }
 
