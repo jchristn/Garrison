@@ -253,7 +253,7 @@ describe('deployment editor approvals', () => {
   it('adds an Approvals step with the settings, ordered rules, and the tester', () => {
     expect(deploymentsConfig.steps.at(-1)).toBe('approvals');
     const fields = deploymentsConfig.fields(deploymentsConfig.toForm(record), { t, i18n, mode: 'edit', options: {} }).filter((f) => f.step === 6);
-    expect(fields.map((f) => f.name)).toEqual(['approvalsEnabled', 'suspensionEnabled', 'approvalDefaultAction', 'approvalTimeoutSeconds', 'approvalTimeoutDecision', 'approvalRules', 'approvalTest']);
+    expect(fields.map((f) => f.name)).toEqual(['managementAccess', 'approvalsEnabled', 'suspensionEnabled', 'approvalDefaultAction', 'approvalTimeoutSeconds', 'approvalTimeoutDecision', 'approvalRules', 'approvalTest']);
     const rules = fields.find((f) => f.name === 'approvalRules');
     expect(rules.ordered).toBe(true);
     expect(rules.fields.map((f) => f.name)).toEqual(['action', 'pattern', 'inputPattern', 'description']);
