@@ -112,7 +112,9 @@ const de = {
     copied: 'Kopiert',
     failed: 'Der Browser hat das Kopieren nicht erlaubt',
     message: 'Ihre Nachricht kopieren',
-    answer: 'Antwort kopieren'
+    answer: 'Antwort kopieren',
+    messageTip: 'Kopiert Ihre Nachricht in die Zwischenablage',
+    answerTip: 'Kopiert die Antwort in die Zwischenablage'
   },
   telemetry: {
     title: 'So lief diese Antwort',

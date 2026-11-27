@@ -112,7 +112,9 @@ const yueHant = {
     copied: '複製咗',
     failed: '瀏覽器唔俾複製',
     message: '複製你嘅訊息',
-    answer: '複製答案'
+    answer: '複製答案',
+    messageTip: '將你嘅訊息複製到剪貼簿',
+    answerTip: '將答案複製到剪貼簿'
   },
   telemetry: {
     title: '呢個答案點樣運行',

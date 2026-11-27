@@ -112,7 +112,9 @@ const zhHant = {
     copied: '已複製',
     failed: '瀏覽器不允許複製',
     message: '複製你的訊息',
-    answer: '複製回答'
+    answer: '複製回答',
+    messageTip: '將你的訊息複製到剪貼簿',
+    answerTip: '將回答複製到剪貼簿'
   },
   telemetry: {
     title: '這個回答的執行情況',

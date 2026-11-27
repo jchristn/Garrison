@@ -27,7 +27,7 @@ export default function TurnView({ turn, agentName, showDetail, filePaths, onFil
       <div className="message message-user">
         <div className="message-header">
           <span className="message-author">{t('chat.you')}</span>
-          <CopyButton text={turn.message} label={t('copy.message')} testId="copy-message" />
+          <CopyButton text={turn.message} label={t('copy.message')} tipText={t('copy.messageTip')} testId="copy-message" />
         </div>
         <div className="message-text">{turn.message}</div>
       </div>
@@ -36,7 +36,7 @@ export default function TurnView({ turn, agentName, showDetail, filePaths, onFil
           <span className="message-author">{agentName}</span>
           <span className="message-tools">
             {!live && turn.telemetry ? <TurnTelemetry telemetry={turn.telemetry} toolMs={toolTimeMs(steps)} /> : null}
-            {answer ? <CopyButton text={answer} label={t('copy.answer')} testId="copy-answer" /> : null}
+            {answer ? <CopyButton text={answer} label={t('copy.answer')} tipText={t('copy.answerTip')} testId="copy-answer" /> : null}
           </span>
         </div>
         {answer ? (

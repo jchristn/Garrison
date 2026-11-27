@@ -113,7 +113,9 @@ const en = {
     copied: 'Copied',
     failed: 'The browser did not allow copying',
     message: 'Copy your message',
-    answer: 'Copy the answer'
+    answer: 'Copy the answer',
+    messageTip: 'Copies your message to the clipboard',
+    answerTip: 'Copies the answer to the clipboard'
   },
   telemetry: {
     title: 'How this answer ran',

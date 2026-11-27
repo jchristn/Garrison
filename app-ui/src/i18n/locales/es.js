@@ -112,7 +112,9 @@ const es = {
     copied: 'Copiado',
     failed: 'El navegador no permitió copiar',
     message: 'Copiar su mensaje',
-    answer: 'Copiar la respuesta'
+    answer: 'Copiar la respuesta',
+    messageTip: 'Copia su mensaje al portapapeles',
+    answerTip: 'Copia la respuesta al portapapeles'
   },
   telemetry: {
     title: 'Cómo se generó esta respuesta',

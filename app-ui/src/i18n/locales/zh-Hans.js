@@ -112,7 +112,9 @@ const zhHans = {
     copied: '已复制',
     failed: '浏览器不允许复制',
     message: '复制你的消息',
-    answer: '复制回答'
+    answer: '复制回答',
+    messageTip: '将你的消息复制到剪贴板',
+    answerTip: '将回答复制到剪贴板'
   },
   telemetry: {
     title: '这个回答的运行情况',

@@ -112,7 +112,9 @@ const fr = {
     copied: 'Copié',
     failed: 'Le navigateur n\'a pas autorisé la copie',
     message: 'Copier votre message',
-    answer: 'Copier la réponse'
+    answer: 'Copier la réponse',
+    messageTip: 'Copie votre message dans le presse-papiers',
+    answerTip: 'Copie la réponse dans le presse-papiers'
   },
   telemetry: {
     title: 'Comment cette réponse a été produite',

@@ -9,9 +9,10 @@ const COPIED_MS = 1500;
 
 /**
  * The one copy control of the app UI: copies `text` (on https, localhost, and plain http alike) and turns into a
- * green check for a moment, or says the browser refused.
+ * green check for a moment, or says the browser refused. `label` names the button; `tipText`, when given, is the
+ * longer tooltip shown while it is idle.
  */
-export default function CopyButton({ text, label, testId }) {
+export default function CopyButton({ text, label, tipText, testId }) {
   const { t } = useTranslation();
   const [state, setState] = useState('idle');
   const timer = useRef(null);
@@ -24,7 +25,7 @@ export default function CopyButton({ text, label, testId }) {
   };
   const name = state === 'copied' ? t('copy.copied') : state === 'failed' ? t('copy.failed') : label || t('copy.copy');
   return (
-    <button type="button" className={`icon-button copy-button copy-${state}`} onClick={copy} aria-label={name} data-testid={testId} data-state={state} {...tip(name)}>
+    <button type="button" className={`icon-button copy-button copy-${state}`} onClick={copy} aria-label={name} data-testid={testId} data-state={state} {...tip(state === 'idle' && tipText ? tipText : name)}>
       {state === 'copied' ? <CheckIcon /> : <CopyIcon />}
     </button>
   );

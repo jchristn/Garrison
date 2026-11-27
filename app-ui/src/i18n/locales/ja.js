@@ -112,7 +112,9 @@ const ja = {
     copied: 'コピーしました',
     failed: 'ブラウザーがコピーを許可しませんでした',
     message: '自分のメッセージをコピー',
-    answer: '回答をコピー'
+    answer: '回答をコピー',
+    messageTip: '自分のメッセージをクリップボードにコピーします',
+    answerTip: '回答をクリップボードにコピーします'
   },
   telemetry: {
     title: 'この回答の実行内容',

@@ -89,6 +89,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Fixed
 
+- App UI: the copy buttons have their own tooltips ("Copies your message to the clipboard") instead of repeating the button label. Dashboard: DOMPurify 3.5.0 and Vite 6.4.6 clear the high-severity `npm audit` advisories.
 - Dashboard: a 405 `MethodNotAllowed` (a server that has the path but not the method) is treated like a missing endpoint, as 404 `RouteNotFound` already was.
 - Organization diffs (manifest dry runs, Studio diffs, and executive proposals) matched units by their position in the tree, so removing one unit read as renames, a budget change, and the wrong unit being deleted. Units now match by name, members by agent, budgets by period, and peers as a set: a removal is one `units.<name>` change, a reorder is `Unchanged` and publishes nothing, and a moved unit is one `parent` change. Found in the AA12.7 org trial.
 - Re-applying a manifest silently undid an organization change a person had approved through an executive proposal. An Organization document that would drop a change from an executive revision published since the last manifest apply now fails with `OrganizationDrift`, on a dry run too, naming each change it would undo, until the manifest carries the change or the apply passes `force=true` (new query parameter on `POST .../manifests/apply`). Found in the AA12.7 org trial.
