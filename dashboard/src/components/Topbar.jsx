@@ -24,13 +24,13 @@ export default function Topbar({ onToggleSidebar, health, live }) {
           </button>
           <span className="topbar-chip topbar-server" {...tip(t('tips.topbar.server', { url: serverUrl }))}>
             <span className={`health-dot ${healthState}`} role="img" aria-label={t(`topbar.health.${healthState}`)} {...tip(t(`tips.topbar.health.${healthState}`))} />
-            <code className="topbar-truncate">{serverUrl}</code>
+            <code className="topbar-truncate" dir="auto">{serverUrl}</code>
             <CopyButton value={serverUrl} title={t('topbar.copyServer')} tipText={t('tips.topbar.copyServer')} />
           </span>
           {isSystemAdmin && tenants.length > 0 ? (
             <label className="topbar-chip topbar-tenant" {...tip(t('tips.topbar.switchTenant'))}>
               <span className="text-muted">{t('topbar.tenant')}</span>
-              <select value={tenantId} onChange={(e) => setTenantId(e.target.value)} aria-label={t('topbar.switchTenant')} {...tip(t('tips.topbar.switchTenant'))}>
+              <select dir="auto" value={tenantId} onChange={(e) => setTenantId(e.target.value)} aria-label={t('topbar.switchTenant')} {...tip(t('tips.topbar.switchTenant'))}>
                 {tenants.map((tn) => (
                   <option key={tn.id} value={tn.id}>
                     {tn.name}
@@ -41,12 +41,12 @@ export default function Topbar({ onToggleSidebar, health, live }) {
           ) : (
             <span className="topbar-chip topbar-tenant-name" {...tip(t('tips.topbar.tenant', { tenant: tenantId }))}>
               <span className="text-muted">{t('topbar.tenant')}</span>
-              <code className="topbar-truncate">{tenantId}</code>
+              <code className="topbar-truncate" dir="auto">{tenantId}</code>
             </span>
           )}
           {principal?.principalName && (
             <span className="topbar-chip topbar-hide-narrow" {...tip(t('tips.topbar.principal', { name: principal.principalName }))}>
-              <code className="topbar-truncate">{principal.principalName}</code>
+              <code className="topbar-truncate" dir="auto">{principal.principalName}</code>
             </span>
           )}
           <span className="topbar-chip role topbar-hide-mobile" {...tip(t('tips.topbar.role'))}>{t(roleKey(principal))}</span>

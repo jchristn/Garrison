@@ -29,6 +29,7 @@ export default function Markdown({ text, filePaths, onFile }) {
     event.preventDefault();
     onFile(path);
   };
-  // File links are anchors, so Enter on a focused link raises the same click event.
-  return <div className="markdown-body" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
+  // File links are anchors, so Enter on a focused link raises the same click event. dir="auto" lays out the text by
+  // its own first strong character, so English output in an RTL locale keeps its punctuation at the end.
+  return <div className="markdown-body" dir="auto" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
 }

@@ -128,7 +128,7 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
         </button>
         <div className="brand">
           {logoUrl ? <img className="brand-logo" src={logoUrl} alt={t('header.logoAlt', { name })} data-testid="brand-logo" /> : null}
-          <span className="brand-name" data-testid="brand-name">
+          <span className="brand-name" data-testid="brand-name" dir="auto">
             {name}
           </span>
         </div>
@@ -148,7 +148,7 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
           </button>
           <LanguageSelect className="header-lang" />
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          <span className="principal">
+          <span className="principal" dir="auto">
             {session.anonymous ? t('header.guest') : t('header.signedInAs', { name: session.principalName })}
           </span>
           <button type="button" className="icon-button" onClick={onSignOut} aria-label={t('header.signOut')} {...tip(t('tips.signOut'))} data-testid="sign-out">

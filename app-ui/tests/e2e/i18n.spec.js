@@ -91,6 +91,25 @@ test('the RTL pseudo-locale mirrors the layout without horizontal overflow', asy
   await page.goto('/apps/demo/?lang=en');
 });
 
+// AA13.9 QA follow-up: in RTL the app name ended in an ellipsis at its start ("...earch Desk") and an English answer
+// showed its final period at the start of the line. Both now lay out by their own text.
+test('Latin names and answers keep their own direction in the RTL pseudo-locale', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/apps/demo/?lang=zz');
+  await page.getByTestId('signin-anonymous').click();
+  await send(page, 'Hello there.');
+  await expect(page.getByTestId('turn').first()).toHaveAttribute('data-phase', 'done');
+  const dirs = await page.evaluate(() => ({
+    brand: getComputedStyle(document.querySelector('[data-testid="brand-name"]')).direction,
+    message: getComputedStyle(document.querySelector('.message-text')).direction,
+    answer: getComputedStyle(document.querySelector('[data-testid="answer"] .markdown-body')).direction,
+    page: document.documentElement.dir
+  }));
+  expect(dirs).toEqual({ brand: 'ltr', message: 'ltr', answer: 'ltr', page: 'rtl' });
+  await page.evaluate(() => sessionStorage.clear());
+  await page.goto('/apps/demo/?lang=en');
+});
+
 // AA13.9 QA: the pseudo-locale's long "Filter by name" placeholder was cut off mid-letter. The sort now wraps below
 // the filter when both do not fit, and a placeholder that still does not fit ends in an ellipsis.
 test('the conversation filter keeps its placeholder readable in long locales', async ({ page }) => {

@@ -29,7 +29,7 @@ export default function TurnView({ turn, agentName, showDetail, filePaths, onFil
           <span className="message-author">{t('chat.you')}</span>
           <CopyButton text={turn.message} label={t('copy.message')} tipText={t('copy.messageTip')} testId="copy-message" />
         </div>
-        <div className="message-text">{turn.message}</div>
+        <div className="message-text" dir="auto">{turn.message}</div>
       </div>
       <div className={`message message-agent phase-${phase}`} aria-busy={phase === 'waiting' || phase === 'streaming' ? 'true' : 'false'}>
         <div className="message-header">

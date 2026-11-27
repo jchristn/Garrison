@@ -49,14 +49,18 @@ function useMeasuredWidth(ref) {
 }
 
 const AXIS_LABELS = { hour: 12, day: 12, week: 7, month: 12 };
+// Axis labels are 11px text; this average glyph width (plus a gap) sizes them so labels never overlap on a phone or
+// in a locale with long dates, and the first and last labels stay inside the chart.
+const AXIS_CHAR_W = 6.5;
+const AXIS_LABEL_GAP = 12;
 
 function computeTicks(max) {
   const step = Math.max(1, Math.ceil(max / 4));
   return [0, step, step * 2, step * 3, step * 4];
 }
 
-function axisLabelIndices(count, rangeId) {
-  const maxLabels = Math.min(8, AXIS_LABELS[rangeId] || 8);
+function axisLabelIndices(count, rangeId, fitCount = 8) {
+  const maxLabels = Math.max(2, Math.min(8, AXIS_LABELS[rangeId] || 8, fitCount));
   if (count <= maxLabels) return new Set(Array.from({ length: count }, (_, i) => i));
   const last = count - 1;
   const set = new Set();
@@ -99,8 +103,11 @@ export default function ActivityChart({
   const maxCount = Math.max(1, ...buckets.map((b) => b.successCount + b.failureCount));
   const ticks = computeTicks(maxCount);
   const axisMax = ticks[ticks.length - 1];
-  const labelIdx = axisLabelIndices(buckets.length, rangeId);
   const groupW = buckets.length > 0 ? PLOT_W / buckets.length : PLOT_W;
+  const axisLabels = buckets.map((b) => formatAxisTick(b.bucketStartUtc, rangeId, i18n.language));
+  const labelW = Math.max(0, ...axisLabels.map((l) => l.length)) * AXIS_CHAR_W;
+  const labelIdx = axisLabelIndices(buckets.length, rangeId, Math.floor(PLOT_W / (labelW + AXIS_LABEL_GAP)));
+  const labelX = (i) => Math.min(Math.max(PAD_LEFT + i * groupW + groupW / 2, labelW / 2), W - labelW / 2);
   const barW = Math.max(2, Math.min(48, groupW * 0.72));
 
   const ranges = Object.values(REQUEST_RANGES);
@@ -234,16 +241,16 @@ export default function ActivityChart({
             })}
 
             {/* X labels */}
-            {buckets.map((b, i) =>
+            {axisLabels.map((label, i) =>
               labelIdx.has(i) ? (
                 <text
                   key={`x${i}`}
                   className="chart-svg-text"
-                  x={PAD_LEFT + i * groupW + groupW / 2}
+                  x={labelX(i)}
                   y={H - PAD_BOTTOM + 20}
                   textAnchor="middle"
                 >
-                  {formatAxisTick(b.bucketStartUtc, rangeId, i18n.language)}
+                  {label}
                 </text>
               ) : null
             )}

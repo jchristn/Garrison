@@ -89,6 +89,8 @@ body {
   background-color: var(--color-background);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* A long unbroken run (a pseudo-locale's padding, a long ID) breaks inside its box instead of running past it. */
+  overflow-wrap: break-word;
 }
 
 a {
@@ -419,7 +421,7 @@ button[aria-disabled="true"]:hover { filter: none; }
 }
 .kpi-card.clickable { cursor: pointer; }
 .kpi-card.clickable:hover { border-color: var(--color-primary); }
-.kpi-label { font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 600; }
+.kpi-label { overflow-wrap: anywhere; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 600; }
 .kpi-value { font-size: 1.6rem; font-weight: 700; }
 .kpi-note { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 
@@ -632,8 +634,10 @@ button[aria-disabled="true"]:hover { filter: none; }
 .chart-header { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); flex-wrap: wrap; margin-bottom: var(--spacing-sm); }
 .chart-title { font-size: var(--font-size-base); font-weight: 600; }
 .chart-controls { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; }
-.range-group { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
-.range-btn { padding: 0.25rem 0.6rem; font-size: var(--font-size-xs); border-radius: 0; background: var(--color-surface); color: var(--color-text-secondary); border: none; white-space: nowrap; }
+/* The segmented range control stays inside its card: when the labels do not fit on one line, each wraps inside its
+   own button. */
+.range-group { display: inline-flex; max-width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.range-btn { padding: 0.25rem 0.6rem; font-size: var(--font-size-xs); border-radius: 0; background: var(--color-surface); color: var(--color-text-secondary); border: none; white-space: normal; overflow-wrap: break-word; }
 .range-btn + .range-btn { border-inline-start: 1px solid var(--color-border); }
 .range-btn.active { background: var(--color-primary); color: #fff; }
 .chart-tenant-select { width: auto; max-width: 200px; font-size: var(--font-size-xs); padding: 0.25rem 0.4rem; }
@@ -891,7 +895,7 @@ button[aria-disabled="true"]:hover { filter: none; }
 .grafana-dashboard-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--spacing-sm); }
 .grafana-dashboard-list a { width: 100%; justify-content: flex-start; }
 a.button { text-decoration: none; }
-.kpi-clickable { cursor: pointer; text-align: start; font: inherit; color: inherit; border: 1px solid var(--color-border); }
+.kpi-clickable { cursor: pointer; text-align: start; font: inherit; color: inherit; border: 1px solid var(--color-border); white-space: normal; min-width: 0; }
 .kpi-clickable:hover { border-color: var(--color-primary); }
 .kpi-clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .kpi-success .kpi-value { color: var(--color-success); }
@@ -975,7 +979,13 @@ a.button { text-decoration: none; }
   .topbar-tenant select { max-width: 100%; text-overflow: ellipsis; }
   .topbar-tenant-name .topbar-truncate { max-width: none; }
   .topbar-tenant > .text-muted, .topbar-tenant-name > .text-muted, .topbar-hide-mobile { display: none; }
-  .topbar-lang select { max-width: 84px; }
+  /* The language name fits on a phone too (the header and left gaps tighten to make room). A select draws its text
+     from the inline start, so in RTL a too-narrow box would cut the start of a Latin name; the cap is wide enough for
+     every autonym, and a name that still overflows ends in an ellipsis. */
+  .dashboard-header { padding-inline: var(--spacing-sm); }
+  .topbar-left { gap: var(--spacing-xs); }
+  .topbar-lang { flex-shrink: 0; }
+  .topbar-lang select { max-width: 7.5rem; text-overflow: ellipsis; }
 }
 
 /* ---------------------------------------------------------------- tooltips (D-030) */
@@ -1017,7 +1027,7 @@ a.button { text-decoration: none; }
   align-items: flex-start;
 }
 .explainer-icon { color: var(--color-info); flex: 0 0 auto; margin-top: 2px; }
-.explainer-body { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-sm); }
+.explainer-body { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .explainer-title { font-weight: 600; margin-bottom: 0.35rem; }
 .explainer-body p { margin: 0 0 0.45rem; color: var(--color-text-secondary); max-width: 90ch; }
 .explainer-body p:last-child { margin-bottom: 0; }

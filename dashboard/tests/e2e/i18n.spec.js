@@ -293,3 +293,71 @@ test('English with dir="rtl" forced has no page overflow on any route', async ({
   const problems = await rtlAudit(page, 'en rtl', true);
   expect(problems).toEqual([]);
 });
+
+/** Text nodes inside `selector` whose rendered text runs past the box of the first match. */
+async function textPastBox(page, selector) {
+  return page.evaluate((sel) => {
+    const out = [];
+    for (const box of document.querySelectorAll(sel)) {
+      const b = box.getBoundingClientRect();
+      const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.textContent.trim() || n.parentElement.closest('.sr-only')) continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        for (const r of range.getClientRects()) {
+          if (r.width && (r.left < b.left - 1 || r.right > b.right + 1)) out.push(`${sel}: "${n.textContent.trim().slice(0, 30)}"`);
+        }
+      }
+    }
+    return [...new Set(out)];
+  }, selector);
+}
+
+// AA13.9 QA follow-up: on a phone in the RTL pseudo-locale, explainer padding ran past its card, a KPI label past its
+// card, the activity chart's range buttons past the chart card and its time labels over each other, and the compact
+// language selector cut "Pseudo-RTL" to "eudo-RTL". A long tenant name now ends in an ellipsis rather than losing
+// its start.
+test('long RTL pseudo-locale text stays inside its boxes on a phone', async ({ page }) => {
+  await page.route(/\/v1\.0\/api\/tenants(\?|$)/, (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: [{ id: 'default', name: 'Northwind Traders Production Operations' }, { id: 'ten_0002', name: 'tenant-2' }], totalRecords: 2, skip: 0, maxResults: 100, endOfResults: true }) })
+      : route.fallback()
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('garrison.locale', 'zz'));
+  await login(page);
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await settle(page);
+
+  const lang = await page.locator('.topbar .topbar-lang select').evaluate((el) => {
+    const s = getComputedStyle(el);
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+    return { need: c.measureText(el.selectedOptions[0].text).width + parseFloat(s.paddingInlineStart) + parseFloat(s.paddingInlineEnd) + 16, has: el.getBoundingClientRect().width, ellipsis: s.textOverflow };
+  });
+  expect(lang.has, 'the language name fits its selector').toBeGreaterThanOrEqual(lang.need);
+  expect(lang.ellipsis).toBe('ellipsis');
+  // The tenant select lays out by its own text, so a long Latin name keeps its start and ends in an ellipsis.
+  expect(await page.locator('.topbar-tenant select').evaluate((el) => getComputedStyle(el).direction)).toBe('ltr');
+
+  expect(await textPastBox(page, '.kpi-card'), 'KPI labels').toEqual([]);
+  expect(await textPastBox(page, '.chart-card'), 'activity chart').toEqual([]);
+  const ticks = await page.locator('.chart-canvas svg text[text-anchor="middle"]').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()));
+  expect(ticks.length).toBeGreaterThanOrEqual(2);
+  const svg = await page.locator('.chart-canvas > svg').evaluate((el) => el.getBoundingClientRect());
+  for (const [i, r] of ticks.entries()) {
+    expect(r.left, 'time label inside the chart').toBeGreaterThanOrEqual(svg.left - 1);
+    expect(r.right, 'time label inside the chart').toBeLessThanOrEqual(svg.right + 1);
+    if (i > 0) expect(r.left >= ticks[i - 1].right || r.right <= ticks[i - 1].left, 'time labels do not overlap').toBe(true);
+  }
+
+  for (const url of ['/dashboard/performance/org_0001', '/dashboard/autonomy?tab=board', '/dashboard/autonomy?tab=messages']) {
+    await page.goto(url);
+    await settle(page);
+    await expect(page.locator('.explainer').first()).toBeVisible();
+    expect(await textPastBox(page, '.explainer'), url).toEqual([]);
+  }
+  await page.evaluate(() => localStorage.setItem('garrison.locale', 'en'));
+});
