@@ -1,0 +1,583 @@
+{
+  "schemaVersion": 1,
+  "kind": "messaging",
+  "dataset": "autonomy-workload",
+  "label": "aa12",
+  "deterministic": false,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-11-27T01:11:51.915695Z",
+    "finishedUtc": "2026-11-27T01:12:15.441466Z",
+    "sutUrl": "http://127.0.0.1:37800",
+    "sutVersion": "0.3.0",
+    "stack": "local",
+    "stackDetails": "local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots",
+    "productCommit": "78891d4e22928d95b3bf7b221d0a10b5f541b91b-dirty",
+    "productDirtyFiles": 1,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "78891d4e22928d95b3bf7b221d0a10b5f541b91b",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.14",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "autonomy-workload",
+    "datasetSha256": "3ad2f90916049c41d40651fbb8e531455b8258ff6e2dfe744618adf4e4c1a422",
+    "datasetPath": "benchmarks/config/autonomy-workload.yaml",
+    "commandLine": "Garrison.Benchmark messaging --url http://127.0.0.1:37800 --stack local --fake-harness <repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll --stack-details \"local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots\" --label aa12 --shared-note \"local stack on the development laptop; other agent sessions were active on the machine\"",
+    "seed": 42,
+    "sharedMachine": "local stack on the development laptop; other agent sessions were active on the machine"
+  },
+  "options": {
+    "body-bytes": "512",
+    "concurrency": "8",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "delivery-timeout-seconds": "120",
+    "deterministic": "false",
+    "kubeconfig": "(unset)",
+    "label": "aa12",
+    "max-connections": "1024",
+    "messages": "500",
+    "namespace": "garrison",
+    "recipients": "25",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "(unset)",
+    "rounds": "3",
+    "seed": "42",
+    "shared-note": "local stack on the development laptop; other agent sessions were active on the machine",
+    "stack": "local",
+    "stack-details": "local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "workload": "benchmarks/config/autonomy-workload.yaml"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 5,
+      "passed": 5,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 5,
+        "indicative": true
+      },
+      "timings": {},
+      "byType": [
+        {
+          "key": "all-delivered",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "coalesced",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "delivered-to-keeper",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "send-accepted",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "urgent-wakes",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "delivery",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "send",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "messaging",
+      "probeId": "send-accepted",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "send-accepted",
+      "category": "send",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "575 of 575 accepted",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "messaging",
+      "probeId": "urgent-wakes",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "urgent-wakes",
+      "category": "delivery",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "75 urgent messages woke their keeper",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "messaging",
+      "probeId": "all-delivered",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "all-delivered",
+      "category": "delivery",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "575 delivered",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "messaging",
+      "probeId": "delivered-to-keeper",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "delivered-to-keeper",
+      "category": "delivery",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "deliveries checked against the recipients' keeper runs",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "messaging",
+      "probeId": "coalesced",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "coalesced",
+      "category": "delivery",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "75 Message ticks for 25 recipients x 3 rounds",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "autonomyPhases": [
+    {
+      "scenario": "messaging",
+      "name": "send",
+      "level": 575,
+      "operations": 575,
+      "succeeded": 575,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.938939,
+      "throughput": 532.5159568406467,
+      "timings": {
+        "sendLatencyMs": {
+          "count": 575,
+          "mean": 13.533363130434786,
+          "stdDev": 53.328876259922204,
+          "min": 1.4764,
+          "p50": 3.8105,
+          "p90": 7.0204,
+          "p95": 11.5909,
+          "p99": 330.6616,
+          "max": 331.1302,
+          "p50Ci": {
+            "estimate": 3.8105,
+            "lower": 3.7009,
+            "upper": 3.9274,
+            "level": 0.95,
+            "n": 575,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 11.5909,
+            "lower": 8.3582,
+            "upper": 33.3497,
+            "level": 0.95,
+            "n": 575,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {
+        "normalAccepted": 500,
+        "urgentAccepted": 75
+      }
+    },
+    {
+      "scenario": "messaging",
+      "name": "urgent-delivery",
+      "level": 75,
+      "operations": 75,
+      "succeeded": 75,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 15.996970000000001,
+      "throughput": 4.6883878634516405,
+      "timings": {
+        "deliveryLagMs": {
+          "count": 75,
+          "mean": 5103.601986666667,
+          "stdDev": 263.1060149837608,
+          "min": 4661.361,
+          "p50": 5172.541,
+          "p90": 5419.369,
+          "p95": 5442.696,
+          "p99": 5459.108,
+          "max": 5459.108,
+          "p50Ci": {
+            "estimate": 5172.541,
+            "lower": 5093.876,
+            "upper": 5191.162,
+            "level": 0.95,
+            "n": 75,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 5442.696,
+            "lower": 5417.624,
+            "upper": 5452.493,
+            "level": 0.95,
+            "n": 75,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {
+        "deliveredAll": 575,
+        "messageTicks": 75
+      }
+    },
+    {
+      "scenario": "messaging",
+      "name": "normal-delivery",
+      "level": 500,
+      "operations": 500,
+      "succeeded": 500,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 15.996970000000001,
+      "throughput": 31.255919089677604,
+      "timings": {
+        "queuedDeliveryLagMs": {
+          "count": 500,
+          "mean": 5168.665578000001,
+          "stdDev": 262.5312816836211,
+          "min": 4672.434,
+          "p50": 5213.509,
+          "p90": 5489.77,
+          "p95": 5513.26,
+          "p99": 5549.522,
+          "max": 5578.412,
+          "p50Ci": {
+            "estimate": 5213.509,
+            "lower": 5198.088,
+            "upper": 5227.202,
+            "level": 0.95,
+            "n": 500,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 5513.26,
+            "lower": 5502.799,
+            "upper": 5527.792,
+            "level": 0.95,
+            "n": 500,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {}
+    }
+  ],
+  "stages": [
+    {
+      "series": "garrison_keeper_interval_seconds{mode=\"fixed\"}",
+      "count": 100,
+      "total": 360000000,
+      "mean": 3600000,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_message_delivery_lag_duration_seconds{urgency=\"normal\"}",
+      "count": 500,
+      "total": 2584332.7890000027,
+      "mean": 5168.665578000006,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_message_delivery_lag_duration_seconds{urgency=\"urgent\"}",
+      "count": 75,
+      "total": 382770.149,
+      "mean": 5103.601986666667,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_keeper_tick_lag_duration_seconds{source=\"message\"}",
+      "count": 75,
+      "total": 374026.32599999994,
+      "mean": 4987.017679999999,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 99,
+      "total": 92404.3900000006,
+      "mean": 933.3776767676828,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_keeper_tick_lag_duration_seconds{source=\"timer\"}",
+      "count": 25,
+      "total": 88230.57599994354,
+      "mean": 3529.2230399977416,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"assigned\"}",
+      "count": 97,
+      "total": 52349.62629999995,
+      "mean": 539.6868690721644,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
+      "count": 2,
+      "total": 40000.2386999995,
+      "mean": 20000.11934999975,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"aborted\",tenant=\"default\"}",
+      "count": 90,
+      "total": 39647.01999999977,
+      "mean": 440.52244444444193,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 1,
+      "total": 25000.110000000008,
+      "mean": 25000.110000000008,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 3725,
+      "total": 8495.137700000243,
+      "mean": 2.280573879194696,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_write_lock_wait_seconds{provider=\"sqlite\"}",
+      "count": 6364,
+      "total": 7691.642599993628,
+      "mean": 1.2086176304201175,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/messages\",status_class=\"2xx\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 575,
+      "total": 7624.820000000001,
+      "mean": 13.260556521739131,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_server_session_duration_seconds{voltaic_protocol=\"mcp\",voltaic_reason=\"deleted\",voltaic_transport=\"http\"}",
+      "count": 100,
+      "total": 1853.3013729999225,
+      "mean": 18.533013729999226,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_outbound_duration_seconds{operation=\"post\",result=\"2xx\",service=\"mcp_internal\"}",
+      "count": 300,
+      "total": 1421.7918999999456,
+      "mean": 4.739306333333152,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_http_server_request_duration_seconds{http_request_method=\"POST\",http_response_status_code=\"200\",http_route=\"/mcp\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\"}",
+      "count": 200,
+      "total": 1373.30549899999,
+      "mean": 6.86652749499995,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-024\",deployment=\"inbox-024-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1332,
+      "mean": 333,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_rpc_server_duration_seconds{rpc_method=\"tools/list\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\",voltaic_transport=\"http\"}",
+      "count": 100,
+      "total": 1313.5935850000067,
+      "mean": 13.135935850000067,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-023\",deployment=\"inbox-023-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1265.9999999999998,
+      "mean": 316.49999999999994,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-020\",deployment=\"inbox-020-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1263,
+      "mean": 315.75,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-022\",deployment=\"inbox-022-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1256,
+      "mean": 314,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-021\",deployment=\"inbox-021-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1244.9999999999998,
+      "mean": 311.24999999999994,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
+      "count": 97,
+      "total": 1195.8500999999799,
+      "mean": 12.328351546391545,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-018\",deployment=\"inbox-018-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1116,
+      "mean": 279,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"inbox-019\",deployment=\"inbox-019-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwyadb3o_l5sCJXrcXS2YxBwn1W9\"}",
+      "count": 4,
+      "total": 1113,
+      "mean": 278.25,
+      "unit": "ms"
+    }
+  ],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": [
+    "Messages are sent as a person (the system administrator key), so the line policy does not apply; freezes, the thread budget, and Messaging.LineRatePerMinute do. Urgent wakes are limited by Messaging.UrgentWakesPerHour (default 12), so --rounds is at most 12.",
+    "Delivery is measured with server timestamps: createdUtc when the message is stored, deliveredUtc when the keeper tick that carries it claims it, before the tick's run starts.",
+    "Shared machine: local stack on the development laptop; other agent sessions were active on the machine. Latency and throughput are indicative."
+  ]
+}

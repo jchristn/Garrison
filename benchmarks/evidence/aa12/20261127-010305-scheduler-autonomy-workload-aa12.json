@@ -1,0 +1,1162 @@
+{
+  "schemaVersion": 1,
+  "kind": "scheduler",
+  "dataset": "autonomy-workload",
+  "label": "aa12",
+  "deterministic": false,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-11-27T01:03:05.606966Z",
+    "finishedUtc": "2026-11-27T01:11:30.044528Z",
+    "sutUrl": "http://127.0.0.1:37800",
+    "sutVersion": "0.3.0",
+    "stack": "local",
+    "stackDetails": "local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots",
+    "productCommit": "78891d4e22928d95b3bf7b221d0a10b5f541b91b-dirty",
+    "productDirtyFiles": 1,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "78891d4e22928d95b3bf7b221d0a10b5f541b91b",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.14",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "autonomy-workload",
+    "datasetSha256": "3ad2f90916049c41d40651fbb8e531455b8258ff6e2dfe744618adf4e4c1a422",
+    "datasetPath": "benchmarks/config/autonomy-workload.yaml",
+    "commandLine": "Garrison.Benchmark scheduler --url http://127.0.0.1:37800 --stack local --fake-harness <repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll --stack-details \"local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots\" --levels 1,100,1000,10000 --window-seconds 120 --label aa12 --shared-note \"local stack on the development laptop; other agent sessions were active on the machine\"",
+    "seed": 42,
+    "sharedMachine": "local stack on the development laptop; other agent sessions were active on the machine"
+  },
+  "options": {
+    "agent": "keeper-bench",
+    "concurrency": "16",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "deployment": "keeper-bench-fake",
+    "deterministic": "false",
+    "interval-seconds": "60",
+    "kubeconfig": "(unset)",
+    "label": "aa12",
+    "levels": "1,100,1000,10000",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "(unset)",
+    "seed": "42",
+    "shared-note": "local stack on the development laptop; other agent sessions were active on the machine",
+    "stack": "local",
+    "stack-details": "local processes from the working tree: 1 server (Sqlite), 1 alpha + 1 beta workers x 4 slots",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "window-seconds": "120",
+    "workload": "benchmarks/config/autonomy-workload.yaml"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 16,
+      "passed": 15,
+      "errors": 0,
+      "passRate": {
+        "estimate": 0.9375,
+        "lower": 0.8125,
+        "upper": 1,
+        "level": 0.95,
+        "n": 16,
+        "indicative": true
+      },
+      "timings": {},
+      "byType": [
+        {
+          "key": "create",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "first-wake",
+          "n": 4,
+          "passed": 3,
+          "passRate": {
+            "estimate": 0.75,
+            "lower": 0.25,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "single-flight",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "tick-runs",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "n1",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "n100",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "n1000",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "n10000",
+          "n": 4,
+          "passed": 3,
+          "passRate": {
+            "estimate": 0.75,
+            "lower": 0.25,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "scheduler",
+      "probeId": "n1-first-wake",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "first-wake",
+      "category": "n1",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "1 of 1 mandates ticked by the window end",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1-single-flight",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "single-flight",
+      "category": "n1",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "2 started ticks, 0 overlapping",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1-tick-runs",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "tick-runs",
+      "category": "n1",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "2 started ticks linked to runs",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "create",
+      "category": "n1",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "1 of 1 created",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n100-first-wake",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "first-wake",
+      "category": "n100",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "100 of 100 mandates ticked by the window end",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n100-single-flight",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "single-flight",
+      "category": "n100",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200 started ticks, 0 overlapping",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n100-tick-runs",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "tick-runs",
+      "category": "n100",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200 started ticks linked to runs",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n100-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "create",
+      "category": "n100",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "100 of 100 created",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1000-first-wake",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "first-wake",
+      "category": "n1000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "1000 of 1000 mandates ticked by the window end",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1000-single-flight",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "single-flight",
+      "category": "n1000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "1800 started ticks, 0 overlapping",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1000-tick-runs",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "tick-runs",
+      "category": "n1000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "1800 started ticks linked to runs",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n1000-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "create",
+      "category": "n1000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "1000 of 1000 created",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-first-wake",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "first-wake",
+      "category": "n10000",
+      "negative": false,
+      "passed": false,
+      "score": 0,
+      "errored": false,
+      "failures": [
+        "mdt_mwya9ueg_dQRvO0prS9CW50mqLXh had no tick by the window end",
+        "mdt_mwya9ueh_8GyfFSmkw74pVDU33Ap had no tick by the window end",
+        "mdt_mwya9ueh_KsL3EkvfsMIY1n1ibBk had no tick by the window end",
+        "mdt_mwya9ueh_ylJdGbJgzAnwMBcM1UN had no tick by the window end",
+        "mdt_mwya9uei_dOo0AKLpEVe917BnkW2 had no tick by the window end",
+        "and 7795 more"
+      ],
+      "observed": "2200 of 10000 mandates ticked by the window end",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-single-flight",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "single-flight",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "2200 started ticks, 0 overlapping",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-tick-runs",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "tick-runs",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "2200 started ticks linked to runs",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "scheduler",
+      "probeId": "n10000-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "create",
+      "category": "n10000",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "10000 of 10000 created",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "autonomyPhases": [
+    {
+      "scenario": "scheduler",
+      "name": "n1",
+      "level": 1,
+      "operations": 2,
+      "succeeded": 2,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 120.005822,
+      "throughput": 0.01666585809478477,
+      "timings": {
+        "createLatencyMs": {
+          "count": 1,
+          "mean": 1.1934,
+          "stdDev": 0,
+          "min": 1.1934,
+          "p50": 1.1934,
+          "p90": 1.1934,
+          "p95": 1.1934,
+          "p99": 1.1934,
+          "max": 1.1934
+        },
+        "firstWakeLagMs": {
+          "count": 1,
+          "mean": 3331.759,
+          "stdDev": 0,
+          "min": 3331.759,
+          "p50": 3331.759,
+          "p90": 3331.759,
+          "p95": 3331.759,
+          "p99": 3331.759,
+          "max": 3331.759
+        },
+        "startedTickLagMs": {
+          "count": 2,
+          "mean": 4666.0975,
+          "stdDev": 1887.039603496572,
+          "min": 3331.759,
+          "p50": 3331.759,
+          "p90": 6000.436,
+          "p95": 6000.436,
+          "p99": 6000.436,
+          "max": 6000.436,
+          "p50Ci": {
+            "estimate": 3331.759,
+            "lower": 3331.759,
+            "upper": 6000.436,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 6000.436,
+            "lower": 3331.759,
+            "upper": 6000.436,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "tickLagMs": {
+          "count": 2,
+          "mean": 4666.0975,
+          "stdDev": 1887.039603496572,
+          "min": 3331.759,
+          "p50": 3331.759,
+          "p90": 6000.436,
+          "p95": 6000.436,
+          "p99": 6000.436,
+          "max": 6000.436,
+          "p50Ci": {
+            "estimate": 3331.759,
+            "lower": 3331.759,
+            "upper": 6000.436,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 6000.436,
+            "lower": 3331.759,
+            "upper": 6000.436,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {
+        "createFailed": 0,
+        "deleteFailed": 0,
+        "mandates": 1,
+        "mandatesWithoutTick": 0,
+        "tickReadFailures": 0,
+        "ticksFailed": 0,
+        "ticksRunningAtWindowEnd": 0,
+        "ticksStarted": 2,
+        "wakesHandled": 2,
+        "wakesPendingAtWindowEnd": 0
+      }
+    },
+    {
+      "scenario": "scheduler",
+      "name": "n100",
+      "level": 100,
+      "operations": 200,
+      "succeeded": 200,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 120.074585,
+      "throughput": 1.6656314073456926,
+      "timings": {
+        "createLatencyMs": {
+          "count": 100,
+          "mean": 11.439248999999997,
+          "stdDev": 2.782876133724884,
+          "min": 4.748,
+          "p50": 10.8348,
+          "p90": 14.6812,
+          "p95": 18.3655,
+          "p99": 19.0788,
+          "max": 19.1271,
+          "p50Ci": {
+            "estimate": 10.8348,
+            "lower": 10.1759,
+            "upper": 11.7058,
+            "level": 0.95,
+            "n": 100,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 18.3655,
+            "lower": 14.5997,
+            "upper": 18.942,
+            "level": 0.95,
+            "n": 100,
+            "indicative": false
+          }
+        },
+        "firstWakeLagMs": {
+          "count": 100,
+          "mean": 3457.02297,
+          "stdDev": 19.13764640303442,
+          "min": 3425.092,
+          "p50": 3455.939,
+          "p90": 3484.254,
+          "p95": 3486.934,
+          "p99": 3487.215,
+          "max": 3487.28,
+          "p50Ci": {
+            "estimate": 3455.939,
+            "lower": 3450.796,
+            "upper": 3463.544,
+            "level": 0.95,
+            "n": 100,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 3486.934,
+            "lower": 3484.099,
+            "upper": 3487.118,
+            "level": 0.95,
+            "n": 100,
+            "indicative": false
+          }
+        },
+        "startedTickLagMs": {
+          "count": 200,
+          "mean": 3865.40673,
+          "stdDev": 1684.2270323440694,
+          "min": 2.36,
+          "p50": 3472.324,
+          "p90": 5841.963,
+          "p95": 5978.861,
+          "p99": 6112.031,
+          "max": 6133.733,
+          "p50Ci": {
+            "estimate": 3472.324,
+            "lower": 3464.466,
+            "upper": 3484.099,
+            "level": 0.95,
+            "n": 200,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 5978.861,
+            "lower": 5882.841,
+            "upper": 6058.965,
+            "level": 0.95,
+            "n": 200,
+            "indicative": false
+          }
+        },
+        "tickLagMs": {
+          "count": 200,
+          "mean": 3865.40673,
+          "stdDev": 1684.2270323440694,
+          "min": 2.36,
+          "p50": 3472.324,
+          "p90": 5841.963,
+          "p95": 5978.861,
+          "p99": 6112.031,
+          "max": 6133.733,
+          "p50Ci": {
+            "estimate": 3472.324,
+            "lower": 3464.173,
+            "upper": 3484.254,
+            "level": 0.95,
+            "n": 200,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 5978.861,
+            "lower": 5882.841,
+            "upper": 6058.965,
+            "level": 0.95,
+            "n": 200,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {
+        "createFailed": 0,
+        "deleteFailed": 0,
+        "mandates": 100,
+        "mandatesWithoutTick": 0,
+        "tickReadFailures": 0,
+        "ticksFailed": 0,
+        "ticksRunningAtWindowEnd": 0,
+        "ticksStarted": 200,
+        "wakesHandled": 200,
+        "wakesPendingAtWindowEnd": 0
+      }
+    },
+    {
+      "scenario": "scheduler",
+      "name": "n1000",
+      "level": 1000,
+      "operations": 1900,
+      "succeeded": 1800,
+      "failed": 0,
+      "censored": 100,
+      "windowSeconds": 120.503626,
+      "throughput": 14.937309853232135,
+      "timings": {
+        "createLatencyMs": {
+          "count": 1000,
+          "mean": 8.026965399999996,
+          "stdDev": 1.0912564644179539,
+          "min": 5.237,
+          "p50": 8.0745,
+          "p90": 8.9769,
+          "p95": 9.8631,
+          "p99": 12.7176,
+          "max": 13.7897,
+          "p50Ci": {
+            "estimate": 8.0745,
+            "lower": 8.013,
+            "upper": 8.117,
+            "level": 0.95,
+            "n": 1000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 9.8631,
+            "lower": 9.4926,
+            "upper": 10.1723,
+            "level": 0.95,
+            "n": 1000,
+            "indicative": false
+          }
+        },
+        "firstWakeLagMs": {
+          "count": 1000,
+          "mean": 34035.702875,
+          "stdDev": 19052.626301036118,
+          "min": 4244.495,
+          "p50": 30789.139,
+          "p90": 57355.286,
+          "p95": 63922.633,
+          "p99": 63945.026,
+          "max": 63948.282,
+          "p50Ci": {
+            "estimate": 30789.139,
+            "lower": 30768.703,
+            "upper": 37284.968,
+            "level": 0.95,
+            "n": 1000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 63922.633,
+            "lower": 63914.769,
+            "upper": 63930.529,
+            "level": 0.95,
+            "n": 1000,
+            "indicative": false
+          }
+        },
+        "startedTickLagMs": {
+          "count": 1800,
+          "mean": 21424.377737222236,
+          "stdDev": 20031.252894019148,
+          "min": 2879.298,
+          "p50": 7804.639,
+          "p90": 57316.471,
+          "p95": 63905.354,
+          "p99": 63939.106,
+          "max": 63948.282,
+          "p50Ci": {
+            "estimate": 7804.639,
+            "lower": 7362.951,
+            "upper": 10843.286,
+            "level": 0.95,
+            "n": 1800,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 63905.354,
+            "lower": 57351.897,
+            "upper": 63912.838,
+            "level": 0.95,
+            "n": 1800,
+            "indicative": false
+          }
+        },
+        "tickLagMs": {
+          "count": 1900,
+          "mean": 20383.324328947376,
+          "stdDev": 19991.34120232465,
+          "min": 812.506,
+          "p50": 7314.443,
+          "p90": 57311.181,
+          "p95": 63901.082,
+          "p99": 63938.938,
+          "max": 63948.282,
+          "p50Ci": {
+            "estimate": 7314.443,
+            "lower": 7095.395,
+            "upper": 7714.18,
+            "level": 0.95,
+            "n": 1900,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 63901.082,
+            "lower": 57349.839,
+            "upper": 63910.847,
+            "level": 0.95,
+            "n": 1900,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {
+        "createFailed": 0,
+        "deleteFailed": 0,
+        "mandates": 1000,
+        "mandatesWithoutTick": 0,
+        "tickReadFailures": 0,
+        "ticksFailed": 0,
+        "ticksRunningAtWindowEnd": 0,
+        "ticksStarted": 1800,
+        "wakesHandled": 1800,
+        "wakesPendingAtWindowEnd": 100
+      }
+    },
+    {
+      "scenario": "scheduler",
+      "name": "n10000",
+      "level": 10000,
+      "operations": 11000,
+      "succeeded": 2200,
+      "failed": 0,
+      "censored": 8800,
+      "windowSeconds": 128.049021,
+      "throughput": 17.18092011027558,
+      "timings": {
+        "createLatencyMs": {
+          "count": 10000,
+          "mean": 12.86829660999997,
+          "stdDev": 5.275766140714792,
+          "min": 3.2382,
+          "p50": 11.0727,
+          "p90": 21.7231,
+          "p95": 23.3958,
+          "p99": 26.0745,
+          "max": 34.8428,
+          "p50Ci": {
+            "estimate": 11.0727,
+            "lower": 10.9885,
+            "upper": 11.1462,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 23.3958,
+            "lower": 23.2765,
+            "upper": 23.5402,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          }
+        },
+        "firstWakeLagMs": {
+          "count": 10000,
+          "mean": 111037.32069860025,
+          "stdDev": 29238.367476462263,
+          "min": 3934.69,
+          "p50": 123004.443,
+          "p90": 125774.971,
+          "p95": 126137.788,
+          "p99": 126426.072,
+          "max": 126499.026,
+          "p50Ci": {
+            "estimate": 123004.443,
+            "lower": 122880.919,
+            "upper": 123125.997,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 126137.788,
+            "lower": 126101.459,
+            "upper": 126163.212,
+            "level": 0.95,
+            "n": 10000,
+            "indicative": false
+          }
+        },
+        "startedTickLagMs": {
+          "count": 2200,
+          "mean": 66718.6658372728,
+          "stdDev": 36796.62446321484,
+          "min": 3934.69,
+          "p50": 67388.883,
+          "p90": 114199.507,
+          "p95": 119540.07,
+          "p99": 124614.32,
+          "max": 124628.947,
+          "p50Ci": {
+            "estimate": 67388.883,
+            "lower": 67355.948,
+            "upper": 72361.494,
+            "level": 0.95,
+            "n": 2200,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 119540.07,
+            "lower": 119521.264,
+            "upper": 124565.085,
+            "level": 0.95,
+            "n": 2200,
+            "indicative": false
+          }
+        },
+        "tickLagMs": {
+          "count": 11000,
+          "mean": 104102.0722942731,
+          "stdDev": 35919.42703665705,
+          "min": 3934.69,
+          "p50": 122342.169,
+          "p90": 125705.458,
+          "p95": 126100.388,
+          "p99": 126415.775,
+          "max": 126499.026,
+          "p50Ci": {
+            "estimate": 122342.169,
+            "lower": 122207.971,
+            "upper": 122471.296,
+            "level": 0.95,
+            "n": 11000,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 126100.388,
+            "lower": 126062.824,
+            "upper": 126132.711,
+            "level": 0.95,
+            "n": 11000,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {
+        "createFailed": 0,
+        "deleteFailed": 0,
+        "mandates": 10000,
+        "mandatesWithoutTick": 7800,
+        "tickReadFailures": 0,
+        "ticksFailed": 0,
+        "ticksRunningAtWindowEnd": 0,
+        "ticksStarted": 2200,
+        "wakesHandled": 2200,
+        "wakesPendingAtWindowEnd": 8800
+      }
+    }
+  ],
+  "stages": [
+    {
+      "series": "garrison_keeper_interval_seconds{mode=\"fixed\"}",
+      "count": 4378,
+      "total": 262680000,
+      "mean": 60000,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_keeper_tick_lag_duration_seconds{source=\"timer\"}",
+      "count": 4400,
+      "total": 203484212.62700036,
+      "mean": 46246.4119606819,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"total\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4385,
+      "total": 2571770.0000000005,
+      "mean": 586.4925883694414,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"queue\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4385,
+      "total": 1980967.999999997,
+      "mean": 451.76009122006775,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 4425,
+      "total": 1936795.6899999736,
+      "mean": 437.6939412429319,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
+      "count": 71,
+      "total": 1420045.5258000002,
+      "mean": 20000.641208450706,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"aborted\",tenant=\"default\"}",
+      "count": 4329,
+      "total": 624834.7800000006,
+      "mean": 144.33697851697866,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"assigned\"}",
+      "count": 4354,
+      "total": 514449.61989999947,
+      "mean": 118.15563158015605,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"execution\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4385,
+      "total": 373970.00000000227,
+      "mean": 85.28392246294237,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_write_lock_wait_seconds{provider=\"sqlite\"}",
+      "count": 251343,
+      "total": 236681.999599877,
+      "mean": 0.9416693506478279,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4385,
+      "total": 213114.00000000015,
+      "mean": 48.600684150513146,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"first_token_excl_delegation\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4385,
+      "total": 213114.00000000015,
+      "mean": 48.600684150513146,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 126040,
+      "total": 202777.20630000212,
+      "mean": 1.6088321667724699,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/mandates\",status_class=\"2xx\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 11101,
+      "total": 135168.80999999933,
+      "mean": 12.176273308710867,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"streaming\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4385,
+      "total": 111945.00000000314,
+      "mean": 25.529076396808016,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/watch\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 14,
+      "total": 100298.84999999995,
+      "mean": 7164.203571428568,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"DELETE\",route=\"/v1.0/api/tenants/{tenantId}/mandates/{id}\",status_class=\"2xx\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 11101,
+      "total": 79530.22000000003,
+      "mean": 7.164239257724532,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_server_session_duration_seconds{voltaic_protocol=\"mcp\",voltaic_reason=\"deleted\",voltaic_transport=\"http\"}",
+      "count": 4388,
+      "total": 78377.00896299997,
+      "mean": 17.861670228577932,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"runs\"}",
+      "count": 120913,
+      "total": 75825.9970000006,
+      "mean": 0.6271120309644174,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"assigned\"}",
+      "count": 4354,
+      "total": 61133.02849999988,
+      "mean": 14.040658819476315,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_outbound_duration_seconds{operation=\"post\",result=\"2xx\",service=\"mcp_internal\"}",
+      "count": 13165,
+      "total": 55916.258600000205,
+      "mean": 4.247342088872025,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_http_server_request_duration_seconds{http_request_method=\"POST\",http_response_status_code=\"200\",http_route=\"/mcp\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\"}",
+      "count": 8776,
+      "total": 53522.52970200013,
+      "mean": 6.098738571330918,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_rpc_server_duration_seconds{rpc_method=\"tools/list\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\",voltaic_transport=\"http\"}",
+      "count": 4387,
+      "total": 50856.711179000114,
+      "mean": 11.592594296558039,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_background_duration_seconds{operation=\"keepers\",result=\"ok\",service=\"maintenance\"}",
+      "count": 48,
+      "total": 47535.9749,
+      "mean": 990.3328104166667,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_run_stage_duration_seconds{agent=\"keeper-bench\",deployment=\"keeper-bench-fake\",harness=\"Generic\",model=\"fake-model\",stage=\"startup\",tenant=\"ten_mwya20zy_OA2PWSHctejW7x1Hz6y\"}",
+      "count": 4384,
+      "total": 41178.000000000575,
+      "mean": 9.392791970803051,
+      "unit": "ms"
+    }
+  ],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": [
+    "Keeper settings are the server's (defaults: Autonomy.SchedulerSweepSeconds 5, Autonomy.MaxDueClaimsPerSweep 100, Autonomy.MinIntervalSeconds 60). A sweep claims at most MaxDueClaimsPerSweep due wakes, so the scheduler handles at most MaxDueClaimsPerSweep / SchedulerSweepSeconds wakes per second, and mandates beyond that rate times the interval build a backlog.",
+    "tickLagMs covers every handled wake (started or skipped) plus censored pending wakes; startedTickLagMs covers only wakes that started a run; firstWakeLagMs is each mandate's first wake, due at creation.",
+    "Wake times are server timestamps; the window end is the harness clock, which is the same clock on the local stack.",
+    "Shared machine: local stack on the development laptop; other agent sessions were active on the machine. Latency and throughput are indicative."
+  ]
+}

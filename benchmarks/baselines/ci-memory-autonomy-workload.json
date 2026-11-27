@@ -1,0 +1,999 @@
+{
+  "schemaVersion": 1,
+  "kind": "memory",
+  "dataset": "autonomy-workload",
+  "label": "ci-gate",
+  "deterministic": true,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-11-27T01:13:22.233328Z",
+    "finishedUtc": "2026-11-27T01:13:26.774372Z",
+    "sutUrl": "http://127.0.0.1 (bench stack)",
+    "sutVersion": "0.3.0",
+    "stack": "local",
+    "productCommit": "71ea9abc40b475c984a1a4c252638b25d255a9f1-dirty",
+    "productDirtyFiles": 4,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "78891d4e22928d95b3bf7b221d0a10b5f541b91b",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.14",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "autonomy-workload",
+    "datasetSha256": "3ad2f90916049c41d40651fbb8e531455b8258ff6e2dfe744618adf4e4c1a422",
+    "datasetPath": "benchmarks/config/autonomy-workload.yaml",
+    "commandLine": "Garrison.Benchmark memory --keys 50 --concurrency 4 --rate 50 --deterministic true --url http://127.0.0.1:37800 --stack local --label ci-gate --results-dir <repo>/benchmarks/results --seed 42",
+    "seed": 42
+  },
+  "options": {
+    "agent": "memory-bench",
+    "concurrency": "4",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "deterministic": "true",
+    "keys": "50",
+    "kubeconfig": "(unset)",
+    "label": "ci-gate",
+    "max-connections": "1024",
+    "mcp-url": "(unset)",
+    "namespace": "garrison",
+    "rate": "50",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "<repo>/benchmarks/results",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "value-bytes": "1024",
+    "workload": "benchmarks/config/autonomy-workload.yaml"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 10,
+      "passed": 10,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 10,
+        "indicative": true
+      },
+      "timings": {},
+      "byType": [
+        {
+          "key": "delete-cas",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "list",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "read",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "read-deleted",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "rest-content",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "rest-list",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "search-tag",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "stale-write-refused",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "update-cas",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "write",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "memory",
+          "n": 10,
+          "passed": 10,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 10,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "memory",
+      "probeId": "write",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "write",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "50 of 50 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "read",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "read",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "50 of 50 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "update-cas",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "update-cas",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "50 of 50 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "stale-write-refused",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "stale-write-refused",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "5 of 5 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "list",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "list",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "5 of 5 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "search-tag",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "search-tag",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "5 of 5 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "rest-list",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "rest-list",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "5 of 5 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "rest-content",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "rest-content",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "5 of 5 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "delete-cas",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "delete-cas",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "50 of 50 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    },
+    {
+      "corpus": "memory",
+      "probeId": "read-deleted",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "read-deleted",
+      "category": "memory",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "5 of 5 correct",
+      "runIds": [],
+      "nodes": [],
+      "timings": {}
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "autonomyPhases": [
+    {
+      "scenario": "memory",
+      "name": "write",
+      "level": 50,
+      "operations": 50,
+      "succeeded": 50,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.9869532,
+      "throughput": 50.660963458044414,
+      "timings": {
+        "latencyMs": {
+          "count": 50,
+          "mean": 5.985302000000002,
+          "stdDev": 1.7267630945470764,
+          "min": 4.6137,
+          "p50": 5.4774,
+          "p90": 7.5983,
+          "p95": 9.5695,
+          "p99": 14.9986,
+          "max": 14.9986,
+          "p50Ci": {
+            "estimate": 5.4774,
+            "lower": 5.2931,
+            "upper": 5.6516,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 9.5695,
+            "lower": 6.7204,
+            "upper": 14.9986,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "read",
+      "level": 50,
+      "operations": 50,
+      "succeeded": 50,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.9820292,
+      "throughput": 50.91498297606629,
+      "timings": {
+        "latencyMs": {
+          "count": 50,
+          "mean": 1.217436,
+          "stdDev": 0.3858294340080066,
+          "min": 0.754,
+          "p50": 1.0766,
+          "p90": 1.8133,
+          "p95": 1.8807,
+          "p99": 2.2045,
+          "max": 2.2045,
+          "p50Ci": {
+            "estimate": 1.0766,
+            "lower": 0.9732,
+            "upper": 1.257,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 1.8807,
+            "lower": 1.7583,
+            "upper": 2.2045,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "update-cas",
+      "level": 50,
+      "operations": 50,
+      "succeeded": 50,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.9884884,
+      "throughput": 50.582283009087405,
+      "timings": {
+        "latencyMs": {
+          "count": 50,
+          "mean": 5.579697999999997,
+          "stdDev": 0.805702345780325,
+          "min": 4.4217,
+          "p50": 5.4099,
+          "p90": 6.608,
+          "p95": 6.9025,
+          "p99": 8.0055,
+          "max": 8.0055,
+          "p50Ci": {
+            "estimate": 5.4099,
+            "lower": 5.0604,
+            "upper": 5.8531,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 6.9025,
+            "lower": 6.5958,
+            "upper": 8.0055,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "stale-write-refused",
+      "level": 5,
+      "operations": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.0823624,
+      "throughput": 60.707313045758745,
+      "timings": {
+        "latencyMs": {
+          "count": 5,
+          "mean": 2.91464,
+          "stdDev": 1.314907161361592,
+          "min": 1.6463,
+          "p50": 2.5147,
+          "p90": 4.7558,
+          "p95": 4.7558,
+          "p99": 4.7558,
+          "max": 4.7558,
+          "p50Ci": {
+            "estimate": 2.5147,
+            "lower": 1.6463,
+            "upper": 4.7558,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 4.7558,
+            "lower": 2.5147,
+            "upper": 4.7558,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "list",
+      "level": 5,
+      "operations": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.0830486,
+      "throughput": 60.20571087291056,
+      "timings": {
+        "latencyMs": {
+          "count": 5,
+          "mean": 2.7988000000000004,
+          "stdDev": 0.9921916044796993,
+          "min": 2.1867,
+          "p50": 2.3791,
+          "p90": 4.5631,
+          "p95": 4.5631,
+          "p99": 4.5631,
+          "max": 4.5631,
+          "p50Ci": {
+            "estimate": 2.3791,
+            "lower": 2.1867,
+            "upper": 4.5631,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 4.5631,
+            "lower": 2.3791,
+            "upper": 4.5631,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "search-tag",
+      "level": 5,
+      "operations": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.0857727,
+      "throughput": 58.29360624068031,
+      "timings": {
+        "latencyMs": {
+          "count": 5,
+          "mean": 7.216939999999999,
+          "stdDev": 2.786626225922666,
+          "min": 5.2575,
+          "p50": 5.9173,
+          "p90": 11.8918,
+          "p95": 11.8918,
+          "p99": 11.8918,
+          "max": 11.8918,
+          "p50Ci": {
+            "estimate": 5.9173,
+            "lower": 5.2575,
+            "upper": 11.8918,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 11.8918,
+            "lower": 5.9173,
+            "upper": 11.8918,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "rest-list",
+      "level": 5,
+      "operations": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.0832805,
+      "throughput": 60.03806413266011,
+      "timings": {
+        "latencyMs": {
+          "count": 5,
+          "mean": 1.5043,
+          "stdDev": 0.9933976419339842,
+          "min": 1.0207,
+          "p50": 1.0615,
+          "p90": 3.2806,
+          "p95": 3.2806,
+          "p99": 3.2806,
+          "max": 3.2806,
+          "p50Ci": {
+            "estimate": 1.0615,
+            "lower": 1.0207,
+            "upper": 3.2806,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 3.2806,
+            "lower": 1.0615,
+            "upper": 3.2806,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "rest-content",
+      "level": 5,
+      "operations": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.0849122,
+      "throughput": 58.88435348512935,
+      "timings": {
+        "latencyMs": {
+          "count": 5,
+          "mean": 1.56572,
+          "stdDev": 1.1481010918033308,
+          "min": 0.8976,
+          "p50": 1.1377,
+          "p90": 3.6076,
+          "p95": 3.6076,
+          "p99": 3.6076,
+          "max": 3.6076,
+          "p50Ci": {
+            "estimate": 1.1377,
+            "lower": 0.8976,
+            "upper": 3.6076,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 3.6076,
+            "lower": 1.1377,
+            "upper": 3.6076,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "delete-cas",
+      "level": 50,
+      "operations": 50,
+      "succeeded": 50,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.9813946,
+      "throughput": 50.94790617352082,
+      "timings": {
+        "latencyMs": {
+          "count": 50,
+          "mean": 1.8478260000000004,
+          "stdDev": 0.8212784304549903,
+          "min": 0.9561,
+          "p50": 1.8318,
+          "p90": 2.2181,
+          "p95": 4.0287,
+          "p99": 5.6173,
+          "max": 5.6173,
+          "p50Ci": {
+            "estimate": 1.8318,
+            "lower": 1.5292,
+            "upper": 1.9591,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 4.0287,
+            "lower": 2.1816,
+            "upper": 5.6173,
+            "level": 0.95,
+            "n": 50,
+            "indicative": false
+          }
+        }
+      },
+      "counts": {}
+    },
+    {
+      "scenario": "memory",
+      "name": "read-deleted",
+      "level": 5,
+      "operations": 5,
+      "succeeded": 5,
+      "failed": 0,
+      "censored": 0,
+      "windowSeconds": 0.0822493,
+      "throughput": 60.79079092466441,
+      "timings": {
+        "latencyMs": {
+          "count": 5,
+          "mean": 1.01972,
+          "stdDev": 0.12629808787151134,
+          "min": 0.8257,
+          "p50": 1.0154,
+          "p90": 1.1674,
+          "p95": 1.1674,
+          "p99": 1.1674,
+          "max": 1.1674,
+          "p50Ci": {
+            "estimate": 1.0154,
+            "lower": 0.8257,
+            "upper": 1.1674,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 1.1674,
+            "lower": 1.0154,
+            "upper": 1.1674,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      },
+      "counts": {}
+    }
+  ],
+  "stages": [
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/node/lease\",status_class=\"2xx\",tenant=\"default\"}",
+      "count": 2,
+      "total": 40001.12999999999,
+      "mean": 20000.564999999995,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_lease_wait_duration_seconds{result=\"empty\"}",
+      "count": 2,
+      "total": 39999.802899999995,
+      "mean": 19999.901449999998,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_outbound_duration_seconds{operation=\"post\",result=\"2xx\",service=\"mcp_internal\"}",
+      "count": 229,
+      "total": 731.5748999999995,
+      "mean": 3.1946502183406094,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_http_server_request_duration_seconds{http_request_method=\"POST\",http_response_status_code=\"200\",http_route=\"/mcp\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\"}",
+      "count": 225,
+      "total": 707.3985929999989,
+      "mean": 3.1439937466666614,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_rpc_server_duration_seconds{rpc_method=\"tools/call\",voltaic_outcome=\"success\",voltaic_protocol=\"mcp\",voltaic_transport=\"http\"}",
+      "count": 221,
+      "total": 668.6649610000002,
+      "mean": 3.0256333076923085,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_application_operation_duration_seconds{component=\"run\",operation=\"gateway\",result=\"ok\"}",
+      "count": 216,
+      "total": 639.6930999999997,
+      "mean": 2.9615421296296285,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_application_operation_duration_seconds{component=\"gateway\",operation=\"tool_dispatch\",result=\"ok\"}",
+      "count": 216,
+      "total": 636.0812999999997,
+      "mean": 2.944820833333332,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_duration_seconds{gen_ai_tool_name=\"garrison_memory_write\",voltaic_outcome=\"success\"}",
+      "count": 100,
+      "total": 515.6239119999999,
+      "mean": 5.156239119999999,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_stage_duration_seconds{gen_ai_tool_name=\"garrison_memory_write\",voltaic_outcome=\"success\",voltaic_stage=\"execute\"}",
+      "count": 100,
+      "total": 509.5382940000002,
+      "mean": 5.095382940000002,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_mcp_tool_duration_seconds{result=\"ok\",tool=\"garrison_memory_write\"}",
+      "count": 100,
+      "total": 507.21630000000005,
+      "mean": 5.072163000000001,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 709,
+      "total": 71.04609999999961,
+      "mean": 0.10020606488011229,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_duration_seconds{gen_ai_tool_name=\"garrison_memory_delete\",voltaic_outcome=\"success\"}",
+      "count": 50,
+      "total": 52.72971199999999,
+      "mean": 1.05459424,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_stage_duration_seconds{gen_ai_tool_name=\"garrison_memory_delete\",voltaic_outcome=\"success\",voltaic_stage=\"execute\"}",
+      "count": 50,
+      "total": 50.090409999999984,
+      "mean": 1.0018081999999997,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_duration_seconds{gen_ai_tool_name=\"garrison_memory_read\",voltaic_outcome=\"success\"}",
+      "count": 56,
+      "total": 48.849708000000014,
+      "mean": 0.8723162142857145,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_mcp_tool_duration_seconds{result=\"ok\",tool=\"garrison_memory_delete\"}",
+      "count": 50,
+      "total": 48.839600000000004,
+      "mean": 0.9767920000000001,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_stage_duration_seconds{gen_ai_tool_name=\"garrison_memory_read\",voltaic_outcome=\"success\",voltaic_stage=\"execute\"}",
+      "count": 56,
+      "total": 42.20337100000001,
+      "mean": 0.7536316250000002,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_mcp_tool_duration_seconds{result=\"ok\",tool=\"garrison_memory_read\"}",
+      "count": 56,
+      "total": 36.09809999999999,
+      "mean": 0.6446089285714284,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_scheduler_claim_duration_seconds{result=\"empty\"}",
+      "count": 38,
+      "total": 34.39720000000002,
+      "mean": 0.905189473684211,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_duration_seconds{gen_ai_tool_name=\"garrison_memory_search\",voltaic_outcome=\"success\"}",
+      "count": 5,
+      "total": 32.506792,
+      "mean": 6.501358399999999,
+      "unit": "ms"
+    },
+    {
+      "series": "voltaic_mcp_tool_stage_duration_seconds{gen_ai_tool_name=\"garrison_memory_search\",voltaic_outcome=\"success\",voltaic_stage=\"execute\"}",
+      "count": 5,
+      "total": 32.241375000000005,
+      "mean": 6.448275000000001,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_mcp_tool_duration_seconds{result=\"ok\",tool=\"garrison_memory_search\"}",
+      "count": 5,
+      "total": 32.122699999999995,
+      "mean": 6.424539999999999,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 36,
+      "total": 24.811999999999834,
+      "mean": 0.6892222222222176,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"memory_entries\"}",
+      "count": 372,
+      "total": 18.62409999999999,
+      "mean": 0.050064784946236535,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"agents\"}",
+      "count": 229,
+      "total": 18.519299999999994,
+      "mean": 0.08087030567685587,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"audit_records\"}",
+      "count": 532,
+      "total": 14.2573,
+      "mean": 0.026799436090225566,
+      "unit": "ms"
+    }
+  ],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": [
+    "MCP calls authenticate with the system administrator key and a tenant header, as a person calling the tools would; a run token takes the same path plus the effect journal for writes and deletes. Each MCP call is one HTTP request, and the server closes the connection after each answer, so latency includes a loopback TCP connect.",
+    "Calls are paced open loop at --rate per second across all sessions (0 runs closed loop), because the MCP endpoint refuses more than 100 tools/call requests per second from one client (the Voltaic McpRateLimits.ToolCallsPerSecond default, which Garrison does not change). Latency is measured from the send.",
+    "Values are deterministic text of --value-bytes bytes; every tenth key is also tagged needle, which search-tag looks for."
+  ]
+}

@@ -170,6 +170,64 @@ Routing 24 of 24 and e2e 69 of 69 (direct arm 45 of 45), as in round 0.
 
 H1 to H4 and H6 were not rerun in round 1.
 
+## Autonomy round (label `aa12`, 2026-11-27, AA12.4)
+
+The keeper scheduler, messaging, and memory paths of 0.3.0, measured black-box on the local stack: one server on Sqlite and two workers with 4 slots each, all processes from the working tree at product and harness commit `78891d4e` (the one dirty path was `benchmarks/README.md`), the built-in fake harness behind every keeper tick, server defaults for every `Autonomy.*`, `Messaging.*`, and `Memory.*` setting, and agent memory on. The machine is the one in the table above, with other agent sessions active, so **every latency and throughput number here is indicative**. Reports with full provenance are committed in `benchmarks/evidence/aa12/`. The whole round took about 10 minutes; nothing ran longer than the 10000-mandate level (about 2.5 minutes).
+
+### Keeper scheduler (`scheduler`, 120 s window per level, Fixed 60 s interval)
+
+| Mandates | Wakes handled | Pending at window end (censored) | Handled per second | Tick lag p50 | p95 | p99 | First-wake lag p50 | Create p50 / p95 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 2 | 0 | 0.02 | 3.3 s | 6.0 s | 6.0 s | 3.3 s | 1.2 ms |
+| 100 | 200 | 0 | 1.67 | 3.5 s | 6.0 s | 6.1 s | 3.5 s | 10.8 / 18.4 ms |
+| 1000 | 1800 | 100 | 14.9 | 7.3 s | 63.9 s | 63.9 s | 30.8 s | 8.1 / 9.9 ms |
+| 10000 | 2200 | 8800 | 17.2 | 122.3 s | 126.1 s | 126.4 s | 123.0 s | 11.1 / 23.4 ms |
+
+Lag counts every handled wake plus the censored ones at their lag so far, so the 10000 row is a lower bound. No tick failed, no tick ran a second time while the first still ran, every started tick had a run, and every level's mandates were created and deleted cleanly. The server's own `garrison.keeper.tick.lag.duration` histogram saw the same 4400 timer wakes.
+
+What it shows: a sweep runs about every 6 s (the 5 s `Autonomy.SchedulerSweepSeconds` plus the maintenance pass that hosts it) and claims at most `Autonomy.MaxDueClaimsPerSweep` (100) wakes, so the scheduler's ceiling is about 17 wakes per second on this stack. Below the ceiling, lag is the sweep phase: p50 about 3.5 s and p99 about 6 s. At 1000 mandates created together, the first wakes take 10 sweeps to drain (first-wake p95 64 s), and steady state (16.7 wakes per second) sits just under the ceiling, which is why 100 wakes were still pending at the window end. At 10000 mandates demand is about ten times the ceiling: 7800 mandates had not ticked once after two minutes, and the backlog grows without bound. A deployment with thousands of keepers on a 60 s interval needs a larger `MaxDueClaimsPerSweep` or a shorter sweep; the benchmark did not change either, so how far they stretch is not measured yet.
+
+### Messaging (`messaging`, 25 recipients with a keeper each, 500 normal and 75 urgent messages over 3 rounds)
+
+| Phase | Count | p50 | p95 | p99 | Throughput |
+|---|---|---|---|---|---|
+| Send as a person (`POST /messages`, 8 in flight) | 575 | 3.8 ms | 11.6 ms | 330.7 ms | 533 normal messages/s |
+| Urgent delivery (stored to claimed by the woken keeper tick) | 75 | 5.17 s | 5.44 s | 5.46 s | |
+| Normal delivery (waits for that round's urgent wake) | 500 | 5.21 s | 5.51 s | 5.55 s | 36 messages/s over the delivery windows |
+
+Every send was accepted, every urgent message woke its keeper, every message was delivered to a tick of its recipient's keeper, and each round's mail to a recipient rode on exactly one tick (75 Message ticks for 25 recipients and 3 rounds). The send p99 comes from a handful of sends in the first round. Urgent delivery is the scheduler sweep again: the urgent message moves the keeper's next wake to now, and the next sweep claims it.
+
+### Memory (`memory`, 200 keys of 1 KiB, 8 MCP sessions, paced at 80 calls/s)
+
+| Operation | Calls | p50 | p95 | p99 |
+|---|---|---|---|---|
+| `garrison_memory_write`, new key (`expectedVersion` 0) | 200 | 5.6 ms | 9.1 ms | 10.5 ms |
+| `garrison_memory_read` | 200 | 1.0 ms | 2.1 ms | 4.4 ms |
+| `garrison_memory_write`, compare-and-set update | 200 | 6.8 ms | 8.8 ms | 12.5 ms |
+| Stale write, refused with `MemoryVersionConflict` | 20 | 0.9 ms | 1.6 ms | 2.3 ms |
+| `garrison_memory_list` (100 per page) | 20 | 2.4 ms | 3.8 ms | 4.6 ms |
+| `garrison_memory_search` by tag | 20 | 10.3 ms | 12.6 ms | 13.7 ms |
+| REST `GET /memory/entries` | 20 | 1.0 ms | 1.5 ms | 2.1 ms |
+| REST `GET /memory/entries/{id}/content` | 20 | 0.9 ms | 1.0 ms | 2.2 ms |
+| `garrison_memory_delete` (`expectedVersion` 2) | 200 | 1.6 ms | 3.1 ms | 4.8 ms |
+| Read of a deleted key | 20 | 0.8 ms | 1.3 ms | 1.5 ms |
+
+Every one of the 920 calls returned the right answer. Throughput is not reported as capacity: the calls are paced, because the management MCP endpoint refuses more than 100 `tools/call` requests per second from one client address (the Voltaic default, which Garrison does not change). An unpaced first attempt at 8 sessions tripped it at once, and so did 400 calls/s spread over 8 sessions, so the limit is not per session; it looks per client address, though only one address was tried. If it is, every run on one worker node shares that budget. That is worth a decision (BA-1 below).
+
+### Hypotheses
+
+| ID | Verdict |
+|---|---|
+| H7 | Mostly confirmed. 1 and 100 mandates: p99 6.0 and 6.1 s, a little over the 6 s guess, because the effective sweep period is about 6 s, not 5. 1000: p99 64 s, tens of seconds as predicted. 10000: the backlog grows for the whole window (p99 126 s, bounded by the window). The ceiling is about 17 wakes per second, not 20. No wake lost and no overlapping ticks at any level |
+| H8 | Confirmed. Send p95 11.6 ms and 533 messages/s; urgent delivery p95 5.44 s, under 6 s; one tick per recipient per round |
+| H9 | Confirmed. Every p95 is under 13 ms; writes (5.6 to 6.8 ms at p50) cost about six times a read (1.0 ms); search by tag is the slowest call at 12.6 ms p95 |
+
+### Follow-ups
+
+- BA-1: decide whether the management MCP endpoint should set `McpRateLimits.ToolCallsPerSecond` from a Garrison setting instead of the Voltaic default of 100 per client, after confirming how Voltaic keys a client (every run on a worker node may share one budget).
+- BA-2: measure the scheduler with `Autonomy.MaxDueClaimsPerSweep` raised (500, 1000) to see whether the ceiling moves with it or the database becomes the limit, and repeat the 10000 level on PostgreSQL.
+- The CI gate now runs the three autonomy commands at small sizes (`benchmarks/ci-gate.sh`), locally as before: automatic benchmark runs are still off in GitHub Actions under the CI policy.
+
 ## Defects found by the benchmarks
 
 Round 0 found these while the suite was built under an instruction not to change product code; each has an entry in `archive/IMPROVEMENTS.md`. D-1, D-3, D-4, and D-5 are fixed (plan G-23 to G-26): round 1 rechecked D-1, D-4, and D-5, and D-3 is covered by the `correctness-unit.manifest-invalid` test. D-2 was fixed by the P13.22 telemetry work.
