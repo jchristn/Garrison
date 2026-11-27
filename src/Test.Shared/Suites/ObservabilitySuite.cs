@@ -5,7 +5,9 @@ namespace Test.Shared.Suites
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Net;
     using System.Net.Http;
+    using System.Net.Sockets;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
@@ -51,6 +53,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(id, "otlp-sources", "With OTLP enabled, Radiant records spans from the Garrison and Garrison.Worker sources", ct => OtlpSourcesAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "metrics-rest", "GET /metrics on the REST port relays the Prometheus listener when turned on (off by default, SR-20) and can be turned off", ct => MetricsRestAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "metrics-health", "GET /metrics on the worker health port relays the exposition or answers 503", ct => MetricsHealthAsync(ct)));
+            cases.Add(new TestCaseDescriptor(id, "diagnostic-callback", "A telemetry diagnostic (here a Prometheus port already in use) reaches the caller's callback once, without recursing", ct => DiagnosticCallbackAsync(ct)));
             suites.Add(new TestSuiteDescriptor(id, "Observability (P13)", cases));
             return suites;
         }
@@ -326,6 +329,34 @@ namespace Test.Shared.Suites
                     Assert.Equal(run.Id, create.GetTagItem("garrison.run_id") as string, "run:create carries the run ID");
                 }
             }
+        }
+
+        private static Task DiagnosticCallbackAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            TcpListener occupied = new TcpListener(IPAddress.Parse("127.0.0.1"), 0);
+            occupied.Start();
+            try
+            {
+                TelemetrySettings settings = new TelemetrySettings();
+                settings.Enabled = true;
+                settings.ServiceName = "garrison-diagnostic-test";
+                settings.OtlpEnable = false;
+                settings.PrometheusEnable = true;
+                settings.PrometheusHostname = "127.0.0.1";
+                settings.PrometheusPort = ((IPEndPoint)occupied.LocalEndpoint).Port;
+                List<string> messages = new List<string>();
+                using (GarrisonTelemetry telemetry = new GarrisonTelemetry(settings, "diagnostic-test", message => messages.Add(message)))
+                {
+                    Assert.True(messages.Count > 0, "A Prometheus port in use produces a diagnostic");
+                    Assert.True(messages.All(message => message.StartsWith("telemetry", StringComparison.Ordinal)), "Diagnostics reach the callback as written: " + String.Join(" | ", messages));
+                }
+            }
+            finally
+            {
+                occupied.Stop();
+            }
+            return Task.CompletedTask;
         }
 
         private static async Task OtlpSourcesAsync(CancellationToken token)

@@ -89,6 +89,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Fixed
 
+- The server and worker no longer crash with a stack overflow at startup when telemetry reports a diagnostic, for example when the Prometheus listener falls back to another address because the first is in use. The diagnostic callback called itself.
 - App UI: the copy buttons have their own tooltips ("Copies your message to the clipboard") instead of repeating the button label. Dashboard: DOMPurify 3.5.0 and Vite 6.4.6 clear the high-severity `npm audit` advisories.
 - Dashboard: a 405 `MethodNotAllowed` (a server that has the path but not the method) is treated like a missing endpoint, as 404 `RouteNotFound` already was.
 - Organization diffs (manifest dry runs, Studio diffs, and executive proposals) matched units by their position in the tree, so removing one unit read as renames, a budget change, and the wrong unit being deleted. Units now match by name, members by agent, budgets by period, and peers as a set: a removal is one `units.<name>` change, a reorder is `Unchanged` and publishes nothing, and a moved unit is one `parent` change. Found in the AA12.7 org trial.
