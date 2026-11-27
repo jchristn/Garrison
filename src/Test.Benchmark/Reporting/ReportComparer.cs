@@ -60,6 +60,7 @@ namespace Garrison.Benchmark.Reporting
             CompareLoad(baseline, candidate, options, result);
             CompareIngest(baseline, candidate, options, result);
             CompareResilience(baseline, candidate, result);
+            CompareAutonomy(baseline, candidate, options, result);
 
             if (result.Rows.Any(r => r.Verdict == "regression")) result.Regression = true;
             if ((result.MissingInCandidate > 0 || result.MissingInBaseline > 0) && !options.AllowPartial)
@@ -286,6 +287,28 @@ namespace Garrison.Benchmark.Reporting
                 Exact(result, "resilience", b.Name + " passed", b.Passed ? 1 : 0, c.Passed ? 1 : 0, b.Passed && !c.Passed);
                 Exact(result, "resilience", b.Name + " lost runs", b.RunsLost, c.RunsLost, c.RunsLost > b.RunsLost);
             }
+        }
+
+        private static void CompareAutonomy(BenchmarkReport baseline, BenchmarkReport candidate, ComparisonOptions options, CompareResult result)
+        {
+            if (baseline.AutonomyPhases.Count == 0 && candidate.AutonomyPhases.Count == 0) return;
+            foreach (AutonomyPhaseResult b in baseline.AutonomyPhases)
+            {
+                AutonomyPhaseResult? c = candidate.AutonomyPhases.FirstOrDefault(p => p.Scenario == b.Scenario && p.Name == b.Name);
+                if (c == null)
+                {
+                    result.MissingInCandidate++;
+                    continue;
+                }
+                string key = b.Scenario + " " + b.Name;
+                Exact(result, "autonomy", key + " failed operations", b.Failed, c.Failed, b.Failed == 0 && c.Failed > 0);
+                if (!options.CompareLatency || baseline.Deterministic && candidate.Deterministic) continue;
+                foreach (KeyValuePair<string, LatencyStatistics> timing in b.Timings)
+                {
+                    if (c.Timings.TryGetValue(timing.Key, out LatencyStatistics? after)) LatencyRow(result, key + " " + timing.Key + " p95", timing.Value, after, options);
+                }
+            }
+            result.MissingInBaseline += candidate.AutonomyPhases.Count(c => !baseline.AutonomyPhases.Any(b => b.Scenario == c.Scenario && b.Name == c.Name));
         }
 
         private static void Exact(CompareResult result, string section, string name, double before, double after, bool regressed)

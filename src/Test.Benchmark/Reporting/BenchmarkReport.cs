@@ -15,7 +15,7 @@ namespace Garrison.Benchmark.Reporting
         public int SchemaVersion { get; set; } = 1;
 
         /// <summary>
-        /// Report kind: ingest, routing, e2e, load, resilience, or scale.
+        /// Report kind: ingest, routing, e2e, load, resilience, scale, scheduler, messaging, or memory.
         /// </summary>
         public string Kind { get; set; } = String.Empty;
 
@@ -83,6 +83,11 @@ namespace Garrison.Benchmark.Reporting
         /// Scale sweep (scale reports).
         /// </summary>
         public ScaleSummary? Scale { get; set; }
+
+        /// <summary>
+        /// Autonomy phases (scheduler, messaging, and memory reports, AA12.4).
+        /// </summary>
+        public List<AutonomyPhaseResult> AutonomyPhases { get; set; } = new List<AutonomyPhaseResult>();
 
         /// <summary>
         /// Server-side stage breakdown over the whole measured phase, from /metrics.

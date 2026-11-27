@@ -403,6 +403,117 @@ namespace Garrison.Benchmark.Client
         }
 
         /// <summary>
+        /// POST .../mandates.
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="request">Request.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<Mandate>> CreateMandateAsync(string tenantId, MandateCreateRequest request, CancellationToken token)
+        {
+            return SendAsync<Mandate>(HttpMethod.Post, TenantPath(tenantId) + "/mandates", Serialize(request), "application/json", null, token);
+        }
+
+        /// <summary>
+        /// One page of GET .../mandates (1000 per page).
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="skip">Records to skip.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<EnumerationResult<Mandate>>> ListMandatesAsync(string tenantId, int skip, CancellationToken token)
+        {
+            return SendAsync<EnumerationResult<Mandate>>(HttpMethod.Get, TenantPath(tenantId) + "/mandates?maxResults=1000&skip=" + skip.ToString(CultureInfo.InvariantCulture), null, null, null, token);
+        }
+
+        /// <summary>
+        /// One page of GET .../mandates/{id}/ticks (1000 per page).
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="mandateId">Mandate identifier or name.</param>
+        /// <param name="skip">Records to skip.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<EnumerationResult<MandateTick>>> ListTicksAsync(string tenantId, string mandateId, int skip, CancellationToken token)
+        {
+            return SendAsync<EnumerationResult<MandateTick>>(HttpMethod.Get, TenantPath(tenantId) + "/mandates/" + Uri.EscapeDataString(mandateId) + "/ticks?maxResults=1000&skip=" + skip.ToString(CultureInfo.InvariantCulture), null, null, null, token);
+        }
+
+        /// <summary>
+        /// DELETE .../mandates/{id}, with force=true to cancel a running tick.
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="mandateId">Mandate identifier or name.</param>
+        /// <param name="force">Cancel a running tick's run instead of answering 409.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<object>> DeleteMandateAsync(string tenantId, string mandateId, bool force, CancellationToken token)
+        {
+            return SendAsync<object>(HttpMethod.Delete, TenantPath(tenantId) + "/mandates/" + Uri.EscapeDataString(mandateId) + (force ? "?force=true" : String.Empty), null, null, null, token, false);
+        }
+
+        /// <summary>
+        /// POST .../messages: write to an agent as a person.
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="request">Request.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response; a refused message answers 409 with the reason as the code.</returns>
+        public Task<ApiResponse<AgentMessage>> SendMessageAsync(string tenantId, MessageSendRequest request, CancellationToken token)
+        {
+            return SendAsync<AgentMessage>(HttpMethod.Post, TenantPath(tenantId) + "/messages", Serialize(request), "application/json", null, token);
+        }
+
+        /// <summary>
+        /// GET .../messages/{id}.
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="messageId">Message identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<AgentMessage>> GetMessageAsync(string tenantId, string messageId, CancellationToken token)
+        {
+            return SendAsync<AgentMessage>(HttpMethod.Get, TenantPath(tenantId) + "/messages/" + Uri.EscapeDataString(messageId), null, null, null, token);
+        }
+
+        /// <summary>
+        /// Count the tenant's messages with a status (GET .../messages?status=...&amp;maxResults=1, read totalRecords).
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="status">Status, for example Queued.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<EnumerationResult<AgentMessage>>> CountMessagesAsync(string tenantId, string status, CancellationToken token)
+        {
+            return SendAsync<EnumerationResult<AgentMessage>>(HttpMethod.Get, TenantPath(tenantId) + "/messages?maxResults=1&status=" + Uri.EscapeDataString(status), null, null, null, token);
+        }
+
+        /// <summary>
+        /// GET .../memory/entries for one agent's scope (at most 100 per page).
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="agentId">Agent identifier (the Agent scope).</param>
+        /// <param name="skip">Records to skip.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<EnumerationResult<MemoryEntry>>> ListMemoryEntriesAsync(string tenantId, string agentId, int skip, CancellationToken token)
+        {
+            return SendAsync<EnumerationResult<MemoryEntry>>(HttpMethod.Get, TenantPath(tenantId) + "/memory/entries?scopeKind=Agent&scopeId=" + Uri.EscapeDataString(agentId) + "&maxResults=100&skip=" + skip.ToString(CultureInfo.InvariantCulture), null, null, null, token);
+        }
+
+        /// <summary>
+        /// GET .../memory/entries/{id}/content.
+        /// </summary>
+        /// <param name="tenantId">Tenant.</param>
+        /// <param name="entryId">Entry identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        public Task<ApiResponse<MemoryContent>> GetMemoryContentAsync(string tenantId, string entryId, CancellationToken token)
+        {
+            return SendAsync<MemoryContent>(HttpMethod.Get, TenantPath(tenantId) + "/memory/entries/" + Uri.EscapeDataString(entryId) + "/content", null, null, null, token);
+        }
+
+        /// <summary>
         /// GET /metrics as text. Returns null when the server does not serve metrics.
         /// </summary>
         /// <param name="token">Cancellation token.</param>

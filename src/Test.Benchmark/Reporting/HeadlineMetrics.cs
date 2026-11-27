@@ -64,6 +64,19 @@ namespace Garrison.Benchmark.Reporting
                 metrics["resilience." + scenario.Name + ".passed"] = scenario.Passed ? 1 : 0;
                 if (scenario.RecoverySeconds >= 0) metrics["resilience." + scenario.Name + ".recoverySeconds"] = scenario.RecoverySeconds;
             }
+            foreach (AutonomyPhaseResult phase in report.AutonomyPhases)
+            {
+                string key = phase.Scenario + "." + phase.Name;
+                metrics[key + ".throughput"] = phase.Throughput;
+                metrics[key + ".failed"] = phase.Failed;
+                foreach (KeyValuePair<string, LatencyStatistics> timing in phase.Timings)
+                {
+                    if (timing.Value.Count == 0) continue;
+                    metrics[key + "." + timing.Key + ".p50"] = timing.Value.P50;
+                    metrics[key + "." + timing.Key + ".p95"] = timing.Value.P95;
+                    metrics[key + "." + timing.Key + ".p99"] = timing.Value.P99;
+                }
+            }
             return metrics;
         }
 

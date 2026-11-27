@@ -12,7 +12,8 @@ namespace Garrison.Benchmark.Runners
 
     /// <summary>
     /// The ci-gate command: runs the deterministic subset (dataset validation, routing correctness, end-to-end
-    /// correctness with the direct arm, and ingest correctness, on the synthetic and live datasets), then compares each
+    /// correctness with the direct arm, and ingest correctness, on the synthetic and live datasets, plus the autonomy
+    /// invariants of the scheduler, messaging, and memory commands at small sizes), then compares each
     /// report with its committed baseline in benchmarks/baselines/ with latency excluded. --update writes new
     /// baselines instead. Previous gate outputs (JSON and Markdown) are removed first.
     /// </summary>
@@ -53,6 +54,9 @@ namespace Garrison.Benchmark.Runners
                 new GateJob("ingest", "synthetic-fleet", new List<string> { "ingest", "--dataset", "benchmarks/datasets/synthetic-fleet.json", "--deterministic", "true", "--batch-size", "100" }),
                 new GateJob("e2e", "garrison-live", new List<string> { "e2e", "--dataset", "benchmarks/datasets/garrison-live.json", "--corpus", "live-e2e", "--deterministic", "true", "--repeat", "1", "--warmup", "0" }),
                 new GateJob("ingest", "garrison-live", new List<string> { "ingest", "--dataset", "benchmarks/datasets/garrison-live.json", "--corpus", "live-ingest", "--deterministic", "true" }),
+                new GateJob("scheduler", AutonomyWorkload.DatasetName, new List<string> { "scheduler", "--levels", "5", "--window-seconds", "20", "--deterministic", "true" }),
+                new GateJob("messaging", AutonomyWorkload.DatasetName, new List<string> { "messaging", "--recipients", "5", "--messages", "40", "--rounds", "2", "--deterministic", "true" }),
+                new GateJob("memory", AutonomyWorkload.DatasetName, new List<string> { "memory", "--keys", "50", "--concurrency", "4", "--rate", "50", "--deterministic", "true" }),
             };
 
             int exit = 0;

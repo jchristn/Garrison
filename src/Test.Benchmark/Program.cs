@@ -110,6 +110,12 @@ namespace Garrison.Benchmark
                     return await FairnessRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "scale":
                     return await ScaleRunner.RunAsync(context, token).ConfigureAwait(false);
+                case "scheduler":
+                    return await SchedulerRunner.RunAsync(context, token).ConfigureAwait(false);
+                case "messaging":
+                    return await MessagingRunner.RunAsync(context, token).ConfigureAwait(false);
+                case "memory":
+                    return await MemoryRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "compare":
                     return await CompareRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "history":
@@ -150,6 +156,9 @@ namespace Garrison.Benchmark
                 "  resilience  Failing and overrunning harnesses; worker, server, and database failures (k3d).",
                 "  fairness    Noisy-neighbor queue p95 across tenant workspaces (--quiet-runs, --noisy-multiplier, --urls).",
                 "  scale       Control plane load to failure: step up offered load across server replicas until a level breaks (P14.15).",
+                "  scheduler   Keeper scheduler load: tick lag p50/p95/p99 at --levels mandates (1,100,1000,10000), --window-seconds per level.",
+                "  messaging   Message send throughput and delivery lag through keeper wakes (--recipients, --messages, --rounds).",
+                "  memory      Memory operation latency over MCP and REST (--keys, --concurrency, --value-bytes, --mcp-url).",
                 "  compare     Paired, significance-gated diff of two reports; exit 1 on regression.",
                 "  history     Headline metrics per round with net change and baselines.",
                 "  stub        Run the stub dependency (the fake harness) on its own.",

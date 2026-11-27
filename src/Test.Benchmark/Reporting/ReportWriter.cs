@@ -105,6 +105,7 @@ namespace Garrison.Benchmark.Reporting
             Ingest(md, report);
             Load(md, report);
             ScaleMarkdown.Append(md, report.Scale);
+            Autonomy(md, report);
             Resilience(md, report);
             Stages(md, report.Stages, "Server stage breakdown (whole run)");
             Baselines(md, report);
@@ -155,6 +156,9 @@ namespace Garrison.Benchmark.Reporting
                 case "load": return "Load report";
                 case "resilience": return "Resilience report";
                 case "scale": return "Scale report";
+                case "scheduler": return "Keeper scheduler report";
+                case "messaging": return "Messaging report";
+                case "memory": return "Memory report";
                 default: return kind + " report";
             }
         }
@@ -313,6 +317,46 @@ namespace Garrison.Benchmark.Reporting
                 md.Append("### Timings, ").Append(level.Arm).Append(' ').Append(HeadlineMetrics.LevelKey(level)).Append(" (successful operations, ms)\n\n");
                 Distributions(md, level.Timings);
                 if (level.Stages.Count > 0) Stages(md, level.Stages.Take(8).ToList(), null);
+            }
+        }
+
+        private static void Autonomy(StringBuilder md, BenchmarkReport report)
+        {
+            if (report.AutonomyPhases.Count == 0) return;
+            md.Append("## Phases\n\nCensored values are lower bounds (a wake or message still waiting when the window closed) and are included in the distributions.\n\n");
+            md.Append("| Scenario | Phase | Size | Operations | Succeeded | Failed | Censored | Window (s) | Throughput (ops/s) |\n|---|---|---|---|---|---|---|---|---|\n");
+            foreach (AutonomyPhaseResult phase in report.AutonomyPhases)
+            {
+                md.Append("| ").Append(phase.Scenario).Append(" | ").Append(Cell(phase.Name)).Append(" | ").Append(phase.Level).Append(" | ").Append(phase.Operations)
+                    .Append(" | ").Append(phase.Succeeded).Append(" | ").Append(phase.Failed).Append(" | ").Append(phase.Censored)
+                    .Append(" | ").Append(N(phase.WindowSeconds, "F1")).Append(" | ").Append(N(phase.Throughput, "F2")).Append(" |\n");
+            }
+            md.Append('\n');
+            List<AutonomyPhaseResult> timed = report.AutonomyPhases.Where(p => p.Timings.Count > 0).ToList();
+            if (timed.Count > 0)
+            {
+                md.Append("### Distributions (ms)\n\n| Phase | Measure | n | mean | p50 [95% CI] | p95 [95% CI] | p99 | max |\n|---|---|---|---|---|---|---|---|\n");
+                foreach (AutonomyPhaseResult phase in timed)
+                {
+                    foreach (KeyValuePair<string, LatencyStatistics> timing in phase.Timings)
+                    {
+                        LatencyStatistics s = timing.Value;
+                        md.Append("| ").Append(Cell(phase.Name)).Append(" | ").Append(timing.Key).Append(" | ").Append(s.Count).Append(" | ").Append(N(s.Mean, "F1"))
+                            .Append(" | ").Append(s.P50Ci == null ? N(s.P50, "F1") : s.P50Ci.Format("F1"))
+                            .Append(" | ").Append(s.P95Ci == null ? N(s.P95, "F1") : s.P95Ci.Format("F1"))
+                            .Append(" | ").Append(N(s.P99, "F1")).Append(" | ").Append(N(s.Max, "F1")).Append(" |\n");
+                    }
+                }
+                md.Append('\n');
+            }
+            List<AutonomyPhaseResult> counted = report.AutonomyPhases.Where(p => p.Counts.Count > 0).ToList();
+            if (counted.Count > 0)
+            {
+                md.Append("### Counts\n\n| Phase | Count | Value |\n|---|---|---|\n");
+                foreach (AutonomyPhaseResult phase in counted)
+                    foreach (KeyValuePair<string, int> count in phase.Counts)
+                        md.Append("| ").Append(Cell(phase.Name)).Append(" | ").Append(Cell(count.Key)).Append(" | ").Append(count.Value).Append(" |\n");
+                md.Append('\n');
             }
         }
 

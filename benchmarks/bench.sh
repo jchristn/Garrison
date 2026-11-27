@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the harness (Release) and runs one Garrison.Benchmark command. Measuring commands (ingest, routing, e2e,
-# load, resilience) are pointed at the stack chosen by BENCH_STACK (k3d by default, or local) unless you pass --url.
+# load, resilience, scheduler, messaging, memory) are pointed at the stack chosen by BENCH_STACK (k3d by default, or local) unless you pass --url.
 #
 #   benchmarks/bench.sh validate
 #   benchmarks/bench.sh e2e --label try1
@@ -11,7 +11,7 @@ build_harness
 command="${1:-help}"
 [ $# -gt 0 ] && shift
 case "${command}" in
-  ingest|routing|e2e|load|resilience)
+  ingest|routing|e2e|load|resilience|scheduler|messaging|memory)
     case " $* " in
       *" --url "*) harness "${command}" "$@" ;;
       *) run_measure "${command}" "$@" ;;

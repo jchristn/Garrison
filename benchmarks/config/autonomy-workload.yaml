@@ -1,0 +1,42 @@
+# Workload of the autonomy benchmarks (AA12.4): the scheduler, messaging, and memory commands. Each run applies it into
+# a fresh tenant (bench-autonomy-<scenario>-<hash>-<UTC timestamp>), because keepers and urgent-wake limits carry state
+# that a reused tenant would leak into the next run. Keeper ticks run on the built-in fake harness, so a tick is a
+# short ordinary run and no model is called. The messaging command adds its recipient agents (inbox-NNN) to this
+# manifest itself, one Agent and one Deployment per recipient, shaped like keeper-bench below.
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: keeper-bench
+  description: Holds every mandate of the scheduler benchmark
+spec:
+  displayName: keeper-bench
+  exposure: { a2a: false, mcpTool: false }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: keeper-bench-fake
+spec:
+  agent: keeper-bench
+  harnessProfile: builtin/fake
+  timeoutSeconds: 60
+  maxAttempts: 1
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: memory-bench
+  description: Owns the Agent memory scope the memory benchmark reads and writes
+spec:
+  displayName: memory-bench
+  exposure: { a2a: false, mcpTool: false }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: memory-bench-fake
+spec:
+  agent: memory-bench
+  harnessProfile: builtin/fake
+  timeoutSeconds: 60
+  maxAttempts: 1

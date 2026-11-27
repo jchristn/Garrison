@@ -135,6 +135,28 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 6. **The direct arm runs on the harness machine.** On the k3d stack the Garrison arm's harness runs in a Linux container in the Docker VM while the direct arm runs on the host, so the floor is a floor for the work, not for the container. `clientOverheadMs` (client latency minus the worker's own `executionMs`) is the container-fair overhead and is reported next to it.
 7. **The root README has no Benchmarks section yet.** This phase was delivered by an agent restricted to its own files while two others edited the tree; adding the short section that links `benchmarks/README.md` is a one-line follow-up.
 
+## Autonomy benchmarks (AA12.4)
+
+The 0.3.0 autonomy features add three paths that run without a caller waiting: the keeper scheduler, agent messaging, and scoped memory. Three commands measure them black-box over REST and MCP, with the fake harness behind every keeper tick so no model is called. Each run applies `benchmarks/config/autonomy-workload.yaml` into a fresh tenant, because keepers, inboxes, and urgent-wake counts carry state that a reused tenant would leak into the next run.
+
+| Command | What it measures | Metric definitions |
+|---|---|---|
+| `scheduler` | Keeper scheduler load at `--levels` mandates (1, 100, 1000, 10000 by default), each in Fixed mode at `--interval-seconds` (60, the server's floor), observed for `--window-seconds` (120) after the last create | Tick lag: the tick's `startedUtc` minus its `scheduledUtc` (when the wake came due), for every handled wake, started or skipped. A wake still due and unhandled when the window closes counts at its lag so far (censored, a lower bound), so a scheduler that falls behind cannot hide its backlog by never reporting it. `startedTickLagMs` keeps only wakes that started a run; `firstWakeLagMs` is each mandate's first wake, due at creation. Throughput is handled wakes per second of the level |
+| `messaging` | Message throughput and delivery lag: `--recipients` agents with a keeper each, `--messages` normal messages sent as a person over `--rounds` rounds, then one urgent message per recipient per round | Send latency and throughput (normal messages per second of send time). Delivery lag: `deliveredUtc` minus `createdUtc`, the time from storing a message to the keeper tick that carries it claiming it. For urgent mail that is the wake path; for normal mail it also includes waiting for the urgent message that triggered the tick, so it is reported separately and is not a product latency |
+| `memory` | Latency of every memory operation over MCP (`garrison_memory_*` as a person) and the two REST routes the dashboard uses, with `--concurrency` sessions over `--keys` entries | Client latency per call; every result is checked (values, versions, counts, refusals), so a fast wrong answer fails |
+
+Each command also emits invariant probes, which are what `ci-gate` compares: every mandate created, every first wake handled, one tick at a time, and every started tick linked to a run (scheduler); every send accepted, every urgent message woke its keeper, everything delivered to a keeper tick of its recipient, and exactly one tick per recipient per round (messaging, the coalescing rule); and every operation correct (memory). The gate runs them at small sizes on the local stack.
+
+### Hypotheses (written before the first run, 2026-11-26)
+
+| ID | Hypothesis |
+|---|---|
+| H7 | **Scheduler.** With the default settings (sweep every 5 s, at most 100 claims per sweep), the scheduler handles at most about 20 wakes per second. At 1 and 100 mandates tick lag stays within one sweep interval (p99 under 6 s). At 1000 mandates created together, the first-wake burst exceeds one sweep, so p99 rises to tens of seconds while steady-state wakes (about 17 per second at a 60 s interval) stay just under the ceiling. At 10000 mandates demand (about 167 wakes per second) is roughly eight times the ceiling, so the backlog grows for the whole window and lag is bounded only by the window. No level loses a wake or runs two ticks of one mandate at once |
+| H8 | **Messaging.** Sending is a single insert plus guard checks: p95 under 50 ms and several hundred messages per second on the local stack. An urgent message reaches the keeper tick that carries it within one sweep interval (p95 under 6 s). Each round's mail to a recipient rides on exactly one tick |
+| H9 | **Memory.** On the local Sqlite stack every operation answers under 50 ms at p95 with 8 sessions; writes cost more than reads because they write a file and update the entry; list and search cost more than a single read but stay under 100 ms at p95 for a 200-entry scope |
+
+Verdicts are in `benchmarks/RESULTS.md` (Autonomy round).
+
 ## D-062 measurement extensions
 
 The suite now supports trace-driven scheduled arrivals with burst preservation, client-drop accounting and source/prepared hashes; an optional native Azure Functions 2019 CSV converter supplies an attributed external count-window experiment without committing raw public data. Its minute bins are explicitly time-compressed, not interpolated into invented original invocation times. Runtime trace datasets do not replace the synthetic content/workflow correctness oracle.
