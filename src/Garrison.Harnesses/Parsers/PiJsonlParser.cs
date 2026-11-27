@@ -156,6 +156,7 @@ namespace Garrison.Harnesses.Parsers
             if (!aborted && _LastStopReason == "stop")
             {
                 state.SawSuccess = true;
+                state.EmptyAnswerFails = true;
                 state.DetectedFailure = null;
                 state.FinalText = String.IsNullOrEmpty(_LastText) ? null : _LastText;
                 state.Emit(Event(RunEventTypeEnum.Result, state.FinalText, raw));

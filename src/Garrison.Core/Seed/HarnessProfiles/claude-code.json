@@ -8,6 +8,7 @@
   "systemPromptTarget": "system-prompt.md",
   "mcpConfigFormat": "ClaudeJson",
   "mcpConfigFileName": "mcp.json",
+  "mcpToolNamePrefix": "mcp__{server}__",
   "outputParser": "ClaudeStreamJson",
   "resultSource": "ParserFinalEvent",
   "successPolicy": "FinalEvent",

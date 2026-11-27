@@ -308,13 +308,14 @@ namespace Garrison.Worker.Execution
                     state.ServedModel = CodexSessionReader.ReadModel(Path.Combine(directories.Home, ".codex"));
                 }
 
-                HarnessOutcome outcome = OutcomeClassifier.Classify(spec, process, state, guard.Trip);
+                string? resultText = ResultText(spec, state, directories);
+                HarnessOutcome outcome = OutcomeClassifier.Classify(spec, process, state, guard.Trip, resultText);
                 complete.Status = outcome.Status;
                 complete.Outcome = outcome.Outcome;
                 complete.ErrorMessage = scrubber.Scrub(outcome.ErrorMessage);
                 complete.ExitCode = process.ExitCode;
                 complete.StderrTail = scrubber.Scrub(process.StderrTail);
-                complete.ResultText = scrubber.Scrub(ResultText(spec, state, directories));
+                complete.ResultText = scrubber.Scrub(resultText);
                 complete.StructuredOutputJson = state.StructuredOutputJson;
                 complete.SessionId = state.SessionId;
                 complete.ServedModel = state.ServedModel;

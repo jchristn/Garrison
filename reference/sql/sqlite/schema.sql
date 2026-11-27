@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 59).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 60).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2922,3 +2922,7 @@ ALTER TABLE "eval_runs" ADD COLUMN judgeagentid VARCHAR(64);
 ALTER TABLE "trigger_fires" ADD COLUMN evalrunid VARCHAR(64);
 CREATE INDEX IF NOT EXISTS "idx_eval_runs_trigger" ON "eval_runs" ("tenantid", "triggerid", "createdutc");
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 59, 'Scheduled eval checks', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 59);
+
+-- Migration 60: Harness profile MCP tool name prefix
+ALTER TABLE "harness_profiles" ADD COLUMN mcptoolnameprefix VARCHAR(128);
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 60, 'Harness profile MCP tool name prefix', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 60);

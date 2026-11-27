@@ -442,6 +442,11 @@ namespace Garrison.Core.Database.Ado
             v59.BuildVersion59();
             migrations.Add(new SchemaMigration(59, "Scheduled eval checks", v59._Statements, v59._Columns));
 
+            // AA12.7: the prefix a harness puts in front of MCP tool names, so prompts name Garrison's tools as the model sees them.
+            SchemaBuilder v60 = new SchemaBuilder(catalog, dialect);
+            v60.BuildVersion60();
+            migrations.Add(new SchemaMigration(60, "Harness profile MCP tool name prefix", v60._Statements, v60._Columns));
+
             return migrations;
         }
 
@@ -511,6 +516,11 @@ namespace Garrison.Core.Database.Ado
         {
             SqlDialect d = _Dialect;
             Column("organizations", "budgetfreezemarginpercent", d.TypeInt);
+        }
+
+        private void BuildVersion60()
+        {
+            Column("harness_profiles", "mcptoolnameprefix", "VARCHAR(128)");
         }
 
         private void BuildVersion59()

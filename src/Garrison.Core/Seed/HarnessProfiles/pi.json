@@ -8,6 +8,7 @@
   "systemPromptTarget": "system-prompt.md",
   "mcpConfigFormat": "PiJson",
   "mcpConfigFileName": "pi-agent/mcp.json",
+  "mcpToolNamePrefix": "mcp__{server}__",
   "outputParser": "PiJsonl",
   "resultSource": "ParserFinalEvent",
   "successPolicy": "FinalEventAndExitCode",

@@ -111,6 +111,8 @@ namespace Garrison.Core.Services
                 Template(profile.Files[i].Condition, true, errors, "files[" + i + "].condition");
             }
             if (profile.ResultSource == ResultSourceEnum.LastMessageFile && String.IsNullOrWhiteSpace(profile.ResultFileName)) errors["resultFileName"] = "A result file name is required when the result source is LastMessageFile.";
+            string? prefixError = Garrison.Core.Compilation.McpToolNaming.Validate(profile.McpToolNamePrefix);
+            if (prefixError != null) errors["mcpToolNamePrefix"] = prefixError;
             if (errors.Count > 0) throw new ValidationException("The harness profile is invalid.", errors);
         }
 

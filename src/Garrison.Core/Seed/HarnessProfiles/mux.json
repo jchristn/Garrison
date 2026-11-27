@@ -8,6 +8,7 @@
   "systemPromptTarget": "system-prompt.md",
   "mcpConfigFormat": "MuxJson",
   "mcpConfigFileName": "mux-mcp.json",
+  "mcpToolNamePrefix": "{server}.",
   "outputParser": "MuxJsonl",
   "resultSource": "LastMessageFile",
   "resultFileName": "last-message.txt",

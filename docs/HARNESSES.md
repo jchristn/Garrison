@@ -296,6 +296,7 @@ In JSON mode pi exits 0 even when the model call failed, so the stop reason deci
 | `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument, after `--` unless the template starts with literal text such as `--prompt=`, so caller text that begins with `-` is never read as an option), `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`), or `CodexAppServer` (the worker drives `codex app-server` over JSON-RPC and sends the prompt as one turn; see [Streaming with `codex app-server`](#streaming-with-codex-app-server-builtincodex-app-server)). |
 | `systemPromptDelivery` | `File` (written to `systemPromptTarget` in the config directory), `Argument` (`systemPromptTarget` is the flag), `Environment` (`systemPromptTarget` is the variable), `PrependToPrompt`, or `None` (the profile handles it with its own arguments or files). |
 | `mcpConfigFormat`, `mcpConfigFileName` | Which MCP configuration dialect the harness reads and where. Informational for the built-in formats, which are produced by the profile's own files and arguments. |
+| `mcpToolNamePrefix` | What the harness puts in front of an MCP tool's name when it lists the tool to the model, with `{server}` for the server name. Empty means the model sees the plain name. See [MCP tool names](#mcp-tool-names). |
 | `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `OpenCodeJsonl`, `PiJsonl`, `ProviderApiJsonl`, `GenericJsonl`, or `PlainText`. |
 | `resultSource` | `ParserFinalEvent`, `LastMessageFile` (read `resultFileName` from the config directory), or `Stdout`. |
 | `successPolicy` | `FinalEvent` (the parser saw a successful final event), `ExitCode` (the exit code is in `successExitCodes`), or `FinalEventAndExitCode`. `PlainText` always uses `ExitCode`. |
@@ -308,6 +309,22 @@ In JSON mode pi exits 0 even when the model call failed, so the stop reason deci
 | `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments, configuration or execution protocol must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/codex-app-server` (which resumes over JSON-RPC rather than with an argument), `builtin/mux`, `builtin/gemini-cli`, `builtin/opencode`, `builtin/pi`, `builtin/provider-api`, and `builtin/fake`. |
 | `successExitCodes`, `probeArguments` | Exit codes that count as success, and the arguments used to check the harness is installed (`--version`). |
 | `credentialEnvironmentAllowlist` | The only environment variables allowed to reference a secret. When the list is not empty, an environment template (from the profile or a deployment override) that references a secret under any other name fails compilation with `SecretNotAllowed`. |
+
+### MCP tool names
+
+Each harness shows MCP tools to its model under its own name. Garrison's MCP server is called `garrison`, so its `garrison_keeper_complete_tick` tool reaches the model as:
+
+| Profile | `mcpToolNamePrefix` | The model sees | Checked against |
+|---|---|---|---|
+| `builtin/claude-code` | `mcp__{server}__` | `mcp__garrison__garrison_keeper_complete_tick` | Claude Code's documented `mcp__<server>__<tool>` names |
+| `builtin/mux` | `{server}.` | `garrison.garrison_keeper_complete_tick` | Mux 1.8.0 `McpToolManager`, which registers `server.tool` |
+| `builtin/gemini-cli` | `mcp_{server}_` | `mcp_garrison_garrison_keeper_complete_tick` | Gemini CLI 0.68.0 `generateValidName` |
+| `builtin/opencode` | `{server}_` | `garrison_garrison_keeper_complete_tick` | opencode 2.2.0 |
+| `builtin/pi` | `mcp__{server}__` | `mcp__garrison__garrison_keeper_complete_tick` | pi 1.4.0 `mcp-servers.js` |
+| `builtin/provider-api` | `mcp__{server}__` | `mcp__garrison__garrison_keeper_complete_tick` | Garrison's own provider harness |
+| `builtin/codex`, `builtin/codex-app-server`, `builtin/generic-jsonl`, `builtin/fake` | empty | `garrison_keeper_complete_tick` | Codex 0.171 was not checked, so its names stay as they were |
+
+The compiler renders the prefix for Garrison's server as `garrison.toolPrefix`. The built-in system prompt fragments write every tool as `{{garrison.toolPrefix}}garrison_...`, so they name the tool the model can call. Text rendered before a run has a harness, such as a keeper tick's input, a message delivery, or a deployment's own prompt, still uses plain names. For that, a run whose profile sets a prefix and that carries the Garrison server also gets the `builtin/mcp-tool-names` fragment at the end of its system prompt. It tells the model the prefix and how a plain name maps to the full one. Without it, the AA12.7 trials on Mux called `garrison_keeper_complete_tick`, which Mux does not know (`unknown_mcp_tool`). A custom profile for a harness that prefixes tool names should set `mcpToolNamePrefix` too. The value may use letters, digits, `_`, `-`, `.`, `:`, and `{server}`, up to 128 characters.
 
 ### Arguments
 
@@ -365,7 +382,7 @@ Every string in a profile is rendered with the Garrison template language (see `
 | `prompts` | `system` and `task`, the rendered prompts |
 | `resources` | `mcpServers`, `httpMcpServers`, `stdioMcpServers` (each with `name`, `transport`, `endpoint`, `url`, `path`, `command`, `args`, `required`, `requiredTools`, `toolTimeoutSeconds`, `toolTimeoutMs`, `headers`, `env`, `bearerEnvName`, `bearerEnvRef`), `hasMcpServers`, `mcpServerNames`, `workspace` |
 | `secret` | Bound secrets by alias (`secret.anthropic`), and the first bound secret of each kind (`secret.kind.AnthropicApiKey`) |
-| `garrison` | `mcpUrl`, `apiUrl`, `version`, `mcpServerName`, `delegationEnabled` |
+| `garrison` | `mcpUrl`, `apiUrl`, `version`, `mcpServerName`, `toolPrefix` (the profile's `mcpToolNamePrefix` rendered for the Garrison server, or empty), `delegationEnabled` |
 | `approval` | `enabled` (the deployment has approvals on and the run has a token), `promptTool` (`mcp__garrison__garrison_permission_prompt` when enabled), `timeoutSeconds`, `mcpToolTimeoutMs` (600000, or the approval timeout plus two minutes when that is longer) |
 | `harness` | `type`, `profile`, `model`, `nativeSchema` (whether the harness enforces output schemas itself) |
 | `executor` | `type` (`Process` or `KubernetesJob`), `containerized` (true for a KubernetesJob run, and for a Process run leased to a worker that reports `Containerized`; false otherwise, including in previews of Process deployments) |
@@ -475,7 +492,7 @@ On the recorded gpt-oss:20b loop (`src/Test.Shared/Fixtures/mux/v1.3.0-repetitio
 | Outcome | Meaning |
 |---|---|
 | `Succeeded` | The success policy was met |
-| `HarnessFailed` | The harness reported failure, exited badly, or never produced a final result |
+| `HarnessFailed` | The harness reported failure, exited badly, or never produced a final result. Also a run the harness called a success when the model gave no answer and called no tools: the message starts with `EmptyResponse:` (see [Quirks Garrison handles](#quirks-garrison-handles)) |
 | `NotInstalled` | The executable was not found |
 | `NotCredentialed` | Stderr matched a known authentication failure (`invalid api key`, `not logged in`, `401 unauthorized`, and similar), or the harness reported one in its output stream (Mux: a 401 from the model, or `config_unresolved_env`) |
 | `McpPreflightFailed` | A required MCP server or tool was missing |
@@ -556,6 +573,7 @@ Resume and native output schemas were checked on 2026-10-10 against the real CLI
 ### Quirks Garrison handles
 
 - **Exit code 0 after a failure.** Several harnesses exit 0 when the model call failed. The built-in profiles use the `FinalEvent` success policy, so success means the harness said so in its final event.
+- **Success with nothing done.** Mux reported `completed` for a model call that returned no text and no tool calls, once after 8192 reasoning tokens (Mux's default `maxTokens`) and once with no tokens at all. The parsers for Claude Code, Codex, Codex app-server, Gemini CLI, Mux, opencode, pi, and the provider API now mark their final event so that a run with no answer text, no structured output, and no tool call fails as `HarnessFailed` with a message that starts with `EmptyResponse:`. When the model spent output tokens, the message gives the count and suggests a larger output limit. For Mux the answer is the `--output-last-message` file, so text there counts. Generic JSON lines and plain text harnesses may print nothing and still succeed. A keeper tick whose run fails this way ends `Failed`, not `Unreported`. Deployments that run a reasoning model on Mux should also raise the endpoint's `maxTokens`.
 - **MCP servers that fail quietly.** A harness may start even though an MCP server rejected its credentials. MCP pre-flight catches this before launch, and the Claude Code parser also checks the `mcp_servers` status in the init event for servers the run requires.
 - **Model substitution.** A harness may serve a different model from the one requested. Parsers record the model the harness reports, and the run stores it as `servedModel`, so you can compare it with the deployment's model.
 - **Leftover configuration.** User settings, project instruction files, and global MCP servers on the worker are ignored by the flags each built-in passes, and each run gets its own `HOME`.

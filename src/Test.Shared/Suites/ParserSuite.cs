@@ -46,6 +46,8 @@ namespace Test.Shared.Suites
                 Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
                 Case("parsers", "mux-failed", "Mux JSONL: max iterations is a failure", MuxFailed),
                 Case("parsers", "mux-llm-error", "Mux JSONL: completed_with_errors plus a non-zero exit is a failure", MuxLlmError),
+                Case("parsers", "mux-empty-answer", "AA12.7: Mux completed with no text and no tool calls is a failed run (EmptyResponse), with or without reasoning tokens", MuxEmptyAnswer),
+                Case("parsers", "empty-answer-other-parsers", "AA12.7: the empty answer rule for the other agent parsers, and not for generic JSONL or plain text", EmptyAnswerOtherParsers),
                 Case("parsers", "mux-1.2.0-compat", "Mux 1.2.0 JSONL: no contextWindowSource warning, mcp.supported fallback, empty session id ignored", Mux120Compat),
                 Case("parsers", "mux-1.3.0-success", "Mux 1.3.0 JSONL (recorded): session id, tools, usage, default context window warning", Mux130Success),
                 Case("parsers", "mux-1.3.0-usage", "Mux 1.3.0 JSONL: cachedTokens, reasoningTokens, costUsd, mcp.enabled", Mux130Usage),
@@ -492,6 +494,7 @@ namespace Test.Shared.Suites
             {
                 "{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"gpt-oss:20b\"}",
                 "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"llm_request_failed\",\"message\":\"LLM request failed with status 401\"}",
+                "{\"contractVersion\":2,\"eventType\":\"assistant_text\",\"text\":\"Recovered.\"}",
                 "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"status\":\"completed_with_errors\"}"
             });
             ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
@@ -500,6 +503,90 @@ namespace Test.Shared.Suites
             Assert.Equal(RunOutcomeEnum.NotCredentialed, failed.Outcome, "A 401 from the model is NotCredentialed");
             HarnessOutcome ok = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, state);
             Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "completed_with_errors with exit 0 still succeeds (tool errors the model recovered from)");
+        }
+
+        private static void MuxEmptyAnswer()
+        {
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode, ResultSource = ResultSourceEnum.LastMessageFile };
+            string started = "{\"contractVersion\":2,\"eventType\":\"run_started\",\"sessionId\":\"s1\",\"model\":\"gpt-oss:20b\",\"mcp\":{\"enabled\":true,\"serverCount\":1}}";
+
+            // The AA12.7 trial: 8192 reasoning tokens (Mux's default maxTokens), then nothing.
+            HarnessRunState thought = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                started,
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"sessionId\":\"s1\",\"status\":\"completed\",\"usage\":{\"inputTokens\":5000,\"outputTokens\":8192,\"reasoningTokens\":8192}}"
+            });
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, thought, null, String.Empty);
+            Assert.Equal(RunStatusEnum.Failed, outcome.Status, "An empty answer with no tool calls fails");
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, outcome.Outcome, "Outcome");
+            Assert.True(outcome.ErrorMessage != null && outcome.ErrorMessage.StartsWith(OutcomeClassifier.EmptyResponseCode + ":", StringComparison.Ordinal), "Message starts with EmptyResponse: " + outcome.ErrorMessage);
+            Assert.True(outcome.ErrorMessage!.Contains("8192 of them for reasoning", StringComparison.Ordinal) && outcome.ErrorMessage.Contains("maxTokens", StringComparison.Ordinal), "Message explains the reasoning budget: " + outcome.ErrorMessage);
+
+            // The other trial case: zero tokens, nothing at all.
+            HarnessRunState nothing = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                started,
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"sessionId\":\"s1\",\"status\":\"completed\",\"usage\":{\"inputTokens\":0,\"outputTokens\":0}}"
+            });
+            HarnessOutcome empty = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, nothing);
+            Assert.Equal(RunStatusEnum.Failed, empty.Status, "Zero tokens and no answer fails");
+            Assert.True(empty.ErrorMessage != null && empty.ErrorMessage.StartsWith(OutcomeClassifier.EmptyResponseCode, StringComparison.Ordinal) && !empty.ErrorMessage.Contains("maxTokens", StringComparison.Ordinal), "No token advice without tokens: " + empty.ErrorMessage);
+
+            // A run that only called tools did something.
+            HarnessRunState tools = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                started,
+                "{\"contractVersion\":2,\"eventType\":\"tool_call_proposed\",\"toolCall\":{\"id\":\"c1\",\"name\":\"garrison.garrison_keeper_complete_tick\",\"arguments\":\"{}\"}}",
+                "{\"contractVersion\":2,\"eventType\":\"tool_call_completed\",\"toolCallId\":\"c1\",\"result\":{\"success\":true,\"content\":\"ok\"}}",
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"sessionId\":\"s1\",\"status\":\"completed\"}"
+            });
+            Assert.Equal(1, tools.ToolCallCount, "Tool calls are counted");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, tools, null, String.Empty).Status, "Tool calls without text succeed");
+
+            // The last message file is the answer for Mux, so text there counts even without assistant_text events.
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, nothing, null, "Done.").Status, "Text in the result file succeeds");
+
+            // A failed run keeps its own failure rather than the empty answer message.
+            HarnessOutcome exit = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, nothing, null, String.Empty);
+            Assert.True(exit.Status == RunStatusEnum.Failed && (exit.ErrorMessage == null || !exit.ErrorMessage.StartsWith(OutcomeClassifier.EmptyResponseCode, StringComparison.Ordinal)), "A non-zero exit is reported as such: " + exit.ErrorMessage);
+        }
+
+        private static void EmptyAnswerOtherParsers()
+        {
+            ExecutionSpec claude = new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson, SuccessPolicy = SuccessPolicyEnum.FinalEvent };
+            HarnessRunState empty = ParseLines(OutputParserEnum.ClaudeStreamJson, new[]
+            {
+                "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"\",\"session_id\":\"s\"}"
+            });
+            HarnessOutcome outcome = OutcomeClassifier.Classify(claude, new ProcessRunResult { ExitCode = 0 }, empty);
+            Assert.True(outcome.Status == RunStatusEnum.Failed && outcome.ErrorMessage != null && outcome.ErrorMessage.StartsWith(OutcomeClassifier.EmptyResponseCode, StringComparison.Ordinal), "Claude Code: an empty result with no tool use fails: " + outcome.ErrorMessage);
+
+            HarnessRunState structured = ParseLines(OutputParserEnum.ClaudeStreamJson, new[]
+            {
+                "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"\",\"session_id\":\"s\",\"structured_output\":{\"answer\":\"x\"}}"
+            });
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(claude, new ProcessRunResult { ExitCode = 0 }, structured).Status, "Claude Code: structured output is an answer");
+
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(claude, new ProcessRunResult { ExitCode = 0 }, Parse(OutputParserEnum.ClaudeStreamJson, "claude/success.jsonl")).Status, "Claude Code recorded success still succeeds");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.CodexJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEvent }, new ProcessRunResult { ExitCode = 0 }, Parse(OutputParserEnum.CodexJsonl, "codex/success.jsonl")).Status, "Codex recorded success still succeeds");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.GeminiStreamJson, SuccessPolicy = SuccessPolicyEnum.FinalEvent }, new ProcessRunResult { ExitCode = 0 }, Parse(OutputParserEnum.GeminiStreamJson, "gemini/success.jsonl")).Status, "Gemini recorded success still succeeds");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.PiJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode }, new ProcessRunResult { ExitCode = 0 }, Parse(OutputParserEnum.PiJsonl, "pi/v1.4.0-success.jsonl")).Status, "pi recorded success still succeeds");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode }, new ProcessRunResult { ExitCode = 0 }, Parse(OutputParserEnum.MuxJsonl, "mux/success.jsonl")).Status, "Mux recorded success still succeeds");
+
+            ExecutionSpec codex = new ExecutionSpec { Parser = OutputParserEnum.CodexJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEvent };
+            HarnessRunState silent = ParseLines(OutputParserEnum.CodexJsonl, new[]
+            {
+                "{\"type\":\"thread.started\",\"thread_id\":\"t1\"}",
+                "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":0}}"
+            });
+            Assert.Equal(RunStatusEnum.Failed, OutcomeClassifier.Classify(codex, new ProcessRunResult { ExitCode = 0 }, silent).Status, "Codex: a completed turn with no message and no tool fails");
+
+            // Generic JSONL and plain text harnesses may print nothing on success.
+            ExecutionSpec generic = new ExecutionSpec { Parser = OutputParserEnum.GenericJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEvent };
+            HarnessRunState quiet = new HarnessRunState { SawSuccess = true, SawFinalResult = true };
+            Assert.True(!quiet.EmptyAnswerFails, "The rule is off unless a parser turns it on");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(generic, new ProcessRunResult { ExitCode = 0 }, quiet, null, null).Status, "Generic JSONL: empty output still succeeds");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.PlainText }, new ProcessRunResult { ExitCode = 0 }, ParseLines(OutputParserEnum.PlainText, new string[0]), null, String.Empty).Status, "Plain text: empty output with exit 0 succeeds");
         }
 
         private static void Mux120Compat()

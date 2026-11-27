@@ -214,6 +214,8 @@ namespace Garrison.Core.Compilation
             await LoadOrgAsync(inputs, run, token).ConfigureAwait(false);
             await LoadExecutiveAsync(inputs, run, token).ConfigureAwait(false);
             await LoadBoardAsync(inputs, run, token).ConfigureAwait(false);
+            // AA12.7: only a run with a run token carries the Garrison MCP server, so only it can need the tool names fragment.
+            if (!String.IsNullOrEmpty(runToken)) await LoadToolNamesAsync(inputs, run.TenantId, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
@@ -237,6 +239,7 @@ namespace Garrison.Core.Compilation
             if (repair == null) throw new ArgumentNullException(nameof(repair));
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token, false, null, run.AgentRevisionId).ConfigureAwait(false);
             await PrepareLeaseSecretsAsync(inputs, run, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(runToken)) await LoadToolNamesAsync(inputs, run.TenantId, token).ConfigureAwait(false);
             inputs.Containerized = await ContainerizedAsync(run, null, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, repair);
@@ -751,6 +754,13 @@ namespace Garrison.Core.Compilation
                 context.Set("board", BoardContextMap(inputs.Board));
                 string board = RenderPrompt(inputs, CompilationBoardContext.Role, context, includes, usedIncludes).Trim();
                 if (board.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + board : board;
+            }
+            if (!String.IsNullOrEmpty(inputs.Profile.McpToolNamePrefix) && inputs.Prompts.ContainsKey(McpToolNaming.Role) && servers.Any(s => s.Name == Constants.McpServerName))
+            {
+                // AA12.7: the harness shows Garrison's tools under another name (Mux: garrison.garrison_get_run), and the task,
+                // messages, and the deployment's own prompts may name them plainly. The fragment tells the model the mapping.
+                string names = RenderPrompt(inputs, McpToolNaming.Role, context, includes, usedIncludes).Trim();
+                if (names.Length > 0) system = system.Length > 0 ? system.TrimEnd() + Environment.NewLine + Environment.NewLine + names : names;
             }
             string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
             if (repair != null)
@@ -1337,6 +1347,8 @@ namespace Garrison.Core.Compilation
             garrison["apiUrl"] = _Options.ApiBaseUrl;
             garrison["version"] = Constants.ProductVersion;
             garrison["mcpServerName"] = Constants.McpServerName;
+            // AA12.7: what the harness puts in front of Garrison's tool names, so prompts name the tools the model sees.
+            garrison["toolPrefix"] = McpToolNaming.Prefix(inputs.Profile.McpToolNamePrefix, Constants.McpServerName);
             garrison["delegationEnabled"] = delegationEnabled;
             context.Set("garrison", garrison);
 
@@ -1813,6 +1825,22 @@ namespace Garrison.Core.Compilation
             bound.Content = template.Content;
             inputs.Prompts[role] = bound;
             if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(run.TenantId, inputs, token).ConfigureAwait(false);
+        }
+
+        private async Task LoadToolNamesAsync(CompilationInputs inputs, string tenantId, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(inputs.Profile.McpToolNamePrefix)) return;
+            string role = McpToolNaming.Role;
+            if (inputs.Prompts.ContainsKey(role)) return;
+            PromptTemplate template = await new Garrison.Core.Keepers.KeeperTemplateResolver(_Database).ResolveAsync(tenantId, McpToolNaming.TemplateName, PromptTemplateKindEnum.Fragment, token).ConfigureAwait(false);
+            BoundPrompt bound = new BoundPrompt();
+            bound.Role = role;
+            bound.TemplateId = template.Id;
+            bound.TemplateName = template.Name;
+            bound.Version = template.CurrentVersion;
+            bound.Content = template.Content;
+            inputs.Prompts[role] = bound;
+            if (bound.Content.Contains("{{>", StringComparison.Ordinal)) await LoadIncludesAsync(tenantId, inputs, token).ConfigureAwait(false);
         }
 
         private async Task LoadBoardAsync(CompilationInputs inputs, Run run, CancellationToken token)

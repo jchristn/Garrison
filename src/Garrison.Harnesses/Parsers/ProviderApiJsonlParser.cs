@@ -36,6 +36,7 @@ namespace Garrison.Harnesses.Parsers
                     state.FinalText = item.Text;
                     state.SawFinalResult = true;
                     state.SawSuccess = item.Success == true;
+                    state.EmptyAnswerFails = true;
                     break;
                 case RunEventTypeEnum.Error:
                     state.DetectedFailure = item.Text ?? "Provider API execution failed.";

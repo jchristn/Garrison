@@ -138,6 +138,7 @@ namespace Garrison.Harnesses.Parsers
             }
 
             state.SawSuccess = true;
+            state.EmptyAnswerFails = true;
             state.DetectedFailure = null;
             state.FinalText = _MessageText.Length > 0 ? _MessageText.ToString() : null;
             state.Emit(Event(RunEventTypeEnum.Result, state.FinalText, null));

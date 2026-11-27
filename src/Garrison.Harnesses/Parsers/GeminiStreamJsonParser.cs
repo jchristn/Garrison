@@ -42,6 +42,7 @@ namespace Garrison.Harnesses.Parsers
                 case "result":
                     state.SawFinalResult = true;
                     state.SawSuccess = JsonPath.Str(root, "status") == "success";
+                    state.EmptyAnswerFails = true;
                     if (!state.SawSuccess) state.DetectedFailure ??= "Gemini reported status " + (JsonPath.Str(root, "status") ?? "unknown") + ".";
                     if (JsonPath.TryGet(root, "stats", out JsonElement stats))
                     {

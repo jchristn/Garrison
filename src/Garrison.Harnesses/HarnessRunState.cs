@@ -3,6 +3,7 @@ namespace Garrison.Harnesses
     using System;
     using System.Collections.Generic;
     using System.Text;
+    using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
 
     /// <summary>
@@ -100,6 +101,26 @@ namespace Garrison.Harnesses
         public bool HarnessRejectedOutputSchema { get; set; } = false;
 
         /// <summary>
+        /// Whether a run the harness reports as successful must still fail when it produced no answer text, no structured
+        /// output, and no tool call. Parsers of agent harnesses (Claude Code, Codex, Gemini CLI, Mux, opencode, pi, and the
+        /// provider API) set it with their final event; an empty answer from them means the model did nothing, for
+        /// example a reasoning model that spent its whole output budget thinking. The generic JSONL and plain text
+        /// parsers leave it false, because their harnesses may legitimately print nothing. Default false.
+        /// </summary>
+        public bool EmptyAnswerFails { get; set; } = false;
+
+        /// <summary>
+        /// Number of tool call events queued through <see cref="Emit"/>. Counted for the empty answer rule.
+        /// </summary>
+        public int ToolCallCount
+        {
+            get
+            {
+                return _ToolCallCount;
+            }
+        }
+
+        /// <summary>
         /// Number of lines that could not be parsed.
         /// </summary>
         public int UnparsedLines { get; set; } = 0;
@@ -125,6 +146,7 @@ namespace Garrison.Harnesses
 
         private readonly List<RunEventReport> _Pending = new List<RunEventReport>();
         private int _MaxRawEventChars = 16384;
+        private int _ToolCallCount = 0;
 
         #endregion
 
@@ -137,6 +159,7 @@ namespace Garrison.Harnesses
         public void Emit(RunEventReport report)
         {
             if (report == null) return;
+            if (report.EventType == RunEventTypeEnum.ToolCall) _ToolCallCount++;
             if (report.RawEventJson != null && report.RawEventJson.Length > _MaxRawEventChars)
             {
                 report.RawEventJson = _MaxRawEventChars == 0 ? null : report.RawEventJson.Substring(0, _MaxRawEventChars);

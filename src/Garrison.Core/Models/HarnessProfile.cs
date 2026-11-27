@@ -230,6 +230,17 @@ namespace Garrison.Core.Models
         public string? SessionFormat { get; set; } = null;
 
         /// <summary>
+        /// The text this harness puts in front of an MCP tool's name when it lists the tool to the model, with
+        /// <c>{server}</c> standing for the MCP server name. For example <c>mcp__{server}__</c> (Claude Code), <c>{server}.</c>
+        /// (Mux), or <c>{server}_</c> (opencode). The compiler renders it for Garrison's own server as
+        /// <c>garrison.toolPrefix</c>, so built-in prompts name tools the way the model sees them, and adds the
+        /// <c>builtin/mcp-tool-names</c> fragment to the system prompt. Null or empty (the default) means the harness shows
+        /// tool names unchanged. Maximum 128 characters: letters, digits, <c>_</c>, <c>-</c>, <c>.</c>, <c>:</c>, and the
+        /// <c>{server}</c> placeholder.
+        /// </summary>
+        public string? McpToolNamePrefix { get; set; } = null;
+
+        /// <summary>
         /// Whether the harness can resume a session by ID. Required for the one structured output repair attempt; the
         /// profile's arguments must pass <c>run.resumeSessionId</c> to the harness. Default false.
         /// </summary>

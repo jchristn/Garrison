@@ -8,6 +8,7 @@
   "systemPromptTarget": "system-prompt.md",
   "mcpConfigFormat": "OpenCodeJson",
   "mcpConfigFileName": "opencode.json",
+  "mcpToolNamePrefix": "{server}_",
   "outputParser": "OpenCodeJsonl",
   "resultSource": "ParserFinalEvent",
   "successPolicy": "FinalEventAndExitCode",

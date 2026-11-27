@@ -8,6 +8,7 @@
   "systemPromptTarget": "GEMINI_SYSTEM_MD",
   "mcpConfigFormat": "GeminiSettings",
   "mcpConfigFileName": "gemini-home/.gemini/settings.json",
+  "mcpToolNamePrefix": "mcp_{server}_",
   "outputParser": "GeminiStreamJson",
   "resultSource": "ParserFinalEvent",
   "successPolicy": "FinalEvent",

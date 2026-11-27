@@ -47,6 +47,7 @@ namespace Test.Shared.Suites
                 foreach (string profile in _FullProfiles) cases.Add(new TestCaseDescriptor(suiteId, "golden-" + profile + "-full", "Golden: " + profile + " with MCP, schema, delegation, workspace (" + provider + ")", ct => GoldenAsync(provider, profile, true, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "no-hardcoded-text", "D-021: prompts contain only template text and caller input (" + provider + ")", ct => NoHardCodedTextAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "every-run-garrison-server", "AA-051: a run with no other Garrison feature still gets the Garrison MCP server, without a preflight (" + provider + ")", ct => EveryRunGarrisonServerAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(suiteId, "mcp-tool-names", "AA12.7: built-in prompts name Garrison's tools as each built-in harness shows them, and prefixed harnesses get builtin/mcp-tool-names (" + provider + ")", ct => McpToolNamesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "mux-named-endpoint", "Mux passes the configured endpoint name without a URL, model override, or generated endpoint (" + provider + ")", ct => MuxNamedEndpointAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "mux-without-credential", "Mux endpoints compile without a credential or unresolved API key placeholder (" + provider + ")", ct => MuxWithoutCredentialAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "secret-allowlist", "Secrets in environment variables outside the credential allowlist are rejected (" + provider + ")", ct => SecretAllowlistAsync(provider, ct)));
@@ -100,18 +101,20 @@ namespace Test.Shared.Suites
                 PromptTemplate system = await TemplateAsync(fixture, "marker-system", "<<SYSTEM>>", token).ConfigureAwait(false);
                 PromptTemplate task = await TemplateAsync(fixture, "marker-task", "<<TASK>>{{input.message}}<</TASK>>", token).ConfigureAwait(false);
                 PromptTemplate delegated = await TemplateAsync(fixture, "marker-delegated", "<<DELEGATED>>{{input.message}}<</DELEGATED>>", token).ConfigureAwait(false);
+                PromptTemplate names = await TemplateAsync(fixture, "marker-tool-names", "<<NAMES>>{{garrison.toolPrefix}}<</NAMES>>", token).ConfigureAwait(false);
                 deployment.PromptBindings = new List<DeploymentPromptBinding>
                 {
                     new DeploymentPromptBinding { Role = "System", TemplateId = system.Id },
                     new DeploymentPromptBinding { Role = "Task", TemplateId = task.Id },
-                    new DeploymentPromptBinding { Role = "DelegatedTask", TemplateId = delegated.Id }
+                    new DeploymentPromptBinding { Role = "DelegatedTask", TemplateId = delegated.Id },
+                    new DeploymentPromptBinding { Role = McpToolNaming.Role, TemplateId = names.Id }
                 };
                 await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
 
                 CompilationResult top = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), "run-token", token).ConfigureAwait(false);
                 Assert.Equal("<<TASK>>Summarize the repository.<</TASK>>", top.Spec.Stdin, "stdin is template text plus input only");
                 ExecutionFile systemFile = top.Spec.Files.First(f => f.Path == "system-prompt.md");
-                Assert.Equal("<<SYSTEM>>", systemFile.Content, "system prompt is template text only");
+                Assert.Equal("<<SYSTEM>>" + Environment.NewLine + Environment.NewLine + "<<NAMES>>mcp__garrison__<</NAMES>>", systemFile.Content, "system prompt is template text only, with the bound tool names fragment (AA12.7)");
 
                 CompilationResult child = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, true), "run-token", token).ConfigureAwait(false);
                 Assert.Equal("<<DELEGATED>>Summarize the repository.<</DELEGATED>>", child.Spec.Stdin, "delegated stdin uses the delegated template");
@@ -173,6 +176,69 @@ namespace Test.Shared.Suites
                 Assert.True(!spec.McpPreflight.Any(c => c.Name == Garrison.Core.Constants.McpServerName), "A plain run does not preflight the Garrison server");
                 Assert.True(spec.ScrubValues.Contains("rt-every-run-token-0001"), "The run token is scrubbed from output");
             }
+        }
+
+        private static async Task McpToolNamesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            // The prefix each harness puts in front of an MCP tool's name, checked against the harness itself: Mux 1.8.0
+            // McpToolManager registers server.tool, Gemini CLI 0.68 generateValidName gives mcp_server_tool, opencode 2.2.0
+            // gives server_tool, pi 1.4.0 and Claude Code give mcp__server__tool. Codex is left unprefixed.
+            Dictionary<string, string> expected = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["claude-code"] = "mcp__garrison__",
+                ["mux"] = "garrison.",
+                ["gemini-cli"] = "mcp_garrison_",
+                ["opencode"] = "garrison_",
+                ["pi"] = "mcp__garrison__",
+                ["codex"] = String.Empty,
+                ["codex-app-server"] = String.Empty
+            };
+            foreach (KeyValuePair<string, string> entry in expected)
+            {
+                using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+                {
+                    Deployment deployment = await fixture.DeploymentAsync(entry.Key, true, token).ConfigureAwait(false);
+                    ExecutionSpec spec = (await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), "run-token-names", token).ConfigureAwait(false)).Spec;
+                    string text = SpecText(spec);
+                    Assert.True(text.Contains("- " + entry.Value + "garrison_list_agents shows", StringComparison.Ordinal), entry.Key + " names garrison_list_agents as " + entry.Value + "garrison_list_agents");
+                    Assert.True(text.Contains("- " + entry.Value + "garrison_fan_out starts", StringComparison.Ordinal), entry.Key + " names the fan-out tools with the prefix in included fragments");
+                    bool fragment = text.Contains("call it by its full name", StringComparison.Ordinal);
+                    if (entry.Value.Length > 0)
+                    {
+                        Assert.True(!text.Contains("- garrison_list_agents shows", StringComparison.Ordinal), entry.Key + " leaves no unprefixed tool name in the built-in system prompt");
+                        Assert.True(fragment, entry.Key + " carries builtin/mcp-tool-names");
+                        Assert.True(text.Contains("`garrison_keeper_complete_tick` is `" + entry.Value + "garrison_keeper_complete_tick`", StringComparison.Ordinal), entry.Key + " maps a plain name to the full name");
+                    }
+                    else
+                    {
+                        Assert.True(!fragment, entry.Key + " shows plain names, so it gets no mapping fragment");
+                    }
+
+                    // Without the Garrison MCP server (no run token) there is nothing to map.
+                    CompilationResult offline = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), null, token).ConfigureAwait(false);
+                    Assert.True(!SpecText(offline.Spec).Contains("call it by its full name", StringComparison.Ordinal), entry.Key + ": no Garrison server, no mapping fragment");
+                    Assert.True(!offline.TemplateVersions.Any(v => v.TemplateName == "builtin/" + McpToolNaming.TemplateName), entry.Key + ": the unused fragment is not recorded");
+                }
+            }
+
+            foreach (HarnessProfile profile in BuiltInSeeder.HarnessProfileDefaults())
+            {
+                Assert.True(McpToolNaming.Validate(profile.McpToolNamePrefix) == null, profile.Name + " has a valid MCP tool name prefix");
+            }
+            Assert.Equal("mcp__garrison__garrison_get_run", McpToolNaming.ToolName("mcp__{server}__", "garrison", "garrison_get_run"), "Prefix rendering");
+            Assert.Equal("garrison_get_run", McpToolNaming.ToolName(null, "garrison", "garrison_get_run"), "No prefix");
+            Assert.True(McpToolNaming.Validate("mcp {server} ") != null, "Spaces are refused");
+            Assert.True(McpToolNaming.Validate("{{secret.x}}") != null, "Template syntax is refused");
+        }
+
+        private static string SpecText(ExecutionSpec spec)
+        {
+            List<string> parts = new List<string>();
+            parts.Add(spec.Stdin ?? String.Empty);
+            parts.AddRange(spec.Arguments);
+            parts.AddRange(spec.Files.Select(f => f.Content));
+            parts.AddRange(spec.Environment.Select(e => e.Value));
+            return String.Join("\n", parts);
         }
 
         private static async Task MuxNamedEndpointAsync(DatabaseTypeEnum provider, CancellationToken token)

@@ -27,6 +27,12 @@ namespace Garrison.Harnesses.Execution
             }
         }
 
+        /// <summary>
+        /// The code at the start of the error message of a run that failed because the model gave no answer and called no
+        /// tools: EmptyResponse. The outcome is HarnessFailed.
+        /// </summary>
+        public static readonly string EmptyResponseCode = "EmptyResponse";
+
         #endregion
 
         #region Private-Members
@@ -76,6 +82,26 @@ namespace Garrison.Harnesses.Execution
         /// <exception cref="ArgumentNullException">Thrown when spec, process, or state is null.</exception>
         public static HarnessOutcome Classify(ExecutionSpec spec, ProcessRunResult process, HarnessRunState state, RunGuardTrip? trip)
         {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            return Classify(spec, process, state, trip, state.BestText());
+        }
+
+        /// <summary>
+        /// Classify, taking a run guard trip and the run's result text into account. A run its harness reports as
+        /// successful still fails (HarnessFailed, with a message that starts with <see cref="EmptyResponseCode"/>) when the
+        /// parser set <see cref="HarnessRunState.EmptyAnswerFails"/> and the run produced no result text, no structured
+        /// output, and no tool call.
+        /// </summary>
+        /// <param name="spec">Execution spec.</param>
+        /// <param name="process">Process result.</param>
+        /// <param name="state">Parser state.</param>
+        /// <param name="trip">Run guard trip, or null when no guard tripped.</param>
+        /// <param name="resultText">The run's result text as the result source yields it (for example the last message
+        /// file), or null when there is none.</param>
+        /// <returns>Outcome.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when spec, process, or state is null.</exception>
+        public static HarnessOutcome Classify(ExecutionSpec spec, ProcessRunResult process, HarnessRunState state, RunGuardTrip? trip, string? resultText)
+        {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (process == null) throw new ArgumentNullException(nameof(process));
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -105,6 +131,13 @@ namespace Garrison.Harnesses.Execution
                 default:
                     success = state.SawSuccess && state.DetectedFailure == null;
                     break;
+            }
+
+            if (success && state.EmptyAnswerFails && state.ToolCallCount == 0 && String.IsNullOrWhiteSpace(resultText) && String.IsNullOrWhiteSpace(state.StructuredOutputJson))
+            {
+                // AA12.7: a harness that reports success for a model call that returned nothing did no work. Counting it as
+                // success marked a keeper tick Unreported and a message Delivered with nothing done.
+                return Make(RunStatusEnum.Failed, RunOutcomeEnum.HarnessFailed, EmptyResponseMessage(state));
             }
 
             if (success) return Make(RunStatusEnum.Succeeded, RunOutcomeEnum.Succeeded, null);
@@ -138,6 +171,14 @@ namespace Garrison.Harnesses.Execution
             result.Outcome = outcome;
             result.ErrorMessage = message;
             return result;
+        }
+
+        private static string EmptyResponseMessage(HarnessRunState state)
+        {
+            string tokens = state.OutputTokens > 0
+                ? " The model used " + state.OutputTokens + " output tokens" + (state.ReasoningTokens > 0 ? ", " + state.ReasoningTokens + " of them for reasoning" : String.Empty) + "; a reasoning model can spend its whole output budget thinking, so raise the harness's output token limit (for Mux, the endpoint's maxTokens)."
+                : String.Empty;
+            return EmptyResponseCode + ": the harness reported success, but the model gave no answer and called no tools." + tokens;
         }
 
         private static string LastLine(string? text)

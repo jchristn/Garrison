@@ -122,6 +122,7 @@ namespace Garrison.Core.Templates
             context.Set("resources.stdioMcpServers", new List<object?>());
             context.Set("resources.hasMcpServers", false);
             context.Set("garrison.mcpServerName", Constants.McpServerName);
+            context.Set("garrison.toolPrefix", "mcp__" + Constants.McpServerName + "__");
             context.Set("garrison.version", Constants.ProductVersion);
             context.Set("garrison.delegationEnabled", false);
             context.Set("harness.type", "ClaudeCode");

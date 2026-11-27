@@ -66,6 +66,7 @@ namespace Garrison.Harnesses.Parsers
                     if (!_TurnFailed)
                     {
                         state.SawSuccess = true;
+                        state.EmptyAnswerFails = true;
                         if (String.IsNullOrEmpty(state.FinalText) && state.AssistantText.Length > 0) state.FinalText = state.AssistantText.ToString();
                         state.Emit(Event(RunEventTypeEnum.Result, state.FinalText, raw));
                     }

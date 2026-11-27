@@ -173,6 +173,7 @@ namespace Garrison.Harnesses.Parsers
             state.SawFinalResult = true;
             string? status = JsonPath.Str(root, "status");
             state.SawSuccess = status == "completed" || status == "completed_with_errors";
+            state.EmptyAnswerFails = true;
             if (!state.SawSuccess)
             {
                 if (status == "failed" && _LastError != null) state.DetectedFailure ??= "Mux run failed: " + _LastError;

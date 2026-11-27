@@ -6,6 +6,7 @@
   "promptDelivery": "Stdin",
   "systemPromptDelivery": "None",
   "mcpConfigFormat": "None",
+  "mcpToolNamePrefix": "mcp__{server}__",
   "outputParser": "ProviderApiJsonl",
   "resultSource": "ParserFinalEvent",
   "successPolicy": "FinalEventAndExitCode",

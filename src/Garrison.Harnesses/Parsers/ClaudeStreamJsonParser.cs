@@ -163,6 +163,7 @@ namespace Garrison.Harnesses.Parsers
             bool isError = JsonPath.Bool(root, "is_error") ?? false;
             string? subtype = JsonPath.Str(root, "subtype");
             state.SawSuccess = subtype == "success" && !isError;
+            state.EmptyAnswerFails = true;
             state.FinalText = JsonPath.Str(root, "result") ?? state.FinalText;
             state.SessionId = JsonPath.Str(root, "session_id") ?? state.SessionId;
             state.CostUsd = JsonPath.Double(root, "total_cost_usd") ?? state.CostUsd;
