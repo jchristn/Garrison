@@ -1,0 +1,16 @@
+# Fake gerbil, scenario 4 of 4: the on-call person answers "wait".
+# The answer wakes the keeper (wake source EscalationAnswer). The tick records the instruction in memory and keeps
+# watching; it completes Acted, which leaves the interval where it is.
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: gerbil
+spec:
+  agent: gerbil
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: gerbil-system
+  parameters:
+    step1: 'garrison,garrison_memory_write,{"key":"on-call-instruction","value":"wait: the on-call person asked me to keep watching and not restart anything.","category":"instructions","tags":["recall"]}'
+    step2: 'garrison,garrison_keeper_complete_tick,{"outcome":"Acted","summary":"On-call answered wait. Recorded the instruction and kept watching."}'

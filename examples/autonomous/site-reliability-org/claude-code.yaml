@@ -1,0 +1,106 @@
+# The site-reliability organization on Claude Code (AA12.2). Apply it together with org.yaml.
+#
+# It needs a Claude Code credential in a secret named claude-credential (kind ClaudeCodeOAuthToken, or change the kind
+# to AnthropicApiKey) and a worker with Claude Code installed. The keepers may run read-only shell commands and the
+# Garrison tools. Give them the real commands for your site (curl for the status page, your metrics query for
+# latency, your package manager for dependency versions) in their mandates' signals.
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: reliability-lead
+spec:
+  agent: reliability-lead
+  harnessProfile: builtin/claude-code
+  managementAccess: OrgSubtree
+  model: sonnet
+  maxTurns: 30
+  maxBudgetUsd: 0.5
+  timeoutSeconds: 600
+  prompts:
+    System: reliability-lead-system
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+  parameters:
+    permissionMode: default
+    allowedTools: "mcp__garrison"
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: uptime-keeper
+spec:
+  agent: uptime-keeper
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 12
+  maxBudgetUsd: 0.25
+  timeoutSeconds: 300
+  prompts:
+    System: sre-keeper-system
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+  parameters:
+    permissionMode: default
+    allowedTools: "Bash(curl:*),Bash(date:*),mcp__garrison"
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: latency-keeper
+spec:
+  agent: latency-keeper
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 12
+  maxBudgetUsd: 0.25
+  timeoutSeconds: 300
+  prompts:
+    System: sre-keeper-system
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+  parameters:
+    permissionMode: default
+    allowedTools: "Bash(curl:*),Bash(date:*),mcp__garrison"
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: dependency-keeper
+spec:
+  agent: dependency-keeper
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 12
+  maxBudgetUsd: 0.25
+  timeoutSeconds: 300
+  prompts:
+    System: sre-keeper-system
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+  parameters:
+    permissionMode: default
+    allowedTools: "Bash(curl:*),Bash(date:*),WebFetch,mcp__garrison"
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: memory-curator
+spec:
+  agent: memory-curator
+  harnessProfile: builtin/claude-code
+  model: haiku
+  maxTurns: 20
+  maxBudgetUsd: 0.25
+  timeoutSeconds: 300
+  prompts:
+    System: builtin/memory-curator-system
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+  parameters:
+    permissionMode: default
+    allowedTools: "mcp__garrison"

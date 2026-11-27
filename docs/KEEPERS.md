@@ -132,6 +132,8 @@ Finished tick history is kept for `Autonomy.TickHistoryRetentionDays` (30).
 
 ## Examples
 
+[examples/autonomous/gerbil](../examples/autonomous/gerbil/README.md) is a complete keeper you can apply and play tick by tick on the fake harness, with a Claude Code variant; `scripts/run-autonomy-example.sh` runs it end to end. [examples/autonomous/site-reliability-org](../examples/autonomous/site-reliability-org/README.md) puts keepers in an organization.
+
 Create a keeper with its first revision over REST:
 
 ```bash

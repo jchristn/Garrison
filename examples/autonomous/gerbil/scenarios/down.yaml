@@ -1,0 +1,15 @@
+# Fake gerbil, scenario 2 of 4: at 2 a.m. the page answers 503.
+# The first failed check counts it in memory and completes Attention, so the interval snaps back to 15 minutes.
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: gerbil
+spec:
+  agent: gerbil
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: gerbil-system
+  parameters:
+    step1: 'garrison,garrison_memory_write,{"key":"consecutive-down","value":"1","category":"observations","tags":["recall"]}'
+    step2: 'garrison,garrison_keeper_complete_tick,{"outcome":"Attention","summary":"Status page answered 503 (first failed check). Last healthy 01:52. Checking again at the minimum interval."}'

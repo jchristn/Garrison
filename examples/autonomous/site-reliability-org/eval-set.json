@@ -1,0 +1,22 @@
+{
+  "name": "driver-upgrade-checks",
+  "description": "What a driver-upgrade worker must get right before the dependencies unit may hire one. A person approves it; the change rule in change-rules.json gates on it.",
+  "tags": ["site-reliability", "dependencies"],
+  "cases": [
+    {
+      "name": "picks the fixed release",
+      "inputText": "The site runs pgdriver 4.2.1. Release 4.3.0 fixes a connection-pool leak. Which version should the site move to?",
+      "checks": [{ "scorer": "Contains", "argument": "4.3.0" }]
+    },
+    {
+      "name": "names the renamed setting",
+      "inputText": "pgdriver 4.3.0 renames the setting maxIdle to poolMaxIdle. Which setting must the upgrade change in the configuration?",
+      "checks": [{ "scorer": "Contains", "argument": "poolMaxIdle" }]
+    },
+    {
+      "name": "stages before production",
+      "inputText": "Where should a driver upgrade run first, before it reaches production: staging or production?",
+      "checks": [{ "scorer": "Contains", "argument": "staging" }]
+    }
+  ]
+}

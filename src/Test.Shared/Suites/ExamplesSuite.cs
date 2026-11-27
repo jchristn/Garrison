@@ -24,7 +24,8 @@ namespace Test.Shared.Suites
     /// Example agentic apps (AD10): the doc-converter reference bundle and the research overview walkthrough, applied from
     /// examples/agentic-apps and run end to end on the fake harness. Real pandoc and LibreOffice are replaced by stubs on
     /// the worker's PATH that answer the tool probes and write placeholder files; scripts/run-research-example.sh runs the
-    /// same walkthrough against a worker image built with the document tools.
+    /// same walkthrough against a worker image built with the document tools. The autonomy examples (AA12.1, AA12.2) from
+    /// examples/autonomous run here too, through <see cref="AutonomyExampleCases"/>.
     /// </summary>
     public static class ExamplesSuite
     {
@@ -45,7 +46,9 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "research-overview", "The research overview app: an anonymous gateway conversation fans out to two researchers, has the writer draft report.md, and the doc-converter produce report.pdf in the file space (" + provider + ")", ct => ResearchAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-binding", "An external MCP converter with bearer auth from a secret: its tools enter the catalog, only the bound agent sees them, a run passes the required-tools pre-flight, and the secret never appears in events or the transcript (" + provider + ")", ct => McpBindingAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "support-triage-studio", "The support triage app is built in the studio from its documents, approved, exported with its references to the same documents, and answers through the gateway after asking the classifier and the knowledge lookup (" + provider + ")", ct => SupportTriageAsync(provider, ct)));
-                suites.Add(new TestSuiteDescriptor(id, "Example apps (" + provider + ")", cases));
+                cases.Add(new TestCaseDescriptor(id, "gerbil", "The gerbil keeper applies and re-applies unchanged; on the scripted fake harness it goes Quiet with memory, Attention on the first 503 with yesterday's memory recalled, Escalated to the on-call role on the second, and the answer wakes it to record the instruction (" + provider + ")", ct => AutonomyExampleCases.GerbilAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "site-reliability-org", "The site-reliability organization applies with its approved eval set and change rules; scripted ticks send an urgent message along the peer line, deliver it, report Degraded upward, brief the board, and escalate; the lead's driver-upgrade proposal waits for the gate, passes the eval set, and the rule applies it as an org revision (" + provider + ")", ct => AutonomyExampleCases.SiteReliabilityAsync(provider, ct)));
+                suites.Add(new TestSuiteDescriptor(id, "Example apps and autonomy examples (" + provider + ")", cases));
             }
             return suites;
         }
@@ -67,7 +70,14 @@ namespace Test.Shared.Suites
             return File.ReadAllText(Path.Combine(root, "examples", "agentic-apps", name));
         }
 
-        private static async Task<ManifestApply> ApplyAsync(TestServerHost host, string yaml, CancellationToken token)
+        /// <summary>
+        /// Apply a manifest as the administrator and assert that no document failed.
+        /// </summary>
+        /// <param name="host">Server host.</param>
+        /// <param name="yaml">Manifest text.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The apply result.</returns>
+        internal static async Task<ManifestApply> ApplyAsync(TestServerHost host, string yaml, CancellationToken token)
         {
             using (StringContent content = new StringContent(yaml, Encoding.UTF8, "application/yaml"))
             using (HttpResponseMessage response = await host.AdminClient.PostAsync(T(host) + "/manifests/apply", content, token).ConfigureAwait(false))

@@ -233,7 +233,8 @@ namespace Garrison.Server.Runtime
             int max = _Options.DigestMaxReports;
             if (max == 0) return null;
             ReportVisibilityScope scope = await _Visibility.ScopeForAsync(tenantId, agentId, false, token).ConfigureAwait(false);
-            if (scope.SubordinateAgentIds.Count == 0) return null;
+            // App members and, in a live organization, the agents below in the chart; a lead with neither gets no digest.
+            if (scope.SubordinateAgentIds.Count == 0 && scope.DirectReportAgentIds.Count == 0 && scope.ChainAgentIds.Count == 0) return null;
             ReportFilter filter = new ReportFilter { TenantId = tenantId, Visibility = scope, FromUtc = sinceUtc, MaxResults = max };
             EnumerationResult<Report> page = await _Database.Reports.EnumerateAsync(filter, token).ConfigureAwait(false);
             if (page.Objects.Count == 0) return null;

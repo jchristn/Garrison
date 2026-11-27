@@ -1,0 +1,23 @@
+# The reliability lead's proposal from walkthrough 11.2: a driver-upgrade worker in the dependencies unit.
+#
+# These are the two new documents the lead puts in its studio draft. The draft's third item is the live Organization
+# document with driver-upgrade added to the dependencies unit's members. The "Dependency unit hires" change rule
+# covers the hire (AddWorker, at most one) once the draft passes the approved driver-upgrade-checks eval set. The
+# deployment runs on the fake harness here; a lead on Claude Code would write its own on builtin/claude-code.
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: driver-upgrade
+  description: Prepares and stages database driver upgrades for the dependencies unit
+spec:
+  displayName: Driver Upgrade
+  tags: [autonomy, example, worker]
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: driver-upgrade
+spec:
+  agent: driver-upgrade
+  harnessProfile: builtin/fake
+  timeoutSeconds: 120

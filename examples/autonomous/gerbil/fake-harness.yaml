@@ -1,0 +1,50 @@
+# The scripted fake harness for the gerbil example (AA12.1). It needs no model and no credentials.
+#
+# A keeper tick on this profile calls the Garrison MCP tools named in its deployment's step1 to step4 parameters, in
+# order, and then exits. Each file under scenarios/ is the gerbil deployment with the calls for one moment of the
+# walkthrough, so applying a scenario decides what the next tick does. The site-reliability-org example uses the same
+# profile; applying both is fine, because the documents are identical.
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: autonomy-script
+  description: The fake harness, calling the Garrison MCP tools named in deployment parameters step1 to step4 in order
+spec:
+  harnessType: Generic
+  executable: garrison-fake-harness
+  promptDelivery: Stdin
+  mcpConfigFormat: ClaudeJson
+  mcpConfigFileName: mcp.json
+  outputParser: ClaudeStreamJson
+  resultSource: ParserFinalEvent
+  defaultTimeoutSeconds: 300
+  files:
+    - baseDirectory: Config
+      pathTemplate: mcp.json
+      contentTemplate: "{{> builtin/claude-code-mcp-config}}"
+      isSecret: true
+      condition: "{{resources.hasMcpServers}}"
+      mode: "600"
+  arguments:
+    - template: --format
+    - template: claude
+    - template: --mcp-config
+      condition: "{{resources.hasMcpServers}}"
+    - template: $GARRISON_CONFIG_DIR/mcp.json
+      condition: "{{resources.hasMcpServers}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step1}}"
+    - template: "{{deployment.parameters.step1}}"
+      condition: "{{deployment.parameters.step1}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step2}}"
+    - template: "{{deployment.parameters.step2}}"
+      condition: "{{deployment.parameters.step2}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step3}}"
+    - template: "{{deployment.parameters.step3}}"
+      condition: "{{deployment.parameters.step3}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step4}}"
+    - template: "{{deployment.parameters.step4}}"
+      condition: "{{deployment.parameters.step4}}"

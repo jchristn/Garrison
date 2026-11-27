@@ -1,0 +1,17 @@
+# Fake gerbil, scenario 3 of 4: fifteen minutes later the page is still down.
+# Down twice in a row, so the keeper raises a non-blocking escalation to its mandate's default target (the on-call
+# role) and completes Escalated. It does not wait: the answer wakes it.
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: gerbil
+spec:
+  agent: gerbil
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: gerbil-system
+  parameters:
+    step1: 'garrison,garrison_memory_write,{"key":"consecutive-down","value":"2","category":"observations","tags":["recall"]}'
+    step2: 'garrison,garrison_escalate,{"question":"Status page down 15 minutes, last healthy 01:52. Restart, wait, or ignore?","context":"Two checks in a row answered HTTP 503. The heartbeat file is still fresh.","severity":"Urgent","options":[{"key":"restart","label":"Restart"},{"key":"wait","label":"Wait"},{"key":"ignore","label":"Ignore"}]}'
+    step3: 'garrison,garrison_keeper_complete_tick,{"outcome":"Escalated","summary":"Status page still 503 on the second check. Asked the on-call role: restart, wait, or ignore."}'

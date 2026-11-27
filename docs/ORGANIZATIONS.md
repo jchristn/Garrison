@@ -18,6 +18,8 @@ An organization has:
 
 Identifiers start with `org_` for organizations, `oun_` for units, and `orv_` for revisions. An organization lives in one tenant.
 
+For a complete organization to apply and watch, see [examples/autonomous/site-reliability-org](../examples/autonomous/site-reliability-org/README.md): a reliability lead over three keepers and a memory curator, with peer lines, budgets, change rules, and an approved eval set.
+
 ## Units
 
 | Field | Meaning |

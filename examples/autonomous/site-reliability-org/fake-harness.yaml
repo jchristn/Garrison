@@ -1,0 +1,127 @@
+# The site-reliability organization on the scripted fake harness (AA12.2). It needs no model and no credentials.
+# Apply it together with org.yaml.
+#
+# Each keeper's tick calls the Garrison MCP tools in its deployment's step1 to step4 parameters, so one round of ticks
+# plays the walkthrough: the latency keeper sends an urgent message to the dependency keeper along their peer line,
+# the dependency keeper reports an outdated driver upward with health Degraded, the uptime keeper asks the on-call
+# role before a failover, the curator lists the unit's shared memory, and the reliability lead briefs the board. The
+# lead's driver-upgrade proposal needs a draft identifier between calls, which a fixed script cannot carry, so the
+# examples suite and README.md drive that part over MCP with the lead's run token.
+#
+# The autonomy-script profile is the same document as in the gerbil example.
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: autonomy-script
+  description: The fake harness, calling the Garrison MCP tools named in deployment parameters step1 to step4 in order
+spec:
+  harnessType: Generic
+  executable: garrison-fake-harness
+  promptDelivery: Stdin
+  mcpConfigFormat: ClaudeJson
+  mcpConfigFileName: mcp.json
+  outputParser: ClaudeStreamJson
+  resultSource: ParserFinalEvent
+  defaultTimeoutSeconds: 300
+  files:
+    - baseDirectory: Config
+      pathTemplate: mcp.json
+      contentTemplate: "{{> builtin/claude-code-mcp-config}}"
+      isSecret: true
+      condition: "{{resources.hasMcpServers}}"
+      mode: "600"
+  arguments:
+    - template: --format
+    - template: claude
+    - template: --mcp-config
+      condition: "{{resources.hasMcpServers}}"
+    - template: $GARRISON_CONFIG_DIR/mcp.json
+      condition: "{{resources.hasMcpServers}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step1}}"
+    - template: "{{deployment.parameters.step1}}"
+      condition: "{{deployment.parameters.step1}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step2}}"
+    - template: "{{deployment.parameters.step2}}"
+      condition: "{{deployment.parameters.step2}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step3}}"
+    - template: "{{deployment.parameters.step3}}"
+      condition: "{{deployment.parameters.step3}}"
+    - template: --mcp-invoke
+      condition: "{{deployment.parameters.step4}}"
+    - template: "{{deployment.parameters.step4}}"
+      condition: "{{deployment.parameters.step4}}"
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: reliability-lead
+spec:
+  agent: reliability-lead
+  harnessProfile: autonomy-script
+  managementAccess: OrgSubtree
+  timeoutSeconds: 120
+  prompts:
+    System: reliability-lead-system
+  parameters:
+    step1: 'garrison,garrison_file_report,{"title":"Morning brief","kind":"Brief","audience":"Board","health":"Degraded","body":"Latency rose overnight. The dependency keeper traced it to an outdated database driver. I am proposing a driver-upgrade worker in the dependencies unit; the change rule applies it once the approved eval set passes.","metrics":[{"name":"spend_percent_of_budget","value":31,"unit":"percent"}],"decisions":[{"text":"Propose a driver-upgrade worker for the dependencies unit."}]}'
+    step2: 'garrison,garrison_keeper_complete_tick,{"outcome":"Acted","summary":"Read the latency and dependency reports, briefed the board, and decided to propose a driver-upgrade worker."}'
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: uptime-keeper
+spec:
+  agent: uptime-keeper
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: sre-keeper-system
+  parameters:
+    step1: 'garrison,garrison_escalate,{"question":"The status page failed twice in 10 minutes from the eu region. Fail over to the standby region, or hold?","severity":"Warning","options":[{"key":"failover","label":"Fail over"},{"key":"hold","label":"Hold and keep watching"}]}'
+    step2: 'garrison,garrison_keeper_complete_tick,{"outcome":"Escalated","summary":"Two eu failures in 10 minutes. Asked the on-call role whether to fail over."}'
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: latency-keeper
+spec:
+  agent: latency-keeper
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: sre-keeper-system
+  parameters:
+    step1: 'garrison,garrison_send_message,{"recipient":"dependency-keeper","subject":"Checkout p95 rising: database calls","body":"Checkout p95 went from 310 ms to 520 ms in two hours, and the time is in database calls. That is your layer, so I am not touching it. Can you check the driver and the pool?","urgency":"Urgent"}'
+    step2: 'garrison,garrison_file_report,{"title":"Checkout latency rising","kind":"Status","health":"Degraded","body":"Checkout p95 is 520 ms against a 400 ms target, mostly database time. Handed to the dependency keeper.","metrics":[{"name":"checkout_p95","value":520,"unit":"ms"}]}'
+    step3: 'garrison,garrison_keeper_complete_tick,{"outcome":"Attention","summary":"Checkout p95 at 520 ms, mostly database time. Sent it to the dependency keeper and reported it."}'
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: dependency-keeper
+spec:
+  agent: dependency-keeper
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: sre-keeper-system
+  parameters:
+    step1: 'garrison,garrison_file_report,{"title":"Outdated database driver","kind":"Incident","health":"Degraded","body":"The latency keeper reported database time rising. The site runs pgdriver 4.2.1; 4.3.0 fixes a connection-pool leak that matches what it sees. An upgrade needs a worker with the right tools.","metrics":[{"name":"driver_minor_versions_behind","value":1}],"issues":[{"severity":"High","text":"pgdriver 4.2.1 leaks pooled connections under load."}],"decisions":[{"text":"Recommend upgrading pgdriver to 4.3.0."}]}'
+    step2: 'garrison,garrison_keeper_complete_tick,{"outcome":"Acted","summary":"Found pgdriver 4.2.1 behind 4.3.0 with a pool leak fix. Reported it to the reliability lead as Degraded."}'
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: memory-curator
+spec:
+  agent: memory-curator
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: builtin/memory-curator-system
+  parameters:
+    step1: 'garrison,garrison_memory_list,{"scope":"OrgUnit","maxResults":100}'
+    step2: 'garrison,garrison_keeper_complete_tick,{"outcome":"Quiet","summary":"Listed the reliability unit memory. No duplicates to merge."}'

@@ -1,0 +1,16 @@
+# Fake gerbil, scenario 1 of 4: the page answers 200 and the heartbeat file is fresh.
+# The tick remembers what it saw (tagged recall, so the next tick reads it) and completes Quiet, so the interval doubles.
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: gerbil
+spec:
+  agent: gerbil
+  harnessProfile: autonomy-script
+  timeoutSeconds: 120
+  prompts:
+    System: gerbil-system
+  parameters:
+    step1: 'garrison,garrison_memory_write,{"key":"last-seen-healthy","value":"Status page HTTP 200 in 0.14 s; heartbeat file changed 2 minutes before the check.","category":"observations","tags":["recall"]}'
+    step2: 'garrison,garrison_memory_write,{"key":"consecutive-down","value":"0","category":"observations","tags":["recall"]}'
+    step3: 'garrison,garrison_keeper_complete_tick,{"outcome":"Quiet","summary":"Status page 200 in 0.14 s and the heartbeat file is fresh. Nothing to do."}'

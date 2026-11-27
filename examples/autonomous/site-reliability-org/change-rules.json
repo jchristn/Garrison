@@ -1,0 +1,23 @@
+[
+  {
+    "organizationId": "site-reliability-org",
+    "unitId": "dependencies",
+    "name": "Dependency unit hires",
+    "description": "The reliability lead may add one worker to the dependencies unit per proposal, once the draft passes the approved driver-upgrade-checks eval set.",
+    "classes": [{ "class": "AddWorker" }],
+    "limits": [{ "class": "AddWorker", "name": "count", "maximum": 1 }],
+    "gateEvalSet": "driver-upgrade-checks",
+    "gateThreshold": 1
+  },
+  {
+    "organizationId": "site-reliability-org",
+    "unitId": "reliability",
+    "name": "Keeper wake tuning",
+    "description": "The reliability lead may retune how often the keepers below it wake, between 2 minutes and a day.",
+    "classes": [{ "class": "WakeTuning" }],
+    "limits": [
+      { "class": "WakeTuning", "name": "minIntervalSeconds", "minimum": 120, "maximum": 3600 },
+      { "class": "WakeTuning", "name": "maxIntervalSeconds", "minimum": 900, "maximum": 86400 }
+    ]
+  }
+]

@@ -1,0 +1,29 @@
+# The gerbil on Claude Code (AA12.1). Apply it together with gerbil.yaml:
+#
+#   cat gerbil.yaml claude-code.yaml | curl ... --data-binary @- .../manifests/apply
+#
+# It needs a Claude Code credential in a secret named claude-credential (kind ClaudeCodeOAuthToken, or change the kind
+# to AnthropicApiKey) and a worker with Claude Code installed. The allowed tools let the keeper run curl, stat, and
+# date, and call the Garrison tools; nothing else, so it cannot restart anything even if asked to.
+#
+# Edit the status page URL and the heartbeat file path in gerbil.yaml first, then point the heartbeat path at a file
+# the worker can read.
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: gerbil
+spec:
+  agent: gerbil
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 12
+  maxBudgetUsd: 0.25
+  timeoutSeconds: 300
+  prompts:
+    System: gerbil-system
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+  parameters:
+    permissionMode: default
+    allowedTools: "Bash(curl:*),Bash(stat:*),Bash(date:*),mcp__garrison"

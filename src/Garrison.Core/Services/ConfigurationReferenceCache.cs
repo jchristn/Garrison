@@ -13,8 +13,8 @@ namespace Garrison.Core.Services
     /// validating each deployment reads them again. Each record is read once by identifier or name and served from
     /// memory afterwards; misses are remembered too. Call <see cref="Forget"/> after writing a record of a kind so
     /// later reads see the new values. Kinds: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate,
-    /// Agent, Deployment. Records are shared between callers and must not be modified. Not thread-safe: use one per
-    /// apply.
+    /// Agent, AgentAsset, Deployment, Pipeline, Mandate. Records are shared between callers and must not be modified.
+    /// Not thread-safe: use one per apply.
     /// </summary>
     public class ConfigurationReferenceCache
     {
@@ -288,6 +288,8 @@ namespace Garrison.Core.Services
                     return await _Database.Deployments.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 case "Pipeline":
                     return await _Database.Pipelines.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
+                case "Mandate":
+                    return await _Database.Mandates.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 default:
                     throw new ArgumentException("Unknown reference kind '" + kind + "'.", nameof(kind));
             }
@@ -315,6 +317,8 @@ namespace Garrison.Core.Services
                     return await _Database.Deployments.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 case "Pipeline":
                     return await _Database.Pipelines.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
+                case "Mandate":
+                    return await _Database.Mandates.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 default:
                     throw new ArgumentException("Unknown reference kind '" + kind + "'.", nameof(kind));
             }
@@ -342,6 +346,8 @@ namespace Garrison.Core.Services
                     return deployment.Id;
                 case Pipeline pipeline:
                     return pipeline.Id;
+                case Mandate mandate:
+                    return mandate.Id;
                 default:
                     return null;
             }
@@ -369,6 +375,8 @@ namespace Garrison.Core.Services
                     return deployment.Name;
                 case Pipeline pipeline:
                     return pipeline.Name;
+                case Mandate mandate:
+                    return mandate.Name;
                 default:
                     return null;
             }
