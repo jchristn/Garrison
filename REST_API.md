@@ -3640,7 +3640,7 @@ Decisions are compare-and-set updates, so they are safe from any replica and two
 
 ### Triggers
 
-A trigger (P12.5) starts an agent run or a pipeline run on a cron schedule, when a signed webhook arrives, or when someone fires it by hand. Every fire runs as the principal that last saved the trigger and goes through the normal invocation path; the run has `kind: Trigger` and `triggerId`. [docs/TRIGGERS.md](docs/TRIGGERS.md) covers schedules, catch-up, signing, and run-as semantics; this section is the route reference.
+A trigger (P12.5) starts an agent run or a pipeline run on a cron schedule, when a signed webhook arrives, or when someone fires it by hand. Every fire runs as the principal that last saved the trigger and goes through the normal invocation path; the run has `kind: Trigger` and `triggerId`. A trigger with `targetType` `EvalSet` is a scheduled check (AA11.3): each fire starts an eval run of `evalSetId` against `deploymentId`'s recent inputs instead of a run (see [Scheduled checks](#scheduled-checks)). [docs/TRIGGERS.md](docs/TRIGGERS.md) covers schedules, catch-up, signing, and run-as semantics; this section is the route reference.
 
 | Method and path suffix | Permission | Result |
 |---|---|---|
@@ -3654,7 +3654,7 @@ A trigger (P12.5) starts an agent run or a pipeline run on a cron schedule, when
 | `GET /triggers/{idOrName}/fires` | Read on `Trigger` | `EnumerationResult<TriggerFire>`, 200 |
 | `POST /triggers/{id}/webhook` | None: the `X-Garrison-Signature` header | `TriggerFire`, 202 (200 for a repeated delivery) |
 
-Paths are relative to `/v1.0/api/tenants/{tenantId}`. Triggers of another tenant answer 404. "Execute on the target" means Execute on the trigger's agent, or Execute on its pipeline and on every stage agent of that pipeline; when it is missing the save answers 403 and nothing changes.
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Triggers of another tenant answer 404. "Execute on the target" means Execute on the trigger's agent, or Execute on its pipeline and on every stage agent of that pipeline, or for an `EvalSet` trigger Execute on the deployment's agent and on `EvalRun`; when it is missing the save answers 403 and nothing changes.
 
 #### `GET /v1.0/api/tenants/{tenantId}/triggers`
 
@@ -3672,7 +3672,7 @@ Create a trigger. `agentId`, `deploymentId`, `pipelineId`, and `inputTemplateId`
 |---|---|
 | Request body | `Trigger` |
 | Response | `Trigger`, 201 |
-| Errors | 400 `ValidationFailed` with field codes `ReferenceNotFound`, `DeploymentAgentMismatch`, `TemplateKindMismatch`, `TargetMismatch`, `InvalidCron`, `InvalidTimeZone`; 403 when the caller may not run the target; 409 `NameConflict` |
+| Errors | 400 `ValidationFailed` with field codes `ReferenceNotFound`, `DeploymentAgentMismatch`, `TemplateKindMismatch`, `TargetMismatch`, `InvalidCron`, `InvalidTimeZone`, and for `EvalSet` targets `InvalidValue`, `UserRequired`, `PeopleOnly`; 403 when the caller may not run the target; 409 `NameConflict` |
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers" \
@@ -3716,7 +3716,7 @@ Replace a webhook trigger's signing secret. The response carries the new `signin
 
 #### `POST /v1.0/api/tenants/{tenantId}/triggers/{idOrName}/fire`
 
-Fire the trigger now, whatever its type or schedule. The optional body is a `TriggerFireRequest`; its `body` reaches the input template as `webhook.body` (and `webhook.json` when it parses as JSON). The answer is 201 with the `TriggerFire`, whose `outcome` is `Started` with a `runId` or `pipelineRunId`, or `Failed` with an `errorCode` such as `RunAsNotAuthorized`, `InputRequired`, `TemplateRenderFailed`, `InputTemplateNotFound`, `AgentNotFound`, `NoActiveDeployment`, or `QuotaExceeded`. A payload over `Triggers.WebhookMaxBodyBytes` answers 400 with field code `PayloadTooLarge`.
+Fire the trigger now, whatever its type or schedule. The optional body is a `TriggerFireRequest`; its `body` reaches the input template as `webhook.body` (and `webhook.json` when it parses as JSON). The answer is 201 with the `TriggerFire`, whose `outcome` is `Started` with a `runId`, `pipelineRunId`, or (an `EvalSet` trigger) `evalRunId`, or `Failed` with an `errorCode` such as `RunAsNotAuthorized`, `InputRequired`, `TemplateRenderFailed`, `InputTemplateNotFound`, `AgentNotFound`, `NoActiveDeployment`, `QuotaExceeded`, `NoRecentInputs`, or `JudgeAgentRequired`. A payload over `Triggers.WebhookMaxBodyBytes` answers 400 with field code `PayloadTooLarge`.
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers/pr-review/fire" \
@@ -3727,6 +3727,16 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers/pr-revi
 #### `GET /v1.0/api/tenants/{tenantId}/triggers/{idOrName}/fires`
 
 List the trigger's fires, newest first, with the [enumeration](#enumeration) parameters and an optional `outcome` (`Started`, `Failed`, `Skipped`). Fires are kept for `Triggers.FireRetentionDays` (30). The runs a trigger started are also listed by `GET .../runs?triggerId={id}`.
+
+#### Scheduled checks
+
+A trigger with `targetType` `EvalSet` grades an agent with a check it cannot grade itself (AA11.3). It needs `evalSetId` (an identifier, or a name that resolves to the latest approved version, else the latest version) and `deploymentId`; `agentId` is set to the deployment's agent. Optional: `evalJudgeAgentId` (the judge in place of the set's `judgeAgent`) and `evalRecentInputCount` (1 to 50; `null` uses the eval run default of 20). It has no `pipelineId` or `inputTemplateId`. Each fire creates an eval run with `targetType` `Deployment`, `inputMode` `RecentInputs`, the trigger's count and judge, `triggerId` set, and the trigger's run-as person as the starter; the fire records it in `evalRunId`. A fire that cannot start the eval run, for example with `NoRecentInputs`, is a `Failed` fire like any other. Saving answers 400 `ValidationFailed` when `evalSetId` or `deploymentId` is missing or names another tenant's resource (`ReferenceNotFound`), `evalRecentInputCount` is out of range (`InvalidValue`), the caller is not a user so the trigger would not run as a person (`runAsType`, `UserRequired`), or the caller is a run token (`PeopleOnly`). Agents cannot create, change, or fire these triggers, and cannot cancel or change the eval runs they start. Results appear in [performance](#performance) under `checks`.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "nightly-latency-check", "type": "Cron", "targetType": "EvalSet", "evalSetId": "latency-answers", "deploymentId": "latency-keeper-default", "evalJudgeAgentId": "reliability-judge", "evalRecentInputCount": 10, "cronExpression": "0 3 * * *"}'
+```
 
 #### `POST /v1.0/api/tenants/{tenantId}/triggers/{id}/webhook`
 
@@ -4138,6 +4148,57 @@ Talk to the top agent with a `BoardMessageRequest`: `input` (required, 1 to 3200
 #### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/board/conversations`
 
 The conversations started through `board/messages` for this organization, newest first.
+
+### Performance
+
+Performance (AA11.1, AA11.2) rolls up how an organization's agents did over a window, per agent and per unit subtree, from its live revision. It reads the same run rows as [run analytics](#analytics), leaving out `Eval`, `Shadow`, and `Playground` runs.
+
+| Route | Permission | Response |
+|---|---|---|
+| `GET /organizations/{id}/performance` | Read on `Organization` | `OrgPerformance`, 200. Query: `fromUtc`, `toUtc`, `unitId` |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`; `{id}` takes an identifier or a name, and another tenant's organization answers 404. A unit lead's run reads its own subtree through the run tool `garrison_subordinate_performance` (see [MCP_API.md](MCP_API.md)).
+
+#### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/performance`
+
+`fromUtc` and `toUtc` are ISO 8601 times compared against creation times; the default window is the 7 days ending now, and it is at most 90 days. `unitId` (identifier or name) restricts the response to that unit's subtree. Errors: 400 `ValidationFailed` (field codes `InvalidValue` for a malformed time or a start at or after the end, `WindowTooLong`); 404 for a `unitId` that is not a unit of the live revision. Before the first publish the lists are empty.
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/performance?unitId=latency&fromUtc=2026-11-19T00:00:00Z" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "organizationId": "org_mw2b7c1d_Lq8zN4tVb2xKp9Rm",
+  "name": "site-reliability",
+  "fromUtc": "2026-11-19T00:00:00Z",
+  "toUtc": "2026-11-26T18:00:00Z",
+  "generatedUtc": "2026-11-26T18:00:00.112Z",
+  "truncated": false,
+  "units": [
+    {
+      "unitId": "unt_mw2b7c2a_Pq3Lw8ZtBv7XsRmK",
+      "unitName": "latency",
+      "parentUnitId": "unt_mw2b7c1f_Hk2Vb9NcQ4tXz8Lp",
+      "leadAgentId": "agt_mw2b6z0q_Tq7LwT2xZb9KvRm4",
+      "metrics": {
+        "runs": 168, "succeeded": 160, "failed": 6, "cancelled": 2, "successRate": 0.9639, "costUsd": 4.21,
+        "latencyP50Ms": 8200, "latencyP95Ms": 21400, "latencyP99Ms": 38800,
+        "escalationsRaised": 3, "escalationRate": 0.0179, "loopGuardRejections": 0,
+        "evalScore": 0.91, "evalRuns": 7,
+        "sampleRunIds": ["run_mw2c0a1b_Zx9Lq2Wb7Tn4Vk8R", "run_mw2c09zz_Bq4Lm8Vt2Xn7Wk3P"]
+      }
+    }
+  ],
+  "agents": [
+    { "agentId": "agt_mw2b6z0q_Tq7LwT2xZb9KvRm4", "agentName": "latency-keeper", "unitId": "unt_mw2b7c2a_Pq3Lw8ZtBv7XsRmK", "unitName": "latency", "isLead": true, "metrics": { "runs": 168, "succeeded": 160, "failed": 6, "cancelled": 2, "successRate": 0.9639, "costUsd": 4.21, "latencyP50Ms": 8200, "latencyP95Ms": 21400, "latencyP99Ms": 38800, "escalationsRaised": 3, "escalationRate": 0.0179, "loopGuardRejections": 0, "evalScore": 0.91, "evalRuns": 7, "sampleRunIds": [] } }
+  ],
+  "checks": [
+    { "triggerId": "trg_mw2b8a0c_Rk2wT8mNbX4vLq7Y", "triggerName": "nightly-latency-check", "active": true, "evalSetId": "evs_mw2b7d3e_Wq8Lz2NcT5vXb4Km", "evalSetName": "latency-answers", "deploymentId": "dep_mw2b6z1a_Kq2LwT7xZb3VmRn8", "agentId": "agt_mw2b6z0q_Tq7LwT2xZb9KvRm4", "cronExpression": "0 3 * * *", "nextFireUtc": "2026-11-27T03:00:00Z", "lastEvalRunId": "evr_mw2c1b2c_Mq4Lx8Vb2Tn7Zk3R", "lastRunUtc": "2026-11-26T03:00:00.4Z", "lastStatus": "Completed", "lastScore": 0.9, "lastPassed": null }
+  ]
+}
+```
 
 ### Change rules
 
@@ -7113,10 +7174,13 @@ A cron schedule or signed webhook that starts runs (P12.5). See [docs/TRIGGERS.m
 | `name` | `string` | Unique per tenant; 1 to 64 lowercase letters, digits, and hyphens. |
 | `description` | `string?` | At most 4000 characters. |
 | `type` | `TriggerTypeEnum` | `Cron` (default) or `Webhook`. Cannot change. |
-| `targetType` | `TriggerTargetTypeEnum` | `Agent` (default) or `Pipeline`. |
-| `agentId` | `string?` | Agent to run (identifier or name on input). Required for `Agent` targets. |
-| `deploymentId` | `string?` | Optional deployment of that agent to pin runs to. |
+| `targetType` | `TriggerTargetTypeEnum` | `Agent` (default), `Pipeline`, or `EvalSet` (a scheduled check). |
+| `agentId` | `string?` | Agent to run (identifier or name on input). Required for `Agent` targets; set to the deployment's agent for `EvalSet` targets. |
+| `deploymentId` | `string?` | Optional deployment of that agent to pin runs to. Required for `EvalSet` targets: the deployment whose recent inputs are replayed. |
 | `pipelineId` | `string?` | Pipeline to start. Required for `Pipeline` targets. |
+| `evalSetId` | `string?` | Eval set version a scheduled check runs (identifier or name on input). Required for `EvalSet` targets, `null` otherwise. |
+| `evalJudgeAgentId` | `string?` | Judge agent of a scheduled check (identifier or name on input), or `null` for the set's `judgeAgent`. |
+| `evalRecentInputCount` | `int?` | Recent inputs a scheduled check replays, 1 to 50 (400 outside), or `null` for 20. |
 | `inputTemplateId` | `string?` | `Task` prompt template that renders the input; `null` uses `builtin/trigger-input`. |
 | `priority` | `int` | Run priority, -100 to 100 (clamped), default 0. |
 | `cronExpression` | `string?` | Five-field cron expression (Cron triggers only). |
@@ -7143,7 +7207,7 @@ A cron schedule or signed webhook that starts runs (P12.5). See [docs/TRIGGERS.m
 | `scheduledUtc` | `DateTime` | The cron occurrence, or the arrival time. |
 | `firedUtc` | `DateTime` | When the fire was processed. |
 | `outcome` | `TriggerFireOutcomeEnum` | `Started`, `Failed`, or `Skipped`. |
-| `runId`, `pipelineRunId` | `string?` | What the fire started. |
+| `runId`, `pipelineRunId`, `evalRunId` | `string?` | What the fire started: a run, a pipeline run, or (an `EvalSet` trigger) an eval run. |
 | `errorCode`, `errorMessage` | `string?` | Why it failed or was skipped. |
 | `duplicate` | `bool` | True when a webhook response repeats an earlier fire for the same delivery identifier. Not stored. |
 | `createdUtc` | `DateTime` | Timestamp (UTC). |
@@ -7508,6 +7572,70 @@ The board of an organization (AA10.2), computed on every request.
 | `input` | `string` | Required, 1 to 32000 characters. |
 | `conversationId` | `string?` | Board conversation to continue; omit to start one. |
 
+#### `OrgPerformance`
+
+Performance of an organization or one unit's subtree over a window (AA11.1), computed on every request.
+
+| Field | Type | Description |
+|---|---|---|
+| `organizationId`, `name` | `string` | The organization. |
+| `fromUtc`, `toUtc`, `generatedUtc` | `DateTime` | The window (start inclusive, end exclusive) and when it was computed. |
+| `truncated` | `bool` | More than 100000 runs fell in the window; the newest were counted. |
+| `units` | `OrgUnitPerformance[]` | One per unit in chart order, each covering its subtree. |
+| `agents` | `AgentPerformance[]` | One per agent positioned in the (restricted) live tree, in chart order. |
+| `checks` | `PerformanceCheck[]` | Scheduled checks whose deployment belongs to an agent in scope, by trigger name. |
+
+#### `OrgUnitPerformance`
+
+| Field | Type | Description |
+|---|---|---|
+| `unitId`, `unitName` | `string` | The unit. |
+| `parentUnitId`, `leadAgentId` | `string?` | Its parent and lead. |
+| `metrics` | `PerformanceMetrics` | Over every agent in the unit and the units below it. |
+
+#### `AgentPerformance`
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | The agent. |
+| `agentName` | `string?` | Its name. |
+| `unitId`, `unitName` | `string`, `string?` | The unit it sits in. |
+| `isLead` | `bool` | It leads that unit. |
+| `metrics` | `PerformanceMetrics` | Its own runs and signals. |
+
+#### `PerformanceMetrics`
+
+Covers runs created in the window by the agents in scope; `Eval`, `Shadow`, and `Playground` runs are left out.
+
+| Field | Type | Description |
+|---|---|---|
+| `runs` | `int` | Runs created in the window. |
+| `succeeded`, `failed`, `cancelled` | `int` | `failed` counts `Failed`, `Rejected`, and `TimedOut` runs. |
+| `successRate` | `double?` | `succeeded / (succeeded + failed)`, 0 to 1; `null` with neither. |
+| `costUsd` | `double` | Total cost. |
+| `latencyP50Ms`, `latencyP95Ms`, `latencyP99Ms` | `long?` | Nearest-rank percentiles of queued-to-completed time over finished runs; `null` when none finished. |
+| `escalationsRaised` | `int` | Escalations the agents raised in the window; escalating one up is not counted again. |
+| `escalationRate` | `double?` | `escalationsRaised / runs`; `null` without runs. |
+| `loopGuardRejections` | `int` | Messages the agents sent in the window that a loop guard refused (`HopLimit`, `LineRate`, `ThreadBudget`). Refused urgent wakes are not recorded and not counted. |
+| `evalScore` | `double?` | Mean `score` of completed eval runs created in the window against the agents' deployments, scheduled checks included; `null` with none. |
+| `evalRuns` | `int` | Eval runs in `evalScore`. |
+| `sampleRunIds` | `string[]` | At most 5: the newest failed runs first, then the newest succeeded. |
+
+#### `PerformanceCheck`
+
+A scheduled check: an `EvalSet` trigger and the newest eval run it started.
+
+| Field | Type | Description |
+|---|---|---|
+| `triggerId` | `string` | The trigger. |
+| `triggerName` | `string?` | Its name. |
+| `active` | `bool` | Whether it fires. |
+| `evalSetId`, `evalSetName` | `string`, `string?` | The set version it runs. |
+| `deploymentId`, `agentId` | `string`, `string?` | The deployment whose recent inputs it replays, and its agent. |
+| `cronExpression`, `nextFireUtc` | `string?`, `DateTime?` | Its schedule. |
+| `lastEvalRunId`, `lastRunUtc`, `lastStatus` | `string?`, `DateTime?`, `EvalRunStatusEnum?` | The newest eval run it started. |
+| `lastScore`, `lastPassed` | `double?`, `bool?` | That eval run's score and whether it passed its threshold. |
+
 #### `Organization`
 
 | Field | Type | Description |
@@ -7774,7 +7902,7 @@ One notification to one endpoint: the outbox row and its delivery log entry.
 
 #### `TriggerTargetTypeEnum`
 
-`Agent`, `Pipeline`
+`Agent`, `Pipeline`, `EvalSet`
 
 #### `TriggerFireSourceEnum`
 
@@ -9415,6 +9543,8 @@ One version of an eval set (AA9). See [docs/EVALS.md](docs/EVALS.md#eval-sets).
 | `agentId`, `agentRevisionId`, `deploymentId` | `string?` | What was evaluated. A deployment target records the revision the deployment runs. |
 | `studioDraftId` | `string?` | The studio draft evaluated, or null. |
 | `originRunId` | `string?` | The executive run that started it, or null. |
+| `triggerId` | `string?` | The `EvalSet` trigger that started it as a scheduled check, or null. |
+| `judgeAgentId` | `string?` | The judge that grades it in place of the set's `judgeAgent` (a scheduled check's `evalJudgeAgentId`), or null. |
 | `status` | `EvalRunStatusEnum` | Default `Pending`. |
 | `inputMode` | `EvalRunInputModeEnum` | Default `Cases`. |
 | `recentInputCount` | `int` | Recent inputs replayed in `RecentInputs` mode, 1 to 1000, default 20. |

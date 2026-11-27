@@ -115,6 +115,19 @@ namespace Garrison.Core.Database.Interfaces
         Task<long> CountOpenAsync(string tenantId, CancellationToken token = default);
 
         /// <summary>
+        /// Escalations raised by each of the given agents in [fromUtc, toUtc) (AA11.1). Escalations created by escalating
+        /// another one up (with a parent) are not counted again.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agentIds">Agents; an empty list returns an empty map.</param>
+        /// <param name="fromUtc">Inclusive start (UTC).</param>
+        /// <param name="toUtc">Exclusive end (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Count by agent identifier; agents without escalations are absent.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty or agentIds is null.</exception>
+        Task<Dictionary<string, long>> CountRaisedByAgentAsync(string tenantId, List<string> agentIds, DateTime fromUtc, DateTime toUtc, CancellationToken token = default);
+
+        /// <summary>
         /// True when a run has an Open Blocking escalation.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>

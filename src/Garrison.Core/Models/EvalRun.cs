@@ -254,6 +254,17 @@ namespace Garrison.Core.Models
         public string? OriginRunId { get; set; } = null;
 
         /// <summary>
+        /// EvalSet trigger that started the evaluation as a scheduled check (AA11.3), or null.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
+        /// Judge agent that grades this evaluation in place of the set's judgeAgent (a scheduled check's evalJudgeAgentId),
+        /// or null to use the set's. Set only by EvalSet triggers.
+        /// </summary>
+        public string? JudgeAgentId { get; set; } = null;
+
+        /// <summary>
         /// Creation time (UTC).
         /// </summary>
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;

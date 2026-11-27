@@ -93,6 +93,29 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<EvalRun>> ListForDraftAsync(string tenantId, string studioDraftId, CancellationToken token = default);
 
         /// <summary>
+        /// Completed eval runs of the given deployments created in [fromUtc, toUtc), newest first (AA11.1).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deploymentIds">Deployments; an empty list returns no eval runs.</param>
+        /// <param name="fromUtc">Inclusive start (UTC).</param>
+        /// <param name="toUtc">Exclusive end (UTC).</param>
+        /// <param name="limit">Most rows. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Eval runs.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty or deploymentIds is null.</exception>
+        Task<List<EvalRun>> ListCompletedForDeploymentsAsync(string tenantId, List<string> deploymentIds, DateTime fromUtc, DateTime toUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// The newest eval run a trigger started (AA11.3), or null.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="triggerId">Trigger identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The eval run, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or triggerId is null or empty.</exception>
+        Task<EvalRun?> ReadLatestByTriggerAsync(string tenantId, string triggerId, CancellationToken token = default);
+
+        /// <summary>
         /// Pending and Running eval runs across every tenant, oldest first, for the leader to start or resume.
         /// </summary>
         /// <param name="maxResults">Most rows, 1 to 10000.</param>

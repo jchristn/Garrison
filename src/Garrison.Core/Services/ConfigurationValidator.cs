@@ -494,7 +494,8 @@ namespace Garrison.Core.Services
         /// <returns>Task.</returns>
         /// <exception cref="ArgumentNullException">Thrown when database is null.</exception>
         /// <exception cref="ValidationException">Thrown when the trigger is invalid, with field codes ReferenceNotFound,
-        /// DeploymentAgentMismatch, TemplateKindMismatch, InvalidCron, InvalidTimeZone, and TargetMismatch.</exception>
+        /// DeploymentAgentMismatch, TemplateKindMismatch, InvalidCron, InvalidTimeZone, TargetMismatch, and (EvalSet targets)
+        /// InvalidValue.</exception>
         public static async Task TriggerAsync(DatabaseDriverBase database, string tenantId, Trigger trigger, CancellationToken token = default)
         {
             if (database == null) throw new ArgumentNullException(nameof(database));
@@ -504,7 +505,17 @@ namespace Garrison.Core.Services
             if (!_AgentName.IsMatch(trigger.Name ?? String.Empty)) errors["name"] = "Trigger names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
             if (trigger.Description != null && trigger.Description.Length > 4000) errors["description"] = "Descriptions are limited to 4000 characters.";
             if (!Enum.IsDefined(trigger.Type)) errors["type"] = "type is Cron or Webhook.";
-            if (!Enum.IsDefined(trigger.TargetType)) errors["targetType"] = "targetType is Agent or Pipeline.";
+            if (!Enum.IsDefined(trigger.TargetType)) errors["targetType"] = "targetType is Agent, Pipeline, or EvalSet.";
+            if (trigger.TargetType != TriggerTargetTypeEnum.EvalSet)
+            {
+                if (!String.IsNullOrEmpty(trigger.EvalSetId))
+                {
+                    errors["evalSetId"] = "Only a trigger whose targetType is EvalSet names an eval set.";
+                    codes["evalSetId"] = "TargetMismatch";
+                }
+                trigger.EvalJudgeAgentId = null;
+                trigger.EvalRecentInputCount = null;
+            }
 
             if (trigger.TargetType == TriggerTargetTypeEnum.Agent)
             {
@@ -555,6 +566,10 @@ namespace Garrison.Core.Services
                 {
                     trigger.DeploymentId = null;
                 }
+            }
+            else if (trigger.TargetType == TriggerTargetTypeEnum.EvalSet)
+            {
+                await EvalSetTriggerAsync(database, tenantId, trigger, errors, codes, token).ConfigureAwait(false);
             }
             else if (trigger.TargetType == TriggerTargetTypeEnum.Pipeline)
             {
@@ -1003,6 +1018,89 @@ namespace Garrison.Core.Services
         #endregion
 
         #region Private-Methods
+
+        private static async Task EvalSetTriggerAsync(DatabaseDriverBase database, string tenantId, Trigger trigger, Dictionary<string, string> errors, Dictionary<string, string> codes, CancellationToken token)
+        {
+            // AA11.3: a scheduled check runs an eval set against a deployment's recent inputs; the deployment names the agent.
+            if (!String.IsNullOrEmpty(trigger.PipelineId))
+            {
+                errors["pipelineId"] = "A trigger that runs an eval set has no pipelineId.";
+                codes["pipelineId"] = "TargetMismatch";
+            }
+            if (!String.IsNullOrEmpty(trigger.InputTemplateId))
+            {
+                errors["inputTemplateId"] = "A trigger that runs an eval set has no input template: it replays the deployment's recent inputs.";
+                codes["inputTemplateId"] = "TargetMismatch";
+            }
+            if (String.IsNullOrWhiteSpace(trigger.EvalSetId))
+            {
+                errors["evalSetId"] = "An evalSetId is required when targetType is EvalSet.";
+            }
+            else
+            {
+                string key = trigger.EvalSetId.Trim();
+                EvalSet? set = await database.EvalSets.ReadAsync(tenantId, key, token).ConfigureAwait(false)
+                    ?? await database.EvalSets.ReadLatestApprovedAsync(tenantId, key, token).ConfigureAwait(false)
+                    ?? await database.EvalSets.ReadLatestAsync(tenantId, key, token).ConfigureAwait(false);
+                if (set == null || set.TenantId != tenantId)
+                {
+                    errors["evalSetId"] = "The eval set does not exist in this tenant.";
+                    codes["evalSetId"] = "ReferenceNotFound";
+                }
+                else
+                {
+                    trigger.EvalSetId = set.Id;
+                }
+            }
+            if (String.IsNullOrWhiteSpace(trigger.DeploymentId))
+            {
+                errors["deploymentId"] = "A deploymentId is required when targetType is EvalSet: the check replays that deployment's recent inputs.";
+            }
+            else
+            {
+                Deployment? deployment = await database.Deployments.ReadAsync(tenantId, trigger.DeploymentId.Trim(), token).ConfigureAwait(false)
+                    ?? await database.Deployments.ReadByNameAsync(tenantId, trigger.DeploymentId.Trim(), token).ConfigureAwait(false);
+                if (deployment == null)
+                {
+                    errors["deploymentId"] = "The deployment does not exist in this tenant.";
+                    codes["deploymentId"] = "ReferenceNotFound";
+                }
+                else if (!String.IsNullOrWhiteSpace(trigger.AgentId) && trigger.AgentId.Trim() != deployment.AgentId
+                    && (await database.Agents.ReadByNameAsync(tenantId, trigger.AgentId.Trim(), token).ConfigureAwait(false))?.Id != deployment.AgentId)
+                {
+                    errors["deploymentId"] = "Deployment " + deployment.Name + " belongs to another agent.";
+                    codes["deploymentId"] = "DeploymentAgentMismatch";
+                }
+                else
+                {
+                    trigger.DeploymentId = deployment.Id;
+                    trigger.AgentId = deployment.AgentId;
+                }
+            }
+            if (!String.IsNullOrWhiteSpace(trigger.EvalJudgeAgentId))
+            {
+                Agent? judge = await database.Agents.ReadAsync(tenantId, trigger.EvalJudgeAgentId.Trim(), token).ConfigureAwait(false)
+                    ?? await database.Agents.ReadByNameAsync(tenantId, trigger.EvalJudgeAgentId.Trim(), token).ConfigureAwait(false);
+                if (judge == null)
+                {
+                    errors["evalJudgeAgentId"] = "The judge agent does not exist in this tenant.";
+                    codes["evalJudgeAgentId"] = "ReferenceNotFound";
+                }
+                else
+                {
+                    trigger.EvalJudgeAgentId = judge.Id;
+                }
+            }
+            else
+            {
+                trigger.EvalJudgeAgentId = null;
+            }
+            if (trigger.EvalRecentInputCount.HasValue && (trigger.EvalRecentInputCount.Value < 1 || trigger.EvalRecentInputCount.Value > 50))
+            {
+                errors["evalRecentInputCount"] = "evalRecentInputCount is 1 to 50.";
+                codes["evalRecentInputCount"] = "InvalidValue";
+            }
+        }
 
         private static async Task ExecutiveAsync(DatabaseDriverBase database, string tenantId, Agent agent, Dictionary<string, string> errors, Dictionary<string, string> codes, ConfigurationReferenceCache? cache, CancellationToken token)
         {

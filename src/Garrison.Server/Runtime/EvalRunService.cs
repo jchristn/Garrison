@@ -62,10 +62,44 @@ namespace Garrison.Server.Runtime
         /// <exception cref="NotFoundException">Thrown when the set, agent, revision, deployment, or draft is unknown.</exception>
         /// <exception cref="ValidationException">Thrown when the request is invalid (TargetRequired, EvalSetEmpty, NoRecentInputs, JudgeAgentRequired, RecentInputsNeedDeployment).</exception>
         /// <exception cref="AppAccessException">Thrown with 403 when the caller may not execute the agent, or a run token is not an executive evaluating its own draft (OwnDraftsOnly).</exception>
-        public async Task<EvalRun> CreateAsync(RequestContext ctx, string tenantId, EvalRunRequest request, CancellationToken token = default)
+        public Task<EvalRun> CreateAsync(RequestContext ctx, string tenantId, EvalRunRequest request, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (request == null) throw new ArgumentNullException(nameof(request));
+            return CreateCoreAsync(ctx, tenantId, request, null, null, token);
+        }
+
+        /// <summary>
+        /// Start the eval run of a scheduled check (AA11.3): the trigger's eval set against its deployment's recent inputs,
+        /// graded by its judge agent (or the set's), with the trigger recorded on the eval run. The caller is the trigger's
+        /// run-as person; a run token is refused.
+        /// </summary>
+        /// <param name="ctx">The trigger's run-as person.</param>
+        /// <param name="trigger">EvalSet trigger.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The eval run.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the trigger does not target an eval set.</exception>
+        /// <exception cref="NotFoundException">Thrown when the set or deployment no longer exists.</exception>
+        /// <exception cref="ValidationException">Thrown when the check cannot start (NoRecentInputs, JudgeAgentRequired).</exception>
+        /// <exception cref="AppAccessException">Thrown with 403 when the run-as person may not execute the agent, or the caller is a run token.</exception>
+        public Task<EvalRun> CreateForTriggerAsync(RequestContext ctx, Trigger trigger, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (trigger == null) throw new ArgumentNullException(nameof(trigger));
+            if (trigger.TargetType != TriggerTargetTypeEnum.EvalSet) throw new ArgumentException("Trigger " + trigger.Name + " does not target an eval set.", nameof(trigger));
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw new AppAccessException(403, "PeopleOnly", "Agents cannot start scheduled checks.");
+            EvalRunRequest request = new EvalRunRequest();
+            request.SetId = trigger.EvalSetId;
+            request.TargetType = EvalRunTargetEnum.Deployment;
+            request.DeploymentId = trigger.DeploymentId;
+            request.InputMode = EvalRunInputModeEnum.RecentInputs;
+            if (trigger.EvalRecentInputCount.HasValue) request.RecentInputCount = trigger.EvalRecentInputCount.Value;
+            return CreateCoreAsync(ctx, trigger.TenantId, request, trigger.Id, trigger.EvalJudgeAgentId, token);
+        }
+
+        private async Task<EvalRun> CreateCoreAsync(RequestContext ctx, string tenantId, EvalRunRequest request, string? triggerId, string? judgeAgentId, CancellationToken token)
+        {
             EvalSet set = await ResolveSetAsync(tenantId, request, token).ConfigureAwait(false);
             Run? caller = await CallerRunAsync(ctx, tenantId, token).ConfigureAwait(false);
             if (caller != null && await _Server.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null)
@@ -80,6 +114,8 @@ namespace Garrison.Server.Runtime
             run.RecentInputCount = request.RecentInputCount;
             run.Threshold = request.Threshold;
             run.BudgetUsd = request.BudgetUsd;
+            run.TriggerId = triggerId;
+            run.JudgeAgentId = String.IsNullOrWhiteSpace(judgeAgentId) ? null : judgeAgentId;
             EvalRunTargetEnum target = request.TargetType ?? (!String.IsNullOrWhiteSpace(request.DeploymentId) ? EvalRunTargetEnum.Deployment : EvalRunTargetEnum.AgentRevision);
             run.TargetType = target;
             Agent agent;
@@ -130,7 +166,7 @@ namespace Garrison.Server.Runtime
                 if (run.InputMode == EvalRunInputModeEnum.RecentInputs) throw Invalid("inputMode", "NoRecentInputs", "The deployment has no succeeded runs to replay yet.");
                 throw Invalid("setId", "EvalSetEmpty", "Eval set " + set.Name + " version " + set.Version + " has no cases.");
             }
-            if (String.IsNullOrWhiteSpace(set.JudgeAgent) && items.Any(i => EvalCaseScoring.EffectiveChecks(i).Any(c => c.Scorer == EvalScorerEnum.Judge)))
+            if (String.IsNullOrWhiteSpace(set.JudgeAgent) && run.JudgeAgentId == null && items.Any(i => EvalCaseScoring.EffectiveChecks(i).Any(c => c.Scorer == EvalScorerEnum.Judge)))
                 throw Invalid("setId", "JudgeAgentRequired", "Eval set " + set.Name + " has Judge checks (or cases without expected text, or runs recent inputs) but no judge agent; set its judgeAgent.");
             run.TotalCases = items.Count;
 
@@ -148,7 +184,7 @@ namespace Garrison.Server.Runtime
                 run.StartedByName = ctx.PrincipalName;
             }
             EvalRun created = await _Server.Database.EvalRuns.CreateAsync(run, token).ConfigureAwait(false);
-            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "EvalRun", created.Id, "Started eval run of set " + set.Name + " version " + set.Version + " against " + (target == EvalRunTargetEnum.Deployment ? "deployment " + created.DeploymentId : "agent " + agent.Name + " revision " + created.AgentRevisionId) + " (" + created.TotalCases + " case(s)).", tenantId, token).ConfigureAwait(false);
+            await _Server.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "EvalRun", created.Id, (triggerId != null ? "Scheduled check trigger " + triggerId + " started" : "Started") + " eval run of set " + set.Name + " version " + set.Version + " against " + (target == EvalRunTargetEnum.Deployment ? "deployment " + created.DeploymentId : "agent " + agent.Name + " revision " + created.AgentRevisionId) + " (" + created.TotalCases + " case(s)).", tenantId, token).ConfigureAwait(false);
             _Runner.Kick(created);
             return created;
         }

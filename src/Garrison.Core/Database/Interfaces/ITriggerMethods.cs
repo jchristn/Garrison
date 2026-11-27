@@ -83,6 +83,16 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Trigger>> ListDueAsync(DateTime nowUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// A tenant's triggers with a given target type, by name (AA11.3 lists the EvalSet triggers).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="targetType">Target type.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Triggers.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Trigger>> ListByTargetTypeAsync(string tenantId, TriggerTargetTypeEnum targetType, CancellationToken token = default);
+
+        /// <summary>
         /// Compare-and-set the schedule of an active cron trigger: move nextfireutc from the expected value to the next
         /// one and record the occurrence being fired. Exactly one caller wins for each occurrence.
         /// </summary>
@@ -111,7 +121,7 @@ namespace Garrison.Core.Database.Interfaces
         /// Names of the tenant's triggers that reference a resource.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
-        /// <param name="column">agentid, deploymentid, pipelineid, or inputtemplateid.</param>
+        /// <param name="column">agentid, deploymentid, pipelineid, inputtemplateid, evalsetid, or evaljudgeagentid.</param>
         /// <param name="resourceId">Resource identifier.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Trigger names, ordered by name.</returns>

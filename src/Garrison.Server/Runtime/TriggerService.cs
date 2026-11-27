@@ -27,7 +27,8 @@ namespace Garrison.Server.Runtime
     /// Missed occurrences collapse into one fire for the latest one (Triggers.CronMaxLatenessSeconds bounds how old it may
     /// be). Webhook and manual fires go through <see cref="FireAsync"/>. Every fire checks that the trigger's run-as
     /// principal may still run the target, renders the input from the trigger's PromptTemplate, and creates the run or
-    /// pipeline run through the normal invocation path. Cron fires are at most once per occurrence: a replica that dies
+    /// pipeline run through the normal invocation path; an EvalSet trigger starts a scheduled check (an eval run over the
+    /// deployment's recent inputs, AA11.3) through <see cref="EvalRuns"/> instead. Cron fires are at most once per occurrence: a replica that dies
     /// between claiming an occurrence and creating its run loses that occurrence. Thread-safe.
     /// </summary>
     public class TriggerService
@@ -50,6 +51,12 @@ namespace Garrison.Server.Runtime
                 return _Options;
             }
         }
+
+        /// <summary>
+        /// Eval run service that EvalSet triggers start scheduled checks through (AA11.3), or null when evaluation is not
+        /// wired; a fire of an EvalSet trigger then fails with EvaluationUnavailable.
+        /// </summary>
+        public EvalRunService? EvalRuns { get; set; } = null;
 
         #endregion
 
@@ -181,12 +188,20 @@ namespace Garrison.Server.Runtime
             {
                 Fail(fire, "NotFound", e.Message);
             }
+            catch (AppAccessException e)
+            {
+                Fail(fire, e.Code, e.Message);
+            }
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 _Logging.Warn(_Header + "trigger " + trigger.Id + " (" + trigger.Name + ") fire " + fire.Id + " failed: " + e);
                 Fail(fire, "InternalError", "The run could not be started: " + e.Message);
             }
 
+            if (trigger.TargetType == TriggerTargetTypeEnum.EvalSet)
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.EvalScheduledChecks, "outcome", fire.Outcome == TriggerFireOutcomeEnum.Started ? "started" : "failed");
+            }
             fire.FiredUtc = DateTime.UtcNow;
             await _Database.TriggerFires.UpdateAsync(fire, CancellationToken.None).ConfigureAwait(false);
             await _Database.Triggers.RecordFireAsync(trigger.Id, fire.Outcome, source == TriggerFireSourceEnum.Cron ? null : fire.FiredUtc, CancellationToken.None).ConfigureAwait(false);
@@ -278,6 +293,20 @@ namespace Garrison.Server.Runtime
         {
             string? denied = await RunAsDeniedAsync(trigger, token).ConfigureAwait(false);
             if (denied != null) throw new TriggerFireException("RunAsNotAuthorized", denied);
+            if (trigger.TargetType == TriggerTargetTypeEnum.EvalSet)
+            {
+                // AA11.3: a scheduled check replays the deployment's recent inputs, so it has no rendered input.
+                if (EvalRuns == null) throw new TriggerFireException("EvaluationUnavailable", "Trigger " + trigger.Name + " runs an eval set, but evaluation is not available on this server.");
+                if (trigger.RunAsType != PrincipalTypeEnum.User) throw new TriggerFireException("RunAsNotAuthorized", "Trigger " + trigger.Name + " runs an eval set and must run as a person. Save it again as a user.");
+                RequestContext person = RunAsContext(trigger);
+                User? user = await _Database.Users.ReadAsync(trigger.TenantId, trigger.RunAsId ?? String.Empty, token).ConfigureAwait(false)
+                    ?? throw new TriggerFireException("RunAsNotAuthorized", "The user trigger " + trigger.Name + " runs as no longer exists.");
+                person.IsAdmin = user.IsAdmin;
+                person.IsTenantAdmin = user.IsTenantAdmin;
+                EvalRun evalRun = await EvalRuns.CreateForTriggerAsync(person, trigger, token).ConfigureAwait(false);
+                fire.EvalRunId = evalRun.Id;
+                return;
+            }
             string input = await RenderInputAsync(trigger, fire, body, contentType, token).ConfigureAwait(false);
             InvocationInputRules.Require(input);
             string idempotencyKey = "trigger:" + trigger.Id + ":" + fire.Id;
@@ -371,6 +400,11 @@ namespace Garrison.Server.Runtime
             else if (!String.IsNullOrEmpty(trigger.AgentId))
             {
                 agents.Add(trigger.AgentId);
+            }
+            if (trigger.TargetType == TriggerTargetTypeEnum.EvalSet)
+            {
+                AuthorizationDecision evalDecision = await _Authorization.EvaluateAsync(origin, trigger.TenantId, ResourceTypeEnum.EvalRun, OperationTypeEnum.Execute, null, token).ConfigureAwait(false);
+                if (!evalDecision.Permitted) return "Trigger " + trigger.Name + " runs as " + (trigger.RunAsName ?? trigger.RunAsId) + ", who may no longer run evals: " + evalDecision.Reason;
             }
             foreach (string agentId in agents)
             {
@@ -474,7 +508,7 @@ namespace Garrison.Server.Runtime
         private void Finished(Trigger trigger, TriggerFire fire)
         {
             GarrisonMetrics.Count(GarrisonMetricCatalog.TriggerFires, "tenant", trigger.TenantId, "source", fire.Source.ToString().ToLowerInvariant(), "outcome", fire.Outcome.ToString().ToLowerInvariant());
-            string started = fire.RunId != null ? " run " + fire.RunId : (fire.PipelineRunId != null ? " pipeline run " + fire.PipelineRunId : String.Empty);
+            string started = fire.RunId != null ? " run " + fire.RunId : (fire.PipelineRunId != null ? " pipeline run " + fire.PipelineRunId : (fire.EvalRunId != null ? " eval run " + fire.EvalRunId : String.Empty));
             string message = _Header + "trigger " + trigger.Id + " (" + trigger.Name + ") fired by " + fire.Source + ": " + fire.Outcome + started + (fire.ErrorCode != null ? " (" + fire.ErrorCode + ": " + fire.ErrorMessage + ")" : String.Empty)
                 + " " + GarrisonTracing.LogFields("tenant", trigger.TenantId, "trigger", trigger.Name);
             if (fire.Outcome == TriggerFireOutcomeEnum.Started) _Logging.Info(message);

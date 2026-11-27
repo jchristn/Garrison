@@ -415,6 +415,7 @@ namespace Garrison.Server.Protocols
                 if ((RunOnlyEscalationTool(tool.Name) || RunOnlyMessageTool(tool.Name)) && ctx.PrincipalType != PrincipalTypeEnum.Run) continue;
                 if (tool.Name.StartsWith("garrison_org_", StringComparison.Ordinal) && ctx.PrincipalType == PrincipalTypeEnum.Run && !await OrgMemberRunAsync(ctx, token).ConfigureAwait(false)) continue;
                 if (tool.Name == "garrison_list_change_rules" && ctx.PrincipalType == PrincipalTypeEnum.Run && await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
+                if (tool.Name == "garrison_subordinate_performance" && ctx.PrincipalType == PrincipalTypeEnum.Run && !await UnitLeadRunAsync(ctx, token).ConfigureAwait(false)) continue;
                 if ((tool.Name == "garrison_run_eval" || tool.Name == "garrison_get_eval_run") && ctx.PrincipalType == PrincipalTypeEnum.Run && await _Context.Get<ExecutiveAuthority>().ResolveRunAsync(ctx, token).ConfigureAwait(false) == null) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name], tool.Annotations));
@@ -915,6 +916,9 @@ namespace Garrison.Server.Protocols
                     case "garrison_board_get":
                     case "garrison_board_direct":
                         result = await BoardToolAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_subordinate_performance":
+                        result = await PerformanceToolAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_list_change_rules":
                     case "garrison_get_change_rule":
@@ -2238,6 +2242,58 @@ namespace Garrison.Server.Protocols
             if (tool.Name == "garrison_board_get") return await ToolCallAsync(() => board.GetAsync(organization, arguments.Limit, token)).ConfigureAwait(false);
             BoardDirectionRequest request = new BoardDirectionRequest { Direction = arguments.Direction, ChangeNote = arguments.ChangeNote };
             return await ToolCallAsync(() => board.DirectAsync(ctx, organization, request, token)).ConfigureAwait(false);
+        }
+
+        private async Task<bool> UnitLeadRunAsync(RequestContext ctx, CancellationToken token)
+        {
+            // AA11.2: a run sees garrison_subordinate_performance only while its agent leads a unit in a live organization.
+            if (String.IsNullOrEmpty(ctx.TenantId) || String.IsNullOrEmpty(ctx.RunId)) return false;
+            Run? run = await _Context.Database.Runs.ReadAsync(ctx.TenantId, ctx.RunId, token).ConfigureAwait(false);
+            if (run == null) return false;
+            return (await _Context.Get<ChainOfCommand>().PositionsAsync(ctx.TenantId, run.AgentId, token).ConfigureAwait(false)).Any(p => p.IsLead);
+        }
+
+        private async Task<object> PerformanceToolAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpPerformanceArguments arguments = ManagementArguments<McpPerformanceArguments>(args);
+            PerformanceService performance = _Context.Get<PerformanceService>();
+            PerformanceQuery query = new PerformanceQuery { FromUtc = arguments.FromUtc, ToUtc = arguments.ToUtc, UnitId = arguments.UnitId };
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run)
+            {
+                OrganizationService organizations = _Context.Get<OrganizationService>();
+                Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
+                await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, organization.Id, token).ConfigureAwait(false);
+                return await ToolCallAsync(() => performance.GetAsync(organization, query, token)).ConfigureAwait(false);
+            }
+
+            // A unit lead's run reads its own subtree, resolved through its own identity; it never names the organization.
+            Run run = (String.IsNullOrEmpty(ctx.RunId) ? null : await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false))
+                ?? throw ToolError("Forbidden", "garrison_subordinate_performance needs a run token.");
+            List<OrgTree> led = (await _Context.Get<ChainOfCommand>().LiveTreesAsync(tenantId, token).ConfigureAwait(false))
+                .Where(t => t.PositionOf(run.AgentId)?.IsLead == true).ToList();
+            if (led.Count == 0) throw ToolError("NotAUnitLead", "Your agent leads no unit in a live organization, so it has no subtree to report on.");
+            OrgTree tree = led[0];
+            OrgUnit leadUnit = tree.Unit(tree.PositionOf(run.AgentId)!.UnitId)!;
+            OrgUnit unit = leadUnit;
+            if (!String.IsNullOrWhiteSpace(arguments.UnitId))
+            {
+                string key = arguments.UnitId.Trim();
+                OrgUnit? found = null;
+                foreach (OrgTree candidate in led)
+                {
+                    OrgUnit mine = candidate.Unit(candidate.PositionOf(run.AgentId)!.UnitId)!;
+                    OrgUnit? named = candidate.Unit(key) ?? candidate.Subtree(mine.Id).FirstOrDefault(u => String.Equals(u.Name, key, StringComparison.OrdinalIgnoreCase));
+                    if (named != null && candidate.InSubtree(named.Id, mine.Id))
+                    {
+                        tree = candidate;
+                        found = named;
+                        break;
+                    }
+                }
+                // The same answer whether the unit exists elsewhere or not at all.
+                unit = found ?? throw ToolError("OutsideSubtree", "Unit " + key + " is not inside your unit's subtree.");
+            }
+            return await ToolCallAsync(() => performance.GetSubtreeAsync(tree, unit, query, token)).ConfigureAwait(false);
         }
 
         private async Task<Organization> LoadOrganizationAsync(OrganizationService organizations, string tenantId, string? reference, CancellationToken token)

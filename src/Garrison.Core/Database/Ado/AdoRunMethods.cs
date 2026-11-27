@@ -1079,6 +1079,32 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Run>> ListForPerformanceAsync(string tenantId, List<string> agentIds, DateTime fromUtc, DateTime toUtc, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (agentIds == null) throw new ArgumentNullException(nameof(agentIds));
+            if (agentIds.Count == 0) return new List<Run>();
+            string sql = "SELECT id, tenantid, agentid, agentname, deploymentid, harnesstype, servedmodel, kind, status, outcome, queuedutc, leasedutc, completedutc, " +
+                "inputtokens, outputtokens, cachedtokens, costusd, reasoningtokens, toolcallcount, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, createdutc " +
+                "FROM " + _Table + " WHERE tenantid = @tenantid AND " + AdoInList.Clause("agentid", "a", agentIds.Count) + " AND createdutc >= @fromutc AND createdutc < @toutc " +
+                "AND kind NOT IN ('Eval', 'Shadow', 'Playground') ORDER BY createdutc DESC, id DESC" + _Driver.Dialect.LimitOffsetClause() + ";";
+            return await _Driver.QueryAsync(sql, command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                AdoInList.Bind(command, "a", agentIds);
+                AdoDatabaseDriver.Add(command, "fromutc", fromUtc);
+                AdoDatabaseDriver.Add(command, "toutc", toUtc);
+                AdoDatabaseDriver.Add(command, "max", Math.Max(1, limit));
+                AdoDatabaseDriver.Add(command, "skip", 0);
+            }, reader =>
+            {
+                Run run = MapAnalytics(reader);
+                run.Kind = AdoConverters.Enum<RunKindEnum>(reader, "kind", RunKindEnum.Invoke);
+                return run;
+            }, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<StatusCount>> CountByStatusAsync(string? tenantId, DateTime? sinceUtc, CancellationToken token = default)
         {
             List<string> clauses = new List<string>();

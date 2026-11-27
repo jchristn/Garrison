@@ -18,7 +18,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, setid, setname, setversion, targettype, agentid, agentrevisionid, deploymentid, studiodraftid, status, inputmode, recentinputcount, score, threshold, passed, budgetusd, costusd, totalcases, completedcases, passedcases, erroredcases, failurereason, startedbytype, startedbyid, startedbyname, originrunid, createdutc, startedutc, completedutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, setid, setname, setversion, targettype, agentid, agentrevisionid, deploymentid, studiodraftid, status, inputmode, recentinputcount, score, threshold, passed, budgetusd, costusd, totalcases, completedcases, passedcases, erroredcases, failurereason, startedbytype, startedbyid, startedbyname, originrunid, triggerid, judgeagentid, createdutc, startedutc, completedutc, lastupdateutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Runs;
@@ -166,6 +166,43 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<EvalRun>> ListCompletedForDeploymentsAsync(string tenantId, List<string> deploymentIds, DateTime fromUtc, DateTime toUtc, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (deploymentIds == null) throw new ArgumentNullException(nameof(deploymentIds));
+            if (deploymentIds.Count == 0) return new List<EvalRun>();
+            return await _Driver.QueryAsync(
+                "SELECT * FROM " + _Runs + " WHERE tenantid = @tenantid AND " + AdoInList.Clause("deploymentid", "d", deploymentIds.Count) +
+                " AND status = 'Completed' AND createdutc >= @fromutc AND createdutc < @toutc ORDER BY createdutc DESC, id DESC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoInList.Bind(command, "d", deploymentIds);
+                    AdoDatabaseDriver.Add(command, "fromutc", fromUtc);
+                    AdoDatabaseDriver.Add(command, "toutc", toUtc);
+                    AdoDatabaseDriver.Add(command, "max", Math.Max(1, limit));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                }, Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<EvalRun?> ReadLatestByTriggerAsync(string tenantId, string triggerId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(triggerId)) throw new ArgumentNullException(nameof(triggerId));
+            List<EvalRun> rows = await _Driver.QueryAsync(
+                "SELECT * FROM " + _Runs + " WHERE tenantid = @tenantid AND triggerid = @triggerid ORDER BY createdutc DESC, id DESC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "triggerid", triggerId);
+                    AdoDatabaseDriver.Add(command, "max", 1);
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                }, Map, token).ConfigureAwait(false);
+            return rows.Count > 0 ? rows[0] : null;
+        }
+
+        /// <inheritdoc />
         public async Task<List<EvalRun>> ListActiveAsync(int maxResults, CancellationToken token = default)
         {
             int max = Math.Clamp(maxResults, 1, 10000);
@@ -232,6 +269,8 @@ namespace Garrison.Core.Database.Ado
             obj.StartedById = AdoConverters.NullableStr(reader, "startedbyid");
             obj.StartedByName = AdoConverters.NullableStr(reader, "startedbyname");
             obj.OriginRunId = AdoConverters.NullableStr(reader, "originrunid");
+            obj.TriggerId = AdoConverters.NullableStr(reader, "triggerid");
+            obj.JudgeAgentId = AdoConverters.NullableStr(reader, "judgeagentid");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.StartedUtc = AdoConverters.NullableDate(reader, "startedutc");
             obj.CompletedUtc = AdoConverters.NullableDate(reader, "completedutc");
@@ -268,6 +307,8 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "startedbyid", obj.StartedById);
             AdoDatabaseDriver.Add(command, "startedbyname", obj.StartedByName);
             AdoDatabaseDriver.Add(command, "originrunid", obj.OriginRunId);
+            AdoDatabaseDriver.Add(command, "triggerid", obj.TriggerId);
+            AdoDatabaseDriver.Add(command, "judgeagentid", obj.JudgeAgentId);
             AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
             AdoDatabaseDriver.Add(command, "startedutc", obj.StartedUtc);
             AdoDatabaseDriver.Add(command, "completedutc", obj.CompletedUtc);

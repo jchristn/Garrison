@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 57).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 59).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2908,3 +2908,13 @@ ALTER TABLE "mandate_revisions" ADD COLUMN briefintervalhours INTEGER;
 ALTER TABLE "conversations" ADD COLUMN organizationid VARCHAR(64);
 CREATE INDEX IF NOT EXISTS "idx_conversations_organization" ON "conversations" ("tenantid", "organizationid", "createdutc");
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 57, 'Board briefs and board conversations', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 57);
+
+-- Migration 59: Scheduled eval checks
+ALTER TABLE "triggers" ADD COLUMN evalsetid VARCHAR(64);
+ALTER TABLE "triggers" ADD COLUMN evaljudgeagentid VARCHAR(64);
+ALTER TABLE "triggers" ADD COLUMN evalrecentinputcount INTEGER;
+ALTER TABLE "eval_runs" ADD COLUMN triggerid VARCHAR(64);
+ALTER TABLE "eval_runs" ADD COLUMN judgeagentid VARCHAR(64);
+ALTER TABLE "trigger_fires" ADD COLUMN evalrunid VARCHAR(64);
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_trigger" ON "eval_runs" ("tenantid", "triggerid", "createdutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 59, 'Scheduled eval checks', strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 59);

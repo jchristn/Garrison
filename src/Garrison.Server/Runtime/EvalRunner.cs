@@ -492,11 +492,13 @@ namespace Garrison.Server.Runtime
                     : (await _Server.Get<PlaygroundService>().EvalDeploymentAsync(run.TenantId, context.Agent, revision, token).ConfigureAwait(false)).Id;
             }
             IEvalScorer? judge = null;
-            if (!String.IsNullOrWhiteSpace(set.JudgeAgent))
+            // AA11.3: a scheduled check may name its own judge in place of the set's.
+            string? judgeName = !String.IsNullOrWhiteSpace(run.JudgeAgentId) ? run.JudgeAgentId : set.JudgeAgent;
+            if (!String.IsNullOrWhiteSpace(judgeName))
             {
-                Agent judgeAgent = await _Server.Database.Agents.ReadAsync(run.TenantId, set.JudgeAgent, token).ConfigureAwait(false)
-                    ?? await _Server.Database.Agents.ReadByNameAsync(run.TenantId, set.JudgeAgent, token).ConfigureAwait(false)
-                    ?? throw new NotFoundException("Judge agent " + set.JudgeAgent + " of eval set " + set.Name + " was not found.");
+                Agent judgeAgent = await _Server.Database.Agents.ReadAsync(run.TenantId, judgeName, token).ConfigureAwait(false)
+                    ?? await _Server.Database.Agents.ReadByNameAsync(run.TenantId, judgeName, token).ConfigureAwait(false)
+                    ?? throw new NotFoundException("Judge agent " + judgeName + " of eval run " + run.Id + " was not found.");
                 PromptTemplate template = await new KeeperTemplateResolver(_Server.Database).ResolveAsync(run.TenantId, EvalJudgePrompt.TemplateName, PromptTemplateKindEnum.Task, token).ConfigureAwait(false);
                 judge = new JudgeScorer(new EvalJudgeRunner(this, run, judgeAgent), template);
             }

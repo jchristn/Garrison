@@ -18,7 +18,7 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly string _Columns = "id, tenantid, triggerid, triggername, source, firekey, deliveryid, scheduledutc, firedutc, outcome, runid, pipelinerunid, errorcode, errormessage, createdutc";
+        private static readonly string _Columns = "id, tenantid, triggerid, triggername, source, firekey, deliveryid, scheduledutc, firedutc, outcome, runid, pipelinerunid, evalrunid, errorcode, errormessage, createdutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
@@ -81,7 +81,7 @@ namespace Garrison.Core.Database.Ado
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             await _Driver.NonQueryAsync(
-                "UPDATE " + _Table + " SET outcome = @outcome, runid = @runid, pipelinerunid = @pipelinerunid, errorcode = @errorcode, errormessage = @errormessage, firedutc = @firedutc WHERE id = @id AND tenantid = @tenantid;",
+                "UPDATE " + _Table + " SET outcome = @outcome, runid = @runid, pipelinerunid = @pipelinerunid, evalrunid = @evalrunid, errorcode = @errorcode, errormessage = @errormessage, firedutc = @firedutc WHERE id = @id AND tenantid = @tenantid;",
                 command => Bind(command, obj), token).ConfigureAwait(false);
             return obj;
         }
@@ -138,6 +138,7 @@ namespace Garrison.Core.Database.Ado
             obj.Outcome = AdoConverters.Enum<TriggerFireOutcomeEnum>(reader, "outcome", TriggerFireOutcomeEnum.Failed);
             obj.RunId = AdoConverters.NullableStr(reader, "runid");
             obj.PipelineRunId = AdoConverters.NullableStr(reader, "pipelinerunid");
+            obj.EvalRunId = AdoConverters.NullableStr(reader, "evalrunid");
             obj.ErrorCode = AdoConverters.NullableStr(reader, "errorcode");
             obj.ErrorMessage = AdoConverters.NullableStr(reader, "errormessage");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
@@ -162,6 +163,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "outcome", obj.Outcome.ToString());
             AdoDatabaseDriver.Add(command, "runid", obj.RunId);
             AdoDatabaseDriver.Add(command, "pipelinerunid", obj.PipelineRunId);
+            AdoDatabaseDriver.Add(command, "evalrunid", obj.EvalRunId);
             AdoDatabaseDriver.Add(command, "errorcode", obj.ErrorCode);
             AdoDatabaseDriver.Add(command, "errormessage", Truncate(obj.ErrorMessage, 2000));
             AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);

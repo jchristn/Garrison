@@ -194,5 +194,18 @@ namespace Garrison.Core.Database.Interfaces
         /// <returns>Messages, oldest change first.</returns>
         /// <exception cref="ArgumentNullException">Thrown when tenantId or recipientAgentId is null or empty.</exception>
         Task<List<AgentMessage>> ListChangedAfterAsync(string tenantId, string recipientAgentId, DateTime afterUtc, string? afterId, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Messages each of the given agents sent in [fromUtc, toUtc) that the loop guards refused (AA11.1): rejected with
+        /// HopLimit, LineRate, or ThreadBudget. NoLine and Frozen refusals are not loop guards and are not counted.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="senderAgentIds">Sending agents; an empty list returns an empty map.</param>
+        /// <param name="fromUtc">Inclusive start (UTC).</param>
+        /// <param name="toUtc">Exclusive end (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Count by sending agent identifier; agents without refusals are absent.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty or senderAgentIds is null.</exception>
+        Task<Dictionary<string, long>> CountLoopGuardRejectionsAsync(string tenantId, List<string> senderAgentIds, DateTime fromUtc, DateTime toUtc, CancellationToken token = default);
     }
 }

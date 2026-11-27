@@ -279,11 +279,13 @@ namespace Garrison.Server.Services
             trigger.LastFireUtc = null;
             trigger.LastFireOutcome = null;
             trigger.FireCount = 0;
+            RequirePersonForChecks(ctx, trigger, null);
             await ConfigurationValidator.TriggerAsync(_Server.Database, tenantId, trigger, token).ConfigureAwait(false);
             Trigger? existing = await _Server.Database.Triggers.ReadByNameAsync(tenantId, trigger.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, trigger.Name);
             if (!await AuthorizeTargetAsync(tenantId, trigger, authorizeTarget, token).ConfigureAwait(false)) return null;
             RunAs(ctx, trigger);
+            RequireUserRunAs(trigger);
             string? secret = null;
             trigger.SecretEncrypted = null;
             trigger.SigningSecretLast4 = null;
@@ -332,11 +334,13 @@ namespace Garrison.Server.Services
             trigger.LastFireUtc = existing.LastFireUtc;
             trigger.LastFireOutcome = existing.LastFireOutcome;
             trigger.FireCount = existing.FireCount;
+            RequirePersonForChecks(ctx, trigger, existing);
             await ConfigurationValidator.TriggerAsync(_Server.Database, tenantId, trigger, token).ConfigureAwait(false);
             Trigger? named = await _Server.Database.Triggers.ReadByNameAsync(tenantId, trigger.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, trigger.Name);
             if (!await AuthorizeTargetAsync(tenantId, trigger, authorizeTarget, token).ConfigureAwait(false)) return null;
             RunAs(ctx, trigger);
+            RequireUserRunAs(trigger);
             trigger.NextFireUtc = CronSchedule.NextFireFor(trigger, existing, DateTime.UtcNow);
             Trigger updated = await _Server.Database.Triggers.UpdateAsync(trigger, token).ConfigureAwait(false);
             await AuditAsync(ctx, tenantId, "Trigger", updated.Id, "Updated trigger " + updated.Name + " (" + TargetSummary(updated) + ", " + (updated.Active ? "active" : "inactive") + ", runs as " + (updated.RunAsName ?? updated.RunAsType.ToString()) + ").", token).ConfigureAwait(false);
@@ -480,7 +484,31 @@ namespace Garrison.Server.Services
                 }
                 return true;
             }
+            if (trigger.TargetType == TriggerTargetTypeEnum.EvalSet)
+            {
+                // A scheduled check runs the deployment's agent and starts eval runs.
+                if (!await authorizeTarget(ResourceTypeEnum.Agent, trigger.AgentId!).ConfigureAwait(false)) return false;
+                return await authorizeTarget(ResourceTypeEnum.EvalRun, trigger.EvalSetId!).ConfigureAwait(false);
+            }
             return await authorizeTarget(ResourceTypeEnum.Agent, trigger.AgentId!).ConfigureAwait(false);
+        }
+
+        private static void RequirePersonForChecks(RequestContext ctx, Trigger trigger, Trigger? existing)
+        {
+            // AA11.3, AA-074: checks are written only by people; an agent never creates or changes an EvalSet trigger.
+            bool check = trigger.TargetType == TriggerTargetTypeEnum.EvalSet || (existing != null && existing.TargetType == TriggerTargetTypeEnum.EvalSet);
+            if (!check || ctx.PrincipalType != PrincipalTypeEnum.Run) return;
+            throw new ValidationException("Agents cannot create or change scheduled checks (EvalSet triggers); a person does.",
+                new Dictionary<string, string> { { "targetType", "Only people create or change EvalSet triggers." } },
+                new Dictionary<string, string> { { "targetType", "PeopleOnly" } });
+        }
+
+        private static void RequireUserRunAs(Trigger trigger)
+        {
+            if (trigger.TargetType != TriggerTargetTypeEnum.EvalSet || trigger.RunAsType == PrincipalTypeEnum.User) return;
+            throw new ValidationException("A scheduled check (EvalSet trigger) runs as the person who saves it; save it as a user, not as " + trigger.RunAsType + ".",
+                new Dictionary<string, string> { { "runAsType", "An EvalSet trigger runs as a User." } },
+                new Dictionary<string, string> { { "runAsType", "UserRequired" } });
         }
 
         private static void RunAs(RequestContext ctx, Trigger trigger)
@@ -494,6 +522,7 @@ namespace Garrison.Server.Services
 
         private static string TargetSummary(Trigger trigger)
         {
+            if (trigger.TargetType == TriggerTargetTypeEnum.EvalSet) return "eval set " + trigger.EvalSetId + " on deployment " + trigger.DeploymentId;
             return trigger.TargetType == TriggerTargetTypeEnum.Pipeline ? "pipeline " + trigger.PipelineId : "agent " + trigger.AgentId + (String.IsNullOrEmpty(trigger.DeploymentId) ? String.Empty : " on deployment " + trigger.DeploymentId);
         }
 

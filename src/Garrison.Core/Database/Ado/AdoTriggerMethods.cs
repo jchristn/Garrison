@@ -17,8 +17,8 @@ namespace Garrison.Core.Database.Ado
     {
         #region Private-Members
 
-        private static readonly HashSet<string> _ReferenceColumns = new HashSet<string>(StringComparer.Ordinal) { "agentid", "deploymentid", "pipelineid", "inputtemplateid" };
-        private static readonly string _Columns = "id, tenantid, name, description, triggertype, targettype, agentid, deploymentid, pipelineid, inputtemplateid, priority, cronexpression, timezone, active, secretencrypted, secretkeyversion, secretlast4, secretrotatedutc, runastype, runasid, runasname, lastfireutc, lastfireoutcome, nextfireutc, firecount, createdutc, lastupdateutc";
+        private static readonly HashSet<string> _ReferenceColumns = new HashSet<string>(StringComparer.Ordinal) { "agentid", "deploymentid", "pipelineid", "inputtemplateid", "evalsetid", "evaljudgeagentid" };
+        private static readonly string _Columns = "id, tenantid, name, description, triggertype, targettype, agentid, deploymentid, pipelineid, evalsetid, evaljudgeagentid, evalrecentinputcount, inputtemplateid, priority, cronexpression, timezone, active, secretencrypted, secretkeyversion, secretlast4, secretrotatedutc, runastype, runasid, runasname, lastfireutc, lastfireoutcome, nextfireutc, firecount, createdutc, lastupdateutc";
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
@@ -85,7 +85,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
             await _Driver.NonQueryAsync(
-                "UPDATE " + _Table + " SET name = @name, description = @description, targettype = @targettype, agentid = @agentid, deploymentid = @deploymentid, pipelineid = @pipelineid, inputtemplateid = @inputtemplateid, priority = @priority, cronexpression = @cronexpression, timezone = @timezone, active = @active, secretencrypted = @secretencrypted, secretkeyversion = @secretkeyversion, secretlast4 = @secretlast4, secretrotatedutc = @secretrotatedutc, runastype = @runastype, runasid = @runasid, runasname = @runasname, nextfireutc = @nextfireutc, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
+                "UPDATE " + _Table + " SET name = @name, description = @description, targettype = @targettype, agentid = @agentid, deploymentid = @deploymentid, pipelineid = @pipelineid, evalsetid = @evalsetid, evaljudgeagentid = @evaljudgeagentid, evalrecentinputcount = @evalrecentinputcount, inputtemplateid = @inputtemplateid, priority = @priority, cronexpression = @cronexpression, timezone = @timezone, active = @active, secretencrypted = @secretencrypted, secretkeyversion = @secretkeyversion, secretlast4 = @secretlast4, secretrotatedutc = @secretrotatedutc, runastype = @runastype, runasid = @runasid, runasname = @runasname, nextfireutc = @nextfireutc, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
                 command => Bind(command, obj), token).ConfigureAwait(false);
             return obj;
         }
@@ -153,6 +153,19 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Trigger>> ListByTargetTypeAsync(string tenantId, TriggerTargetTypeEnum targetType, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            return await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND targettype = @targettype ORDER BY name;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "targettype", targetType.ToString());
+                }, Map, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<bool> TryAdvanceAsync(string id, DateTime expectedNextUtc, DateTime? nextUtc, DateTime firedUtc, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
@@ -187,7 +200,7 @@ namespace Garrison.Core.Database.Ado
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             if (String.IsNullOrEmpty(resourceId)) throw new ArgumentNullException(nameof(resourceId));
-            if (column == null || !_ReferenceColumns.Contains(column)) throw new ArgumentException("Column must be agentid, deploymentid, pipelineid, or inputtemplateid.", nameof(column));
+            if (column == null || !_ReferenceColumns.Contains(column)) throw new ArgumentException("Column must be agentid, deploymentid, pipelineid, inputtemplateid, evalsetid, or evaljudgeagentid.", nameof(column));
             return await _Driver.QueryAsync(
                 "SELECT name FROM " + _Table + " WHERE tenantid = @tenantid AND " + column + " = @value ORDER BY name;",
                 command =>
@@ -216,6 +229,9 @@ namespace Garrison.Core.Database.Ado
             obj.AgentId = AdoConverters.NullableStr(reader, "agentid");
             obj.DeploymentId = AdoConverters.NullableStr(reader, "deploymentid");
             obj.PipelineId = AdoConverters.NullableStr(reader, "pipelineid");
+            obj.EvalSetId = AdoConverters.NullableStr(reader, "evalsetid");
+            obj.EvalJudgeAgentId = AdoConverters.NullableStr(reader, "evaljudgeagentid");
+            obj.EvalRecentInputCount = AdoConverters.NullableInt(reader, "evalrecentinputcount");
             obj.InputTemplateId = AdoConverters.NullableStr(reader, "inputtemplateid");
             obj.Priority = AdoConverters.Int(reader, "priority");
             obj.CronExpression = AdoConverters.NullableStr(reader, "cronexpression");
@@ -252,6 +268,9 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "agentid", String.IsNullOrEmpty(obj.AgentId) ? null : obj.AgentId);
             AdoDatabaseDriver.Add(command, "deploymentid", String.IsNullOrEmpty(obj.DeploymentId) ? null : obj.DeploymentId);
             AdoDatabaseDriver.Add(command, "pipelineid", String.IsNullOrEmpty(obj.PipelineId) ? null : obj.PipelineId);
+            AdoDatabaseDriver.Add(command, "evalsetid", String.IsNullOrEmpty(obj.EvalSetId) ? null : obj.EvalSetId);
+            AdoDatabaseDriver.Add(command, "evaljudgeagentid", String.IsNullOrEmpty(obj.EvalJudgeAgentId) ? null : obj.EvalJudgeAgentId);
+            AdoDatabaseDriver.Add(command, "evalrecentinputcount", obj.EvalRecentInputCount);
             AdoDatabaseDriver.Add(command, "inputtemplateid", String.IsNullOrEmpty(obj.InputTemplateId) ? null : obj.InputTemplateId);
             AdoDatabaseDriver.Add(command, "priority", obj.Priority);
             AdoDatabaseDriver.Add(command, "cronexpression", obj.CronExpression);

@@ -13,6 +13,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A pipeline run.
         /// </summary>
-        Pipeline
+        Pipeline,
+
+        /// <summary>
+        /// A scheduled check (AA11.3): an eval run of an eval set against a deployment's recent inputs, started as the
+        /// trigger's run-as person. Only people create these triggers, and agents cannot grade or change the results.
+        /// </summary>
+        EvalSet
     }
 }

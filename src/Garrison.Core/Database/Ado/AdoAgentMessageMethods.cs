@@ -372,6 +372,29 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<Dictionary<string, long>> CountLoopGuardRejectionsAsync(string tenantId, List<string> senderAgentIds, DateTime fromUtc, DateTime toUtc, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (senderAgentIds == null) throw new ArgumentNullException(nameof(senderAgentIds));
+            Dictionary<string, long> result = new Dictionary<string, long>(StringComparer.Ordinal);
+            if (senderAgentIds.Count == 0) return result;
+            List<KeyValuePair<string, long>> rows = await _Driver.QueryAsync(
+                "SELECT senderagentid, COUNT(*) AS total FROM " + _Table + " WHERE tenantid = @tenantid AND " + AdoInList.Clause("senderagentid", "a", senderAgentIds.Count) +
+                " AND status = 'Rejected' AND rejectionreason IN ('HopLimit', 'LineRate', 'ThreadBudget') AND createdutc >= @fromutc AND createdutc < @toutc GROUP BY senderagentid;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoInList.Bind(command, "a", senderAgentIds);
+                    AdoDatabaseDriver.Add(command, "fromutc", fromUtc);
+                    AdoDatabaseDriver.Add(command, "toutc", toUtc);
+                },
+                reader => new KeyValuePair<string, long>(AdoConverters.Str(reader, "senderagentid"), AdoConverters.Long(reader, "total")),
+                token).ConfigureAwait(false);
+            foreach (KeyValuePair<string, long> row in rows) result[row.Key] = row.Value;
+            return result;
+        }
+
+        /// <inheritdoc />
         public async Task<List<AgentMessage>> ListChangedAfterAsync(string tenantId, string recipientAgentId, DateTime afterUtc, string? afterId, int limit, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

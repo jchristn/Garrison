@@ -388,6 +388,21 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Run>> ListForAnalyticsAsync(RunFilter filter, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// List runs for performance rollups (AA11.1), newest first, with the same fields as
+        /// <see cref="ListForAnalyticsAsync"/> plus the kind. Only runs of the given agents created in [fromUtc, toUtc) are
+        /// read, and Eval, Shadow, and Playground runs are left out.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agentIds">Agents; an empty list returns no runs.</param>
+        /// <param name="fromUtc">Inclusive start (UTC).</param>
+        /// <param name="toUtc">Exclusive end (UTC).</param>
+        /// <param name="limit">Maximum rows. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs, newest first.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty or agentIds is null.</exception>
+        Task<List<Run>> ListForPerformanceAsync(string tenantId, List<string> agentIds, DateTime fromUtc, DateTime toUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Count runs by status.
         /// </summary>
         /// <param name="tenantId">Tenant identifier, or null for all tenants.</param>

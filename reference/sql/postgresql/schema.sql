@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 57).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 59).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -2908,3 +2908,13 @@ ALTER TABLE "mandate_revisions" ADD COLUMN IF NOT EXISTS briefintervalhours INTE
 ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS organizationid VARCHAR(64);
 CREATE INDEX IF NOT EXISTS "idx_conversations_organization" ON "conversations" ("tenantid", "organizationid", "createdutc");
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 57, 'Board briefs and board conversations', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 57);
+
+-- Migration 59: Scheduled eval checks
+ALTER TABLE "triggers" ADD COLUMN IF NOT EXISTS evalsetid VARCHAR(64);
+ALTER TABLE "triggers" ADD COLUMN IF NOT EXISTS evaljudgeagentid VARCHAR(64);
+ALTER TABLE "triggers" ADD COLUMN IF NOT EXISTS evalrecentinputcount INTEGER;
+ALTER TABLE "eval_runs" ADD COLUMN IF NOT EXISTS triggerid VARCHAR(64);
+ALTER TABLE "eval_runs" ADD COLUMN IF NOT EXISTS judgeagentid VARCHAR(64);
+ALTER TABLE "trigger_fires" ADD COLUMN IF NOT EXISTS evalrunid VARCHAR(64);
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_trigger" ON "eval_runs" ("tenantid", "triggerid", "createdutc");
+INSERT INTO schema_migrations (version, description, appliedutc) SELECT 59, 'Scheduled eval checks', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 59);

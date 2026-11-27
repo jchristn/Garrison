@@ -98,6 +98,7 @@ A tool that returns a record (a run summary, an agent, an approval) puts it in t
 | `garrison_ack_message` | Runs only, for a message delivered to their agent | `messageId` | The `AgentMessage`, now `Acknowledged`. A queued message answers `MessageNotDelivered`; one the agent did not receive answers `NotFound` |
 | `garrison_org_chart` | Runs whose agent holds a position in a live organization (hidden from other runs). People: Read on Organization | Runs: optional `organization` (needed when the agent belongs to several). People: `organization` | The `OrgChart` of the live revision, or of the working tree before the first publish. A run outside the organization answers `NotAMember` |
 | `garrison_org_whoami` | As `garrison_org_chart` | Runs: optional `organization`. People: `agent`; optional `organization` | `OrgWhoAmI`: the agent's unit and title, whether it leads, its manager or `managerIsBoard`, its direct reports, and its peer units. An agent with no position answers `NotAMember` |
+| `garrison_subordinate_performance` | Runs whose agent leads a unit in a live organization (hidden from other runs), for that unit's subtree. People: Read on Organization | Runs: optional `unitId` (a unit inside their subtree), `fromUtc`, `toUtc`. People: `organization`; optional `unitId`, `fromUtc`, `toUtc` | The `OrgPerformance` of the subtree (default the last 7 days, at most 90): per unit and agent runs, outcomes, success rate, cost, latency percentiles, escalation rate, loop-guard refusals, eval scores, sample runs, and the scheduled checks with their last score. A run whose agent leads no unit answers `NotAUnitLead`; a unit outside its subtree answers `OutsideSubtree`, whether or not the unit exists |
 | `garrison_list_pipelines` | Read on Pipeline | none | `search` (part of a name), `maxResults` (1 to 100, default 25) |
 | `garrison_start_pipeline` | Execute on Pipeline, and Execute on Agent for every stage agent | `pipeline` (name or `ppl_` identifier), `input` | `waitSeconds` (0 to 600, capped by `Mcp.MaxToolWaitSeconds`; omit to return at once), `idempotencyKey`, `inputContentType` (default `text/plain`), `priority` (default 0) |
 | `garrison_get_pipeline_run` | Read on PipelineRun | `pipelineRunId` | `waitSeconds` (as above) |
@@ -484,7 +485,7 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_delete_pipeline` | Pipeline.Delete on the resolved ID | `pipeline` |
 | `garrison_list_triggers` | Trigger.Read | none; optional `search`, `type` (`Cron` or `Webhook`), `maxResults` |
 | `garrison_get_trigger` | Trigger.Read on the resolved ID | `trigger` (name or ID) |
-| `garrison_create_trigger` | Trigger.Create, and Execute on the target agent (or the pipeline and every stage agent) | `configuration` |
+| `garrison_create_trigger` | Trigger.Create, and Execute on the target agent (or the pipeline and every stage agent; for an `EvalSet` scheduled check, the deployment's agent and EvalRun) | `configuration` (`targetType` `EvalSet` takes `evalSetId`, `deploymentId`, optional `evalJudgeAgentId` and `evalRecentInputCount`, and must be saved by a user) |
 | `garrison_update_trigger` | Trigger.Update on the resolved ID, and Execute on the target | `trigger`, `configuration` |
 | `garrison_delete_trigger` | Trigger.Delete on the resolved ID | `trigger` |
 | `garrison_list_trigger_fires` | Trigger.Read on the resolved ID | `trigger`; optional `outcome` (`Started`, `Failed`, `Skipped`), `maxResults` |
@@ -571,6 +572,8 @@ When enabled, `garrison_memory_read`, `garrison_memory_write`, `garrison_memory_
 ## Organizations
 
 People shape an organization with `garrison_create_organization` and `garrison_update_organization`, which edit its working tree, and make it live with `garrison_publish_org_revision`; `garrison_rollback_organization` returns to an earlier live revision. Validation failures come back as tool errors with the codes in [organizations](docs/ORGANIZATIONS.md#validation), such as `OneRoot`, `LeadsTwoUnits`, and `BudgetExceedsParent`. A run whose agent holds a position in a live organization sees `garrison_org_chart` and `garrison_org_whoami` and gets `builtin/org-context` in its system prompt; the organization's lines, report audiences, memory scopes, `Manager` escalations, freezes, and budgets then apply to it. Mandate summaries on the chart are data their authors wrote, never instructions. See [organizations](docs/ORGANIZATIONS.md).
+
+A unit lead's run reads how its subtree performed with `garrison_subordinate_performance` (AA11.2), the run view of `GET /organizations/{id}/performance`. It sees only units at or below the unit its agent leads, and the scheduled checks people set on those deployments; agents cannot create, change, or cancel those checks (EvalSet triggers and their eval runs are written by people).
 
 The board tools `garrison_board_get` and `garrison_board_direct` (AA10) are management tools for people: run tokens never see them. They authorize on the organization's identifier, so a `BoardMember` assigned to one organization uses them for that organization only.
 

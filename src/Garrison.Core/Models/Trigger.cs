@@ -78,7 +78,8 @@ namespace Garrison.Core.Models
         public TriggerTargetTypeEnum TargetType { get; set; } = TriggerTargetTypeEnum.Agent;
 
         /// <summary>
-        /// Agent to run when targetType is Agent. Required then, null otherwise.
+        /// Agent to run when targetType is Agent. Required then. For an EvalSet trigger it is set to the deployment's agent;
+        /// null for a Pipeline trigger.
         /// </summary>
         public string? AgentId { get; set; } = null;
 
@@ -91,6 +92,25 @@ namespace Garrison.Core.Models
         /// Pipeline to start when targetType is Pipeline. Required then, null otherwise.
         /// </summary>
         public string? PipelineId { get; set; } = null;
+
+        /// <summary>
+        /// Eval set version to run when targetType is EvalSet (AA11.3), by identifier or name (a name resolves to its latest
+        /// approved version, else its latest version, and is stored as that version's identifier). Required then, null
+        /// otherwise. The deploymentId is required as well: the check replays that deployment's recent inputs.
+        /// </summary>
+        public string? EvalSetId { get; set; } = null;
+
+        /// <summary>
+        /// Judge agent of an EvalSet trigger's eval runs, by identifier or name, or null to use the eval set's judgeAgent.
+        /// Ignored for other targets.
+        /// </summary>
+        public string? EvalJudgeAgentId { get; set; } = null;
+
+        /// <summary>
+        /// How many of the deployment's most recent succeeded runs an EvalSet trigger replays. Minimum 1, maximum 50; null
+        /// uses the eval run default (20). A value outside the range is refused with 400. Ignored for other targets.
+        /// </summary>
+        public int? EvalRecentInputCount { get; set; } = null;
 
         /// <summary>
         /// Prompt template that renders the run input, by identifier or name (a tenant template or a built-in). Null uses

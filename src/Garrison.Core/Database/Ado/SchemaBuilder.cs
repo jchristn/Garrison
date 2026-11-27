@@ -431,6 +431,12 @@ namespace Garrison.Core.Database.Ado
             v57.BuildVersion57();
             migrations.Add(new SchemaMigration(57, "Board briefs and board conversations", v57._Statements, v57._Columns));
 
+            // AA11.3: scheduled checks. An EvalSet trigger names its eval set, judge, and recent input count; an eval run
+            // records the trigger that started it and the judge it uses; a fire links the eval run it started.
+            SchemaBuilder v59 = new SchemaBuilder(catalog, dialect);
+            v59.BuildVersion59();
+            migrations.Add(new SchemaMigration(59, "Scheduled eval checks", v59._Statements, v59._Columns));
+
             return migrations;
         }
 
@@ -494,6 +500,18 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion59()
+        {
+            SqlDialect d = _Dialect;
+            Column("triggers", "evalsetid", d.TypeId);
+            Column("triggers", "evaljudgeagentid", d.TypeId);
+            Column("triggers", "evalrecentinputcount", d.TypeInt);
+            Column("eval_runs", "triggerid", d.TypeId);
+            Column("eval_runs", "judgeagentid", d.TypeId);
+            Column("trigger_fires", "evalrunid", d.TypeId);
+            Index("eval_runs", "trigger", false, "tenantid", "triggerid", "createdutc");
         }
 
         private void BuildVersion57()

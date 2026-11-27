@@ -264,7 +264,10 @@ namespace Garrison.Server.Modules
             _Maintenance.Evaluations = _EvalRunner;
             context.Register(new EvalSetService(context, _EvaluationOptions, versioning, chain));
             context.Register(_EvalRunner);
-            context.Register(new EvalRunService(context, _EvalRunner));
+            EvalRunService evalRuns = new EvalRunService(context, _EvalRunner);
+            context.Register(evalRuns);
+            // AA11.3: EvalSet triggers start scheduled checks through the eval run service.
+            _Triggers.EvalRuns = evalRuns;
             context.Register(new EvalGateService(context, chain));
             // AA9.10: eval copies go when their draft is applied or deleted, and on the leader sweep once idle.
             EvalCopyJanitor evalCopies = new EvalCopyJanitor(context);
@@ -316,6 +319,8 @@ namespace Garrison.Server.Modules
             context.Register(new OrgProposalService(context));
             // AA10: the board of an organization: one aggregate read, direction to the top agent, and talking to it.
             context.Register(new BoardService(context));
+            // AA11: performance rollups by unit and agent, and the scheduled checks on them.
+            context.Register(new PerformanceService(context));
             _Events.CancelOverBudgetAsync = cancelRun;
             if (context.Settings.Archive.Enabled)
             {
@@ -382,6 +387,7 @@ namespace Garrison.Server.Modules
             new OrganizationRoutes(context, context.Get<OrganizationService>()).Register(routes);
             new ChangeRuleRoutes(context, context.Get<ChangeRuleService>(), context.Get<OrgProposalService>()).Register(routes);
             new BoardRoutes(context.Get<OrganizationService>(), context.Get<BoardService>()).Register(routes);
+            new PerformanceRoutes(context.Get<OrganizationService>(), context.Get<PerformanceService>()).Register(routes);
             new ShadowTrialRoutes(context.Get<ShadowTrialService>()).Register(routes);
             new CanaryRoutes(context.Get<CanaryService>()).Register(routes);
             new EvaluationRoutes(context, context.Get<EvalSetService>(), context.Get<EvalRunService>()).Register(routes);

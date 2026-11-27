@@ -111,6 +111,11 @@ namespace Garrison.Core.Models
         public string? PipelineRunId { get; set; } = null;
 
         /// <summary>
+        /// Eval run started by this fire of an EvalSet trigger (AA11.3), or null.
+        /// </summary>
+        public string? EvalRunId { get; set; } = null;
+
+        /// <summary>
         /// Stable error code when the outcome is Failed or Skipped (for example TemplateRenderFailed, InputRequired,
         /// RunAsNotAuthorized, AgentInactive, NoActiveDeployment, MissedSchedule), or null.
         /// </summary>
