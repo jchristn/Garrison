@@ -158,6 +158,9 @@ namespace Test.Shared.Suites
                 await host.Server.Context.Database.Escalations.CreateAsync(new Escalation { TenantId = host.TenantId, AgentId = f.Lead.Id, AgentName = f.Lead.Name, Question = "May I restart the queue?" }, token).ConfigureAwait(false);
                 StudioDraft applied = await host.Server.Context.Database.StudioDrafts.CreateAsync(new StudioDraft { TenantId = host.TenantId, Title = "Add a peer line between ops and sales", OrganizationId = f.Org.Id, ExecutiveUnitId = f.Root.Id, ExecutiveAgentId = f.Ceo.Id, Status = StudioDraftStatusEnum.Applied }, token).ConfigureAwait(false);
                 await host.Server.Context.Database.StudioDrafts.CreateAsync(new StudioDraft { TenantId = host.TenantId, Title = "Still being written", OrganizationId = f.Org.Id, ExecutiveUnitId = f.Root.Id, ExecutiveAgentId = f.Ceo.Id }, token).ConfigureAwait(false);
+                // A denied proposal goes back to Open with its denied approval.
+                Approval denial = await host.Server.Context.Database.Approvals.CreateAsync(new Approval { TenantId = host.TenantId, RunId = "run_bfxdenied", AgentId = f.Ceo.Id, AgentName = f.Ceo.Name, DeploymentId = "dep_bfxdenied", Kind = ApprovalKindEnum.DraftApply, ToolName = "garrison_studio_request_apply", Status = ApprovalStatusEnum.Denied, Decision = ApprovalDecisionEnum.Deny, DecisionSource = ApprovalSourceEnum.User, DecidedBy = "board member", Reason = "Not mid-incident" }, token).ConfigureAwait(false);
+                StudioDraft denied = await host.Server.Context.Database.StudioDrafts.CreateAsync(new StudioDraft { TenantId = host.TenantId, Title = "Remove the uptime unit", OrganizationId = f.Org.Id, ExecutiveUnitId = f.Root.Id, ExecutiveAgentId = f.Ceo.Id, ApprovalId = denial.Id }, token).ConfigureAwait(false);
                 OrgRevision approved = await organizations.CreateRevisionAsync(OrganizationSuite.Admin(host), f.Org, "Peer line approved by the board", token).ConfigureAwait(false);
                 await organizations.PublishAsync(OrganizationSuite.Admin(host), f.Org, approved, token).ConfigureAwait(false);
                 approved = (await host.Server.Context.Database.Organizations.ReadRevisionAsync(host.TenantId, approved.Id, token).ConfigureAwait(false))!;
@@ -172,6 +175,7 @@ namespace Test.Shared.Suites
                 Assert.True(text.Contains("- Revision " + approved.Number + ", published ", StringComparison.Ordinal), "The revision published in the period: " + text);
                 Assert.True(text.Contains("- Draft " + applied.Id + " from " + f.Ceo.Name + ": Applied", StringComparison.Ordinal), "The applied proposal: " + text);
                 Assert.True(!text.Contains("Still being written", StringComparison.Ordinal), "An open draft is not decided: " + text);
+                Assert.True(text.Contains("- Draft " + denied.Id + " from " + f.Ceo.Name + ": Open, approval Denied (User, board member)", StringComparison.Ordinal), "A denied proposal is decided, not waiting: " + text);
 
                 // Agent-written text sits between lines that carry this render's random marker (AA-025).
                 int at = text.IndexOf("Garrison's own record", StringComparison.Ordinal);

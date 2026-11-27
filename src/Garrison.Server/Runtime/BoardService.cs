@@ -288,7 +288,10 @@ namespace Garrison.Server.Runtime
             foreach (StudioDraft draft in drafts.Objects)
             {
                 token.ThrowIfCancellationRequested();
-                if (draft.LastUpdateUtc <= sinceUtc || draft.Status == StudioDraftStatusEnum.Open) continue;
+                if (draft.LastUpdateUtc <= sinceUtc) continue;
+                // A denied, expired, or cancelled proposal goes back to Open, so its approval says it was decided (AA12.7:
+                // a board brief called a proposal the board had denied "still awaiting a person").
+                if (draft.Status == StudioDraftStatusEnum.Open && String.IsNullOrEmpty(draft.ApprovalId)) continue;
                 OrgProposal proposal = await proposals.SummaryAsync(draft, token).ConfigureAwait(false);
                 bool settled = draft.Status == StudioDraftStatusEnum.Applied || draft.Status == StudioDraftStatusEnum.Discarded
                     || (proposal.ApprovalStatus.HasValue && proposal.ApprovalStatus.Value != ApprovalStatusEnum.Pending);
