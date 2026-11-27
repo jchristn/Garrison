@@ -8,6 +8,8 @@ namespace Test.Shared.Suites
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
+    using Garrison.Core.Models;
+    using Garrison.Core.Services;
     using Garrison.Core.Protocol;
     using Garrison.Harnesses;
     using Garrison.Harnesses.Execution;
@@ -46,6 +48,7 @@ namespace Test.Shared.Suites
                 Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
                 Case("parsers", "mux-failed", "Mux JSONL: max iterations is a failure", MuxFailed),
                 Case("parsers", "mux-llm-error", "Mux JSONL: completed_with_errors plus a non-zero exit is a failure", MuxLlmError),
+                Case("parsers", "mux-1.8.0-exit-2", "AA12.7: Mux 1.8.0 exits 2 for completed_with_errors; builtin/mux counts it as success, and exit 2 without a completed event still fails", Mux180ExitTwo),
                 Case("parsers", "mux-empty-answer", "AA12.7: Mux completed with no text and no tool calls is a failed run (EmptyResponse), with or without reasoning tokens", MuxEmptyAnswer),
                 Case("parsers", "empty-answer-other-parsers", "AA12.7: the empty answer rule for the other agent parsers, and not for generic JSONL or plain text", EmptyAnswerOtherParsers),
                 Case("parsers", "mux-1.2.0-compat", "Mux 1.2.0 JSONL: no contextWindowSource warning, mcp.supported fallback, empty session id ignored", Mux120Compat),
@@ -503,6 +506,29 @@ namespace Test.Shared.Suites
             Assert.Equal(RunOutcomeEnum.NotCredentialed, failed.Outcome, "A 401 from the model is NotCredentialed");
             HarnessOutcome ok = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, state);
             Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "completed_with_errors with exit 0 still succeeds (tool errors the model recovered from)");
+        }
+
+        private static void Mux180ExitTwo()
+        {
+            // AA12.7 round 2: the generalist's write_file outside the workspace was refused, it went on and answered, and
+            // Mux 1.8.0 exited 2. The run was recorded Failed although the answer was complete.
+            HarnessProfile profile = BuiltInSeeder.HarnessProfileDefaults().FirstOrDefault(p => p.Name == "builtin/mux") ?? throw new TestAssertionException("builtin/mux is embedded");
+            Assert.True(profile.SuccessExitCodes.Contains(0) && profile.SuccessExitCodes.Contains(2), "builtin/mux accepts exit 0 and 2: " + String.Join(",", profile.SuccessExitCodes));
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode, SuccessExitCodes = new List<int>(profile.SuccessExitCodes) };
+            HarnessRunState recovered = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                "{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"qwen3.8:27b\"}",
+                "{\"contractVersion\":2,\"eventType\":\"tool_call_proposed\",\"toolCall\":{\"id\":\"c1\",\"name\":\"write_file\",\"arguments\":{\"path\":\"/elsewhere/amounts.py\"}}}",
+                "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"sandbox_violation\",\"message\":\"Tool 'write_file' would write to '/elsewhere/amounts.py', which escapes the workspace-write sandbox\"}",
+                "{\"contractVersion\":2,\"eventType\":\"assistant_text\",\"text\":\"All tests pass.\"}",
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"status\":\"completed_with_errors\"}"
+            });
+            HarnessOutcome ok = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 2 }, recovered);
+            Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "completed_with_errors with exit 2 succeeds: " + ok.ErrorMessage);
+            HarnessOutcome other = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 3 }, recovered);
+            Assert.Equal(RunStatusEnum.Failed, other.Status, "Another exit code still fails");
+            HarnessRunState noFinal = ParseLines(OutputParserEnum.MuxJsonl, new[] { "{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"qwen3.8:27b\"}", "{\"contractVersion\":2,\"eventType\":\"assistant_text\",\"text\":\"partial\"}" });
+            Assert.Equal(RunStatusEnum.Failed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 2 }, noFinal).Status, "Exit 2 without a completed event fails");
         }
 
         private static void MuxEmptyAnswer()

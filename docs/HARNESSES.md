@@ -203,7 +203,7 @@ Both numbers are whole numbers written into the command line or `endpoints.json`
 
 What Garrison reads from the Mux JSONL stream:
 
-- `run_completed.status`: `completed` and `completed_with_errors` are success, as long as Mux also exits 0. `failed` (Mux 1.3.0: the model never answered, for example after a 401 or a dropped stream), `max_iterations_reached`, and `budget_exceeded` fail the run, and the message of the last `error` event becomes the run's error.
+- `run_completed.status`: `completed` and `completed_with_errors` are success, as long as Mux also exits 0, or 2, which Mux 1.8.0 uses for `completed_with_errors` (a tool call failed and the model went on). The profile lists both in `successExitCodes`; any other exit code fails the run even after a completed event. `failed` (Mux 1.3.0: the model never answered, for example after a 401 or a dropped stream), `max_iterations_reached`, and `budget_exceeded` fail the run, and the message of the last `error` event becomes the run's error.
 - Credential failures: a model request that failed with 401, and the 1.3.0 error `config_unresolved_env` (the endpoint references an environment variable that is not set, usually because no `OpenAiApiKey` secret is bound), end the run as `NotCredentialed`.
 - `usage`: `inputTokens`, `outputTokens`, and from 1.3.0 `cachedTokens`, `reasoningTokens`, and `costUsd` (only when Mux has a price for the model).
 - `run_started.contextWindowSource` (1.3.0): `default` produces the warning described above.

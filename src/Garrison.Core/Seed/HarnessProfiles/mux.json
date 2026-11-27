@@ -201,7 +201,8 @@
     }
   ],
   "successExitCodes": [
-    0
+    0,
+    2
   ],
   "probeArguments": [
     "--version"
