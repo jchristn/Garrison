@@ -1,6 +1,7 @@
 namespace Garrison.Server.Routes
 {
     using System;
+    using System.Linq;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
@@ -54,7 +55,7 @@ namespace Garrison.Server.Routes
         {
             _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             const string tag = "Escalations";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, ListAsync, "List escalations, open first, then newest first (query: status, severity, targetKind, targetId, agentId, mandateId, raisingRunId, search, maxResults, skip)", tag, null, typeof(EnumerationResult<Escalation>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, ListAsync, "List escalations, open first, then newest first (query: status, severity, targetKind, targetId, agentId, mandateId, raisingRunId, search, maxResults, skip)", tag, null, typeof(EnumerationResult<Escalation>), "id", null, new RouteScopeOptions().Query("agentId", ResourceTypeEnum.Agent).Query("mandateId", ResourceTypeEnum.Mandate).Query("raisingRunId", ResourceTypeEnum.Run).FilteredByOrganization());
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Escalation, OperationTypeEnum.Read, ReadAsync, "Read an escalation with its options and answer", tag, null, typeof(Escalation));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/answer", ResourceTypeEnum.Escalation, OperationTypeEnum.Update, AnswerAsync, "Answer an open escalation: choice must be one of its option keys when it has options, otherwise text is required. A run blocked on it resumes; a keeper that raised it wakes", tag, typeof(EscalationAnswerRequest), typeof(Escalation));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/cancel", ResourceTypeEnum.Escalation, OperationTypeEnum.Update, CancelAsync, "Cancel an open escalation. A run blocked on it is cancelled too", tag, typeof(EscalationCancelRequest), typeof(Escalation));
@@ -79,6 +80,8 @@ namespace Garrison.Server.Routes
             filter.Search = query.Search;
             filter.MaxResults = query.MaxResults;
             filter.Skip = query.Skip;
+            OrganizationMembers? members = await RouteHelpers.ScopedMembersAsync(_Server, http).ConfigureAwait(false);
+            if (members != null) filter.WithinAgentIds = members.AgentIds.ToList();
             EnumerationResult<Escalation> page = await _Server.Database.Escalations.EnumerateAsync(filter, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, page).ConfigureAwait(false);
         }

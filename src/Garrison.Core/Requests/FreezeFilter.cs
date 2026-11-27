@@ -1,6 +1,7 @@
 namespace Garrison.Core.Requests
 {
     using System;
+    using System.Collections.Generic;
     using Garrison.Core.Enums;
 
     /// <summary>
@@ -27,6 +28,13 @@ namespace Garrison.Core.Requests
         /// True for active freezes only, false for lifted ones only, null for both.
         /// </summary>
         public bool? Active { get; set; } = null;
+
+        /// <summary>
+        /// Target identifiers a freeze must have one of, or null for any. An empty list matches nothing. Set for a
+        /// principal whose access comes from organization-scoped grants (UT-01): the organizations, their units, agents,
+        /// and keepers.
+        /// </summary>
+        public List<string>? WithinTargetIds { get; set; } = null;
 
         /// <summary>
         /// Records to skip. Minimum 0.

@@ -75,12 +75,14 @@ namespace Garrison.Core.Database.Ado
             if (filter.TargetKind.HasValue) clauses.Add("targetkind = @targetkind");
             if (!String.IsNullOrEmpty(filter.TargetId)) clauses.Add("targetid = @targetid");
             if (filter.Active.HasValue) clauses.Add(filter.Active.Value ? "liftedutc IS NULL" : "liftedutc IS NOT NULL");
+            if (filter.WithinTargetIds != null) clauses.Add(filter.WithinTargetIds.Count == 0 ? "1 = 0" : AdoInList.Clause("targetid", "within", filter.WithinTargetIds.Count));
             string where = " WHERE " + String.Join(" AND ", clauses);
             Action<DbCommand> bind = command =>
             {
                 AdoDatabaseDriver.Add(command, "tenantid", filter.TenantId);
                 if (filter.TargetKind.HasValue) AdoDatabaseDriver.Add(command, "targetkind", filter.TargetKind.Value.ToString());
                 if (!String.IsNullOrEmpty(filter.TargetId)) AdoDatabaseDriver.Add(command, "targetid", filter.TargetId);
+                if (filter.WithinTargetIds != null && filter.WithinTargetIds.Count > 0) AdoInList.Bind(command, "within", filter.WithinTargetIds);
             };
             EnumerationQuery query = new EnumerationQuery { MaxResults = filter.MaxResults, Skip = Math.Max(0, filter.Skip) };
             object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Table + where + ";", bind, token).ConfigureAwait(false);

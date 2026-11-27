@@ -111,6 +111,27 @@ Setting or clearing `isTenantAdmin`, and acting for a tenant administrator in th
 
 Denials are audited with the permission that was missing, and the response carries it (`requiredPermission`, `resourceType`), so a 403 tells you exactly what to grant. `GET .../users/{id}/permissions` and `GET .../credentials/{id}/permissions` show the effective permissions of a principal.
 
+### Organization-scoped grants
+
+An assignment with `resourceScope: Resource` matches its resource by identifier and, where the route takes a name, by name: Garrison resolves the name to its identifier before it compares (UT-02). When the resource is an organization and the assignment inherits to children (`inheritsToChildren`, the default), the grant also covers what belongs to that organization (UT-01). Membership comes from `ChainOfCommand`, so only the published revision of a live organization counts:
+
+| Record | Belongs to the organization when |
+|---|---|
+| Unit | It is a unit of the organization |
+| Agent, deployment, run | The agent holds a position in the organization |
+| Keeper (mandate) | Its agent holds a position, or a seat names it |
+| Escalation | It was raised by one of its agents or keepers, or is addressed to one of its agents |
+| Freeze | It targets the organization, a unit, an agent, a keeper, or a deployment that belongs to it |
+| Report | Its author is one of its agents, or it was filed for one of its units |
+| Memory entry | Its scope is the organization, one of its units, or one of its agents |
+| Message | Its sender or recipient is one of its agents |
+| Change rule | It is on the organization |
+| Eval set, eval run, shadow trial, canary release | It was authored in one of its units, or its agent or deployment belongs to the organization |
+
+Lists are authorized in one of two ways for such a principal. A list filtered by a query parameter that names a covered record is authorized against that record, and the filter already limits the result. The organization, escalation, freeze, and report lists without a filter return only the records of the principal's organizations; an unfiltered list of anything else needs a tenant-wide grant. A new freeze and a new change rule are authorized against the target in the body. A principal with no Create on Freeze anywhere is refused before the target is looked up, so the answer does not reveal whether it exists.
+
+Some things stay tenant-wide. The kill switch stops every keeper in the tenant, so setting it needs Update on Freeze for the whole tenant; reading it needs Read on Freeze anywhere. An app belongs to no organization. A scoped grant never crosses tenants: another tenant's records answer 404 before any of this runs.
+
 ### Built-in roles
 
 | Role | Grants |
@@ -131,7 +152,7 @@ Denials are audited with the permission that was missing, and the response carri
 | `AgentRegistrar` | Self-registration of remote agents |
 | `Releaser` | Execute on `Promotion`, plus Read on agents, agent revisions, and deployments. Assign it with resource scope and the target environment's name as the resource identifier to limit which environments a person may promote to ([REVISIONS.md](REVISIONS.md#permissions)) |
 | `AppUser` | Execute on `AgenticApp` and nothing else. Assign it with resource scope on one app so a person can use that app's chat UI ([APPS.md](APPS.md#sign-in)) |
-| `BoardMember` | Govern an organization from its board (AA10): Read and Execute on `Mandate`; Read and Update on `Escalation`, `Organization`, `EvalSet`, `EvalRun`, `ShadowTrial`, `CanaryRelease`, and `Approval`; Create, Read, and Update on `Freeze`; Read and Create on `AgentMessage`; all four on `ChangeRule`; Read on `Memory`, `Report`, `Agent`, `Deployment`, `Run`, and `Conversation`; Execute on `Deployment`. Assign it with resource scope on an organization identifier to limit it to that organization's routes ([ORGANIZATIONS.md](ORGANIZATIONS.md)) |
+| `BoardMember` | Govern an organization from its board (AA10): Read and Execute on `Mandate`; Read and Update on `Escalation`, `Organization`, `EvalSet`, `EvalRun`, `ShadowTrial`, `CanaryRelease`, and `Approval`; Create, Read, and Update on `Freeze`; Read and Create on `AgentMessage`; all four on `ChangeRule`; Read on `Memory`, `Report`, `Agent`, `Deployment`, `Run`, and `Conversation`; Execute on `Deployment`. Assign it with resource scope on an organization to limit it to that organization and its records (see Organization-scoped grants above and [BOARD.md](BOARD.md#the-boardmember-role)) |
 | `Custom` | No permissions; a starting point for tenant-defined roles |
 
 Triggers and notification endpoints (resource types `Trigger` and `NotificationEndpoint`): `Viewer`, `Auditor`, and `AgentOperator` can read them; `Editor` and `AgentDeveloper` can create, change, and delete them and run their actions (manual fire, test send); `AgentOperator` can also fire triggers by hand. Saving a trigger additionally needs Execute on the agent or pipeline it starts.

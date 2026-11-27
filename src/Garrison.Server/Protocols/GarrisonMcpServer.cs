@@ -406,9 +406,13 @@ namespace Garrison.Server.Protocols
             bool studio = ctx.PrincipalType != PrincipalTypeEnum.Run || await DraftGrantAsync(ctx, token).ConfigureAwait(false);
             bool shadow = ctx.PrincipalType == PrincipalTypeEnum.Run && await ShadowRunAsync(ctx, token).ConfigureAwait(false);
             List<ToolDefinition> tools = new List<ToolDefinition>();
+            Dictionary<string, bool> permitted = new Dictionary<string, bool>(StringComparer.Ordinal);
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
                 if (shadow && ShadowRunPolicy.Refuses(tool)) continue;
+                // UT-19: people and credentials see only the tools whose operation scope they hold somewhere (tenant-wide
+                // or on a resource). Run tokens keep the list their run may call, filtered below.
+                if (ctx.PrincipalType != PrincipalTypeEnum.Run && !await CouldCallAsync(ctx, tenantId, tool, permitted, token).ConfigureAwait(false)) continue;
                 if (tool.Name.StartsWith("garrison_memory_", StringComparison.Ordinal) && !_Context.Settings.AgentMemory.Enabled) continue;
                 if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 if (tool.ResourceType == ResourceTypeEnum.StudioDraft && !studio) continue;
@@ -434,6 +438,16 @@ namespace Garrison.Server.Protocols
             result.Tools = tools;
             result.CacheScope = "private";
             return result;
+        }
+
+        private async Task<bool> CouldCallAsync(RequestContext ctx, string? tenantId, McpToolDefinition tool, Dictionary<string, bool> permitted, CancellationToken token)
+        {
+            if (!ctx.IsAuthenticated) return false;
+            string key = tool.ResourceType + ":" + tool.Operation;
+            if (permitted.TryGetValue(key, out bool known)) return known;
+            bool allowed = await _Context.Authorization.PermitsSomewhereAsync(ctx, tenantId, tool.ResourceType, tool.Operation, token).ConfigureAwait(false);
+            permitted[key] = allowed;
+            return allowed;
         }
 
         private async Task<bool> ShadowRunAsync(RequestContext ctx, CancellationToken token)
@@ -1574,6 +1588,37 @@ namespace Garrison.Server.Protocols
             if (!decision.Permitted) throw ToolError(decision.Code ?? "Forbidden", "Not permitted: " + decision.Reason);
         }
 
+        private async Task RequireWithin(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, ResourceTypeEnum targetType, string? target, CancellationToken token)
+        {
+            // UT-01, UT-02: tenant-wide grants as before; otherwise a grant on the named target or its organization.
+            AuthorizationDecision decision = await _Context.Authorization.AuthorizeWithinAsync(ctx, tenantId, resourceType, operation, targetType, target, token).ConfigureAwait(false);
+            if (!decision.Permitted) throw ToolError(decision.Code ?? "Forbidden", "Not permitted: " + decision.Reason);
+        }
+
+        private async Task<List<string>?> RequireList(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, ResourceTypeEnum targetType, string? target, CancellationToken token)
+        {
+            // UT-01: a list filtered to a target authorizes against it; without one, a principal with organization-scoped
+            // grants gets the organizations to filter to, and anyone else needs the tenant-wide grant.
+            if (!String.IsNullOrWhiteSpace(target))
+            {
+                await RequireWithin(ctx, tenantId, resourceType, operation, targetType, target, token).ConfigureAwait(false);
+                return null;
+            }
+            List<string>? scoped = await _Context.Authorization.ScopedOrganizationsAsync(ctx, tenantId, resourceType, operation, token).ConfigureAwait(false);
+            if (scoped != null && scoped.Count > 0) return scoped;
+            await Require(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            return null;
+        }
+
+        private async Task<OrganizationMembers> ScopedMembersAsync(string tenantId, List<string> organizations, CancellationToken token)
+        {
+            ResourceLineageResolver? resolver = _Context.TryGet<ResourceLineageResolver>();
+            if (resolver != null) return await resolver.MembersAsync(tenantId, organizations, token).ConfigureAwait(false);
+            OrganizationMembers bare = new OrganizationMembers();
+            foreach (string id in organizations) bare.OrganizationIds.Add(id);
+            return bare;
+        }
+
         private async Task<object> MemoryAsync(RequestContext ctx, string tenantId, string tool, RpcParameters? args, CancellationToken token)
         {
             if (!_Context.Settings.AgentMemory.Enabled) throw ToolError("MemoryDisabled", "Agent memory is disabled on this server.");
@@ -2164,13 +2209,27 @@ namespace Garrison.Server.Protocols
             {
                 case "garrison_list_organizations":
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    List<string>? scoped = await RequireList(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, ResourceTypeEnum.Organization, null, token).ConfigureAwait(false);
                     EnumerationQuery query = new EnumerationQuery { Search = arguments.Search, Skip = Math.Max(0, arguments.Skip ?? 0), MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    if (scoped != null)
+                    {
+                        // UT-01: organization-scoped grants list only the organizations they cover.
+                        List<Organization> visible = new List<Organization>();
+                        foreach (string id in scoped)
+                        {
+                            Organization? found = await organizations.FindAsync(tenantId, id, token).ConfigureAwait(false);
+                            if (found == null) continue;
+                            if (!String.IsNullOrEmpty(query.Search) && found.Name.IndexOf(query.Search, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                            visible.Add(found);
+                        }
+                        List<Organization> ordered = visible.OrderBy(o => o.Name, StringComparer.Ordinal).ToList();
+                        return EnumerationResult<Organization>.Build(query, ordered.Count, ordered.Skip(query.Skip).Take(query.MaxResults).ToList());
+                    }
                     return await organizations.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
                 }
                 case "garrison_get_organization":
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    await RequireWithin(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Read, ResourceTypeEnum.Organization, arguments.Organization, token).ConfigureAwait(false);
                     Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
                     await organizations.AttachUnitsAsync(organization, token).ConfigureAwait(false);
                     return organization;
@@ -2190,7 +2249,7 @@ namespace Garrison.Server.Protocols
                 }
                 case "garrison_update_organization":
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    await RequireWithin(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, ResourceTypeEnum.Organization, arguments.Organization, token).ConfigureAwait(false);
                     Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
                     Organization body = new Organization
                     {
@@ -2211,7 +2270,7 @@ namespace Garrison.Server.Protocols
                 }
                 case "garrison_publish_org_revision":
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, null, token).ConfigureAwait(false);
+                    await RequireWithin(ctx, tenantId, ResourceTypeEnum.Organization, OperationTypeEnum.Update, ResourceTypeEnum.Organization, arguments.Organization, token).ConfigureAwait(false);
                     Organization organization = await LoadOrganizationAsync(organizations, tenantId, arguments.Organization, token).ConfigureAwait(false);
                     OrgRevision revision;
                     if (String.IsNullOrWhiteSpace(arguments.RevisionId))
@@ -2496,7 +2555,8 @@ namespace Garrison.Server.Protocols
                     }
                     else
                     {
-                        await Require(ctx, tenantId, ResourceTypeEnum.Report, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                        List<string>? scoped = await RequireList(ctx, tenantId, ResourceTypeEnum.Report, OperationTypeEnum.Read, ResourceTypeEnum.Agent, arguments.Agent, token).ConfigureAwait(false);
+                        if (scoped != null) filter.AuthorAgentIds = (await ScopedMembersAsync(tenantId, scoped, token).ConfigureAwait(false)).AgentIds.ToList();
                         if (!String.IsNullOrWhiteSpace(arguments.App))
                             filter.AppId = await ReportRoutes.AppIdAsync(_Context.Database, tenantId, arguments.App, token).ConfigureAwait(false) ?? arguments.App.Trim();
                         page = await reports.ListAsync(filter, token).ConfigureAwait(false);
@@ -2519,11 +2579,26 @@ namespace Garrison.Server.Protocols
             {
                 case "garrison_freeze":
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    if (!await _Context.Authorization.PermitsSomewhereAsync(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, token).ConfigureAwait(false))
+                        await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
                     if (String.IsNullOrWhiteSpace(arguments.TargetKind)) throw ToolError("ValidationFailed", "targetKind is required.");
                     Freeze request = new Freeze();
                     request.TargetKind = ParseOr(arguments.TargetKind, FreezeTargetKindEnum.Agent, "targetKind");
                     request.TargetId = arguments.Target ?? String.Empty;
+                    AuthorizationDecision tenantWide = await _Context.Authorization.EvaluateAsync(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    if (tenantWide.Permitted)
+                    {
+                        await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // UT-01: a board member scoped to an organization freezes what belongs to it.
+                        Freeze target = await ToolCallAsync(() => freezes.ResolveTargetAsync(tenantId, request.TargetKind, request.TargetId, token)).ConfigureAwait(false);
+                        ResourceLineageResolver? resolver = _Context.TryGet<ResourceLineageResolver>();
+                        ResourceLineage lineage = resolver == null ? new ResourceLineage() : await resolver.ResolveFreezeTargetAsync(tenantId, target.TargetKind, target.TargetId, token).ConfigureAwait(false);
+                        AuthorizationDecision within = await _Context.Authorization.AuthorizeWithinAsync(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Create, target.TargetId, lineage, token).ConfigureAwait(false);
+                        if (!within.Permitted) throw ToolError(within.Code ?? "Forbidden", "Not permitted: " + within.Reason);
+                    }
                     request.Reason = arguments.Reason;
                     request.CancelActiveRuns = arguments.CancelActiveRuns ?? false;
                     return await freezes.ApplyAsync(ctx, tenantId, request, token).ConfigureAwait(false);
@@ -2538,8 +2613,9 @@ namespace Garrison.Server.Protocols
                 }
                 default:
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    List<string>? scoped = await RequireList(ctx, tenantId, ResourceTypeEnum.Freeze, OperationTypeEnum.Read, ResourceTypeEnum.Agent, arguments.Target, token).ConfigureAwait(false);
                     FreezeFilter filter = new FreezeFilter { TenantId = tenantId, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100), Active = arguments.Active };
+                    if (scoped != null) filter.WithinTargetIds = (await ScopedMembersAsync(tenantId, scoped, token).ConfigureAwait(false)).All();
                     if (!String.IsNullOrWhiteSpace(arguments.TargetKind)) filter.TargetKind = ParseOr(arguments.TargetKind, FreezeTargetKindEnum.Agent, "targetKind");
                     filter.TargetId = String.IsNullOrWhiteSpace(arguments.Target) ? null : arguments.Target.Trim();
                     Garrison.Core.Enumeration.EnumerationResult<Freeze> page = await _Context.Database.Freezes.EnumerateAsync(filter, token).ConfigureAwait(false);
@@ -2653,8 +2729,11 @@ namespace Garrison.Server.Protocols
                 }
                 default:
                 {
-                    await Require(ctx, tenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                    List<string>? scoped = String.IsNullOrWhiteSpace(arguments.Agent) && !String.IsNullOrWhiteSpace(arguments.Mandate)
+                        ? await RequireList(ctx, tenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, ResourceTypeEnum.Mandate, arguments.Mandate, token).ConfigureAwait(false)
+                        : await RequireList(ctx, tenantId, ResourceTypeEnum.Escalation, OperationTypeEnum.Read, ResourceTypeEnum.Agent, arguments.Agent, token).ConfigureAwait(false);
                     EscalationFilter filter = new EscalationFilter { TenantId = tenantId, MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100) };
+                    if (scoped != null) filter.WithinAgentIds = (await ScopedMembersAsync(tenantId, scoped, token).ConfigureAwait(false)).AgentIds.ToList();
                     if (!String.IsNullOrWhiteSpace(arguments.Status)) filter.Status = ParseOr(arguments.Status, EscalationStatusEnum.Open, "status");
                     if (!String.IsNullOrWhiteSpace(arguments.Severity)) filter.Severity = ParseOr(arguments.Severity, EscalationSeverityEnum.Warning, "severity");
                     filter.AgentId = String.IsNullOrWhiteSpace(arguments.Agent) ? null : arguments.Agent.Trim();

@@ -49,7 +49,7 @@ namespace Garrison.Server.Routes
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             const string tag = "Canary releases";
             string one = _Base + "/{releaseId}";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.CanaryRelease, OperationTypeEnum.Read, ListAsync, "List canary releases, newest first (query: agent, status, maxResults, skip)", tag, null, typeof(EnumerationResult<CanaryRelease>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.CanaryRelease, OperationTypeEnum.Read, ListAsync, "List canary releases, newest first (query: agent, status, maxResults, skip)", tag, null, typeof(EnumerationResult<CanaryRelease>), "id", null, new RouteScopeOptions().Query("agent", ResourceTypeEnum.Agent));
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.CanaryRelease, OperationTypeEnum.Create, StartAsync, "Start a canary release (people only): agentId, candidateDeploymentId, baselineDeploymentId, steps (weightPercent rising to 100, minimumRuns, minimumMinutes), maxErrorRatePercent, optional minEvalScore with evalSetId. Needs Deployment.Update on both deployments", tag, typeof(CanaryRelease), typeof(CanaryRelease));
             routes.Scoped(HttpMethod.GET, one, ResourceTypeEnum.CanaryRelease, OperationTypeEnum.Read, ReadAsync, "Read a canary release with its current step and rollback reason", tag, null, typeof(CanaryRelease), "releaseId");
             routes.Scoped(HttpMethod.POST, one + "/abort", ResourceTypeEnum.CanaryRelease, OperationTypeEnum.Update, AbortAsync, "Abort a running canary release (people only); both deployments go back to their weights from before the release", tag, typeof(CanaryAbortRequest), typeof(CanaryRelease), "releaseId");

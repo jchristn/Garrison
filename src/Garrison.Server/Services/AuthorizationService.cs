@@ -6,6 +6,7 @@ namespace Garrison.Server.Services
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
@@ -52,6 +53,13 @@ namespace Garrison.Server.Services
         /// thread, must return quickly, and must not throw; exceptions are swallowed.
         /// </summary>
         public event EventHandler? Invalidated;
+
+        /// <summary>
+        /// Resolves the lineage of a target for resource-scoped grants: a name's identifier and the organizations the
+        /// target belongs to (UT-01, UT-02). Null (the default, before organizations are wired) matches a resource-scoped
+        /// grant against the request's identifier only.
+        /// </summary>
+        public ResourceLineageResolver? Lineage { get; set; } = null;
 
         #endregion
 
@@ -103,8 +111,130 @@ namespace Garrison.Server.Services
         public async Task<AuthorizationDecision> AuthorizeAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            return await AuthorizeCoreAsync(ctx, tenantId, resourceType, operation, resourceId, resourceType, null, token).ConfigureAwait(false);
+        }
 
-            AuthorizationDecision decision = await EvaluateAsync(ctx, tenantId, resourceType, operation, resourceId, token).ConfigureAwait(false);
+        /// <summary>
+        /// Authorize an operation whose route names no resource (a list, or a create whose target is in the body) against
+        /// a target the request does name: a query filter or a body field (UT-01). A principal permitted tenant-wide is
+        /// authorized as usual. Anyone else is authorized against the target, so a grant scoped to an organization covers
+        /// a list filtered to one of its units or agents, or a freeze of one of them. Denials are audited.
+        /// </summary>
+        /// <param name="ctx">Request context.</param>
+        /// <param name="tenantId">Tenant the operation targets.</param>
+        /// <param name="resourceType">Resource type the route requires.</param>
+        /// <param name="operation">Operation the route requires.</param>
+        /// <param name="targetType">Resource type of the target, used to resolve a target given by name.</param>
+        /// <param name="targetId">Identifier or name of the target, or null to authorize tenant-wide only.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Decision.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx is null.</exception>
+        public async Task<AuthorizationDecision> AuthorizeWithinAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, ResourceTypeEnum targetType, string? targetId, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (String.IsNullOrWhiteSpace(targetId)) return await AuthorizeAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            AuthorizationDecision tenantWide = await EvaluateAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            if (tenantWide.Permitted) return await AuthorizeAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            return await AuthorizeCoreAsync(ctx, tenantId, resourceType, operation, targetId.Trim(), targetType, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Authorize an operation against a target whose lineage the caller resolved, for example the target of a new
+        /// freeze (UT-01). A principal permitted tenant-wide is authorized as usual. Denials are audited.
+        /// </summary>
+        /// <param name="ctx">Request context.</param>
+        /// <param name="tenantId">Tenant the operation targets.</param>
+        /// <param name="resourceType">Resource type the route requires.</param>
+        /// <param name="operation">Operation the route requires.</param>
+        /// <param name="targetId">Identifier of the target, or null to authorize tenant-wide only.</param>
+        /// <param name="lineage">The target's aliases and ancestor organizations.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Decision.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or lineage is null.</exception>
+        public async Task<AuthorizationDecision> AuthorizeWithinAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? targetId, ResourceLineage lineage, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (lineage == null) throw new ArgumentNullException(nameof(lineage));
+            if (String.IsNullOrWhiteSpace(targetId)) return await AuthorizeAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            AuthorizationDecision tenantWide = await EvaluateAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            if (tenantWide.Permitted) return await AuthorizeAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            return await AuthorizeCoreAsync(ctx, tenantId, resourceType, operation, targetId.Trim(), resourceType, lineage, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The organizations a principal reaches only through organization-scoped grants for an operation, for filtering a
+        /// tenant list to their records (UT-01). Null when the principal is permitted tenant-wide, is a run, or is an
+        /// administrator; an empty list when no organization-scoped grant covers the operation. A credential's list is
+        /// limited by its owner's grants. Has no side effects.
+        /// </summary>
+        /// <param name="ctx">Request context.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="resourceType">Resource type.</param>
+        /// <param name="operation">Operation.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Organization identifiers, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx is null.</exception>
+        public async Task<List<string>?> ScopedOrganizationsAsync(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (!ctx.IsAuthenticated || String.IsNullOrEmpty(tenantId)) return new List<string>();
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run || ctx.PrincipalType == PrincipalTypeEnum.Administrator || ctx.IsAdmin) return null;
+            if (!String.Equals(tenantId, ctx.TenantId, StringComparison.Ordinal)) return new List<string>();
+            AuthorizationDecision tenantWide = await EvaluateAsync(ctx, tenantId, resourceType, operation, null, token).ConfigureAwait(false);
+            if (tenantWide.Permitted) return null;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Credential && !String.IsNullOrEmpty(ctx.CredentialId))
+            {
+                List<string>? credential = OrganizationsIn(await GrantsForCredentialAsync(tenantId, ctx.CredentialId, token).ConfigureAwait(false), resourceType, operation);
+                if (String.IsNullOrEmpty(ctx.UserId)) return credential ?? new List<string>();
+                List<string>? owner = OrganizationsIn(await GrantsForUserAsync(tenantId, ctx.UserId, token).ConfigureAwait(false), resourceType, operation);
+                if (credential == null) return owner ?? new List<string>();
+                if (owner == null) return credential;
+                return credential.Where(o => owner.Contains(o)).ToList();
+            }
+            if (String.IsNullOrEmpty(ctx.UserId)) return new List<string>();
+            return OrganizationsIn(await GrantsForUserAsync(tenantId, ctx.UserId, token).ConfigureAwait(false), resourceType, operation) ?? new List<string>();
+        }
+
+        /// <summary>
+        /// Whether a person or credential could perform an operation on at least one resource of a type, at any scope
+        /// (UT-19: the MCP tool list shows only tools the caller could call). Administrators and tenant administrators
+        /// hold everything a tenant credential's own grants allow. Run tokens are not answered here; their tool list
+        /// follows their run. Has no side effects.
+        /// </summary>
+        /// <param name="ctx">Request context.</param>
+        /// <param name="tenantId">Tenant identifier, or null for a system administrator without one.</param>
+        /// <param name="resourceType">Resource type.</param>
+        /// <param name="operation">Operation.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when some resource could be permitted.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx is null.</exception>
+        public async Task<bool> PermitsSomewhereAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (!ctx.IsAuthenticated) return false;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Administrator || ctx.IsAdmin) return true;
+            string? effectiveTenant = tenantId ?? ctx.TenantId;
+            if (String.IsNullOrEmpty(effectiveTenant) || !String.Equals(effectiveTenant, ctx.TenantId, StringComparison.Ordinal)) return false;
+            AuthorizationDecision tenantWide = await EvaluateAsync(ctx, effectiveTenant, resourceType, operation, null, token).ConfigureAwait(false);
+            if (tenantWide.Permitted) return true;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) return false;
+            if (IsPlatformOnly(resourceType, operation)) return false;
+            if (resourceType == ResourceTypeEnum.Node && operation == OperationTypeEnum.Execute) return false;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Credential && !String.IsNullOrEmpty(ctx.CredentialId))
+            {
+                List<PermissionGrant> credentialGrants = await GrantsForCredentialAsync(effectiveTenant, ctx.CredentialId, token).ConfigureAwait(false);
+                if (ctx.IsTenantAdmin && credentialGrants.Count == 0) return true;
+                if (!PermissionEvaluator.PermitsSomewhere(credentialGrants, resourceType, operation)) return false;
+                if (String.IsNullOrEmpty(ctx.UserId)) return true;
+                return PermissionEvaluator.PermitsSomewhere(await GrantsForUserAsync(effectiveTenant, ctx.UserId, token).ConfigureAwait(false), resourceType, operation);
+            }
+            if (String.IsNullOrEmpty(ctx.UserId)) return false;
+            return PermissionEvaluator.PermitsSomewhere(await GrantsForUserAsync(effectiveTenant, ctx.UserId, token).ConfigureAwait(false), resourceType, operation);
+        }
+
+        private async Task<AuthorizationDecision> AuthorizeCoreAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, ResourceTypeEnum lineageType, ResourceLineage? lineage, CancellationToken token)
+        {
+            AuthorizationDecision decision = await EvaluateCoreAsync(ctx, tenantId, resourceType, operation, resourceId, lineageType, lineage, token).ConfigureAwait(false);
             ctx.ResourceType = resourceType;
             ctx.Operation = operation;
             ctx.AuthorizationResult = decision.Result;
@@ -165,6 +295,11 @@ namespace Garrison.Server.Services
         public async Task<AuthorizationDecision> EvaluateAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            return await EvaluateCoreAsync(ctx, tenantId, resourceType, operation, resourceId, resourceType, null, token).ConfigureAwait(false);
+        }
+
+        private async Task<AuthorizationDecision> EvaluateCoreAsync(RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, ResourceTypeEnum lineageType, ResourceLineage? lineage, CancellationToken token)
+        {
             if (!ctx.IsAuthenticated) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Not authenticated.");
 
             if (ctx.PrincipalType == PrincipalTypeEnum.Administrator || ctx.IsAdmin)
@@ -206,7 +341,7 @@ namespace Garrison.Server.Services
                     List<PermissionGrant> credentialGrants = await GrantsForCredentialAsync(effectiveTenant, ctx.CredentialId!, token).ConfigureAwait(false);
                     if (credentialGrants.Count > 0)
                     {
-                        AuthorizationDecision scoped = PermissionEvaluator.Evaluate(credentialGrants, resourceType, operation, resourceId);
+                        AuthorizationDecision scoped = PermissionEvaluator.Evaluate(credentialGrants, resourceType, operation, resourceId, lineage ??= await LineageForAsync(credentialGrants, effectiveTenant, resourceType, operation, resourceId, lineageType, token).ConfigureAwait(false));
                         if (!scoped.Permitted) return scoped;
                     }
                 }
@@ -218,12 +353,12 @@ namespace Garrison.Server.Services
             if (ctx.PrincipalType == PrincipalTypeEnum.Credential && !String.IsNullOrEmpty(ctx.CredentialId))
             {
                 List<PermissionGrant> credentialGrants = await GrantsForCredentialAsync(effectiveTenant, ctx.CredentialId, token).ConfigureAwait(false);
-                AuthorizationDecision credentialDecision = PermissionEvaluator.Evaluate(credentialGrants, resourceType, operation, resourceId);
+                AuthorizationDecision credentialDecision = PermissionEvaluator.Evaluate(credentialGrants, resourceType, operation, resourceId, lineage ??= await LineageForAsync(credentialGrants, effectiveTenant, resourceType, operation, resourceId, lineageType, token).ConfigureAwait(false));
                 if (!credentialDecision.Permitted) return credentialDecision;
                 if (String.IsNullOrEmpty(ctx.UserId)) return credentialDecision;
 
                 List<PermissionGrant> ownerGrants = await GrantsForUserAsync(effectiveTenant, ctx.UserId, token).ConfigureAwait(false);
-                AuthorizationDecision ownerDecision = PermissionEvaluator.Evaluate(ownerGrants, resourceType, operation, resourceId);
+                AuthorizationDecision ownerDecision = PermissionEvaluator.Evaluate(ownerGrants, resourceType, operation, resourceId, lineage ??= await LineageForAsync(ownerGrants, effectiveTenant, resourceType, operation, resourceId, lineageType, token).ConfigureAwait(false));
                 if (!ownerDecision.Permitted)
                 {
                     ownerDecision.Reason = "Owner ceiling: " + ownerDecision.Reason;
@@ -235,7 +370,7 @@ namespace Garrison.Server.Services
             if (!String.IsNullOrEmpty(ctx.UserId))
             {
                 List<PermissionGrant> userGrants = await GrantsForUserAsync(effectiveTenant, ctx.UserId, token).ConfigureAwait(false);
-                return PermissionEvaluator.Evaluate(userGrants, resourceType, operation, resourceId);
+                return PermissionEvaluator.Evaluate(userGrants, resourceType, operation, resourceId, lineage ?? await LineageForAsync(userGrants, effectiveTenant, resourceType, operation, resourceId, lineageType, token).ConfigureAwait(false));
             }
 
             return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Principal has no grants.");
@@ -426,6 +561,34 @@ namespace Garrison.Server.Services
             {
                 // An invalidation hook must never break the change that triggered it; caches still expire.
             }
+        }
+
+        private async Task<ResourceLineage?> LineageForAsync(List<PermissionGrant> grants, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, ResourceTypeEnum lineageType, CancellationToken token)
+        {
+            // Lineage costs reads, so it is resolved only when a resource-scoped grant on another identifier could cover
+            // the request: an organization-scoped grant, or a grant on the identifier behind a name (UT-01, UT-02).
+            ResourceLineageResolver? resolver = Lineage;
+            if (resolver == null || String.IsNullOrEmpty(resourceId)) return null;
+            bool candidate = grants.Any(g => g.Scope == ResourceScopeEnum.Resource && !String.IsNullOrEmpty(g.ResourceId)
+                && !String.Equals(g.ResourceId, resourceId, StringComparison.Ordinal) && PermissionEvaluator.TypeAndOperationMatch(g, resourceType, operation));
+            if (!candidate) return null;
+            return await resolver.ResolveAsync(tenantId, lineageType, resourceId, token).ConfigureAwait(false);
+        }
+
+        private static List<string>? OrganizationsIn(List<PermissionGrant> grants, ResourceTypeEnum resourceType, OperationTypeEnum operation)
+        {
+            // Null means a tenant-wide permit (no limit from these grants); otherwise the organizations whose scoped
+            // permits cover the operation, without any an explicit deny names. A tenant-wide deny leaves none.
+            List<PermissionGrant> matched = grants.Where(g => PermissionEvaluator.TypeAndOperationMatch(g, resourceType, operation)).ToList();
+            if (matched.Any(g => g.PermissionType == PermissionTypeEnum.Deny && g.Scope == ResourceScopeEnum.Tenant)) return new List<string>();
+            if (PermissionEvaluator.Evaluate(grants, resourceType, operation, null).Permitted) return null;
+            HashSet<string> denied = new HashSet<string>(matched.Where(g => g.PermissionType == PermissionTypeEnum.Deny && !String.IsNullOrEmpty(g.ResourceId)).Select(g => g.ResourceId!), StringComparer.Ordinal);
+            return matched
+                .Where(g => g.PermissionType == PermissionTypeEnum.Permit && g.Scope == ResourceScopeEnum.Resource && (g.InheritsToChildren || resourceType == ResourceTypeEnum.Organization)
+                    && !String.IsNullOrEmpty(g.ResourceId) && g.ResourceId!.StartsWith(Constants.OrganizationIdPrefix, StringComparison.Ordinal) && !denied.Contains(g.ResourceId))
+                .Select(g => g.ResourceId!)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
         }
 
         private static bool IsPlatformOnly(ResourceTypeEnum resourceType, OperationTypeEnum operation)

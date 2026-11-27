@@ -130,7 +130,8 @@ namespace Garrison.Server.Routes
         /// <param name="response">Optional response type.</param>
         /// <param name="resourceParameter">Path parameter holding the target resource identifier. Default id.</param>
         /// <param name="queryParameters">Optional query parameters described in OpenAPI; when present, a 400 response is documented too.</param>
-        public void Scoped(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null, string resourceParameter = "id", List<OpenApiParameterMetadata>? queryParameters = null)
+        /// <param name="scopeOptions">Optional handling of principals not permitted tenant-wide on a route with no path resource (UT-01): query targets and organization filtering. Null refuses them, as before.</param>
+        public void Scoped(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null, string resourceParameter = "id", List<OpenApiParameterMetadata>? queryParameters = null, RouteScopeOptions? scopeOptions = null)
         {
             Record(method, path, resourceType, operation, RouteAuthorizationEnum.Scoped, summary, tag);
             Func<HttpContextBase, Task> authorized = async context =>
@@ -138,7 +139,9 @@ namespace Garrison.Server.Routes
                 RequestContext ctx = RouteHelpers.Context(context);
                 string? tenantId = RouteHelpers.Param(context, "tenantId");
                 string? resourceId = RouteHelpers.Param(context, resourceParameter);
-                AuthorizationDecision decision = await _Authorization.AuthorizeAsync(ctx, tenantId, resourceType, operation, resourceId, context.Token).ConfigureAwait(false);
+                AuthorizationDecision decision = String.IsNullOrEmpty(resourceId) && scopeOptions != null
+                    ? await AuthorizeScopedListAsync(context, ctx, tenantId, resourceType, operation, scopeOptions).ConfigureAwait(false)
+                    : await _Authorization.AuthorizeAsync(ctx, tenantId, resourceType, operation, resourceId, context.Token).ConfigureAwait(false);
                 if (!decision.Permitted)
                 {
                     await DenyAsync(context, ctx, decision, resourceType, operation, tenantId).ConfigureAwait(false);
@@ -226,9 +229,76 @@ namespace Garrison.Server.Routes
             return false;
         }
 
+        /// <summary>
+        /// Authorize inside a handler-authorized route against a target named in the request body, and send the denial
+        /// when not permitted (UT-01). A principal permitted tenant-wide passes as usual; anyone else needs a grant that
+        /// covers the target, for example one scoped to the organization the target belongs to.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="tenantId">Target tenant.</param>
+        /// <param name="resourceType">Resource type the route requires.</param>
+        /// <param name="operation">Operation the route requires.</param>
+        /// <param name="targetType">Resource type used to resolve a target given by name.</param>
+        /// <param name="targetId">Identifier or name of the target, or null to authorize tenant-wide only.</param>
+        /// <returns>True when permitted; false when a denial was sent.</returns>
+        public async Task<bool> RequireWithinAsync(HttpContextBase context, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, ResourceTypeEnum targetType, string? targetId)
+        {
+            RequestContext ctx = RouteHelpers.Context(context);
+            AuthorizationDecision decision = await _Authorization.AuthorizeWithinAsync(ctx, tenantId, resourceType, operation, targetType, targetId, context.Token).ConfigureAwait(false);
+            if (decision.Permitted) return true;
+            await DenyAsync(context, ctx, decision, resourceType, operation, tenantId).ConfigureAwait(false);
+            return false;
+        }
+
+        /// <summary>
+        /// Authorize inside a handler-authorized route against a target whose lineage the handler resolved, and send the
+        /// denial when not permitted (UT-01).
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="tenantId">Target tenant.</param>
+        /// <param name="resourceType">Resource type the route requires.</param>
+        /// <param name="operation">Operation the route requires.</param>
+        /// <param name="targetId">Identifier of the target, or null to authorize tenant-wide only.</param>
+        /// <param name="lineage">The target's aliases and ancestor organizations.</param>
+        /// <returns>True when permitted; false when a denial was sent.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when lineage is null.</exception>
+        public async Task<bool> RequireWithinAsync(HttpContextBase context, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? targetId, ResourceLineage lineage)
+        {
+            if (lineage == null) throw new ArgumentNullException(nameof(lineage));
+            RequestContext ctx = RouteHelpers.Context(context);
+            AuthorizationDecision decision = await _Authorization.AuthorizeWithinAsync(ctx, tenantId, resourceType, operation, targetId, lineage, context.Token).ConfigureAwait(false);
+            if (decision.Permitted) return true;
+            await DenyAsync(context, ctx, decision, resourceType, operation, tenantId).ConfigureAwait(false);
+            return false;
+        }
+
         #endregion
 
         #region Private-Methods
+
+        private async Task<AuthorizationDecision> AuthorizeScopedListAsync(HttpContextBase context, RequestContext ctx, string? tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, RouteScopeOptions options)
+        {
+            // UT-01: a query parameter naming a target authorizes against it, and the list is already filtered to it.
+            foreach (RouteScopeQueryTarget target in options.QueryTargets)
+            {
+                string? value = RouteHelpers.Query(context, target.Parameter);
+                if (String.IsNullOrWhiteSpace(value)) continue;
+                return await _Authorization.AuthorizeWithinAsync(ctx, tenantId, resourceType, operation, target.TargetType, value, context.Token).ConfigureAwait(false);
+            }
+            if (options.OrganizationFiltered && !String.IsNullOrEmpty(tenantId))
+            {
+                List<string>? organizations = await _Authorization.ScopedOrganizationsAsync(ctx, tenantId, resourceType, operation, context.Token).ConfigureAwait(false);
+                if (organizations != null && organizations.Count > 0)
+                {
+                    ctx.ScopedOrganizationIds = organizations;
+                    ctx.ResourceType = resourceType;
+                    ctx.Operation = operation;
+                    ctx.AuthorizationResult = Garrison.Core.Enums.AuthorizationResultEnum.Permitted;
+                    return AuthorizationDecision.Permit("Organization-scoped grants; the list is filtered to " + String.Join(", ", organizations) + ".");
+                }
+            }
+            return await _Authorization.AuthorizeAsync(ctx, tenantId, resourceType, operation, null, context.Token).ConfigureAwait(false);
+        }
 
         private void Add(HttpMethod method, string path, Func<HttpContextBase, Task> handler, OpenApiRouteMetadata metadata)
         {

@@ -11,6 +11,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -29,6 +30,30 @@ namespace Garrison.Server.Routes
         {
             if (context.Metadata is RequestContext requestContext) return requestContext;
             return RequestContext.Unauthenticated();
+        }
+
+        /// <summary>
+        /// The members of the organizations a list is filtered to, when the caller may list only through
+        /// organization-scoped grants (UT-01, <see cref="RouteScopeOptions"/>); null when the list is not filtered.
+        /// </summary>
+        /// <param name="server">Server context.</param>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Members, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when server or context is null.</exception>
+        public static async Task<OrganizationMembers?> ScopedMembersAsync(ServerContext server, HttpContextBase context)
+        {
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            List<string>? organizations = Context(context).ScopedOrganizationIds;
+            if (organizations == null) return null;
+            ResourceLineageResolver? resolver = server.TryGet<ResourceLineageResolver>();
+            if (resolver == null)
+            {
+                OrganizationMembers bare = new OrganizationMembers();
+                foreach (string id in organizations) bare.OrganizationIds.Add(id);
+                return bare;
+            }
+            return await resolver.MembersAsync(Tenant(context), organizations, context.Token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -364,6 +389,7 @@ namespace Garrison.Server.Routes
                 case 401: return "Unauthorized";
                 case 403: return "Forbidden";
                 case 404: return "NotFound";
+                case 405: return "MethodNotAllowed";
                 case 409: return "Conflict";
                 case 429: return "TooManyRequests";
                 case 503: return "ServiceUnavailable";

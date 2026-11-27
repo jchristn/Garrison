@@ -1,6 +1,7 @@
 namespace Garrison.Core.Requests
 {
     using System;
+    using System.Collections.Generic;
     using Garrison.Core.Enums;
 
     /// <summary>
@@ -17,6 +18,12 @@ namespace Garrison.Core.Requests
         /// Status filter, or null for any.
         /// </summary>
         public EscalationStatusEnum? Status { get; set; } = null;
+
+        /// <summary>
+        /// Agents an escalation must have been raised by, or null for any. An empty list matches nothing. Set for a
+        /// principal whose access comes from organization-scoped grants (UT-01): the agents of those organizations.
+        /// </summary>
+        public List<string>? WithinAgentIds { get; set; } = null;
 
         /// <summary>
         /// Target kind filter, or null for any.

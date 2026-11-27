@@ -24,6 +24,7 @@ namespace Garrison.Server.Routes
         private readonly ServerContext _Server;
         private readonly ChangeRuleService _Rules;
         private readonly OrgProposalService _Proposals;
+        private RouteRegistrar? _Routes = null;
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/change-rules";
         private static readonly string _Proposal = "/v1.0/api/tenants/{tenantId}/organizations/{id}/proposals";
 
@@ -56,11 +57,11 @@ namespace Garrison.Server.Routes
         /// <exception cref="ArgumentNullException">Thrown when routes is null.</exception>
         public void Register(RouteRegistrar routes)
         {
-            if (routes == null) throw new ArgumentNullException(nameof(routes));
+            _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             const string tag = "Change rules";
             string one = _Base + "/{ruleId}";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Read, ListAsync, "List change rules, newest first (query: organization, unit, activeOnly, search, maxResults, skip)", tag, null, typeof(EnumerationResult<ChangeRule>));
-            routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Create, CreateAsync, "Create a change rule (people only): organizationId, unitId (whose subtree it covers), name, classes, optional limits and expiresUtc", tag, typeof(ChangeRule), typeof(ChangeRule));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Read, ListAsync, "List change rules, newest first (query: organization, unit, activeOnly, search, maxResults, skip)", tag, null, typeof(EnumerationResult<ChangeRule>), "ruleId", null, new RouteScopeOptions().Query("organization", ResourceTypeEnum.Organization).Query("unit", ResourceTypeEnum.Organization));
+            routes.ScopedByHandler(HttpMethod.POST, _Base, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Create, CreateAsync, "Create a change rule (people only; authorized as Create on ChangeRule tenant-wide or on the organization): organizationId, unitId (whose subtree it covers), name, classes, optional limits and expiresUtc", tag, typeof(ChangeRule), typeof(ChangeRule));
             routes.Scoped(HttpMethod.GET, one, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Read, ReadAsync, "Read a change rule", tag, null, typeof(ChangeRule), "ruleId");
             routes.Scoped(HttpMethod.PUT, one, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Update, UpdateAsync, "Replace a change rule's unit, name, description, active flag, expiry, classes, and limits (people only)", tag, typeof(ChangeRule), typeof(ChangeRule), "ruleId");
             routes.Scoped(HttpMethod.DELETE, one, ResourceTypeEnum.ChangeRule, OperationTypeEnum.Delete, DeleteAsync, "Delete a change rule (people only)", tag, null, null, "ruleId");
@@ -82,6 +83,8 @@ namespace Garrison.Server.Routes
         private async Task CreateAsync(HttpContextBase http)
         {
             ChangeRule body = RouteHelpers.RequiredBody<ChangeRule>(http);
+            if (_Routes == null) throw new InvalidOperationException("Change rule routes are not registered.");
+            if (!await _Routes.RequireWithinAsync(http, RouteHelpers.Tenant(http), ResourceTypeEnum.ChangeRule, OperationTypeEnum.Create, ResourceTypeEnum.Organization, body.OrganizationId).ConfigureAwait(false)) return;
             ChangeRule created = await _Rules.CreateAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), body, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
         }

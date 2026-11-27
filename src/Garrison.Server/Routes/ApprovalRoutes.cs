@@ -56,7 +56,7 @@ namespace Garrison.Server.Routes
         {
             _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             const string tag = "Approvals";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Approval, OperationTypeEnum.Read, ListAsync, "List permission approvals (filter by status, runId, rootRunId, agentId, deploymentId, decisionSource)", tag, null, typeof(EnumerationResult<Approval>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Approval, OperationTypeEnum.Read, ListAsync, "List permission approvals (filter by status, runId, rootRunId, agentId, deploymentId, decisionSource)", tag, null, typeof(EnumerationResult<Approval>), "id", null, new RouteScopeOptions().Query("agentId", ResourceTypeEnum.Agent).Query("deploymentId", ResourceTypeEnum.Deployment).Query("runId", ResourceTypeEnum.Run));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Approval, OperationTypeEnum.Read, ReadAsync, "Read a permission approval", tag, null, typeof(Approval));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/decide", ResourceTypeEnum.Approval, OperationTypeEnum.Update, DecideAsync, "Allow or deny a pending approval, optionally remembering the decision as a deployment rule", tag, typeof(ApprovalDecideRequest), typeof(Approval));
             routes.Scoped(HttpMethod.POST, "/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/approval-check", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, CheckAsync, "Evaluate a deployment's approval rules against a sample tool call without recording anything", tag, typeof(ApprovalCheckRequest), typeof(ApprovalCheckResponse), "deploymentId");

@@ -2,6 +2,7 @@ namespace Garrison.Server.Routes
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
@@ -56,7 +57,7 @@ namespace Garrison.Server.Routes
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             const string tag = "Organizations";
             string one = _Base + "/{id}";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Organization, OperationTypeEnum.Read, ListAsync, "List organizations by name (query: search, maxResults, skip)", tag, null, typeof(EnumerationResult<Organization>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Organization, OperationTypeEnum.Read, ListAsync, "List organizations by name (query: search, maxResults, skip)", tag, null, typeof(EnumerationResult<Organization>), "id", null, new RouteScopeOptions().FilteredByOrganization());
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Organization, OperationTypeEnum.Create, CreateAsync, "Create an organization (name, description, mission). It starts as Draft with no units", tag, typeof(Organization), typeof(Organization));
             routes.Scoped(HttpMethod.GET, one, ResourceTypeEnum.Organization, OperationTypeEnum.Read, ReadAsync, "Read an organization (identifier or name) with its working tree of units", tag, null, typeof(Organization));
             routes.Scoped(HttpMethod.PUT, one, ResourceTypeEnum.Organization, OperationTypeEnum.Update, UpdateAsync, "Update an organization's name, description, and mission, or set status Retired (or Active again)", tag, typeof(Organization), typeof(Organization));
@@ -82,7 +83,26 @@ namespace Garrison.Server.Routes
 
         private async Task ListAsync(HttpContextBase http)
         {
-            EnumerationResult<Organization> page = await _Organizations.EnumerateAsync(RouteHelpers.Tenant(http), RouteHelpers.Enumeration(http), http.Token).ConfigureAwait(false);
+            string tenantId = RouteHelpers.Tenant(http);
+            EnumerationQuery query = RouteHelpers.Enumeration(http);
+            List<string>? scoped = RouteHelpers.Context(http).ScopedOrganizationIds;
+            if (scoped != null)
+            {
+                // UT-01, UT-05: a principal holding organization-scoped grants only lists the organizations they cover.
+                List<Organization> visible = new List<Organization>();
+                foreach (string id in scoped)
+                {
+                    Organization? organization = await _Organizations.FindAsync(tenantId, id, http.Token).ConfigureAwait(false);
+                    if (organization == null) continue;
+                    if (!String.IsNullOrEmpty(query.Search) && organization.Name.IndexOf(query.Search, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    visible.Add(organization);
+                }
+                List<Organization> ordered = visible.OrderBy(o => o.Name, StringComparer.Ordinal).ToList();
+                List<Organization> slice = ordered.Skip(Math.Max(0, query.Skip)).Take(query.MaxResults).ToList();
+                await RouteHelpers.JsonAsync(http, 200, EnumerationResult<Organization>.Build(query, ordered.Count, slice)).ConfigureAwait(false);
+                return;
+            }
+            EnumerationResult<Organization> page = await _Organizations.EnumerateAsync(tenantId, query, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, page).ConfigureAwait(false);
         }
 

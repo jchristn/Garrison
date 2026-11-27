@@ -100,6 +100,7 @@ namespace Garrison.Core.Database.Ado
             if (!String.IsNullOrEmpty(filter.AgentId)) clauses.Add("agentid = @agentid");
             if (!String.IsNullOrEmpty(filter.MandateId)) clauses.Add("mandateid = @mandateid");
             if (!String.IsNullOrEmpty(filter.RaisingRunId)) clauses.Add("raisingrunid = @raisingrunid");
+            if (filter.WithinAgentIds != null) clauses.Add(filter.WithinAgentIds.Count == 0 ? "1 = 0" : AdoInList.Clause("agentid", "within", filter.WithinAgentIds.Count));
             if (!String.IsNullOrEmpty(filter.Search)) clauses.Add(_Driver.Dialect.CaseInsensitiveLike("question", "search"));
             string where = " WHERE " + String.Join(" AND ", clauses);
             Action<DbCommand> bind = command =>
@@ -112,6 +113,7 @@ namespace Garrison.Core.Database.Ado
                 if (!String.IsNullOrEmpty(filter.AgentId)) AdoDatabaseDriver.Add(command, "agentid", filter.AgentId);
                 if (!String.IsNullOrEmpty(filter.MandateId)) AdoDatabaseDriver.Add(command, "mandateid", filter.MandateId);
                 if (!String.IsNullOrEmpty(filter.RaisingRunId)) AdoDatabaseDriver.Add(command, "raisingrunid", filter.RaisingRunId);
+                if (filter.WithinAgentIds != null && filter.WithinAgentIds.Count > 0) AdoInList.Bind(command, "within", filter.WithinAgentIds);
                 if (!String.IsNullOrEmpty(filter.Search)) AdoDatabaseDriver.Add(command, "search", "%" + filter.Search + "%");
             };
             EnumerationQuery query = new EnumerationQuery { MaxResults = filter.MaxResults, Skip = Math.Max(0, filter.Skip) };

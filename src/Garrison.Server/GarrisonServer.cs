@@ -132,6 +132,7 @@ namespace Garrison.Server
         private readonly ServerContext _Context;
         private readonly Webserver _Server;
         private readonly RouteRegistrar _Routes;
+        private readonly RouteMethodIndex _Methods;
         private readonly List<IServerModule> _Modules;
         private readonly IEventBackplane _Backplane;
         private readonly ControlNodeService _ControlNode;
@@ -158,6 +159,7 @@ namespace Garrison.Server
         public GarrisonServer(ServerContext context, List<IServerModule>? modules = null)
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
+            _Methods = new RouteMethodIndex(context.Scopes);
             _Modules = modules ?? new List<IServerModule>
             {
                 new IdentityModule(),
@@ -455,8 +457,22 @@ namespace Garrison.Server
             context.Response.Headers.Add("Access-Control-Expose-Headers", "x-request-id");
         }
 
-        private static async Task DefaultRouteAsync(HttpContextBase context)
+        private async Task DefaultRouteAsync(HttpContextBase context)
         {
+            // UT-20: a known path with a method it does not support answers 405 with Allow. Only an authenticated caller
+            // reaches here on a protected path (anyone else already got 401), and the route list is in the OpenAPI
+            // document, so this tells no one more than they could read; an unauthenticated caller still gets 404.
+            RequestContext ctx = RouteHelpers.Context(context);
+            if (ctx.IsAuthenticated)
+            {
+                List<string> allowed = _Methods.MethodsFor(context.Request.Url.RawWithoutQuery);
+                if (allowed.Count > 0)
+                {
+                    context.Response.Headers["Allow"] = String.Join(", ", allowed);
+                    await RouteHelpers.ErrorAsync(context, 405, "MethodNotAllowed", context.Request.Method + " is not supported on this path. Allowed: " + String.Join(", ", allowed) + ".").ConfigureAwait(false);
+                    return;
+                }
+            }
             context.Response.StatusCode = 404;
             context.Response.ContentType = "application/json";
             await context.Response.Send("{\"error\":\"NotFound\",\"code\":\"RouteNotFound\",\"message\":\"No route matches the request.\"}").ConfigureAwait(false);

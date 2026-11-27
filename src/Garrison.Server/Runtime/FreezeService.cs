@@ -230,6 +230,30 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Resolve a freeze target to its identifier and name without freezing it, so a route can authorize a new freeze
+        /// against the target (UT-01).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="targetKind">Target kind.</param>
+        /// <param name="target">Identifier or name of the target; ignored for TenantAutonomy.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>An unsaved freeze carrying the target kind, identifier, and name.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        /// <exception cref="ValidationException">Thrown when the kind is unknown or the target is missing.</exception>
+        /// <exception cref="NotFoundException">Thrown when the target does not exist in the tenant.</exception>
+        public async Task<Freeze> ResolveTargetAsync(string tenantId, FreezeTargetKindEnum targetKind, string? target, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (!Enum.IsDefined(targetKind)) throw Invalid("targetKind", "InvalidValue", "targetKind must be Agent, Deployment, Mandate, App, OrgUnit, Organization, or TenantAutonomy.");
+            Freeze freeze = new Freeze();
+            freeze.Id = String.Empty;
+            freeze.TenantId = tenantId;
+            freeze.TargetKind = targetKind;
+            await ResolveTargetAsync(tenantId, target, freeze, token).ConfigureAwait(false);
+            return freeze;
+        }
+
+        /// <summary>
         /// Apply a freeze. The target may be named by identifier or by name. A Mandate freeze sets the mandate's status to
         /// Frozen. With cancelActiveRuns, the runs already in scope are cancelled through the normal cancellation path.
         /// </summary>

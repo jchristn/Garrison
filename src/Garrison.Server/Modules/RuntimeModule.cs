@@ -324,6 +324,10 @@ namespace Garrison.Server.Modules
             // AA8: executives, change rules, and proposals. A rollback past an executive's apply applies its revert draft.
             organizations.ApplyRevertAsync = async (ctx, tenantId, draftId, ct) => await context.Get<Garrison.Server.Services.StudioService>().ApplyRevertAsync(ctx, tenantId, draftId, ct).ConfigureAwait(false);
             context.Register(chain);
+            // UT-01, UT-02: resource-scoped grants match a name's identifier and the organizations a target belongs to.
+            ResourceLineageResolver lineage = new ResourceLineageResolver(context.Database, chain);
+            context.Authorization.Lineage = lineage;
+            context.Register(lineage);
             context.Register(organizations);
             context.Register(new ExecutiveAuthority(context, chain));
             context.Register(new ChangeRuleService(context, organizations));

@@ -54,7 +54,7 @@ namespace Garrison.Server.Routes
         {
             _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             const string tag = "Mandates";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Mandate, OperationTypeEnum.Read, ListAsync, "List mandates (query: status, agentId, deploymentId, search, maxResults, skip, ordering)", tag, null, typeof(EnumerationResult<Mandate>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Mandate, OperationTypeEnum.Read, ListAsync, "List mandates (query: status, agentId, deploymentId, search, maxResults, skip, ordering)", tag, null, typeof(EnumerationResult<Mandate>), "id", null, new RouteScopeOptions().Query("agentId", ResourceTypeEnum.Agent).Query("deploymentId", ResourceTypeEnum.Deployment));
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Mandate, OperationTypeEnum.Create, CreateAsync, "Create a mandate (needs Agent Execute; the caller becomes its run-as principal). An inline currentRevision is published as revision 1 and the mandate becomes Active", tag, typeof(Mandate), typeof(Mandate));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Mandate, OperationTypeEnum.Read, ReadAsync, "Read a mandate with its current revision, by identifier or name", tag, null, typeof(Mandate));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Mandate, OperationTypeEnum.Update, UpdateAsync, "Update a mandate's name, description, and deployment (the caller becomes its run-as principal; the agent cannot change)", tag, typeof(Mandate), typeof(Mandate));

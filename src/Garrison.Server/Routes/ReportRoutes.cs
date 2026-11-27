@@ -3,6 +3,7 @@ namespace Garrison.Server.Routes
     using System;
     using System.Collections.Generic;
     using System.Threading;
+    using System.Linq;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
@@ -11,6 +12,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Requests;
     using Garrison.Core.Services;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -55,9 +57,9 @@ namespace Garrison.Server.Routes
         {
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             const string tag = "Reports";
-            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Report, OperationTypeEnum.Read, ListAsync, "List reports, newest first (query: author, unit, app, kind, health, runId, from, to, search, maxResults, skip)", tag, null, typeof(EnumerationResult<Report>));
+            routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Report, OperationTypeEnum.Read, ListAsync, "List reports, newest first (query: author, unit, app, kind, health, runId, from, to, search, maxResults, skip)", tag, null, typeof(EnumerationResult<Report>), "id", null, new RouteScopeOptions().Query("author", ResourceTypeEnum.Agent).Query("unit", ResourceTypeEnum.Organization).Query("runId", ResourceTypeEnum.Run).FilteredByOrganization());
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Report, OperationTypeEnum.Create, FileAsync, "File a report in your own name or an agent's. Reports are immutable; idempotencyKey makes a retried filing return the first report", tag, typeof(ReportFileRequest), typeof(Report));
-            routes.Scoped(HttpMethod.GET, _Base + "/metrics", ResourceTypeEnum.Report, OperationTypeEnum.Read, MetricsAsync, "Metric series from reports, oldest first (query: author, name, from, to, maxPoints 1 to 5000, default 500)", tag, null, typeof(List<ReportMetricPoint>));
+            routes.Scoped(HttpMethod.GET, _Base + "/metrics", ResourceTypeEnum.Report, OperationTypeEnum.Read, MetricsAsync, "Metric series from reports, oldest first (query: author, name, from, to, maxPoints 1 to 5000, default 500)", tag, null, typeof(List<ReportMetricPoint>), "id", null, new RouteScopeOptions().Query("author", ResourceTypeEnum.Agent));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Report, OperationTypeEnum.Read, ReadAsync, "Read a report with its metrics, issues, and decisions", tag, null, typeof(Report));
         }
 
@@ -84,6 +86,8 @@ namespace Garrison.Server.Routes
             filter.Search = query.Search;
             filter.MaxResults = query.MaxResults;
             filter.Skip = query.Skip;
+            OrganizationMembers? members = await RouteHelpers.ScopedMembersAsync(_Server, http).ConfigureAwait(false);
+            if (members != null) filter.AuthorAgentIds = members.AgentIds.ToList();
             EnumerationResult<Report> page = await _Reports.ListAsync(filter, http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, page).ConfigureAwait(false);
         }

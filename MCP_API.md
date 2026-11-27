@@ -65,6 +65,8 @@ Users, credentials, and run tokens belong to one tenant, and every tool works in
 
 Each tool checks the same permission its REST equivalent does. Every tool also accepts the optional `tenantId` described above, which the table leaves out.
 
+`tools/list` shows a user or credential only the tools it could call: those whose permission in the table (the tool's entry in the operation scope map) the caller holds for the whole tenant or for at least one resource. A Viewer does not see `garrison_freeze` or `garrison_answer_escalation`, and a BoardMember scoped to one organization sees the board, freeze, and escalation tools but not `garrison_create_organization`. The list is computed on each call, so a new role assignment shows up the next time the client lists tools. Calling a tool that is not listed still answers with the usual permission error. Run tokens keep their own list: the tools their run may call, without the shadow and eval restrictions' refused tools or the people-only tools. Organization-scoped grants work over MCP as over REST: the organization, freeze, escalation, and report list tools return only the caller's organizations, and `garrison_freeze` is authorized against its target.
+
 A tool that returns a record (a run summary, an agent, an approval) puts it in the result's `structuredContent` as a JSON object, and also as JSON text in `content` for clients that read only `content`. Fields that hold JSON, such as `structuredOutput`, `inputSchema`, `outputSchema`, `rawEvent`, and an approval's `input`, are JSON values in that record, not strings. See "Tool results" in [docs/MANAGEMENT_MCP.md](docs/MANAGEMENT_MCP.md).
 
 | Tool | Permission | Required arguments | Optional arguments |

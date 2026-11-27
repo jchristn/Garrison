@@ -125,6 +125,12 @@ namespace Garrison.Core.Security
         public AuthorizationResultEnum? AuthorizationResult { get; set; } = null;
 
         /// <summary>
+        /// Set by the route layer when the caller may list a resource only through organization-scoped grants (UT-01):
+        /// the organizations the list is filtered to. Null when the list is not filtered by organization.
+        /// </summary>
+        public List<string>? ScopedOrganizationIds { get; set; } = null;
+
+        /// <summary>
         /// Received (UTC).
         /// </summary>
         public DateTime ReceivedUtc { get; set; } = DateTime.UtcNow;
