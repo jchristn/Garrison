@@ -135,8 +135,8 @@ An agent that reports on its own work can report whatever it likes. A scheduled 
 
 Two rules keep the grade honest:
 
-- The run-as principal must be a user. A save by an API credential or a system administrator key answers 400, because a check needs a person who answers for it.
-- Run tokens cannot create or change an `EvalSet` trigger, and cannot create, cancel, or alter eval runs. An agent cannot schedule a softer test for itself or cancel one it is failing.
+- The run-as principal must be a user. A save by an API credential or a system administrator key answers 400 with field `runAsType` and code `UserRequired`, because a check needs a person who answers for it. Saving also needs Execute on the deployment's agent and on `EvalRun`, and the fire checks `EvalRun` Execute again for the run-as user.
+- Run tokens cannot create or change an `EvalSet` trigger (400 with code `PeopleOnly`), and cannot create, cancel, or alter eval runs. An agent cannot schedule a softer test for itself or cancel one it is failing.
 
 Results show up in the organization's [performance](ORGANIZATIONS.md#performance): each check appears under `checks` with its next fire and its newest eval run's status, score, and pass, and completed check runs count toward `evalScore` for the deployment's agent and every unit above it. A unit lead reads them through `garrison_subordinate_performance`. Each fire also counts on `garrison.evals.scheduled_checks`, by `outcome` (`started` or `failed`).
 
@@ -147,7 +147,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers" \
        "targetType": "EvalSet", "evalSetId": "support-regressions", "deploymentId": "support-prod", "evalRecentInputCount": 20}'
 ```
 
-A missing `evalSetId` or `deploymentId`, or a set in another tenant, answers 400 `ValidationFailed`.
+A missing `evalSetId` or `deploymentId`, or a set in another tenant, answers 400 `ValidationFailed`. A count outside 1 to 50 answers `InvalidValue`, and `pipelineId` or `inputTemplateId` on an `EvalSet` trigger (or `evalSetId` on another target) answers `TargetMismatch`. An `evalSetId` given as a name resolves to the set's latest approved version, or its latest version when none is approved, and is stored as that version's id. Each fire records the eval run it started in the fire's `evalRunId`.
 
 ## Input templates
 

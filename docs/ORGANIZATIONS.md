@@ -180,7 +180,7 @@ Where an agent belongs to several organizations, `builtin/org-context`, the capa
 
 `GET /organizations/{id}/performance` tells you how the organization's agents have been doing. It reads the live revision and returns one entry per unit in chart order, each covering the unit's whole subtree, one entry per agent with a position, and the [scheduled checks](TRIGGERS.md#scheduled-checks) on their deployments. Nothing is stored; the server computes it on each read.
 
-The window defaults to the last 7 days ending now. Pass `fromUtc` and `toUtc` (ISO 8601) to choose another; a span longer than 90 days answers 400 `ValidationFailed`. Pass `unitId` to restrict the response to that unit's subtree. A unit that is not in the organization answers 404.
+The window defaults to the last 7 days ending now. Pass `fromUtc` and `toUtc` (ISO 8601) to choose another; a span longer than 90 days answers 400 `ValidationFailed` with field code `WindowTooLong`. Pass `unitId` to restrict the response to that unit's subtree. A unit that is not in the organization answers 404.
 
 ```bash
 curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/site-reliability/performance?unitId=dependencies&fromUtc=2026-11-19T00:00:00Z&toUtc=2026-11-26T00:00:00Z" \
@@ -230,7 +230,7 @@ A lead sees scheduled check results but cannot change them. The checks are trigg
 | `POST /organizations/{id}/rollback` | Return to an earlier live revision (`revisionId`, `note`, `activeTicks`) |
 | `GET /organizations/{id}/spend` | Each unit's spend against its budgets in the current windows |
 | `GET /organizations/{id}/performance` | Metrics per unit and agent over a window, and scheduled checks. `fromUtc`, `toUtc`, `unitId` ([Performance](#performance)) |
-| `POST /organizations/{id}/units/{unitId}/cancel-all` | Cancel everything active in a unit's subtree (`reason`). Needs Execute on Organization ([BRAKES.md](BRAKES.md#cancel-everything-in-a-unit)) |
+| `POST /organizations/{id}/units/{unitId}/cancel-all` | Cancel everything active in a unit's subtree (`reason`). Needs Update on Organization ([BRAKES.md](BRAKES.md#cancel-everything-in-a-unit)) |
 | `GET /organizations/{id}/proposals` | Executive proposals, newest change first. `status`, `maxResults`, `skip` ([EXECUTIVES.md](EXECUTIVES.md#proposals)) |
 | `GET /organizations/{id}/proposals/{draftId}` | One proposal; one not yet applied carries its diff, refusals, and rule matches |
 | `POST /organizations/{id}/proposals/{draftId}/decide` | Allow or deny a proposal waiting for a person (`allow`, `reason`). Needs Update on Approval |
@@ -267,7 +267,7 @@ People and API credentials manage organizations with management tools, which run
 | `garrison_rollback_organization` | Update on Organization | `organization`; optional `revisionId`, `note` |
 | `garrison_board_get` | Read on Organization | `organization`; optional `limit`. The board: chart with unit health, the CEO, open escalations, pending proposals, spend, briefs, unhealthy reports, freezes, and the kill switch (AA10) |
 | `garrison_board_direct` | Update on Organization | `organization`, `direction`; optional `changeNote`. Publishes the direction as a `Board` revision of the CEO mandate (AA10) |
-| `garrison_unit_cancel_all` | Execute on Organization | `organization`, `unitId`; optional `reason`. Cancels everything active in the unit's subtree ([BRAKES.md](BRAKES.md#cancel-everything-in-a-unit)) |
+| `garrison_unit_cancel_all` | Update on Organization | `organization`, `unitId`; optional `reason`. Cancels everything active in the unit's subtree ([BRAKES.md](BRAKES.md#cancel-everything-in-a-unit)) |
 | `garrison_org_chart` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `organization` |
 | `garrison_org_whoami` | Member runs; people need Read on Organization | Runs: optional `organization`. People: `agent`, optional `organization` |
 | `garrison_subordinate_performance` | Runs whose agent leads a unit | optional `unitId`, `fromUtc`, `toUtc`. Performance of the lead's subtree ([What a unit lead sees](#what-a-unit-lead-sees)) |
@@ -313,8 +313,7 @@ See [WEBSOCKETS_API.md](../WEBSOCKETS_API.md).
 |---|---|---|
 | List and read organizations, units, revisions, the chart, spend, and performance; subscribe to the channel | Read on Organization | Viewer, Auditor, AgentOperator, AgentDeveloper, Editor, TenantAdmin |
 | Create an organization | Create on Organization | AgentDeveloper, Editor, TenantAdmin |
-| Change it, edit units, snapshot, publish, roll back | Update on Organization | AgentDeveloper, Editor, TenantAdmin |
-| Cancel everything in a unit | Execute on Organization | Editor, TenantAdmin |
+| Change it, edit units, snapshot, publish, roll back, cancel everything in a unit | Update on Organization | AgentDeveloper, Editor, BoardMember, TenantAdmin |
 | Delete an organization | Delete on Organization | Editor, TenantAdmin |
 
 Run tokens never hold these permissions. An ordinary run cannot change the structure it sits in; it reads its own place through `garrison_org_chart` and `garrison_org_whoami`. An executive changes the units below it only through studio drafts, checked against its subtree, its hard limits, and the person who started its run ([EXECUTIVES.md](EXECUTIVES.md)). Change rules have their own permissions on `ChangeRule` ([EXECUTIVES.md](EXECUTIVES.md#permissions)). Every change is written to the audit log against the organization.

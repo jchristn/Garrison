@@ -96,6 +96,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 - Tenant deletion now removes deployment inference endpoints and credentials and harness runtime settings and credentials, and the startup table check covers them; `TableCatalog` had left these four tables out.
 - The reference schemas in `reference/sql` were missing migrations 29 to 43. They are regenerated from `SchemaBuilder` through migration 46 and record each migration in `schema_migrations`, so turning `Database.ManageSchema` on later does not run migrations again.
 - The reference schemas also missed migration 47 (escalations); they are regenerated through migration 48, and now through 49.
+- The console's "Cancel everything in this unit" needs Update on the organization, matching the server, so board members can stop a unit. The brakes, organizations, and triggers docs now give the server's error codes (`UserRequired`, `PeopleOnly`, `WindowTooLong`, `TargetMismatch`) and describe how the budget guard avoids repeat freezes and which mandates a rollback pauses. Postman's performance checks accept metrics the server leaves out when they are null (AA11 integration).
 
 ### Changed
 

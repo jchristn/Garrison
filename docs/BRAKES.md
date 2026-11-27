@@ -127,7 +127,7 @@ The body is optional: `{"reason": "..."}`, at most 1024 characters. The answer c
 }
 ```
 
-It is one audited action, `UnitCascadeCancelled`, with the counts and who did it. It needs Execute on `Organization`. A unit that is not in the organization answers 404, and an organization with no live revision answers 409 `OrganizationNotLive`.
+It is one audited action, `UnitCascadeCancelled`, with the counts and who did it. It needs Update on `Organization`, which BoardMember holds, so the board can stop a unit. A unit that is not in the organization answers 404, and an organization with no live revision answers 409 `OrganizationNotLive`.
 
 A cascade cancel does not freeze anything. A keeper in the subtree wakes again on its schedule and a trigger can start a new run a minute later. When you want the subtree to stay quiet, freeze the unit as well; the dashboard offers both from the unit's menu and the board's brakes panel. Cancelling first and freezing second is the usual order during an incident, because a freeze with `cancelActiveRuns` stops runs but leaves ticks, escalations, and messages where they are.
 
@@ -151,7 +151,7 @@ Garrison applies an `OrgUnit` freeze to the unit with `cancelActiveRuns` set, a 
 
 `budgetFreezeMarginPercent` is a field on the organization: 0 to 100, default 10. With the default, a unit with a $50 daily budget is frozen once its subtree has spent $55 that day. A margin of 0 freezes at the cap itself. Set it on create or update, in the organization's manifest, or in the dashboard's organization settings; a value outside the range answers 400.
 
-The guard checks from two places. A sweep on the leader runs every 60 seconds by default, and the budget check that admits runs freezes the unit as soon as it sees an overrun. Both skip a unit that an active freeze already covers, so one breach produces one freeze even with several replicas.
+The guard checks from two places. A sweep on the leader runs every 60 seconds by default, and the budget check that admits runs freezes the unit as soon as it sees an overrun. Both skip a unit that an active freeze already covers (on the unit, a unit above it, or the organization), and a unit the guard already froze in the current window, so one breach produces one freeze. If a person lifts that freeze, the guard leaves the unit alone until the window resets. The sweep interval is `OrgBudgetGuard.FreezeSweepSeconds` (default 60, 5 to 3600). Two replicas admitting runs at the same instant can, rarely, both apply a freeze; lifting one leaves the other in place.
 
 Each automatic freeze is audited as `OrgBudgetFrozen` and sends the `OrgBudgetFrozen` notification, whose payload carries the organization, unit, spend, budget amount, and freeze identifier. The board shows the freeze in its brakes panel and the unit as frozen and over budget. See [BOARD.md](BOARD.md#brakes-from-the-board).
 
@@ -164,7 +164,7 @@ A rollback restores an earlier snapshot of the organization, including the manda
 | `Finish` (default) | The tick runs to completion. Its mandate is already pinned to the restored revision, so when the tick finishes it cannot move the mandate's current revision back |
 | `Cancel` | Garrison cancels the runs of in-flight ticks of the organization's mandates, then restores |
 
-Either way, after the rollback no mandate in the organization is on a revision outside the restored snapshot. A mandate that was in the live snapshot but is missing from the restored one is paused with the reason recorded, rather than left running outside the chart. The audit record of the rollback states which option was used.
+Either way, after the rollback no mandate in the organization is on a revision outside the restored snapshot. A mandate is paused with the reason recorded, rather than left running outside the chart, when it was in the live snapshot but is missing from the restored one, when the restored snapshot names it without a pinned revision, or when its pinned revision no longer exists. A frozen mandate in that position is paused too, so lifting the freeze does not wake it. The audit record of the rollback states which option was used.
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/acme/rollback" \
@@ -179,8 +179,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/ac
 | List and read freezes, read the kill switch | Read on `Freeze` | TenantAdmin, Editor, Viewer, Auditor, AgentDeveloper, AgentOperator |
 | Apply a freeze | Create on `Freeze` | TenantAdmin, Editor, AgentOperator |
 | Lift a freeze, set the kill switch | Update on `Freeze` | TenantAdmin, Editor, AgentOperator |
-| Cancel everything in a unit | Execute on `Organization` | TenantAdmin, Editor |
-| Roll back an organization, set its freeze margin | Update on `Organization` | TenantAdmin, Editor, AgentDeveloper, BoardMember |
+| Cancel everything in a unit, roll back an organization, set its freeze margin | Update on `Organization` | TenantAdmin, Editor, AgentDeveloper, BoardMember |
 
 AgentOperator gets these through its own permission, `AgentOperator.Brakes`, so the people who watch keepers can stop them without being able to change them. A custom role that should not stop anything can copy AgentOperator without it. Run tokens never hold any Freeze permission.
 

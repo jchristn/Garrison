@@ -105,7 +105,7 @@ export function newCheckQuery(deploymentId) {
   return deploymentId ? { new: 'EvalSet', deploymentId } : { new: 'EvalSet' };
 }
 
-/** Why the caller cannot cancel everything in a unit (Execute on Organization), or '' when it can. */
+/** Why the caller cannot cancel everything in a unit (Update on Organization), or '' when it can. */
 export function cascadeDenied(t, permissions) {
-  return orgDenied(t, permissions, 'Execute');
+  return orgDenied(t, permissions, 'Update');
 }

@@ -2912,6 +2912,7 @@ INSERT INTO schema_migrations (version, description, appliedutc) SELECT 57, 'Boa
 -- Migration 58: Organization budget freeze margin
 ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS budgetfreezemarginpercent INTEGER;
 INSERT INTO schema_migrations (version, description, appliedutc) SELECT 58, 'Organization budget freeze margin', now() WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 58);
+
 -- Migration 59: Scheduled eval checks
 ALTER TABLE "triggers" ADD COLUMN IF NOT EXISTS evalsetid VARCHAR(64);
 ALTER TABLE "triggers" ADD COLUMN IF NOT EXISTS evaljudgeagentid VARCHAR(64);
