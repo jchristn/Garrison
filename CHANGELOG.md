@@ -89,6 +89,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Fixed
 
+- Brokered provider credentials on Postgresql could be refused as `CredentialLeaseTooShort` when the run deadline had a sub-microsecond part, because the lease expiry read back from the database (microseconds) looked earlier than the deadline (100 ns ticks). The broker now compares both to the microsecond.
 - The worker image failed the Trivy scan in `Security scans` with ten High findings, all in the npm 10 that NodeSource installs with Node 22 (its bundled brace-expansion, ip-address, pacote, picomatch, and sigstore). The Dockerfile now installs npm 11.21.3 globally before the harness CLIs (new build argument `NPM_VERSION`, recorded in the label `io.garrison.tools.npm`), which carries fixed versions. npm stays in the image because runs may use `npm` or `npx`, for example to start a stdio MCP server.
 - The server and worker no longer crash with a stack overflow at startup when telemetry reports a diagnostic, for example when the Prometheus listener falls back to another address because the first is in use. The diagnostic callback called itself.
 - Dashboard: the Performance page's "Success rate and cost by unit" chart put a stray check mark in each row, which pushed the bars into a narrow column under the unit name, and "No finished runs" (longer still in German) ran past the edge of the card. The rows now lay out as intended and long values wrap inside the card.

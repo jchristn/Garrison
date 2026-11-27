@@ -100,6 +100,14 @@ namespace Test.Shared.Suites
             }
         }
 
+        // A deadline with a nonzero 100 ns digit: Postgresql stores the lease expiry to the microsecond, so the
+        // provider's echoed expiry reads up to 999 ns before this deadline. The broker must still accept it.
+        private static DateTime SubMicrosecondDeadline()
+        {
+            long ticks = DateTime.UtcNow.AddMinutes(1).Ticks;
+            return new DateTime(ticks - (ticks % 10) + 7, DateTimeKind.Utc);
+        }
+
         private static async Task EpochAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
             using (FakeCredentialIssuer issuer = new FakeCredentialIssuer())
@@ -251,7 +259,7 @@ namespace Test.Shared.Suites
 
         private static Task<Run> RunAsync(TestServerHost host, CancellationToken token)
         {
-            return host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = "agt_broker", DeploymentId = "dep_broker", Status = RunStatusEnum.Running, LeaseEpoch = 7, LeaseNodeId = "nod_broker", LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5), DeadlineUtc = DateTime.UtcNow.AddMinutes(1), StartedUtc = DateTime.UtcNow }, token);
+            return host.Server.Context.Database.Runs.CreateAsync(new Run { TenantId = host.TenantId, AgentId = "agt_broker", DeploymentId = "dep_broker", Status = RunStatusEnum.Running, LeaseEpoch = 7, LeaseNodeId = "nod_broker", LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5), DeadlineUtc = SubMicrosecondDeadline(), StartedUtc = DateTime.UtcNow }, token);
         }
 
         private static async Task<string> ValueAsync(TestServerHost host, CredentialBrokerService broker, Secret secret, Run run, CancellationToken token)

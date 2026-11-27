@@ -78,14 +78,14 @@ namespace Garrison.Server.Runtime
             if (lease == null || lease.State == "Revoked") throw Failure(secret, "CredentialLeaseFenced", "The attempt no longer holds an active lease or its credential has been revoked.");
             if (!String.Equals(lease.Resource, desired.Resource, StringComparison.Ordinal)
                 || !String.Equals(lease.Audience, desired.Audience, StringComparison.Ordinal)
-                || lease.ExpiresUtc.Ticks / 10 != desired.ExpiresUtc.Ticks / 10)
+                || Microseconds(lease.ExpiresUtc) != Microseconds(desired.ExpiresUtc))
                 throw Failure(secret, "CredentialLeaseFenced", "Broker metadata or the run deadline changed within this attempt; a reserved credential cannot be rebound.");
             CredentialLeaseIssueResponse issued;
             try
             {
                 issued = await IssueAsync(lease, token).ConfigureAwait(false);
                 if (issued.LeaseId != lease.Id || String.IsNullOrEmpty(issued.Value) || issued.Value.Length > 32768
-                    || issued.ExpiresUtc > lease.ExpiresUtc || issued.ExpiresUtc < run.DeadlineUtc.Value)
+                    || Microseconds(issued.ExpiresUtc) > Microseconds(lease.ExpiresUtc) || Microseconds(issued.ExpiresUtc) < Microseconds(run.DeadlineUtc.Value))
                     throw Failure(secret, "CredentialLeaseTooShort", "The provider response does not match the bounded lease identity or cover the run deadline.");
                 if (!await _Database.CredentialLeases.MarkIssuedAsync(lease, token).ConfigureAwait(false))
                     throw Failure(secret, "CredentialLeaseFenced", "The run lost its lease during credential issuance.");
@@ -216,6 +216,14 @@ namespace Garrison.Server.Runtime
         private static CredentialUnavailableException Failure(Secret secret, string code, string message)
         {
             return new CredentialUnavailableException(code, secret.Id, secret.Name, message);
+        }
+
+        // Postgresql keeps timestamps to the microsecond and the run deadline in memory keeps 100 ns ticks, so a lease
+        // expiry read back from the database can sit up to 999 ns before the deadline it was set from. Compare both at
+        // microsecond precision.
+        private static long Microseconds(DateTime value)
+        {
+            return value.Ticks / 10;
         }
     }
 }
