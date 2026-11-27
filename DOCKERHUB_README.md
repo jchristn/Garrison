@@ -34,7 +34,7 @@ Each image is published under version tags such as `v0.3.0` and under `latest`:
 
 All three images are built for `linux/amd64` and `linux/arm64/v8`. Server and worker run as UID 10001; the dashboard runs nginx. Use the same tag for all three: the server, worker, and dashboard of one release are tested together, and the Compose file and Kubernetes manifests in the repository reference `v0.3.0` for each.
 
-The worker records its bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`, `io.garrison.harness.opencode`, `io.garrison.harness.pi`, `io.garrison.tools.docs`). The `v0.3.0` worker pins Claude Code 2.1.296, Codex 0.159.3, and Mux 1.3.0.
+The worker records its bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`, `io.garrison.harness.opencode`, `io.garrison.harness.pi`, `io.garrison.tools.docs`, `io.garrison.tools.npm`). The `v0.3.0` worker pins Claude Code 2.1.296, Codex 0.159.3, Mux 1.3.0, and npm 11.21.3 (`NPM_VERSION`, replacing the npm that ships with Node 22, whose bundled dependencies fail the image scan).
 
 ### Building a worker with more tools
 

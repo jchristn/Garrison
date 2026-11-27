@@ -29,6 +29,10 @@ ARG MUX_REF
 ARG MUX_VERSION
 ARG GARRISON_VERSION=0.3.0
 ARG NODE_MAJOR=22
+# NPM_VERSION replaces the npm that NodeSource bundles with Node 22. The bundled npm 10 carries High findings in its own
+# dependencies (brace-expansion, ip-address, pacote, picomatch, sigstore) that fail the Trivy image scan; npm 11 ships
+# fixed versions. Runs can still use npm and npx (for example to start a stdio MCP server), so npm stays in the image.
+ARG NPM_VERSION=11.21.3
 ARG CLAUDE_CODE_VERSION=2.1.296
 ARG CODEX_VERSION=0.159.3
 ARG INCLUDE_GEMINI=false
@@ -44,6 +48,7 @@ LABEL org.opencontainers.image.title="garrison-worker" \
       org.opencontainers.image.version="${GARRISON_VERSION}" \
       org.opencontainers.image.source="https://github.com/jchristn/Garrison" \
       org.opencontainers.image.licenses="MIT" \
+      io.garrison.tools.npm="${NPM_VERSION}" \
       io.garrison.harness.claude-code="${CLAUDE_CODE_VERSION}" \
       io.garrison.harness.codex="${CODEX_VERSION}" \
       io.garrison.harness.mux="${MUX_VERSION}" \
@@ -58,6 +63,8 @@ RUN apt-get update \
  && curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && if [ "${INCLUDE_DOC_TOOLS}" = "true" ]; then apt-get install -y --no-install-recommends pandoc libreoffice-writer-nogui fonts-dejavu-core && pandoc --version && soffice --version; fi \
+ && npm install -g "npm@${NPM_VERSION}" \
+ && npm --version | grep -qx "${NPM_VERSION}" \
  && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
  && if [ "${INCLUDE_GEMINI}" = "true" ]; then npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}"; fi \
  && if [ "${INCLUDE_OPENCODE}" = "true" ]; then npm install -g "opencode-ai@${OPENCODE_VERSION}"; fi \

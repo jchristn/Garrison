@@ -580,6 +580,8 @@ Results of the same checks run locally on 2026-10-14:
 
 None of the image findings are in Garrison's own dependencies. They are in the .NET runtime, Alpine packages, and the Node.js tooling the worker installs, and they clear when the images are rebuilt against current base images and a current npm, which is part of publishing images (not done here). Until the dashboard's `vitest` upgrade and the image rebuilds land, the npm and image jobs in the new workflow will fail.
 
+Update 2026-11-26: the worker image now installs npm 11.21.3 over the npm that ships with Node.js (build argument `NPM_VERSION`). Trivy 0.75.0 with the workflow's flags reports 0 HIGH or CRITICAL findings in the rebuilt worker image, including the npm tree.
+
 ## Addendum: autonomous agents (AA12.9)
 
 Review date: 2026-11-26, against `feature/autonomous-agents` at `ea45b716` (schema 59). File and line references point at that commit with the fixes below applied. Schema versions 46 to 59 belong to 0.3.0. Version 45 was the last 0.2.0 migration (plan section 7.3).

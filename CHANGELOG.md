@@ -89,6 +89,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 
 ### Fixed
 
+- The worker image failed the Trivy scan in `Security scans` with ten High findings, all in the npm 10 that NodeSource installs with Node 22 (its bundled brace-expansion, ip-address, pacote, picomatch, and sigstore). The Dockerfile now installs npm 11.21.3 globally before the harness CLIs (new build argument `NPM_VERSION`, recorded in the label `io.garrison.tools.npm`), which carries fixed versions. npm stays in the image because runs may use `npm` or `npx`, for example to start a stdio MCP server.
 - The server and worker no longer crash with a stack overflow at startup when telemetry reports a diagnostic, for example when the Prometheus listener falls back to another address because the first is in use. The diagnostic callback called itself.
 - App UI: the copy buttons have their own tooltips ("Copies your message to the clipboard") instead of repeating the button label. Dashboard: DOMPurify 3.5.0 and Vite 6.4.6 clear the high-severity `npm audit` advisories.
 - Dashboard: a 405 `MethodNotAllowed` (a server that has the path but not the method) is treated like a missing endpoint, as 404 `RouteNotFound` already was.
