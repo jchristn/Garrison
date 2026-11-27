@@ -1570,7 +1570,7 @@ namespace Garrison.Server.Protocols
         private async Task Require(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token)
         {
             AuthorizationDecision decision = await _Context.Authorization.AuthorizeAsync(ctx, tenantId, resourceType, operation, resourceId, token).ConfigureAwait(false);
-            if (!decision.Permitted) throw ToolError("Forbidden", "Not permitted: " + decision.Reason);
+            if (!decision.Permitted) throw ToolError(decision.Code ?? "Forbidden", "Not permitted: " + decision.Reason);
         }
 
         private async Task<object> MemoryAsync(RequestContext ctx, string tenantId, string tool, RpcParameters? args, CancellationToken token)

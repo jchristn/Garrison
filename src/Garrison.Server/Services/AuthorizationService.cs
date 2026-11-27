@@ -13,6 +13,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
+    using Garrison.Server.Runtime;
 
     /// <summary>
     /// Authorization per AUTHENTICATION.md: bypass order (system administrator, IsAdmin, IsTenantAdmin), expanded
@@ -507,6 +508,15 @@ namespace Garrison.Server.Services
 
         private async Task<AuthorizationDecision> EvaluateRunAsync(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token)
         {
+            if (ShadowRunPolicy.RefusesOperation(resourceType, operation) && !String.IsNullOrEmpty(ctx.RunId))
+            {
+                // SR-29, AA-027, AA-074: a shadow or eval run's token refuses every effect on REST and A2A as it does through
+                // the MCP gateway, using the same classification and codes. The run row is read here, so the harness cannot
+                // drop the restriction.
+                Run? caller = await _Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+                if (ShadowRunPolicy.IsRestricted(caller))
+                    return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, ShadowRunPolicy.RefusalCodeFor(caller), ShadowRunPolicy.RefusalMessageFor(operation + " on " + resourceType, caller));
+            }
             bool allowed =
                 (resourceType == ResourceTypeEnum.Agent && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Execute)) ||
                 (resourceType == ResourceTypeEnum.Run && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Update)) ||

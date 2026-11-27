@@ -4,6 +4,7 @@ namespace Test.Shared.Suites
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Http;
+    using System.Net.Http.Headers;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
@@ -12,6 +13,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
+    using Garrison.Core.Responses;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
     using Garrison.ProviderHarness;
@@ -47,6 +49,7 @@ namespace Test.Shared.Suites
                 string id = "shadow-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "refusals", "A shadow run's token is refused an effectful tool, a message, a memory write, a report, an escalation, and file write-back with ShadowRunRefused; its permission prompt is denied; its tool list hides them (" + provider + ")", ct => RefusalsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "rest-refusals", "SR-29: over REST a shadow run's token and an eval run's token are each refused an invoke, a run start, and a run cancel with 403 and ShadowRunRefused or EvalRunRefused, and still read runs and agents; an ordinary run token may invoke (" + provider + ")", ct => RestRefusalsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "trial", "A source run on the fake harness finishes unaffected; its input is copied once to three candidates as Shadow runs that agree, diverge, and fail (" + provider + ")", ct => TrialAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "comparison", "A trial with a comparison eval set is scored with the set's checks against the source output; useJudge runs the set's judge agent with eval-judge; a judge without a judge agent is refused at start (" + provider + ")", ct => ComparisonAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "terminal", "A shadow run cancelled in the queue or timed out by the maintenance pass counts once as a candidate failure; a clamped samplePercent is echoed (" + provider + ")", ct => TerminalAsync(provider, ct)));
@@ -172,6 +175,80 @@ namespace Test.Shared.Suites
                 }
                 Assert.True(refused, "A shadow run's file space write-back is refused");
             }
+        }
+
+        private static async Task RestRefusalsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                Agent agent = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "rest-refused", DelegationMode = DelegationModeEnum.Any }, token).ConfigureAwait(false);
+                Agent helper = await host.Server.Context.Database.Agents.CreateAsync(new Agent { TenantId = host.TenantId, Name = "rest-helper" }, token).ConfigureAwait(false);
+                await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "rest-refused-d", AgentId = agent.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
+                Deployment helperDeployment = await host.Server.Context.Database.Deployments.CreateAsync(new Deployment { TenantId = host.TenantId, Name = "rest-helper-d", AgentId = helper.Id, HarnessProfileId = "hrn_builtin_fake" }, token).ConfigureAwait(false);
+                Run target = await host.Server.Context.Database.Runs.CreateAsync(new Run
+                {
+                    Id = IdGenerator.NewRunId(), TenantId = host.TenantId, AgentId = helper.Id, AgentName = helper.Name, DeploymentId = helperDeployment.Id,
+                    Status = RunStatusEnum.Queued, CallerType = PrincipalTypeEnum.Administrator
+                }, token).ConfigureAwait(false);
+
+                foreach (RunKindEnum kind in new[] { RunKindEnum.Shadow, RunKindEnum.Eval })
+                {
+                    Run run = await LeasedRunAsync(host, agent, kind, token).ConfigureAwait(false);
+                    string code = ShadowRunPolicy.RefusalCodeFor(run);
+                    string bearer = await host.Server.Context.Authentication.IssueForRunAsync(run, run.LeaseEpoch, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
+                    using (HttpClient client = new HttpClient { BaseAddress = new Uri(host.BaseUrl) })
+                    {
+                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+                        await ExpectRefusedAsync(client, HttpMethod.Post, T(host) + "/agents/" + helper.Id + "/invoke", new InvokeRequest { Input = "Act on this.", Wait = false }, code, kind + " invoke", token).ConfigureAwait(false);
+                        await ExpectRefusedAsync(client, HttpMethod.Post, T(host) + "/runs", new RunCreateRequest { AgentId = helper.Id, Input = "Start this." }, code, kind + " run start", token).ConfigureAwait(false);
+                        await ExpectRefusedAsync(client, HttpMethod.Post, T(host) + "/runs/" + target.Id + "/cancel", null, code, kind + " run cancel", token).ConfigureAwait(false);
+
+                        Run read = await HttpTestHelpers.SendAsync<Run>(client, HttpMethod.Get, T(host) + "/runs/" + run.Id, null, 200, token).ConfigureAwait(false);
+                        Assert.Equal(run.Id, read.Id, kind + " run token still reads its run");
+                        Assert.Equal(200, (await HttpTestHelpers.SendAsync(client, HttpMethod.Get, T(host) + "/agents/" + helper.Id, null, token).ConfigureAwait(false)).StatusCode, kind + " run token still reads an agent");
+                    }
+                }
+
+                Assert.Equal(1L, (await host.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = host.TenantId, AgentId = helper.Id }, token).ConfigureAwait(false)).TotalRecords, "No run was started for the helper; only the cancel target exists");
+                Run? untouched = await host.Server.Context.Database.Runs.ReadAsync(host.TenantId, target.Id, token).ConfigureAwait(false);
+                Assert.True(untouched != null && untouched.Status == RunStatusEnum.Queued && !untouched.CancelRequested, "The cancel target was not cancelled");
+
+                Run ordinary = await LeasedRunAsync(host, agent, RunKindEnum.Invoke, token).ConfigureAwait(false);
+                string ordinaryBearer = await host.Server.Context.Authentication.IssueForRunAsync(ordinary, ordinary.LeaseEpoch, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);
+                using (HttpClient client = new HttpClient { BaseAddress = new Uri(host.BaseUrl) })
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ordinaryBearer);
+                    TestResponse invoked = await HttpTestHelpers.SendAsync(client, HttpMethod.Post, T(host) + "/agents/" + helper.Id + "/invoke", new InvokeRequest { Input = "Act on this.", Wait = false }, token).ConfigureAwait(false);
+                    Assert.Equal(202, invoked.StatusCode, "An ordinary run token may still invoke: " + invoked.Body);
+                }
+            }
+        }
+
+        private static async Task<Run> LeasedRunAsync(TestServerHost host, Agent agent, RunKindEnum kind, CancellationToken token)
+        {
+            Deployment deployment = Assert.NotNull(await host.Server.Context.Database.Deployments.ReadByNameAsync(host.TenantId, "rest-refused-d", token).ConfigureAwait(false), "Deployment");
+            Run run = new Run();
+            run.Id = IdGenerator.NewRunId();
+            run.TenantId = host.TenantId;
+            run.AgentId = agent.Id;
+            run.AgentName = agent.Name;
+            run.DeploymentId = deployment.Id;
+            run.Kind = kind;
+            if (kind == RunKindEnum.Shadow) run.ShadowTrialId = "shd_rest_refusals";
+            run.Status = RunStatusEnum.Running;
+            run.LeaseEpoch = 1;
+            run.LeaseNodeId = "nod_rest";
+            run.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(5);
+            run.CallerType = PrincipalTypeEnum.Administrator;
+            return await host.Server.Context.Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+        }
+
+        private static async Task ExpectRefusedAsync(HttpClient client, HttpMethod method, string path, object? body, string code, string label, CancellationToken token)
+        {
+            TestResponse response = await HttpTestHelpers.SendAsync(client, method, path, body, token).ConfigureAwait(false);
+            Assert.Equal(403, response.StatusCode, label + " is refused: " + response.Body);
+            ErrorResponse? error = Serializer.Deserialize<ErrorResponse>(response.Body);
+            Assert.True(error != null && error.Code == code, label + " carries " + code + ": " + response.Body);
         }
 
         private static async Task TrialAsync(DatabaseTypeEnum provider, CancellationToken token)

@@ -87,7 +87,7 @@ namespace Garrison.Server.Runtime
         /// <summary>
         /// The message a refused restricted run receives.
         /// </summary>
-        /// <param name="toolName">Tool name.</param>
+        /// <param name="toolName">Tool name, or for a REST call a label such as "Execute on Agent".</param>
         /// <param name="run">Run, or null.</param>
         /// <returns>Message.</returns>
         public static string RefusalMessageFor(string? toolName, Run? run)
@@ -108,8 +108,22 @@ namespace Garrison.Server.Runtime
             if (String.Equals(tool.Name, _PermissionPrompt, StringComparison.Ordinal)) return false;
             if (tool.AgentTool) return true;
             if (_AlwaysRefused.Contains(tool.Name)) return true;
-            if (tool.ResourceType == ResourceTypeEnum.StudioDraft) return true;
+            if (RefusesOperation(tool.ResourceType, tool.Operation)) return true;
             return EffectClassificationRules.RequiresJournal(tool.Operation, tool.AgentTool, tool.Annotations);
+        }
+
+        /// <summary>
+        /// Whether a restricted run is refused an operation on a resource type, as the operation scope map records it for a
+        /// REST route or an MCP tool (SR-29). Every operation other than Read is refused, and so is every operation on a
+        /// studio draft. <see cref="Refuses"/> applies the same rule to tools, so REST and MCP refuse the same operations.
+        /// </summary>
+        /// <param name="resourceType">Resource type.</param>
+        /// <param name="operation">Operation.</param>
+        /// <returns>True when the call must be refused with <see cref="RefusalCodeFor"/>.</returns>
+        public static bool RefusesOperation(ResourceTypeEnum resourceType, OperationTypeEnum operation)
+        {
+            if (resourceType == ResourceTypeEnum.StudioDraft) return true;
+            return operation != OperationTypeEnum.Read;
         }
 
         /// <summary>

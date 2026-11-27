@@ -294,7 +294,7 @@ namespace Garrison.Server.Routes
         private async Task DenyAsync(HttpContextBase context, RequestContext ctx, AuthorizationDecision decision, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? tenantId)
         {
             int status = decision.Result == Garrison.Core.Enums.AuthorizationResultEnum.NotFound ? 404 : 403;
-            ErrorResponse error = new ErrorResponse(status == 404 ? "NotFound" : "Forbidden", status == 404 ? "NotFound" : "AuthorizationDenied", status == 404 ? "Resource not found." : decision.Reason);
+            ErrorResponse error = new ErrorResponse(status == 404 ? "NotFound" : "Forbidden", status == 404 ? "NotFound" : (decision.Code ?? "AuthorizationDenied"), status == 404 ? "Resource not found." : decision.Reason);
             error.RequestId = ctx.RequestId;
             if (status == 403)
             {

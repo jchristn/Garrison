@@ -31,6 +31,12 @@ namespace Garrison.Core.Security
         public string Reason { get; set; } = String.Empty;
 
         /// <summary>
+        /// Machine-readable code of a denial that has its own meaning, such as ShadowRunRefused or EvalRunRefused (SR-29),
+        /// sent in place of the generic AuthorizationDenied code. Null for an ordinary denial and for a permit.
+        /// </summary>
+        public string? Code { get; set; } = null;
+
+        /// <summary>
         /// Bypass reason when authorization was skipped by an administrative rule.
         /// </summary>
         public string? BypassReason { get; set; } = null;
@@ -64,6 +70,20 @@ namespace Garrison.Core.Security
             AuthorizationDecision decision = new AuthorizationDecision();
             decision.Result = result;
             decision.Reason = reason;
+            return decision;
+        }
+
+        /// <summary>
+        /// Denied decision carrying its own code.
+        /// </summary>
+        /// <param name="result">Denial kind.</param>
+        /// <param name="code">Machine-readable code, or null for the generic code.</param>
+        /// <param name="reason">Reason.</param>
+        /// <returns>Decision.</returns>
+        public static AuthorizationDecision Deny(AuthorizationResultEnum result, string? code, string reason)
+        {
+            AuthorizationDecision decision = Deny(result, reason);
+            decision.Code = code;
             return decision;
         }
     }

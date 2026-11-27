@@ -584,7 +584,7 @@ None of the image findings are in Garrison's own dependencies. They are in the .
 
 Review date: 2026-11-26, against `feature/autonomous-agents` at `ea45b716` (schema 59). File and line references point at that commit with the fixes below applied. Schema versions 46 to 59 belong to 0.3.0. Version 45 was the last 0.2.0 migration (plan section 7.3).
 
-0.3.0 lets agents act without a person asking. Keepers wake on a schedule. Agents write memory, file reports, message each other, and raise escalations. Executives change the units below them, and candidate deployments run beside production as shadows and canaries. `docs/SECURITY.md` has the threat model for each feature, and this addendum checks that model against the code. For each threat it names the mitigation and the Touchstone case that exercises it. A test reference is `suite/case`, where `<provider>` is `sqlite` or `postgresql`. Every reference was checked against `src/Test.Shared/Suites`. The review found one weakness and fixed it (SR-27), added one missing test (SR-28), and left one item open (SR-29).
+0.3.0 lets agents act without a person asking. Keepers wake on a schedule. Agents write memory, file reports, message each other, and raise escalations. Executives change the units below them, and candidate deployments run beside production as shadows and canaries. `docs/SECURITY.md` has the threat model for each feature, and this addendum checks that model against the code. For each threat it names the mitigation and the Touchstone case that exercises it. A test reference is `suite/case`, where `<provider>` is `sqlite` or `postgresql`. Every reference was checked against `src/Test.Shared/Suites`. The review found one weakness and fixed it (SR-27), added one missing test (SR-28), and left one item open (SR-29), which was fixed later in the release.
 
 ### Summary
 
@@ -594,11 +594,11 @@ Review date: 2026-11-26, against `feature/autonomous-agents` at `ea45b716` (sche
 | AT-2 | Threat | Self-modification: an agent changing its own mandate, authority, or budget | Mitigated |
 | AT-3 | Threat | Privilege escalation through drafts and change rules | Mitigated |
 | AT-4 | Threat | Loop cost: agents waking, messaging, and spending in a cycle | Mitigated |
-| AT-5 | Threat | Shadow and eval leakage: side effects and hidden cases | Mitigated in Garrison's MCP gateway; SR-29 open |
+| AT-5 | Threat | Shadow and eval leakage: side effects and hidden cases | Mitigated; SR-29 fixed |
 | AT-6 | Threat | Tenant isolation of the 40 new tables | Mitigated; SR-28 test added |
 | SR-27 | Medium | Escalation questions and answers were fenced by fixed lines that the text itself could forge | Fixed |
 | SR-28 | Low | No data-layer isolation test for mandate revisions, signals, and ticks | Fixed: test added |
-| SR-29 | Medium | Shadow and eval restrictions are enforced in the MCP gateway, not on REST routes called with the run's token | Open |
+| SR-29 | Medium | Shadow and eval restrictions were enforced in the MCP gateway, not on REST routes called with the run's token | Fixed |
 
 ### AT-1: prompt injection through shared state
 
@@ -703,7 +703,8 @@ Shadow runs are billed like real runs and count toward agent spend and unit budg
 
 **Mitigation:** decisions AA-027 and AA-074.
 
-- The MCP gateway reads the run again on every call. It leaves effectful, agent, messaging, escalation, report, memory-write, keeper, draft, file, and run-control tools out of the tool list and refuses them with `ShadowRunRefused` or `EvalRunRefused` (`src/Garrison.Server/Runtime/ShadowRunPolicy.cs:105`, `src/Garrison.Server/Protocols/GarrisonMcpServer.cs:410`, `:658`).
+- The MCP gateway reads the run again on every call. It leaves effectful, agent, messaging, escalation, report, memory-write, keeper, draft, file, and run-control tools out of the tool list and refuses them with `ShadowRunRefused` or `EvalRunRefused` (`src/Garrison.Server/Runtime/ShadowRunPolicy.cs`, `src/Garrison.Server/Protocols/GarrisonMcpServer.cs:410`, `:658`).
+- REST and A2A calls made with the run's token get the same refusal from authorization (SR-29). Every operation other than Read, and every studio draft operation, is refused with the same codes (`ShadowRunPolicy.RefusesOperation`, `src/Garrison.Server/Services/AuthorizationService.cs`).
 - Permission prompts from these runs are denied.
 - These runs get no file space write-back and no caller, conversation, trigger, app, mandate, or parent.
 - Hidden cases are redacted for every run token, and their case and judge runs are closed to every run token but their own (`src/Garrison.Server/Runtime/HiddenEvalRunPolicy.cs`).
@@ -711,23 +712,23 @@ Shadow runs are billed like real runs and count toward agent spend and unit budg
 
 **Test:**
 
-- `shadow-unit/policy`, `shadow-<provider>/refusals`, and `shadow-<provider>/trial`;
+- `shadow-unit/policy`, `shadow-<provider>/refusals`, `shadow-<provider>/rest-refusals`, and `shadow-<provider>/trial`;
 - `eval-<provider>/eval-refusals`;
 - `eval-unit/separation` and `eval-<provider>/separation`: hidden cases are redacted;
 - `canary-<provider>/promote`: shadow and eval runs do not count;
 - `performance-<provider>/rollup`: eval runs are left out.
 
-What remains open is SR-29.
+SR-29 below covered the REST side and is fixed.
 
-### SR-29 Medium (open): shadow and eval restrictions stop at the MCP gateway
+### SR-29 Medium (fixed): shadow and eval restrictions stopped at the MCP gateway
 
-**Where:** `src/Garrison.Server/Services/AuthorizationService.cs:508`. `EvaluateRunAsync` treats the token of a shadow or eval run like any other run token.
+**Where:** `src/Garrison.Server/Services/AuthorizationService.cs`, `EvaluateRunAsync`. It treated the token of a shadow or eval run like any other run token.
 
-**What is wrong:** the MCP gateway refuses effectful tools to a shadow or eval run, but the REST routes its token can reach are not shadow-aware. A run token may read and invoke agents and read, start, and cancel runs. A harness with network access to the control plane could call `POST /v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke` with its own token and start a real run from a shadow, within its agent's delegation policy. Harness built-in tools on harnesses that do not relay permission prompts are a related gap that `docs/SECURITY.md` already documents ("Shadow leakage").
+**What was wrong:** the MCP gateway refuses effectful tools to a shadow or eval run, but the REST routes its token can reach were not shadow-aware. A run token may read and invoke agents and read, start, and cancel runs. A harness with network access to the control plane could call `POST /v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke` with its own token and start a real run from a shadow, within its agent's delegation policy. Harness built-in tools on harnesses that do not relay permission prompts are a related gap that `docs/SECURITY.md` already documents ("Shadow leakage").
 
-**Why it is open:** closing it needs a run-kind check on every REST route a run token can reach, with a test for each. That is more than a review fix. Until it lands, shadow and evaluate only deployments whose trust level, executor, and egress allowlist keep them away from the control plane's REST port and from anything else with side effects.
+**Fix:** the check lives in one place, the run-token branch of authorization, keyed on the resource type and operation that the operation scope map records for every route. When the operation is one `ShadowRunPolicy.RefusesOperation` refuses (anything other than Read, or any studio draft operation), authorization reads the caller's run row. If the run is a Shadow or Eval run, the call is denied with 403 and the code `ShadowRunRefused` or `EvalRunRefused` in place of `AuthorizationDenied`, with the policy's own message. `ShadowRunPolicy.Refuses`, which the MCP gateway uses for tools, applies the same `RefusesOperation` rule, so REST and MCP cannot drift apart. Reads stay allowed. A2A calls go through the same authorization, and so do MCP handlers that authorize again inside a tool.
 
-**Recommendation:** in `EvaluateRunAsync`, refuse every operation other than Read when the token's run is a `Shadow` run or a restricted `Eval` run, and add a Touchstone case for each route family.
+**Test:** `shadow-<provider>/rest-refusals`. A Shadow run token and an Eval run token each get 403 with their code on `POST .../agents/{agentId}/invoke`, `POST .../runs`, and `POST .../runs/{id}/cancel`. Each still reads its run and an agent. No run is started and the cancel target stays queued. An ordinary run token of the same agent still invokes (202). With the check removed, the shadow invoke returns 202, so the case catches the regression.
 
 ### AT-6: tenant isolation of the new tables
 

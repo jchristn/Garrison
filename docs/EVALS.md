@@ -230,6 +230,8 @@ Decision AA-027 keeps shadow runs from acting. A shadow run's token is flagged b
 
 Its `tools/list` leaves those tools out, so most harnesses never try them. Some are refused even though they only read, such as reading an inbox, because reading an inbox marks messages delivered.
 
+The same token gets the same answer over REST and A2A. Authorization refuses a shadow or eval run's token every operation other than Read, and every studio draft operation, with 403 and `ShadowRunRefused` or `EvalRunRefused` in the error's `code`, so calling `POST /v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke`, `POST .../runs`, or `POST .../runs/{id}/cancel` with it does nothing. Reads still work.
+
 The harness's own tools are handled through approvals. Every permission prompt a shadow run raises is answered Deny, whatever the deployment's approval rules say and whoever is watching. Where the harness can relay permission prompts (Claude Code, CodexAppServer, ProviderApi), Garrison turns approvals on for the shadow run even when the deployment has them off, and a Claude Code shadow runs in permission mode `default` with only Garrison's tools pre-allowed, overriding the deployment's parameters. A shadow run gets no conversation file space, and its worker cannot write one back (`ShadowRunRefused`). Shadow runs send no run notifications.
 
 Harnesses that cannot relay permission prompts (Codex exec, Gemini CLI, Mux, opencode, pi, custom CLIs) still run their built-in tools unasked. Shadow a deployment on one of those only when its sandbox, trust level, and egress rules already keep its built-in tools from reaching anything that matters. [SECURITY.md](SECURITY.md#evaluations-and-shadow-runs) has the threat model.
