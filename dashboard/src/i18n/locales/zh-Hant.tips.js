@@ -4790,3 +4790,23 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "p2": "只要候選部署的錯誤率維持在界限內，且發佈設有評估關卡時最新評估分數也在界限內，發佈就會繼續前進，並在最後一個階段後推進。否則它會回復為原本的權重，並發出「金絲雀發佈已回復」通知。"
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "開啟清單頁面，套用 YAML 清單，或將此租用戶的設定匯出以納入原始碼控制。",
+  "manage": "開啟連線頁面，新增、檢視或變更代理使用的已儲存執行框架與 API 端點。",
+  "manageThis": "在新分頁中開啟連線頁面上的此連線，以檢視或變更其模型、端點與憑證。",
+  "configureFirst": "目前還沒有已儲存的連線。此連結會在新分頁中開啟連線頁面，讓你建立一個。",
+  "harness": "此連線執行的執行框架 CLI 或 HTTP API。選擇後會填入其預設值；自訂執行框架從空白設定檔開始。"
+ }
+});

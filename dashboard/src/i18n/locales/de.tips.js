@@ -4791,3 +4791,23 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "p2": "Solange die Fehlerquote des Kandidaten und, bei einer Freigabe mit Eval-Schranke, die letzte Eval-Punktzahl innerhalb der Grenzen bleiben, geht die Freigabe weiter und wird nach dem letzten Schritt hochgestuft. Andernfalls wird sie auf die vorherigen Gewichtungen zurückgesetzt, und eine Benachrichtigung Canary-Freigabe zurückgesetzt wird verschickt."
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "Öffnet die Manifest-Seite, um ein YAML-Manifest anzuwenden oder die Konfiguration dieses Mandanten für die Versionsverwaltung zu exportieren.",
+  "manage": "Öffnet die Seite Verbindungen, um gespeicherte Harnesses und API-Endpunkte für Agenten hinzuzufügen, zu prüfen oder zu ändern.",
+  "manageThis": "Öffnet diese Verbindung in einem neuen Tab auf der Seite Verbindungen, um Modell, Endpunkt und Anmeldedaten zu prüfen oder zu ändern.",
+  "configureFirst": "Es gibt noch keine gespeicherte Verbindung. Dieser Link öffnet die Seite Verbindungen in einem neuen Tab, damit Sie eine anlegen können.",
+  "harness": "Das Harness-CLI oder die HTTP-API, die diese Verbindung ausführt. Eine Auswahl füllt die Standardwerte aus; Benutzerdefiniertes Harness beginnt mit einem leeren Profil."
+ }
+});

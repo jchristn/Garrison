@@ -203,7 +203,7 @@ export default function StudioView() {
             <table className="data-table" data-testid="studio-drafts">
               <thead>
                 <tr>
-                  <th scope="col" className="select-cell">
+                  <th scope="col" className="select-cell" {...tip(t('tips.table.selectAll'))}>
                     <input type="checkbox" checked={allSelected} ref={(input) => { if (input) input.indeterminate = selected.length > 0 && !allSelected; }} disabled={deleting || !!denied.discard} onChange={() => setSelected(allSelected ? [] : shown.map((draft) => draft.id))} aria-label={t('components.table.selectAll')} {...tip(denied.discard || t('tips.table.selectAll'))} />
                   </th>
                   {COLUMNS.map((c) => (

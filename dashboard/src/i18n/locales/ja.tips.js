@@ -4791,3 +4791,23 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   "p2": "候補のエラー率と、評価ゲートがある場合は最新の評価スコアが範囲内にある間、リリースは進み、最後のステップの後に昇格します。範囲を外れるとリリース前の重みにロールバックし、「カナリアがロールバックされました」の通知が送られます。"
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "マニフェストページを開き、YAML マニフェストを適用するか、このテナントの構成をソース管理用にエクスポートします。",
+  "manage": "接続ページを開き、エージェントが使う保存済みのハーネスと API エンドポイントを追加、確認、変更します。",
+  "manageThis": "この接続を接続ページの新しいタブで開き、モデル、エンドポイント、認証情報を確認または変更します。",
+  "configureFirst": "保存済みの接続はまだありません。このリンクは接続ページを新しいタブで開き、接続を作成できるようにします。",
+  "harness": "この接続が実行するハーネス CLI または HTTP API です。選ぶと既定値が入力されます。カスタムハーネスは空のプロファイルから始まります。"
+ }
+});

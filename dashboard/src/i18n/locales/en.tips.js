@@ -4791,3 +4791,23 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "p2": "While the candidate's error rate, and the latest eval score when the release has an eval gate, stay within bounds, the release advances and is promoted after the last step. Otherwise it rolls back to the weights from before, and a Canary rolled back notification goes out."
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "Open the manifests page to apply a YAML manifest or export this tenant's configuration for source control.",
+  "manage": "Open the Connections page to add, review, or change the saved harnesses and API endpoints agents use.",
+  "manageThis": "Open this connection on the Connections page in a new tab to review or change its model, endpoint, and credentials.",
+  "configureFirst": "No saved connection exists yet. This opens the Connections page in a new tab so you can create one.",
+  "harness": "The harness CLI or HTTP API this connection runs. Picking one fills in its defaults; Custom harness starts from an empty profile."
+ }
+});

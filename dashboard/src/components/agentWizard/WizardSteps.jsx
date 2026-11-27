@@ -186,7 +186,7 @@ export function AccessStep({ state, update, go }) {
     {error && <ErrorBanner message={errorMessage(t, error)} />}
     <FormField id="wizard-runtime" field={{ type: 'select', label: t('runtime.choose'), required: true, tip: t('runtime.sharedHint'), options: profiles.map((p) => ({ value: p.id, label: p.name })) }} value={selection} onChange={setSelection} />
     {profile && <HarnessRuntimeSummary profile={profile} showManage={false} />}
-    <div className="flex gap-sm"><Link className="button button-secondary" to={pathFor('harnessProfiles')}>{t('runtime.manage')}</Link><button type="button" className="button button-secondary" onClick={load}>{t('components.files.refresh')}</button></div>
+    <div className="flex gap-sm"><Link className="button button-secondary" to={pathFor('harnessProfiles')} {...tip(t('tips.runtime.manage'))}>{t('runtime.manage')}</Link><button type="button" className="button button-secondary" onClick={load}>{t('components.files.refresh')}</button></div>
     <StepNav back={() => go('goal')} next={next} nextLabel={t('views.agentWizard.access.next')} nextDisabled={!profile ? t('runtime.configureFirst') : ''} busy={busy} />
   </>;
 }

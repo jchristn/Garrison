@@ -4793,3 +4793,23 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "p2": "Tant que le taux d'erreur du candidat, et la dernière note d'évaluation quand la diffusion a une condition d'évaluation, restent dans leurs limites, la diffusion avance et le candidat est promu après la dernière étape. Sinon, elle revient aux poids d'avant, et une notification Diffusion canari revenue en arrière est envoyée."
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "Ouvre la page des manifestes pour appliquer un manifeste YAML ou exporter la configuration de ce locataire vers le contrôle de version.",
+  "manage": "Ouvre la page Connexions pour ajouter, consulter ou modifier les harnesses et points de terminaison d'API enregistrés utilisés par les agents.",
+  "manageThis": "Ouvre cette connexion dans un nouvel onglet de la page Connexions pour consulter ou modifier son modèle, son point de terminaison et ses identifiants.",
+  "configureFirst": "Aucune connexion enregistrée pour l'instant. Ce lien ouvre la page Connexions dans un nouvel onglet pour en créer une.",
+  "harness": "Le CLI de harness ou l'API HTTP exécuté par cette connexion. En choisir un remplit ses valeurs par défaut ; Harness personnalisé part d'un profil vide."
+ }
+});

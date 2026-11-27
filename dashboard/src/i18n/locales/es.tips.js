@@ -4793,3 +4793,23 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "p2": "Mientras la tasa de errores del candidato, y la última puntuación de evaluación cuando el lanzamiento tiene un requisito de evaluación, se mantengan dentro de los límites, el lanzamiento avanza y se promueve tras el último paso. Si no, se revierte a los pesos de antes y se envía una notificación de Lanzamiento canario revertido."
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "Abre la página de manifiestos para aplicar un manifiesto YAML o exportar la configuración de este inquilino al control de versiones.",
+  "manage": "Abre la página Conexiones para añadir, revisar o cambiar los harnesses y endpoints de API guardados que usan los agentes.",
+  "manageThis": "Abre esta conexión en una pestaña nueva de la página Conexiones para revisar o cambiar su modelo, endpoint y credenciales.",
+  "configureFirst": "Todavía no hay ninguna conexión guardada. Este enlace abre la página Conexiones en una pestaña nueva para que puedas crear una.",
+  "harness": "El CLI de harness o la API HTTP que ejecuta esta conexión. Al elegir uno se rellenan sus valores predeterminados; Harness personalizado empieza con un perfil vacío."
+ }
+});

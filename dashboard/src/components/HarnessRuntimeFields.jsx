@@ -5,6 +5,7 @@ import { FormField } from './FormFields';
 import InferenceEndpointFields from './InferenceEndpointFields';
 import { blankInferenceEndpoint } from '../utils/inferenceEndpoints';
 import { pathFor } from '../config/navConfig';
+import { tip } from './Tooltip';
 
 /** Connection settings are edited only on the shared runtime profile. */
 export default function HarnessRuntimeFields({ profile, value, onChange, disabled, secrets = [], errors = {} }) {
@@ -24,7 +25,7 @@ export default function HarnessRuntimeFields({ profile, value, onChange, disable
 /** Referencing forms link to the central editor instead of copying endpoint settings. */
 export function HarnessRuntimeSummary({ profile, showManage = true }) {
   const { t } = useTranslation();
-  if (!profile) return showManage ? <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles')}>{t('runtime.configureFirst')}</Link> : <p className="field-hint">{t('runtime.configureFirst')}</p>;
+  if (!profile) return showManage ? <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles')} {...tip(t('tips.runtime.configureFirst'))}>{t('runtime.configureFirst')}</Link> : <p className="field-hint">{t('runtime.configureFirst')}</p>;
   const runtime = profile.runtimeConfiguration || {};
-  return <div className="info-banner span-full"><strong>{profile.name}</strong><p>{runtime.inferenceEndpoint ? `${runtime.inferenceEndpoint.protocol} · ${runtime.inferenceEndpoint.baseUrl} · ${runtime.model} · ${t(`inference.auth.${runtime.inferenceEndpoint.authenticationType}`)}` : runtime.endpointName || runtime.model || profile.harnessType}</p>{showManage && <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles', null, { search: profile.name })}>{t('runtime.manage')}</Link>}</div>;
+  return <div className="info-banner span-full"><strong>{profile.name}</strong><p>{runtime.inferenceEndpoint ? `${runtime.inferenceEndpoint.protocol} · ${runtime.inferenceEndpoint.baseUrl} · ${runtime.model} · ${t(`inference.auth.${runtime.inferenceEndpoint.authenticationType}`)}` : runtime.endpointName || runtime.model || profile.harnessType}</p>{showManage && <Link target="_blank" rel="noopener noreferrer" to={pathFor('harnessProfiles', null, { search: profile.name })} {...tip(t('tips.runtime.manageThis'))}>{t('runtime.manage')}</Link>}</div>;
 }

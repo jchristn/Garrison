@@ -4793,3 +4793,23 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "p2": "Finché il tasso di errore della candidata, e l'ultimo punteggio di valutazione quando il rilascio ha un requisito di valutazione, restano entro i limiti, il rilascio avanza e viene promosso dopo l'ultimo passo. Altrimenti torna ai pesi di prima e parte una notifica Rilascio canary ripristinato."
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "Apre la pagina dei manifest per applicare un manifest YAML o esportare la configurazione di questo tenant nel controllo di versione.",
+  "manage": "Apre la pagina Connessioni per aggiungere, controllare o modificare gli harness e gli endpoint API salvati usati dagli agenti.",
+  "manageThis": "Apre questa connessione in una nuova scheda della pagina Connessioni per controllare o modificare modello, endpoint e credenziali.",
+  "configureFirst": "Non esiste ancora una connessione salvata. Questo link apre la pagina Connessioni in una nuova scheda per crearne una.",
+  "harness": "Il CLI dell'harness o l'API HTTP eseguiti da questa connessione. Sceglierne uno compila i valori predefiniti; Harness personalizzato parte da un profilo vuoto."
+ }
+});

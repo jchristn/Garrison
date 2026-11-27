@@ -4790,3 +4790,23 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "p2": "只要候选的错误率，以及在设置了评估关卡时的最新评估分数，保持在范围内，发布就会推进，并在最后一步之后晋升。否则会回滚到发布前的权重，并发出“金丝雀已回滚”通知。"
  }
 });
+
+// Tooltips for the Import / Export hub button and the connection links and picker (AA12).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "runtime": {
+  "importExport": "打开清单页面，应用 YAML 清单，或将此租户的配置导出以便纳入源代码管理。",
+  "manage": "打开连接页面，添加、查看或更改代理使用的已保存运行框架和 API 端点。",
+  "manageThis": "在新标签页中打开连接页面上的此连接，以查看或更改其模型、端点和凭据。",
+  "configureFirst": "还没有已保存的连接。此链接会在新标签页中打开连接页面，以便你创建一个。",
+  "harness": "此连接运行的运行框架 CLI 或 HTTP API。选择后会填入其默认值；自定义运行框架从空白配置开始。"
+ }
+});
