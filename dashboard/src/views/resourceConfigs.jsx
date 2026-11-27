@@ -446,6 +446,18 @@ export const credentialAssignmentsConfig = assignmentConfig(
 
 // ---------------------------------------------------------------- configuration
 
+/**
+ * Validation of a harness profile's MCP tool name prefix, matching the server: up to 128 characters of letters,
+ * digits, `_`, `-`, `.`, `:`, and the `{server}` placeholder. Empty means plain tool names. Returns '' when valid.
+ */
+export function mcpToolNamePrefixError(value, t) {
+  const v = (value || '').trim();
+  if (!v) return '';
+  if (v.length > 128) return t('resources.harnessProfiles.errors.toolPrefixTooLong', { max: 128 });
+  if (!/^[A-Za-z0-9_.:-]*$/.test(v.replace(/\{server\}/g, ''))) return t('resources.harnessProfiles.errors.toolPrefixInvalid');
+  return '';
+}
+
 export const harnessProfilesConfig = {
   id: 'harnessProfiles',
   explainer: 'harnessProfiles',
@@ -461,6 +473,7 @@ export const harnessProfilesConfig = {
     promptDelivery: 'Stdin',
     systemPromptDelivery: 'File',
     mcpConfigFormat: 'None',
+    mcpToolNamePrefix: '',
     outputParser: 'PlainText',
     resultSource: 'ParserFinalEvent',
     successPolicy: 'FinalEvent',
@@ -534,6 +547,8 @@ export const harnessProfilesConfig = {
       field(id, t, 'systemPromptTarget', 'text', { step: 1, showIf: (x) => x.systemPromptDelivery !== 'None' && x.systemPromptDelivery !== 'PrependToPrompt' }),
       field(id, t, 'mcpConfigFormat', 'select', { required: true, options: enumOptions(t, 'mcpConfigFormat'), step: 1 }),
       field(id, t, 'mcpConfigFileName', 'text', { step: 1, showIf: (x) => x.mcpConfigFormat && x.mcpConfigFormat !== 'None' }),
+      // What the harness puts before an MCP tool's name when it lists the tool to the model (docs/HARNESSES.md).
+      field(id, t, 'mcpToolNamePrefix', 'text', { step: 1, placeholder: 'mcp__{server}__' }),
       field(id, t, 'environment', 'objectList', {
         step: 1,
         fields: [
@@ -580,9 +595,11 @@ export const harnessProfilesConfig = {
     if (d.name && d.name.startsWith('builtin/')) e.name = t('resources.harnessProfiles.errors.reservedPrefix');
     const probes = probeError(d.toolProbes, t);
     if (probes) e.toolProbes = probes;
+    const prefix = mcpToolNamePrefixError(d.mcpToolNamePrefix, t);
+    if (prefix) e.mcpToolNamePrefix = prefix;
     return e;
   },
-  toBody: (d) => ({ ...d, toolProbes: probesToBody(d.toolProbes), successExitCodes: (d.successExitCodes || []).map((x) => Number(x)).filter((x) => !Number.isNaN(x)) }),
+  toBody: (d) => ({ ...d, mcpToolNamePrefix: (d.mcpToolNamePrefix || '').trim() || null, toolProbes: probesToBody(d.toolProbes), successExitCodes: (d.successExitCodes || []).map((x) => Number(x)).filter((x) => !Number.isNaN(x)) }),
   rowActions: (r, ctx) => [
     {
       label: ctx.t('common.actions.clone'),

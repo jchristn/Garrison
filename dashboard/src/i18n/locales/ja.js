@@ -8624,3 +8624,106 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "キーパーを一時停止",
+   "MandateResumed": "キーパーを再開",
+   "MandateWoken": "キーパーを起動",
+   "MandateDeleted": "キーパーを削除",
+   "EscalationAnswered": "エスカレーションに回答",
+   "EscalationCancelled": "エスカレーションを取り消し"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "ほか以前の {{count}} 件",
+   "earlier_other": "ほか以前の {{count}} 件"
+  },
+  "direction": {
+   "unchanged": "{{name}} の現在のリビジョンには既にこの指示があります。何も公開されず、CEO も起動しませんでした。"
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "変更はありません。このリビジョンは現在のものと同じ内容のため、公開されず、キーパーも起動しませんでした。"
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "リビジョン {{number}} を下書きとして保存しましたが、公開していません。現在のリビジョンと同じ内容です。"
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "この値の型が正しくありません。",
+   "InvalidTypeOf": "{{type}}を入力してください。",
+   "InvalidValue": "この値は使用できません。",
+   "InvalidValueOneOf": "次のいずれかを選んでください: {{values}}。",
+   "InvalidValueRange": "{{min}} から {{max}} の値を入力してください。",
+   "fieldMessage": "{{field}}: {{message}}"
+  },
+  "fieldTypes": {
+   "text": "テキスト",
+   "trueFalse": "true または false",
+   "wholeNumber": "整数",
+   "number": "数値",
+   "map": "名前と値のオブジェクト",
+   "list": "リスト",
+   "object": "オブジェクト",
+   "dateTime": "2026-12-31T00:00:00Z のような日時",
+   "duration": "00:05:00 のような期間"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "MCP ツール名の接頭辞"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "任意。英字、数字、_ - . : と {server}、128 文字まで。"
+   },
+   "errors": {
+    "toolPrefixTooLong": "{{max}} 文字以内にしてください。",
+    "toolPrefixInvalid": "英字、数字、_ - . : と {server} だけを使ってください。"
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "誰かがキーパーを一時停止しました。再開するまで起動しません。",
+    "MandateResumed": "誰かが一時停止中のキーパーを再開し、すぐに起動しました。",
+    "MandateWoken": "誰かがキーパーで今すぐ起こすを使いました。",
+    "MandateDeleted": "誰かがキーパーをリビジョンとティックごと削除しました。",
+    "EscalationAnswered": "誰かが未回答のエスカレーションに回答しました。",
+    "EscalationCancelled": "誰かが未回答のエスカレーションを取り消しました。"
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "この作成者は過去 7 日間に、低下または異常のレポートをほかに {{count}} 件提出しています。その作成者のレポートをすべて開きます。",
+    "earlier_other": "この作成者は過去 7 日間に、低下または異常のレポートをほかに {{count}} 件提出しています。その作成者のレポートをすべて開きます。"
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "このリビジョンは現在のものと同じ内容のため、公開しても何も変わりません。先に何かを変更してください。"
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "ハーネスが MCP ツールをモデルに示すとき、ツール名の前に付ける文字列です。サーバー名には {server} を使います。例: mcp__{server}__ や {server}.(ドット)。モデルがそのままのツール名を見る場合は空にします。"
+   }
+  }
+ }
+});

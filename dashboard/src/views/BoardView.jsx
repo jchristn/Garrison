@@ -30,7 +30,7 @@ import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { holds } from '../utils/apps';
 import { enumLabel } from '../utils/enums';
-import { errorMessage, errorMessageWithDetail } from '../utils/errors';
+import { errorMessage, errorMessageWithDetail, fieldErrorMessages } from '../utils/errors';
 import { FREEZES_CHANGED_EVENT, freezeDenied } from '../utils/freezes';
 import { chartToUnits, orgDenied } from '../utils/organizations';
 import { cascadeDenied } from '../utils/performance';
@@ -261,7 +261,7 @@ function DirectionPanel({ organizationId, ceo, denied, onGiven }) {
       setForm({ direction: '', changeNote: '' });
       onGiven?.(revision);
     } catch (err) {
-      if (err?.fields) setErrors(err.fields);
+      if (err?.fields) setErrors(fieldErrorMessages(t, err));
       setError(err);
     } finally {
       setBusy(false);
@@ -324,7 +324,13 @@ function DirectionPanel({ organizationId, ceo, denied, onGiven }) {
             </div>
           )}
         </div>
-        {error && <ErrorBanner message={errorMessageWithDetail(t, error)} />}
+        {error?.code === 'RevisionUnchanged' ? (
+          <div className="info-banner" role="status" data-testid="board-direction-unchanged">
+            {t('board.direction.unchanged', { name: ceo?.mandateName || ceo?.mandateId || '-' })}
+          </div>
+        ) : (
+          error && <ErrorBanner message={errorMessageWithDetail(t, error)} />
+        )}
         <button type="submit" className="button-primary" disabled={!!blocked || busy} data-testid="board-direction-submit" {...tip(t('tips.board.direction.submit'))}>
           {t('board.direction.submit')}
         </button>
@@ -395,6 +401,8 @@ function Board({ organizationId }) {
   const unitHealth = board.unitHealth || [];
   const escalations = board.escalations || [];
   const unhealthy = board.unhealthyReports || [];
+  // One report per author (newest); the author's earlier unhealthy reports in the window are only counted.
+  const earlier = board.unhealthyEarlierCounts || {};
   const caps = capHits(board);
   const proposals = (board.proposals || []).filter(proposalPending);
   const spendGroups = spendByUnit(board.spend);
@@ -552,6 +560,20 @@ function Board({ organizationId }) {
                       </StudioLink>
                       <div className="text-muted">
                         {t('board.attention.filedBy', { name: r.authorAgentName || r.filedByName || '-' })} {when(r.createdUtc)}
+                        {earlier[r.id] > 0 && (
+                          <>
+                            {' '}
+                            {r.authorAgentId ? (
+                              <StudioLink to={pathFor('reports', null, { author: r.authorAgentId })} tipText={t('tips.board.attention.earlier', { count: earlier[r.id] })} testId={`board-unhealthy-earlier-${r.id}`}>
+                                {t('board.attention.earlier', { count: earlier[r.id] })}
+                              </StudioLink>
+                            ) : (
+                              <span data-testid={`board-unhealthy-earlier-${r.id}`} {...tip(t('tips.board.attention.earlier', { count: earlier[r.id] }))}>
+                                {t('board.attention.earlier', { count: earlier[r.id] })}
+                              </span>
+                            )}
+                          </>
+                        )}
                       </div>
                     </li>
                   ))}

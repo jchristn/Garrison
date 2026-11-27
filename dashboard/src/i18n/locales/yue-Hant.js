@@ -8624,3 +8624,106 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper 已暫停",
+   "MandateResumed": "Keeper 已恢復",
+   "MandateWoken": "Keeper 已喚醒",
+   "MandateDeleted": "Keeper 已刪除",
+   "EscalationAnswered": "升級已回答",
+   "EscalationCancelled": "升級已取消"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "另外仲有之前 {{count}} 份",
+   "earlier_other": "另外仲有之前 {{count}} 份"
+  },
+  "direction": {
+   "unchanged": "{{name}} 而家嘅修訂已經有呢個指示。冇發佈任何嘢，CEO 亦冇喚醒。"
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "冇改到嘢：呢個修訂同而家嘅一樣，所以冇發佈，keeper 亦冇喚醒。"
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "已經將修訂 {{number}} 儲存做草稿，但冇發佈：佢同而家嘅修訂一樣。"
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "呢個值嘅類型唔啱。",
+   "InvalidTypeOf": "請輸入{{type}}。",
+   "InvalidValue": "唔接受呢個值。",
+   "InvalidValueOneOf": "請揀其中一個：{{values}}。",
+   "InvalidValueRange": "請輸入 {{min}} 至 {{max}} 之間嘅值。",
+   "fieldMessage": "{{field}}：{{message}}"
+  },
+  "fieldTypes": {
+   "text": "文字",
+   "trueFalse": "true 或者 false",
+   "wholeNumber": "整數",
+   "number": "數字",
+   "map": "名稱同值嘅物件",
+   "list": "清單",
+   "object": "物件",
+   "dateTime": "好似 2026-12-31T00:00:00Z 咁嘅日期時間",
+   "duration": "好似 00:05:00 咁嘅時長"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "MCP 工具名稱前綴"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "可選。字母、數字、_ - . : 同 {server}，最多 128 個字元。"
+   },
+   "errors": {
+    "toolPrefixTooLong": "最多用 {{max}} 個字元。",
+    "toolPrefixInvalid": "只可以用字母、數字、_ - . : 同 {server}。"
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "有人暫停咗一個 keeper：恢復之前唔會再喚醒。",
+    "MandateResumed": "有人恢復咗一個暫停咗嘅 keeper，佢而家會喚醒。",
+    "MandateWoken": "有人對一個 keeper 用咗立即喚醒。",
+    "MandateDeleted": "有人刪除咗一個 keeper，連埋佢嘅修訂同 tick。",
+    "EscalationAnswered": "有人回答咗一個未處理嘅升級。",
+    "EscalationCancelled": "有人取消咗一個未處理嘅升級。"
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "呢個作者喺過去 7 日仲交咗之前 {{count}} 份降級或者唔健康嘅報告。會打開佢所有報告。",
+    "earlier_other": "呢個作者喺過去 7 日仲交咗之前 {{count}} 份降級或者唔健康嘅報告。會打開佢所有報告。"
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "呢個修訂同而家嘅一樣，發佈都唔會改到任何嘢。請先改啲嘢。"
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "harness 向模型顯示 MCP 工具時加喺工具名稱前面嘅字。用 {server} 代表伺服器名稱，例如 mcp__{server}__ 或者 {server}.（點）。如果模型睇到嘅係原本嘅工具名稱，就留空。"
+   }
+  }
+ }
+});

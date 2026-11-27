@@ -8695,3 +8695,106 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper en pausa",
+   "MandateResumed": "Keeper reanudado",
+   "MandateWoken": "Keeper despertado",
+   "MandateDeleted": "Keeper eliminado",
+   "EscalationAnswered": "Escalado respondido",
+   "EscalationCancelled": "Escalado cancelado"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "y {{count}} anterior",
+   "earlier_other": "y {{count}} anteriores"
+  },
+  "direction": {
+   "unchanged": "{{name}} ya tiene esta indicación en su revisión actual. No se publicó nada y el CEO no despertó."
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "Nada cambió: esta revisión dice lo mismo que la actual, así que no se publicó y el keeper no despertó."
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "La revisión {{number}} se guardó como borrador, pero no se publicó: dice lo mismo que la revisión actual."
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "Este valor tiene un tipo incorrecto.",
+   "InvalidTypeOf": "Introduzca {{type}}.",
+   "InvalidValue": "Este valor no está permitido.",
+   "InvalidValueOneOf": "Elija uno de: {{values}}.",
+   "InvalidValueRange": "Introduzca un valor de {{min}} a {{max}}.",
+   "fieldMessage": "{{field}}: {{message}}"
+  },
+  "fieldTypes": {
+   "text": "texto",
+   "trueFalse": "true o false",
+   "wholeNumber": "un número entero",
+   "number": "un número",
+   "map": "un objeto de nombres y valores",
+   "list": "una lista",
+   "object": "un objeto",
+   "dateTime": "una fecha y hora como 2026-12-31T00:00:00Z",
+   "duration": "una duración como 00:05:00"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "Prefijo de nombres de herramientas MCP"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "Opcional. Letras, dígitos, _ - . : y {server}, hasta 128 caracteres."
+   },
+   "errors": {
+    "toolPrefixTooLong": "Use como máximo {{max}} caracteres.",
+    "toolPrefixInvalid": "Use solo letras, dígitos, _ - . : y {server}."
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "Alguien pausó un keeper: no despierta hasta que se reanude.",
+    "MandateResumed": "Alguien reanudó un keeper en pausa, que despierta ahora.",
+    "MandateWoken": "Alguien usó Despertar ahora en un keeper.",
+    "MandateDeleted": "Alguien eliminó un keeper con sus revisiones y ticks.",
+    "EscalationAnswered": "Alguien respondió un escalado abierto.",
+    "EscalationCancelled": "Alguien canceló un escalado abierto."
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "Este autor presentó {{count}} informe degradado o con problemas anterior en los últimos 7 días. Abre todos sus informes.",
+    "earlier_other": "Este autor presentó {{count}} informes degradados o con problemas anteriores en los últimos 7 días. Abre todos sus informes."
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "Esta revisión dice lo mismo que la actual, así que publicarla no cambiaría nada. Cambie algo primero."
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "Lo que el harness antepone al nombre de una herramienta MCP cuando la muestra al modelo. Use {server} para el nombre del servidor, por ejemplo mcp__{server}__ o {server}. (punto). Déjelo vacío cuando el modelo ve los nombres sin prefijo."
+   }
+  }
+ }
+});

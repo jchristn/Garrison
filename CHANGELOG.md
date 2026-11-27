@@ -122,6 +122,12 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
   - A tab bar too wide for the window, such as Autonomy at 1440 px, hid its last tabs with no cue. It now shows a scroll button at each edge that hides tabs, and scrolls the active tab into view (UT-16).
   - "Cancel everything in this unit" on the board chart looked like plain text. It is now a danger button like the one in the Brakes panel (UT-17).
   - The Manual wake source tooltip now says a person woke the keeper with Wake now, resuming it, publishing a revision, or giving direction, so those wakes read correctly once the server records them as Manual (UT-15).
+- Dashboard, following the server fixes for the autonomy simulated user findings (AA12.8):
+  - The audit log labels and explains `MandatePaused`, `MandateResumed`, `MandateWoken`, `MandateDeleted`, `EscalationAnswered`, and `EscalationCancelled`, and offers them in its event type filter.
+  - The board's Needs attention list shows one unhealthy report per author. When that author filed earlier ones in the window, it says "and n earlier" (from `unhealthyEarlierCounts`) and links to the author's reports.
+  - Publish is disabled, with a tooltip saying why, on a keeper draft revision and in New revision while the revision says the same as the current one. A 409 `RevisionUnchanged` gets a plain message: from New revision, that the draft was saved but not published; from board direction, that the CEO already has this direction and was not woken.
+  - Field errors with the codes `InvalidType` (a body field of the wrong type) and `InvalidValue` (an unknown filter value or a negative keeper budget) are translated and shown on their fields, for example "Enter a whole number." or "Choose one of: Active, Paused."
+  - The harness profile editor has an MCP tool name prefix field (`mcpToolNamePrefix`) with validation that matches the server. Saving a profile keeps the value, and an empty field is sent as null. The C# and JS SDK `HarnessProfile` models have the field too.
 - `ShadowTrialStatusEnum.Failed` was never set; the leader's sweep now fails a running trial whose source or candidate deployment was deleted or made inactive, with the reason in `stopReason`.
 
 - Tenant deletion now removes deployment inference endpoints and credentials and harness runtime settings and credentials, and the startup table check covers them; `TableCatalog` had left these four tables out.

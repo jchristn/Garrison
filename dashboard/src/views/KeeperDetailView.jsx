@@ -24,7 +24,7 @@ import { errorMessage } from '../utils/errors';
 import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
-import { canPause, canResume, canWake, formatInterval, outcomeCounts, previousRevision, revisionText, tickSeries } from '../utils/keepers';
+import { canPause, canResume, canWake, formatInterval, outcomeCounts, previousRevision, revisionText, sameRevisionContent, tickSeries } from '../utils/keepers';
 import { tip } from '../components/Tooltip';
 import FreezeAction from '../components/FreezeAction';
 import FrozenBanner from '../components/FrozenBanner';
@@ -607,11 +607,16 @@ export default function KeeperDetailView({ recordId }) {
                       <button type="button" className="button-ghost button-sm" onClick={() => setDiffOf(r)} data-testid={`keeper-revision-diff-${r.number}`} {...tip(t('tips.views.keeperDetail.diff'))}>
                         {t('views.keeperDetail.diff')}
                       </button>
-                      {r.state === 'Draft' && (
-                        <button type="button" className="button-secondary button-sm" disabled={busy} onClick={() => !deniedUpdate && publish(r)} data-testid={`keeper-revision-publish-${r.number}`} {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t('tips.keeperRevision.publish'))}>
-                          {t('components.keeperRevision.publish')}
-                        </button>
-                      )}
+                      {r.state === 'Draft' &&
+                        (() => {
+                          // A draft that says the same as the current revision cannot be published (409 RevisionUnchanged).
+                          const blocked = deniedUpdate || (sameRevisionContent(r, m.currentRevision) ? t('tips.keeperRevision.unchanged') : '');
+                          return (
+                            <button type="button" className="button-secondary button-sm" disabled={busy} onClick={() => !blocked && publish(r)} data-testid={`keeper-revision-publish-${r.number}`} {...deniedProps(blocked)} {...tip(blocked || t('tips.keeperRevision.publish'))}>
+                              {t('components.keeperRevision.publish')}
+                            </button>
+                          );
+                        })()}
                     </td>
                   </tr>
                 ))}

@@ -116,6 +116,14 @@ namespace Garrison.Sdk.Models
         public string? McpConfigFileName { get; set; } = null;
 
         /// <summary>
+        /// What the harness puts in front of an MCP tool's name when it lists the tool to the model, with <c>{server}</c>
+        /// for the server name (for example <c>mcp__{server}__</c> or <c>{server}.</c>). Null or empty means the model sees
+        /// plain tool names. Maximum 128 characters: letters, digits, <c>_</c>, <c>-</c>, <c>.</c>, <c>:</c>, and
+        /// <c>{server}</c>. Default null.
+        /// </summary>
+        public string? McpToolNamePrefix { get; set; } = null;
+
+        /// <summary>
         /// Output parser.
         /// </summary>
         public OutputParserEnum OutputParser { get; set; } = OutputParserEnum.PlainText;

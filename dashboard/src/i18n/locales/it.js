@@ -8691,3 +8691,106 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper in pausa",
+   "MandateResumed": "Keeper ripreso",
+   "MandateWoken": "Keeper svegliato",
+   "MandateDeleted": "Keeper eliminato",
+   "EscalationAnswered": "Escalation risposta",
+   "EscalationCancelled": "Escalation annullata"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "e {{count}} precedente",
+   "earlier_other": "e {{count}} precedenti"
+  },
+  "direction": {
+   "unchanged": "{{name}} ha già queste indicazioni nella revisione corrente. Non è stato pubblicato nulla e il CEO non si è svegliato."
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "Nessuna modifica: questa revisione dice lo stesso della corrente, quindi non è stata pubblicata e il keeper non si è svegliato."
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "Revisione {{number}} salvata come bozza, ma non pubblicata: dice lo stesso della revisione corrente."
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "Questo valore ha il tipo sbagliato.",
+   "InvalidTypeOf": "Inserisci {{type}}.",
+   "InvalidValue": "Questo valore non è consentito.",
+   "InvalidValueOneOf": "Scegli uno tra: {{values}}.",
+   "InvalidValueRange": "Inserisci un valore da {{min}} a {{max}}.",
+   "fieldMessage": "{{field}}: {{message}}"
+  },
+  "fieldTypes": {
+   "text": "del testo",
+   "trueFalse": "true o false",
+   "wholeNumber": "un numero intero",
+   "number": "un numero",
+   "map": "un oggetto di nomi e valori",
+   "list": "un elenco",
+   "object": "un oggetto",
+   "dateTime": "una data e ora come 2026-12-31T00:00:00Z",
+   "duration": "una durata come 00:05:00"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "Prefisso dei nomi degli strumenti MCP"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "Facoltativo. Lettere, cifre, _ - . : e {server}, fino a 128 caratteri."
+   },
+   "errors": {
+    "toolPrefixTooLong": "Usa al massimo {{max}} caratteri.",
+    "toolPrefixInvalid": "Usa solo lettere, cifre, _ - . : e {server}."
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "Qualcuno ha messo in pausa un keeper: non si sveglia finché non viene ripreso.",
+    "MandateResumed": "Qualcuno ha ripreso un keeper in pausa, che ora si sveglia.",
+    "MandateWoken": "Qualcuno ha usato Sveglia ora su un keeper.",
+    "MandateDeleted": "Qualcuno ha eliminato un keeper con le sue revisioni e i suoi tick.",
+    "EscalationAnswered": "Qualcuno ha risposto a un'escalation aperta.",
+    "EscalationCancelled": "Qualcuno ha annullato un'escalation aperta."
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "Questo autore ha inviato {{count}} report degradato o non integro precedente negli ultimi 7 giorni. Apre tutti i suoi report.",
+    "earlier_other": "Questo autore ha inviato {{count}} report degradati o non integri precedenti negli ultimi 7 giorni. Apre tutti i suoi report."
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "Questa revisione dice lo stesso della corrente, quindi pubblicarla non cambierebbe nulla. Modifica prima qualcosa."
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "Ciò che l'harness mette davanti al nome di uno strumento MCP quando lo mostra al modello. Usa {server} per il nome del server, per esempio mcp__{server}__ o {server}. (punto). Lascialo vuoto quando il modello vede i nomi semplici."
+   }
+  }
+ }
+});

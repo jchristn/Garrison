@@ -8691,3 +8691,106 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper mis en pause",
+   "MandateResumed": "Keeper repris",
+   "MandateWoken": "Keeper réveillé",
+   "MandateDeleted": "Keeper supprimé",
+   "EscalationAnswered": "Escalade répondue",
+   "EscalationCancelled": "Escalade annulée"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "et {{count}} plus ancien",
+   "earlier_other": "et {{count}} plus anciens"
+  },
+  "direction": {
+   "unchanged": "{{name}} a déjà ces consignes dans sa révision actuelle. Rien n'a été publié et le CEO ne s'est pas réveillé."
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "Rien n'a changé : cette révision dit la même chose que l'actuelle, elle n'a donc pas été publiée et le keeper ne s'est pas réveillé."
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "Révision {{number}} enregistrée comme brouillon, mais non publiée : elle dit la même chose que la révision actuelle."
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "Cette valeur n'a pas le bon type.",
+   "InvalidTypeOf": "Saisissez {{type}}.",
+   "InvalidValue": "Cette valeur n'est pas autorisée.",
+   "InvalidValueOneOf": "Choisissez parmi : {{values}}.",
+   "InvalidValueRange": "Saisissez une valeur de {{min}} à {{max}}.",
+   "fieldMessage": "{{field}} : {{message}}"
+  },
+  "fieldTypes": {
+   "text": "du texte",
+   "trueFalse": "true ou false",
+   "wholeNumber": "un nombre entier",
+   "number": "un nombre",
+   "map": "un objet de noms et de valeurs",
+   "list": "une liste",
+   "object": "un objet",
+   "dateTime": "une date et heure comme 2026-12-31T00:00:00Z",
+   "duration": "une durée comme 00:05:00"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "Préfixe des noms d'outils MCP"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "Facultatif. Lettres, chiffres, _ - . : et {server}, jusqu'à 128 caractères."
+   },
+   "errors": {
+    "toolPrefixTooLong": "Utilisez au plus {{max}} caractères.",
+    "toolPrefixInvalid": "Utilisez uniquement des lettres, des chiffres, _ - . : et {server}."
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "Quelqu'un a mis un keeper en pause : il ne se réveille plus jusqu'à sa reprise.",
+    "MandateResumed": "Quelqu'un a repris un keeper en pause, qui se réveille maintenant.",
+    "MandateWoken": "Quelqu'un a utilisé Réveiller maintenant sur un keeper.",
+    "MandateDeleted": "Quelqu'un a supprimé un keeper avec ses révisions et ses ticks.",
+    "EscalationAnswered": "Quelqu'un a répondu à une escalade ouverte.",
+    "EscalationCancelled": "Quelqu'un a annulé une escalade ouverte."
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "Cet auteur a déposé {{count}} rapport dégradé ou en mauvais état plus ancien ces 7 derniers jours. Ouvre tous ses rapports.",
+    "earlier_other": "Cet auteur a déposé {{count}} rapports dégradés ou en mauvais état plus anciens ces 7 derniers jours. Ouvre tous ses rapports."
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "Cette révision dit la même chose que l'actuelle ; la publier ne changerait rien. Modifiez d'abord quelque chose."
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "Ce que le harness place devant le nom d'un outil MCP quand il le présente au modèle. Utilisez {server} pour le nom du serveur, par exemple mcp__{server}__ ou {server}. (point). Laissez vide quand le modèle voit les noms simples."
+   }
+  }
+ }
+});

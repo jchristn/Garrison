@@ -8665,3 +8665,106 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper paused",
+   "MandateResumed": "Keeper resumed",
+   "MandateWoken": "Keeper woken",
+   "MandateDeleted": "Keeper deleted",
+   "EscalationAnswered": "Escalation answered",
+   "EscalationCancelled": "Escalation cancelled"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "and {{count}} earlier",
+   "earlier_other": "and {{count}} earlier"
+  },
+  "direction": {
+   "unchanged": "{{name}} already has this direction in its current revision. Nothing was published and the CEO did not wake."
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "Nothing changed: this revision says the same as the current one, so it was not published and the keeper did not wake."
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "Saved revision {{number}} as a draft, but did not publish it: it says the same as the current revision."
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "This value has the wrong type.",
+   "InvalidTypeOf": "Enter {{type}}.",
+   "InvalidValue": "This value is not allowed.",
+   "InvalidValueOneOf": "Choose one of: {{values}}.",
+   "InvalidValueRange": "Enter a value from {{min}} to {{max}}.",
+   "fieldMessage": "{{field}}: {{message}}"
+  },
+  "fieldTypes": {
+   "text": "text",
+   "trueFalse": "true or false",
+   "wholeNumber": "a whole number",
+   "number": "a number",
+   "map": "an object of names to values",
+   "list": "a list",
+   "object": "an object",
+   "dateTime": "a date and time such as 2026-12-31T00:00:00Z",
+   "duration": "a duration such as 00:05:00"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "MCP tool name prefix"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "Optional. Letters, digits, _ - . : and {server}, up to 128 characters."
+   },
+   "errors": {
+    "toolPrefixTooLong": "Use at most {{max}} characters.",
+    "toolPrefixInvalid": "Use only letters, digits, _ - . : and {server}."
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "Someone paused a keeper: it stops waking until resumed.",
+    "MandateResumed": "Someone resumed a paused keeper, which wakes now.",
+    "MandateWoken": "Someone used Wake now on a keeper.",
+    "MandateDeleted": "Someone deleted a keeper with its revisions and ticks.",
+    "EscalationAnswered": "Someone answered an open escalation.",
+    "EscalationCancelled": "Someone cancelled an open escalation."
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "This author filed {{count}} earlier degraded or unhealthy report in the last 7 days. Opens all their reports.",
+    "earlier_other": "This author filed {{count}} earlier degraded or unhealthy reports in the last 7 days. Opens all their reports."
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "This revision says the same as the current one, so publishing it would change nothing. Change something first."
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "What the harness puts before an MCP tool's name when it shows the tool to the model. Use {server} for the server name, for example mcp__{server}__ or {server}. (dot). Leave it empty when the model sees plain tool names."
+   }
+  }
+ }
+});

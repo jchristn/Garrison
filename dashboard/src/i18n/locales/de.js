@@ -8677,3 +8677,106 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper pausiert",
+   "MandateResumed": "Keeper fortgesetzt",
+   "MandateWoken": "Keeper geweckt",
+   "MandateDeleted": "Keeper gelöscht",
+   "EscalationAnswered": "Eskalation beantwortet",
+   "EscalationCancelled": "Eskalation abgebrochen"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "und {{count}} frühere",
+   "earlier_other": "und {{count}} frühere"
+  },
+  "direction": {
+   "unchanged": "{{name}} hat diese Anweisung bereits in der aktuellen Revision. Nichts wurde veröffentlicht und der CEO nicht geweckt."
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "Nichts geändert: Diese Revision sagt dasselbe wie die aktuelle, daher wurde sie nicht veröffentlicht und der Keeper nicht geweckt."
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "Revision {{number}} als Entwurf gespeichert, aber nicht veröffentlicht: Sie sagt dasselbe wie die aktuelle Revision."
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "Dieser Wert hat den falschen Typ.",
+   "InvalidTypeOf": "Geben Sie {{type}} ein.",
+   "InvalidValue": "Dieser Wert ist nicht erlaubt.",
+   "InvalidValueOneOf": "Wählen Sie eines von: {{values}}.",
+   "InvalidValueRange": "Geben Sie einen Wert von {{min}} bis {{max}} ein.",
+   "fieldMessage": "{{field}}: {{message}}"
+  },
+  "fieldTypes": {
+   "text": "Text",
+   "trueFalse": "true oder false",
+   "wholeNumber": "eine ganze Zahl",
+   "number": "eine Zahl",
+   "map": "ein Objekt aus Namen und Werten",
+   "list": "eine Liste",
+   "object": "ein Objekt",
+   "dateTime": "Datum und Uhrzeit wie 2026-12-31T00:00:00Z",
+   "duration": "eine Dauer wie 00:05:00"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "Präfix für MCP-Toolnamen"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "Optional. Buchstaben, Ziffern, _ - . : und {server}, bis zu 128 Zeichen."
+   },
+   "errors": {
+    "toolPrefixTooLong": "Verwenden Sie höchstens {{max}} Zeichen.",
+    "toolPrefixInvalid": "Verwenden Sie nur Buchstaben, Ziffern, _ - . : und {server}."
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "Jemand hat einen Keeper pausiert: Er wacht erst nach dem Fortsetzen wieder auf.",
+    "MandateResumed": "Jemand hat einen pausierten Keeper fortgesetzt; er wacht jetzt auf.",
+    "MandateWoken": "Jemand hat bei einem Keeper Jetzt wecken verwendet.",
+    "MandateDeleted": "Jemand hat einen Keeper mit seinen Revisionen und Ticks gelöscht.",
+    "EscalationAnswered": "Jemand hat eine offene Eskalation beantwortet.",
+    "EscalationCancelled": "Jemand hat eine offene Eskalation abgebrochen."
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "Dieser Autor hat in den letzten 7 Tagen {{count}} früheren beeinträchtigten oder fehlerhaften Bericht eingereicht. Öffnet alle seine Berichte.",
+    "earlier_other": "Dieser Autor hat in den letzten 7 Tagen {{count}} frühere beeinträchtigte oder fehlerhafte Berichte eingereicht. Öffnet alle seine Berichte."
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "Diese Revision sagt dasselbe wie die aktuelle, Veröffentlichen würde nichts ändern. Ändern Sie zuerst etwas."
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "Was das Harness vor den Namen eines MCP-Tools setzt, wenn es das Tool dem Modell zeigt. {server} steht für den Servernamen, zum Beispiel mcp__{server}__ oder {server}. (Punkt). Leer lassen, wenn das Modell einfache Toolnamen sieht."
+   }
+  }
+ }
+});

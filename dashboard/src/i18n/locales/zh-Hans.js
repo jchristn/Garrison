@@ -8625,3 +8625,106 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// AA12.8 follow-ups: keeper and escalation audit event labels, the board's earlier unhealthy report count, the
+// RevisionUnchanged refusal of keeper publish and board direction, typed field errors (InvalidType, InvalidValue),
+// and the harness profile MCP tool name prefix.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "enums": {
+  "auditEventType": {
+   "MandatePaused": "Keeper 已暂停",
+   "MandateResumed": "Keeper 已恢复",
+   "MandateWoken": "Keeper 已唤醒",
+   "MandateDeleted": "Keeper 已删除",
+   "EscalationAnswered": "升级已回答",
+   "EscalationCancelled": "升级已取消"
+  }
+ },
+ "board": {
+  "attention": {
+   "earlier_one": "以及之前的 {{count}} 份",
+   "earlier_other": "以及之前的 {{count}} 份"
+  },
+  "direction": {
+   "unchanged": "{{name}} 的当前修订已包含此指示。未发布任何内容，CEO 也未唤醒。"
+  }
+ },
+ "errorCodes": {
+  "RevisionUnchanged": "没有变化：此修订与当前修订内容相同，因此未发布，keeper 也未唤醒。"
+ },
+ "components": {
+  "keeperRevision": {
+   "unchanged": "已将修订 {{number}} 保存为草稿，但未发布：它与当前修订内容相同。"
+  }
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidType": "此值的类型不正确。",
+   "InvalidTypeOf": "请输入{{type}}。",
+   "InvalidValue": "不允许此值。",
+   "InvalidValueOneOf": "请选择以下之一：{{values}}。",
+   "InvalidValueRange": "请输入 {{min}} 到 {{max}} 之间的值。",
+   "fieldMessage": "{{field}}：{{message}}"
+  },
+  "fieldTypes": {
+   "text": "文本",
+   "trueFalse": "true 或 false",
+   "wholeNumber": "整数",
+   "number": "数字",
+   "map": "名称与值的对象",
+   "list": "列表",
+   "object": "对象",
+   "dateTime": "类似 2026-12-31T00:00:00Z 的日期时间",
+   "duration": "类似 00:05:00 的时长"
+  }
+ },
+ "resources": {
+  "harnessProfiles": {
+   "fields": {
+    "mcpToolNamePrefix": "MCP 工具名称前缀"
+   },
+   "hints": {
+    "mcpToolNamePrefix": "可选。字母、数字、_ - . : 和 {server}，最多 128 个字符。"
+   },
+   "errors": {
+    "toolPrefixTooLong": "最多使用 {{max}} 个字符。",
+    "toolPrefixInvalid": "只能使用字母、数字、_ - . : 和 {server}。"
+   }
+  }
+ },
+ "tips": {
+  "enums": {
+   "auditEventType": {
+    "MandatePaused": "有人暂停了一个 keeper：恢复之前不会再唤醒。",
+    "MandateResumed": "有人恢复了一个已暂停的 keeper，它现在唤醒。",
+    "MandateWoken": "有人对一个 keeper 使用了立即唤醒。",
+    "MandateDeleted": "有人删除了一个 keeper 及其修订和 tick。",
+    "EscalationAnswered": "有人回答了一个未处理的升级。",
+    "EscalationCancelled": "有人取消了一个未处理的升级。"
+   }
+  },
+  "board": {
+   "attention": {
+    "earlier_one": "该作者在过去 7 天内还提交了之前的 {{count}} 份降级或不健康报告。打开其全部报告。",
+    "earlier_other": "该作者在过去 7 天内还提交了之前的 {{count}} 份降级或不健康报告。打开其全部报告。"
+   }
+  },
+  "keeperRevision": {
+   "unchanged": "此修订与当前修订内容相同，发布不会改变任何内容。请先做些修改。"
+  },
+  "resources": {
+   "harnessProfiles": {
+    "mcpToolNamePrefix": "harness 向模型展示 MCP 工具时加在工具名称前的内容。用 {server} 表示服务器名称，例如 mcp__{server}__ 或 {server}.（点）。如果模型看到的是原始工具名称，请留空。"
+   }
+  }
+ }
+});

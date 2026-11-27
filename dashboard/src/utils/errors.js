@@ -26,6 +26,10 @@ function hasDeleteReason(code) {
 export function errorMessage(t, err) {
   if (!err) return t('common.errors.loadFailed');
   const code = err.code;
+  // A body field of the wrong type (InvalidBody with InvalidType) or an unknown filter value (InvalidValue) names the
+  // field; say which field and what it takes, translated, rather than the server's English sentence.
+  const typed = typedFieldText(t, err);
+  if (typed) return typed;
   // Only a message from a JSON error body counts as server text; a bare status line ("Not Found") does not.
   const bodyMessage = err.body && typeof err.body === 'object' ? err.body.message : null;
   const serverText = typeof bodyMessage === 'string' && bodyMessage ? stripCodePrefix(bodyMessage, code) : '';
@@ -81,6 +85,55 @@ export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAll
   // Evaluations, shadow trials, and canaries (AA9.15): explained by evalFieldErrors and the forms' fieldErrorSpecial.
   ...EVAL_FIELD_CODES];
 
+const TYPED_CODES = ['InvalidType', 'InvalidValue'];
+
+// The plain types JsonErrorDescriber names in "X must be <type>.", mapped to translation keys.
+const PLAIN_TYPES = {
+  text: 'text',
+  'true or false': 'trueFalse',
+  'a whole number': 'wholeNumber',
+  'a number': 'number',
+  'an object of names to values': 'map',
+  'a list': 'list',
+  'an object': 'object'
+};
+
+/**
+ * A translated message for a field code the server explains in its own words (AA12.8): InvalidType ("X must be
+ * a whole number.") becomes "Enter a whole number." in the user's language; InvalidValue becomes "Choose one of: A,
+ * B." for a list of allowed values, "Enter a value from 0 to 1000." for a range, or a general sentence. Returns
+ * null for other codes.
+ */
+export function fieldCodeText(t, code, message) {
+  const text = typeof message === 'string' ? message.trim() : '';
+  if (code === 'InvalidType') {
+    const oneOf = /must be one of (.+?)\.?$/.exec(text);
+    if (oneOf) return t('common.fieldCodes.InvalidValueOneOf', { values: oneOf[1] });
+    if (/must be a date and time/.test(text)) return t('common.fieldCodes.InvalidTypeOf', { type: t('common.fieldTypes.dateTime') });
+    if (/must be a duration/.test(text)) return t('common.fieldCodes.InvalidTypeOf', { type: t('common.fieldTypes.duration') });
+    const match = /must be (.+?)\.?$/.exec(text);
+    const key = match ? PLAIN_TYPES[match[1]] : null;
+    return key ? t('common.fieldCodes.InvalidTypeOf', { type: t(`common.fieldTypes.${key}`) }) : t('common.fieldCodes.InvalidType');
+  }
+  if (code === 'InvalidValue') {
+    const oneOf = /must be one of (.+?)\.?$/.exec(text);
+    if (oneOf) return t('common.fieldCodes.InvalidValueOneOf', { values: oneOf[1] });
+    const range = /from (-?\d+(?:\.\d+)?) to (-?\d+(?:\.\d+)?)/.exec(text);
+    if (range) return t('common.fieldCodes.InvalidValueRange', { min: range[1], max: range[2] });
+    return t('common.fieldCodes.InvalidValue');
+  }
+  return null;
+}
+
+/** "field: message" for an error whose every field code is InvalidType or InvalidValue, or null. */
+function typedFieldText(t, err) {
+  const codes = err?.fieldCodes;
+  if (!codes || typeof codes !== 'object') return null;
+  const keys = Object.keys(codes);
+  if (!keys.length || !keys.every((k) => TYPED_CODES.includes(codes[k]))) return null;
+  return keys.map((k) => t('common.fieldCodes.fieldMessage', { field: k, message: fieldCodeText(t, codes[k], err.fields?.[k]) })).join(' ');
+}
+
 /**
  * Per-field messages from a validation error: each field's machine code (fieldCodes) translated, falling back to
  * the server's message. `special(key, code, message)` may return a more specific translated message (for example a
@@ -97,6 +150,8 @@ export function fieldErrorMessages(t, err, special) {
     let text = null;
     if (code && FIELD_CODES.includes(code)) {
       text = (special && special(key, code, message)) || t(`common.fieldCodes.${code}`, { defaultValue: '' }) || null;
+    } else if (TYPED_CODES.includes(code)) {
+      text = (special && special(key, code, message)) || fieldCodeText(t, code, message);
     }
     out[key] = text || message;
   }

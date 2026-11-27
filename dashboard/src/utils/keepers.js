@@ -120,6 +120,27 @@ export function revisionToBody(d) {
   };
 }
 
+/** What a revision says, as comparable text: the body fields without the change note, plus the brief interval. */
+function revisionContentKey(body, briefIntervalHours) {
+  const content = { ...body, briefIntervalHours: briefIntervalHours ?? null };
+  delete content.changeNote;
+  content.signals = (content.signals || []).map((s) => ({ name: s.name, description: s.description ?? null }));
+  return JSON.stringify(content);
+}
+
+/**
+ * Whether a revision (a stored revision, or form data with `isForm`) says the same as the current revision, the way
+ * the server's MandateValidator.SameContent decides: text is trimmed with empty meaning none, signals keep their order,
+ * and the change note, number, state, and author do not count. The server refuses to publish such a revision with 409
+ * RevisionUnchanged, so Publish is disabled while this holds. False when there is no current revision.
+ */
+export function sameRevisionContent(candidate, current, { isForm = false } = {}) {
+  if (!candidate || !current) return false;
+  // The form does not carry the brief interval, so a revision saved from it has none.
+  const left = isForm ? revisionContentKey(revisionToBody(candidate), null) : revisionContentKey(revisionToBody(revisionToForm(candidate)), candidate.briefIntervalHours);
+  return left === revisionContentKey(revisionToBody(revisionToForm(current)), current.briefIntervalHours);
+}
+
 /**
  * The request body for create and update. Create sends the first revision inline as currentRevision, which the server
  * publishes as revision 1. Update changes only the name, description, and deployment; the revision changes through

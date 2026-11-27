@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { keeperRevisionFields } from '../views/keeperConfigs';
-import { revisionToForm, revisionToBody, revisionErrors } from '../utils/keepers';
+import { revisionToForm, revisionToBody, revisionErrors, sameRevisionContent } from '../utils/keepers';
 import { errorMessage, fieldErrorMessages, withListItemErrors } from '../utils/errors';
 
 /**
@@ -35,7 +35,18 @@ export default function KeeperRevisionModal({ mandate, onClose, onSaved }) {
       const created = await apiClient.createMandateRevision(tenantId, mandate.id, revisionToBody(data));
       const clamped = fieldWarningsOf(created);
       let next = null;
-      if (publish) next = await apiClient.publishMandateRevision(tenantId, mandate.id, created.id);
+      if (publish) {
+        try {
+          next = await apiClient.publishMandateRevision(tenantId, mandate.id, created.id);
+        } catch (e) {
+          // 409 RevisionUnchanged: the draft is kept, but nothing was published and the keeper did not wake.
+          if (e?.code !== 'RevisionUnchanged') throw e;
+          addToast({ type: 'warning', message: t('components.keeperRevision.unchanged', { number: created.number }) });
+          onSaved?.(null, created, false);
+          onClose();
+          return;
+        }
+      }
       addToast({ type: 'success', message: t(publish ? 'components.keeperRevision.published' : 'components.keeperRevision.drafted', { number: created.number }) });
       if (clamped.length) {
         setWarnings(clamped);
@@ -52,6 +63,9 @@ export default function KeeperRevisionModal({ mandate, onClose, onSaved }) {
       setBusy(false);
     }
   };
+
+  // The server refuses to publish a revision that says the same as the current one (409 RevisionUnchanged).
+  const unchanged = sameRevisionContent(data, mandate?.currentRevision, { isForm: true }) ? t('tips.keeperRevision.unchanged') : '';
 
   return (
     <Modal
@@ -72,7 +86,15 @@ export default function KeeperRevisionModal({ mandate, onClose, onSaved }) {
             <button type="button" className="button-secondary" onClick={() => save(false)} disabled={busy} data-testid="keeper-revision-draft" {...tip(t('tips.keeperRevision.draft'))}>
               {t('components.keeperRevision.draft')}
             </button>
-            <button type="button" className="button-primary" onClick={() => save(true)} disabled={busy} data-testid="keeper-revision-publish" {...tip(t('tips.keeperRevision.publish'))}>
+            <button
+              type="button"
+              className="button-primary"
+              onClick={() => !unchanged && save(true)}
+              disabled={busy}
+              aria-disabled={unchanged ? 'true' : undefined}
+              data-testid="keeper-revision-publish"
+              {...tip(unchanged || t('tips.keeperRevision.publish'))}
+            >
               {t('components.keeperRevision.publish')}
             </button>
           </>

@@ -1380,8 +1380,11 @@ export type HarnessToolProbeArgument = typeof HARNESS_TOOL_PROBE_ARGUMENTS[numbe
  */
 export interface HarnessToolProbe { name: string; executable: string; arguments?: HarnessToolProbeArgument[]; description?: string | null; }
 
-/** A harness profile. toolProbes holds at most 32 probes with unique names. */
-export interface HarnessProfile extends Json, WithWarnings { runtimeConfiguration?: HarnessRuntimeConfiguration | null; id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; toolProbes?: HarnessToolProbe[]; }
+/**
+ * A harness profile. toolProbes holds at most 32 probes with unique names. mcpToolNamePrefix is what the harness puts
+ * before an MCP tool's name for the model ({server} for the server name); empty or null means plain names.
+ */
+export interface HarnessProfile extends Json, WithWarnings { runtimeConfiguration?: HarnessRuntimeConfiguration | null; id: string; name: string; harnessType: string; executable: string; sessionFormat?: string | null; mcpToolNamePrefix?: string | null; toolProbes?: HarnessToolProbe[]; }
 
 /** An MCP server definition. */
 export interface McpServer extends Json, WithWarnings {
