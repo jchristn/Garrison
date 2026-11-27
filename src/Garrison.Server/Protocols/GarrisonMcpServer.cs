@@ -223,6 +223,7 @@ namespace Garrison.Server.Protocols
             _Server.ServerName = "Garrison";
             _Server.ServerVersion = Constants.ProductVersion;
             _Server.MaxMessageSize = _Context.Settings.Mcp.MaxMessageSize;
+            _Server.RateLimits.ToolCallsPerSecond = _Context.Settings.Mcp.ToolCallsPerSecond;
             _Server.EnableCors = true;
             _Server.AuthenticationHandler = AuthenticateAsync;
             _Server.Log += (_, message) => _Context.Logging.Debug(_Header + message);

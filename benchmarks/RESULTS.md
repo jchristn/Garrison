@@ -212,7 +212,7 @@ Every send was accepted, every urgent message woke its keeper, every message was
 | `garrison_memory_delete` (`expectedVersion` 2) | 200 | 1.6 ms | 3.1 ms | 4.8 ms |
 | Read of a deleted key | 20 | 0.8 ms | 1.3 ms | 1.5 ms |
 
-Every one of the 920 calls returned the right answer. Throughput is not reported as capacity: the calls are paced, because the management MCP endpoint refuses more than 100 `tools/call` requests per second from one client address (the Voltaic default, which Garrison does not change). An unpaced first attempt at 8 sessions tripped it at once, and so did 400 calls/s spread over 8 sessions, so the limit is not per session; it looks per client address, though only one address was tried. If it is, every run on one worker node shares that budget. That is worth a decision (BA-1 below).
+Every one of the 920 calls returned the right answer. Throughput is not reported as capacity: the calls are paced, because the management MCP endpoint refuses more than 100 `tools/call` requests per second from one client address (the Voltaic default). An unpaced first attempt at 8 sessions tripped it at once, and so did 400 calls/s spread over 8 sessions, because Voltaic counts a client as one principal at one address and all 8 sessions used the same admin key. Runs do not share a budget this way: each run token is its own principal (`Run:<runId>`), so every run on a worker node has its own 100 calls a second. The limit is now the `Mcp.ToolCallsPerSecond` setting (BA-1 below).
 
 ### Hypotheses
 
@@ -224,7 +224,7 @@ Every one of the 920 calls returned the right answer. Throughput is not reported
 
 ### Follow-ups
 
-- BA-1: decide whether the management MCP endpoint should set `McpRateLimits.ToolCallsPerSecond` from a Garrison setting instead of the Voltaic default of 100 per client, after confirming how Voltaic keys a client (every run on a worker node may share one budget).
+- BA-1 (resolved): Voltaic keys a client by principal and address, and a run token's principal is its run, so runs on one node do not share a budget. The limit is now the `Mcp.ToolCallsPerSecond` setting (default 100, 0 to 1000000, 0 turns it off, applied at startup).
 - BA-2: measure the scheduler with `Autonomy.MaxDueClaimsPerSweep` raised (500, 1000) to see whether the ceiling moves with it or the database becomes the limit, and repeat the 10000 level on PostgreSQL.
 - The CI gate now runs the three autonomy commands at small sizes (`benchmarks/ci-gate.sh`), locally as before: automatic benchmark runs are still off in GitHub Actions under the CI policy.
 

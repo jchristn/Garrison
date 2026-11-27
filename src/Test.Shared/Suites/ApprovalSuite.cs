@@ -723,7 +723,7 @@ namespace Test.Shared.Suites
                 Assert.True(!preview.Spec.Arguments.Contains("--no-session-persistence"), "Suspension always enables actual CLI session persistence");
                 List<Run> checkpoints = new List<Run>();
                 List<Approval> decisions = new List<Approval>();
-                async Task<(Run Run, Approval Approval)> CaptureCheckpointAsync(int index)
+                async Task<ApprovalCheckpoint> CaptureCheckpointAsync(int index)
                 {
                     Run started = await InvokeAsync(host, agent, token).ConfigureAwait(false);
                     Approval pending = await WaitForPendingAsync(host.AdminClient, host.TenantId, started.Id, token).ConfigureAwait(false);
@@ -737,14 +737,14 @@ namespace Test.Shared.Suites
                     }
                     Assert.Equal(RunStatusEnum.Suspended, suspended!.Status, "Checkpoint " + index);
                     Assert.True(suspended.LeaseNodeId == null && suspended.LeaseExpiresUtc == null, "No lease retained at checkpoint " + index);
-                    return (suspended, pending);
+                    return new ApprovalCheckpoint(suspended, pending);
                 }
                 for (int offset = 0; offset < count; offset += 8)
                 {
-                    List<Task<(Run Run, Approval Approval)>> captures = new List<Task<(Run Run, Approval Approval)>>();
+                    List<Task<ApprovalCheckpoint>> captures = new List<Task<ApprovalCheckpoint>>();
                     for (int index = offset; index < Math.Min(offset + 8, count); index++) captures.Add(CaptureCheckpointAsync(index));
-                    (Run Run, Approval Approval)[] batch = await Task.WhenAll(captures).ConfigureAwait(false);
-                    foreach ((Run Run, Approval Approval) item in batch)
+                    ApprovalCheckpoint[] batch = await Task.WhenAll(captures).ConfigureAwait(false);
+                    foreach (ApprovalCheckpoint item in batch)
                     {
                         checkpoints.Add(item.Run);
                         decisions.Add(item.Approval);

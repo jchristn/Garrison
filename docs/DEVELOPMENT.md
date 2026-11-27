@@ -141,6 +141,7 @@ Other checks:
 cd dashboard && npm run lint && npm run build && npm test     # and npm run test:e2e for Playwright
 scripts/run-sdk-harnesses.sh                                  # builds, starts a server and worker on 18700, runs all four SDK harnesses
 scripts/check-em-dash.sh                                      # fails on any em-dash in the repository
+scripts/check-csharp-style.sh                                 # fails on var, partial types or methods, or tuples in C#
 scripts/check-version.sh                                      # fails when a version mirror disagrees with src/Directory.Build.props
 ```
 

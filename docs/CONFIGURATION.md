@@ -59,6 +59,7 @@ Garrison keeps two REST URLs because they answer different questions. `Rest.Publ
 | `Mcp.PublicUrl` | none | Restart | Base URL (no path) that harnesses on workers use to reach MCP for delegation. Defaults to `http://127.0.0.1:<port>`, which only works when the worker shares the host. Environment: `GARRISON_MCP_PUBLIC_URL` |
 | `Mcp.MaxMessageSize` | `16777216` | Restart | Largest MCP message in bytes, 65536 to 268435456 |
 | `Mcp.MaxToolWaitSeconds` | `90` | Live | Longest a synchronous MCP invoke or A2A `SendMessage` waits, 1 to 600 |
+| `Mcp.ToolCallsPerSecond` | `100` | Restart | MCP `tools/call` requests one client may make per second, 0 to 1000000 (0 turns the limit off). A client is one principal at one address: each run token is its own principal, so every run has its own budget, while the sessions of one API key or user share one. A call over the limit returns a tool error the model can back off from |
 | `Mcp.SessionIdleTimeoutSeconds` | `3600` | Live | Idle time after which an MCP session expires on every replica, 60 to 604800 |
 | `Mcp.InternalPort` | `0` | Restart | Loopback port of the internal Voltaic endpoint. Garrison serves `Mcp.Port` itself and relays to this port so that MCP sessions work on every replica (see `docs/SCALING.md`). 0 picks a free port at startup; set it only if something on the host needs a fixed port |
 

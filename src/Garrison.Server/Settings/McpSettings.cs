@@ -128,6 +128,24 @@ namespace Garrison.Server.Settings
             }
         }
 
+        /// <summary>
+        /// MCP <c>tools/call</c> requests one client may make per second, with a burst of the same size. A client is
+        /// one principal at one address, so every run (each run token is its own principal) has its own budget, and
+        /// the sessions of one API key or user share one. A call over the limit gets a tool result with
+        /// <c>isError</c> true. 0 turns the limit off. Minimum 0, maximum 1000000, default 100. Applied at startup.
+        /// </summary>
+        public int ToolCallsPerSecond
+        {
+            get
+            {
+                return _ToolCallsPerSecond;
+            }
+            set
+            {
+                _ToolCallsPerSecond = Math.Clamp(value, 0, 1000000);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -139,6 +157,7 @@ namespace Garrison.Server.Settings
         private int _MaxToolWaitSeconds = 90;
         private int _InternalPort = 0;
         private int _SessionIdleTimeoutSeconds = 3600;
+        private int _ToolCallsPerSecond = 100;
 
         #endregion
     }

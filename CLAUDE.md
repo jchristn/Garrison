@@ -38,6 +38,7 @@ cd dashboard && npm install && npm run lint && npm run build && npm test
 cd app-ui && npm install && npm run lint && npm run build && npm test
 scripts/run-sdk-harnesses.sh
 scripts/check-em-dash.sh
+scripts/check-csharp-style.sh
 scripts/check-version.sh
 ```
 
