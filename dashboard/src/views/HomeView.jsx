@@ -25,6 +25,7 @@ import { overviewKpis } from '../utils/overview';
 import { tip } from '../components/Tooltip';
 import { BlockedRunsBanner } from '../components/BlockedRun';
 import { enumTip } from '../utils/tips';
+import HomeLearnCard from '../components/tours/HomeLearnCard';
 
 /** Build the overview from list endpoints when /overview is unavailable. */
 async function fallbackOverview(apiClient, tenantId) {
@@ -130,6 +131,7 @@ export default function HomeView() {
   return (
     <div>
       <PageHeader
+        hubKey="home"
         title={t('views.home.title')}
         subtitle={t('views.home.subtitle')}
         actions={loadedAt && <span className="text-muted">{t('views.home.lastLoaded', { time: formatTime(loadedAt, i18n.language, { timeStyle: 'medium' }) })}</span>}
@@ -137,6 +139,7 @@ export default function HomeView() {
 
       {overview?.partial && <div className="warning-banner">{t('views.home.partial')}</div>}
       <BlockedRunsBanner count={Number(overview?.blockedRuns) || 0} />
+      <HomeLearnCard />
       {noAgents && (
         <div className="callout" data-testid="setup-callout">
           <div>

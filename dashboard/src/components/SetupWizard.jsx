@@ -16,6 +16,9 @@ import { enumOptions } from '../utils/enums';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { blankKeeper, keeperErrors, keeperToBody } from '../utils/keepers';
+import { useTours } from '../context/TourContext';
+import { writeUserFlag } from '../utils/tours';
+import { DASHBOARD_BASE } from '../config/navConfig';
 
 // The architect fields come with the studio chunk, loaded only when the Agent Studio step opens.
 const ArchitectFields = lazy(() => import('./studio/ArchitectFields'));
@@ -27,11 +30,15 @@ const STEPS = ['welcome', 'secret', 'studio', 'manifest', 'keeper', 'invoke'];
  * model, and architect prompt; the server gives it managementAccess Drafts), apply a sample manifest, create a first
  * keeper on the sample agent (AA10.8: a mandate on the fake harness deployment that wakes on its own), and test-invoke
  * an agent. Every step but the welcome can be skipped, and the wizard can be relaunched from the sidebar.
+ *
+ * LP4.8: the last step also offers the Learn page and the Run an agent tour. Skip wizard records, for this person, that
+ * they skipped it, so Home shows them one card pointing to Learn (components/tours/HomeLearnCard).
  */
 export default function SetupWizard() {
   const { t } = useTranslation();
-  const { apiClient } = useAuth();
+  const { apiClient, principal } = useAuth();
   const { tenantId, wizardOpen, setWizardOpen } = useApp();
+  const tours = useTours();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -53,6 +60,21 @@ export default function SetupWizard() {
     setWizardOpen(false);
     setStep(0);
     setResult(null);
+  };
+
+  const skipWizard = () => {
+    writeUserFlag(STORAGE_KEYS.setupSkipped, principal, tenantId, true);
+    close(true);
+  };
+
+  const openLearn = () => {
+    close(true);
+    navigate(`${DASHBOARD_BASE}/learn`);
+  };
+
+  const takeTour = () => {
+    close(true);
+    tours?.startTour?.('run-an-agent');
   };
 
   const saveSecret = async () => {
@@ -173,7 +195,7 @@ export default function SetupWizard() {
       headerMeta={t('wizard.stepOf', { step: step + 1, total: STEPS.length })}
       footer={
         <>
-          <button type="button" className="button-ghost" onClick={() => close(true)} {...tip(t('tips.wizard.skip'))}>
+          <button type="button" className="button-ghost" onClick={skipWizard} data-testid="wizard-skip" {...tip(t('tips.wizard.skip'))}>
             {t('wizard.skip')}
           </button>
           {step > 0 && (
@@ -320,6 +342,20 @@ export default function SetupWizard() {
           <p>{t('wizard.invokeBody')}</p>
           {result && <CodeBlock value={result} prettyJson />}
           <FormField id="wiz-message" field={{ name: 'message', type: 'textarea', label: t('views.invoke.message'), tip: t('tips.wizard.message') }} value={message} onChange={setMessage} />
+          <div className="wizard-next" data-testid="wizard-next">
+            <div className="form-section-title">{t('tours.wizard.nextTitle')}</div>
+            <p className="text-muted">{t('tours.wizard.nextBody')}</p>
+            <div className="flex gap-sm">
+              <button type="button" className="button-secondary" onClick={openLearn} data-testid="wizard-open-learn" {...tip(t('tips.tours.wizardLearn'))}>
+                {t('tours.wizard.learn')}
+              </button>
+              {tours?.startTour && (
+                <button type="button" className="button-secondary" onClick={takeTour} data-testid="wizard-start-tour" {...tip(t('tips.tours.wizardTour'))}>
+                  {t('tours.wizard.tour')}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </Modal>
