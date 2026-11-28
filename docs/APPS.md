@@ -28,6 +28,7 @@ An agentic app is a group of agents that work together behind one chat UI. One m
 | `authMode`, `anonymousEnabled` | Who may use the app UI (see [Sign-in](#sign-in)) |
 | `showOperatorDetail` | Whether end users see tool calls and thinking. Default false |
 | `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor`, `fontFamily`, `faviconAssetId`, `welcomeText` | Branding (see [Branding](#branding)) |
+| `subtitle`, `welcomeTitle`, `composerPlaceholder`, `agentDisplayName`, `agentAvatarAssetId`, `paletteId`, the eight `dark...Color` fields, `themeDefault`, `allowThemeSwitch`, `cornerStyle`, `density`, `showFilesPanel`, `showLanguagePicker`, `showPoweredBy`, `starterPrompts` | Appearance (see [Appearance](#appearance)) |
 
 The control plane checks that the entry agent is a member, edges connect members, every member is reachable from the entry agent, and the edges have no cycle. An agent that belongs to an app cannot be deleted (409 `AgentInUse`); remove it from the app first.
 
@@ -49,7 +50,7 @@ The control plane checks that the entry agent is a member, edges connect members
 | `faviconAssetId` | An image asset shown as the browser tab icon. Null uses the logo, or the default icon when there is no logo |
 | `welcomeText` | Text shown before the first message |
 
-Colors are `#RRGGBB` or null; anything else is 400 `InvalidColor`. An asset that is not one of the tenant's agent assets is 400 `UnknownAsset`. Text on every branded color is black or white, whichever contrasts more, with a matching muted shade for secondary text, so a dark header or a light bubble stays readable. Branded colors stay the same in light and dark themes; the colors left null follow the theme.
+Colors are `#rgb`, `#rrggbb`, or null; anything else is 400 `InvalidColor`. An asset that is not one of the tenant's agent assets is 400 `UnknownAsset`. Text on every branded color is black or white, whichever contrasts more, with a matching muted shade for secondary text, so a dark header or a light bubble stays readable. The colors above are the light theme. Each has a dark counterpart (see [Appearance](#appearance)), and a color left null follows the theme.
 
 The same app as a manifest document:
 
@@ -86,6 +87,41 @@ spec:
     welcomeText: Ask for an overview of any topic.
 ```
 
+### Appearance
+
+These fields shape the rest of the app page. All of them are optional, and an app that sets none looks the way it always has.
+
+| Field | Default | What it changes |
+|---|---|---|
+| `subtitle` | null | A line under the name in the header and on the welcome screen. Up to 200 characters |
+| `welcomeTitle` | null | The heading of the welcome screen. Up to 120 characters. Null shows the display name |
+| `composerPlaceholder` | null | The hint inside the empty message box. Up to 120 characters |
+| `agentDisplayName` | null | The author name on the agent's messages. Up to 80 characters. Null shows the entry agent's name |
+| `agentAvatarAssetId` | null | An image asset shown beside the agent's messages, checked like `logoAssetId` |
+| `paletteId` | null | The preset the operator started from, or `custom`. Up to 64 characters. The server stores it and nothing reads it but the dashboard |
+| `darkPrimaryColor`, `darkAccentColor`, `darkBackgroundColor`, `darkHeaderColor`, `darkAgentBubbleColor`, `darkConversationListColor`, `darkComposerColor`, `darkFilesColor` | null | The same eight colors in the dark theme. A dark color left null is derived from its light color by the app page |
+| `themeDefault` | `System` | The theme the page opens in: `System` follows the browser, `Light`, or `Dark` |
+| `allowThemeSwitch` | true | False hides the theme toggle and ignores a choice the user saved earlier |
+| `cornerStyle` | `Rounded` | `Sharp`, `Rounded`, or `Pill` corners on buttons, bubbles, and panels |
+| `density` | `Comfortable` | `Compact` fits more messages on screen |
+| `showFilesPanel` | true | False hides the conversation's file panel |
+| `showLanguagePicker` | true | False hides the language picker |
+| `showPoweredBy` | true | False hides the "Powered by Garrison" footer |
+| `starterPrompts` | empty | Up to 4 suggested first messages, shown as buttons on a new conversation, in the order given |
+
+The server checks these on create and update and answers 400 with a field code:
+
+- a color that is not `#rgb` or `#rrggbb` is `InvalidColor`;
+- text over its limit is `TooLong`;
+- more than 4 starter prompts is `TooMany` on `starterPrompts`, a blank one is `Required` on `starterPrompts[i]`, and one over 200 characters is `TooLong`;
+- an avatar that is not one of the tenant's agent assets is `UnknownAsset`.
+
+Text fields and starter prompts are trimmed, and blank text is stored as null. An update replaces the whole app, so a field you leave out goes back to its default.
+
+The dashboard's app form offers palette presets. A preset only fills in the sixteen color fields and sets `paletteId`; the server stores the colors, so you can start from a preset and change any of them, and the app page never needs to know the preset.
+
+In a manifest these keys sit under `branding` with the same names, except that the avatar is `agentAvatar` and takes an asset name, like `logo` and `favicon`. [examples/agentic-apps/support-triage](../examples/agentic-apps/support-triage/support-triage.yaml) uses a preset with starter prompts.
+
 ## Delegation from the graph
 
 The edges are the app's delegation policy. `GET .../apps/{id}/delegation` computes, for each member, the allow list (the members it has edges to), the mode (`AllowList`, or `None` for a member that calls nobody), and the maximum depth (the longest path of calls below it). It compares each one with the member's latest published revision and marks the members that differ as drifting.
@@ -121,9 +157,10 @@ Runs started through an app run as the app, with the end user recorded as the ca
 
 | Method and path | Result |
 |---|---|
-| `GET /v1.0/apps/{slug}` | `AppInfo`: display name, description, welcome text, colors, `fontFamily`, logo URL, favicon URL, sign-in mode, whether anonymous use is allowed |
+| `GET /v1.0/apps/{slug}` | `AppInfo`: display name, description, welcome text, colors, `fontFamily`, logo URL, favicon URL, every [appearance](#appearance) field (with `agentAvatarUrl` in place of the asset ID and `agentDisplayName` already falling back to the entry agent's name), sign-in mode, whether anonymous use is allowed |
 | `GET /v1.0/apps/{slug}/logo` | The logo image |
 | `GET /v1.0/apps/{slug}/favicon` | The browser tab icon: the favicon asset, else the logo; 404 when the app has neither. Needs no credentials |
+| `GET /v1.0/apps/{slug}/avatar` | The agent's avatar image; 404 when the app has none. Needs no credentials |
 | `POST /v1.0/apps/{slug}/session` | 201 `AppSessionResponse` (`token`, `expiresUtc`, `principalName`, `anonymous`); 401 `InvalidCredentials`, `AppSignInRequired`, `AnonymousDisabled`; 403 `AppAccessDenied` |
 | `DELETE /v1.0/apps/{slug}/session` | 204, signs out |
 | `GET /v1.0/apps/{slug}/conversations` | The owner's conversations in the app |
