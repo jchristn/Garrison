@@ -542,8 +542,13 @@ describe('LP5.5 trail fixes', () => {
     const caller = cols.find((c) => c.key === 'callerName');
     expect(kind.defaultHidden).toBeFalsy();
     expect(caller.defaultHidden).toBeFalsy();
-    expect(runsConfig.search).toBe(false);
-    expect(runsConfig.filters.map((f) => f.name)).toEqual(expect.arrayContaining(['agentId', 'outcome']));
+    // The server searches agent and caller names and filters on kind and hasHops, so the page offers all three.
+    expect(runsConfig.search).not.toBe(false);
+    expect(runsConfig.searchPlaceholder(t)).toBe('Agent or caller');
+    expect(runsConfig.filters.map((f) => f.name)).toEqual(expect.arrayContaining(['agentId', 'outcome', 'kind', 'hasHops']));
+    expect(runsConfig.urlFilters).toEqual(expect.arrayContaining(['kind', 'hasHops']));
+    const hops = runsConfig.filters.find((f) => f.name === 'hasHops');
+    expect(hops.options.map((o) => hops.optionLabel(o, t))).toEqual(['Longer request', 'Single run']);
     mount(<div>{kind.render({ id: 'run_x', kind: 'Message', callerName: 'message:amg_1' })}{caller.render({ id: 'run_x', kind: 'Message', callerName: 'message:amg_1' })}</div>);
     const link = q('[data-run-hop="message"]');
     expect(link.getAttribute('href')).toBe(trailPath('run_x'));

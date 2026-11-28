@@ -10340,7 +10340,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    "outlineUnits_one": "The {{count}} unit in words",
    "outlineUnits_other": "All {{count}} units in words",
    "problems": {
-    "OneRootMissing": "Add the root unit. An organization needs one unit without a parent before it can be published.",
+    "NoRootUnit": "Add the root unit. An organization needs one unit without a parent before it can be published.",
     "titleEmpty": "Checks",
     "noUnits": "No units yet. Add the root unit with Add unit above, then the units below it. The checks run once there is a unit."
    },
@@ -10585,6 +10585,75 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
  "components": {
   "autoRefresh": {
    "short": "{{count}} sec"
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "Agent or caller",
+   "filters": {
+    "hasHops": "Hops",
+    "hasHopsTrue": "Longer request",
+    "hasHopsFalse": "Single run"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "Add the root unit. An organization needs one unit without a parent before it can be published."
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "The list on a phone",
+      "body": "Sequence and Graph need a screen at least 768 pixels wide, so a phone shows the List view: every step of the request as a row you can filter. Open the run on a wider screen for agent lanes or the graph."
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "Units as cards",
+      "body": "On a phone, Design lists the units as cards instead of drawing the canvas. Each card shows the lead, the members, and the peer lines, with the units that report to it below."
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "People",
+      "body": "Add unit creates a unit with its lead. To change who leads a unit or who is in it, choose Edit on its card. Dragging agents onto units needs the wider canvas."
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "Keepers",
+      "body": "The tag beside a lead or member names the keeper that wakes that agent on a schedule. Choose Edit on the card to pick another of the agent's keepers; change when it wakes on the keeper's own page."
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "Budget",
+      "body": "The bar on a card is the unit's spend against its Day or Month cap, which covers everything the unit and every unit below it run. Choose Edit on the card to set or change a cap."
+     }
+    }
+   }
   }
  }
 });

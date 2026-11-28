@@ -267,7 +267,9 @@ describe('Revisions panel', () => {
     const apiClient = client({ discardAgentRevision });
     const { addToast } = mount(<AgentRevisionsPanel agent={AGENT} />, { apiClient });
     await flush();
-    click(q('[data-revision="3"] [data-testid="revision-discard"]'));
+    // Discard sits in the draft row's menu (UXP1-V027).
+    click(q('[data-revision="3"] [data-testid="revision-menu-3"]'));
+    click(q('[data-testid="revision-discard"]'));
     const confirm = qa('.modal button').find((b) => b.textContent === 'Discard draft');
     click(confirm);
     await flush();

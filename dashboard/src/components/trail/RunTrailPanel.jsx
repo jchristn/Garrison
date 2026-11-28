@@ -155,7 +155,7 @@ export default function RunTrailPanel({ runId }) {
 
       {narrow && (
         // The sequence and graph views need room; below 768 pixels the list stands in, and says so (UXP1-V040).
-        <p className="info-banner trail-narrow-note" role="note" data-testid="trail-narrow-note">
+        <p className="info-banner trail-narrow-note" role="note" data-testid="trail-narrow-note" data-tour="trail-narrow-note">
           {view === 'graph' ? t('trail.narrowGraph') : t('trail.narrowSequence')}
         </p>
       )}

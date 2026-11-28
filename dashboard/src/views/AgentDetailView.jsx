@@ -20,7 +20,7 @@ import { errorMessage } from '../utils/errors';
 import { formatRelativeTime, formatNumber, formatPercent } from '../i18n/formatters';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
-import { enumTip } from '../utils/tips';
+import { enumTip, resourceTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
 import { trafficShares } from '../utils/deployments';
 import GrafanaLink from '../components/GrafanaLink';
@@ -301,16 +301,32 @@ export default function AgentDetailView({ recordId }) {
           (runs.length === 0 ? (
             <EmptyNote>{t('views.agentDetail.noRuns')}</EmptyNote>
           ) : (
-            <ul className="plain-list">
-              {runs.map((r) => (
-                <li key={r.id}>
-                  <a href={pathFor('runs', r.id)} {...tip(t('tips.views.agentDetail.openRun'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
-                    <code>{r.id}</code>
-                  </a>{' '}
-                  <RunStatus status={r.status} t={t} /> <span className="text-muted">{formatRelativeTime(r.createdUtc, i18n.language)}</span>
-                </li>
-              ))}
-            </ul>
+            // UXP1-V027: a table like every other list of runs, with the same column names as the Runs page.
+            <LocalTableFrame
+              tableId="agent-recent-runs"
+              testId="agent-recent-runs"
+              compact
+              items={runs}
+              rowId={(r) => r.id}
+              rowProps={(r) => ({ 'data-run': r.id })}
+              columns={[
+                {
+                  key: 'id',
+                  label: t('resources.runs.columns.id'),
+                  tip: resourceTip(t, 'runs', 'id'),
+                  pinned: true,
+                  cellClass: 'cell-id',
+                  render: (r) => (
+                    <a href={pathFor('runs', r.id)} {...tip(t('tips.views.agentDetail.openRun'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
+                      <code>{r.id}</code>
+                    </a>
+                  )
+                },
+                { key: 'kind', label: t('resources.runs.columns.kind'), tip: resourceTip(t, 'runs', 'kind'), render: (r) => <span {...tip(enumTip(t, 'runKind', r.kind))}>{enumLabel(t, 'runKind', r.kind || 'Invoke')}</span> },
+                { key: 'status', label: t('resources.runs.columns.status'), tip: resourceTip(t, 'runs', 'status'), render: (r) => <RunStatus status={r.status} t={t} /> },
+                { key: 'createdUtc', label: t('resources.runs.columns.createdUtc'), tip: resourceTip(t, 'runs', 'createdUtc'), cellClass: 'col-short', render: (r) => formatRelativeTime(r.createdUtc, i18n.language) }
+              ]}
+            />
           ))}
         {tab === 'inbox' && <AgentInboxPanel agent={agent} />}
         {tab === 'card' && (cardError ? <div className="text-muted">{errorMessage(t, cardError)}</div> : <CodeBlock value={card} prettyJson />)}

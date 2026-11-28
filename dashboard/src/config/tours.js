@@ -8,12 +8,15 @@
 //          needs is 'agents', 'runs', 'trails' (a run that is a hop of a longer request), 'keepers', or
 //          'organizations'; example is a key of TOUR_EXAMPLES in
 //          utils/tours.js ('gerbil' or 'siteReliability').
-//   step:  { id, route, target, title, body }
+//   step:  { id, route, target, title, body, phone? }
 //          route is a dashboard path. {run}, {organization}, {unit}, and {keeper} are filled from the tenant's own
 //          records when the tour starts (the newest run, or for needs 'trails' the newest hop run, an organization and
 //          its root unit, a keeper). A step whose
 //          placeholder has no record is skipped with a note.
 //          target is the value of a data-tour attribute on the page; the engine looks for [data-tour="<target>"].
+//          phone: { target, title, body } is what the step shows below 768 pixels, where the trail shows only its list
+//          and the organization designer lists units instead of drawing the canvas, so the wide target is not shown.
+//          Its strings are <ns>.steps.<id>.phone.title and .body.
 //
 // This module is plain data (no JSX) so Node tests and the e2e specs can import it.
 
@@ -22,13 +25,23 @@ export function tourNamespace(tourId) {
   return `tours.${String(tourId).replace(/-([a-z])/g, (_, c) => c.toUpperCase())}`;
 }
 
-function step(tourId, id, route, target) {
+function step(tourId, id, route, target, phoneTarget) {
   const ns = tourNamespace(tourId);
-  return { id, route, target, title: `${ns}.steps.${id}.title`, body: `${ns}.steps.${id}.body` };
+  const out = { id, route, target, title: `${ns}.steps.${id}.title`, body: `${ns}.steps.${id}.body` };
+  if (phoneTarget) out.phone = { target: phoneTarget, title: `${ns}.steps.${id}.phone.title`, body: `${ns}.steps.${id}.phone.body` };
+  return out;
 }
 
 function tour(id, sample, steps) {
-  return { id, sample, steps: steps.map(([stepId, route, target]) => step(id, stepId, route, target)) };
+  return { id, sample, steps: steps.map(([stepId, route, target, phoneTarget]) => step(id, stepId, route, target, phoneTarget)) };
+}
+
+/** The viewport query below which a step uses its phone variant. */
+export const TOUR_PHONE_QUERY = '(max-width: 767px)';
+
+/** The step as shown at this width: its phone variant on a phone when it has one, otherwise the step itself. */
+export function stepForViewport(s, phone) {
+  return phone && s?.phone ? { ...s, ...s.phone } : s;
 }
 
 /** The seven tours in the order the Learn page and the tour list show them. */
@@ -53,18 +66,21 @@ export const TOURS = [
   // Follow a request needs a request that crossed agents (UXP1-S010): it opens the newest run that is a hop of one, and
   // offers the site reliability example, whose keepers message each other, when the tenant has none.
   tour('follow-a-request', { needs: 'trails', example: 'siteReliability' }, [
-    ['views', '/dashboard/runs/{run}?tab=trail', 'trail-views'],
+    // Below 768 pixels the trail shows only its list, and says so in a note (UXP1-V040); the step points at that note.
+    ['views', '/dashboard/runs/{run}?tab=trail', 'trail-views', 'trail-narrow-note'],
     ['summary', '/dashboard/runs/{run}?tab=trail', 'trail-summary'],
     ['steps', '/dashboard/runs/{run}?tab=trail', 'trail-steps'],
     ['drawer', '/dashboard/runs/{run}?tab=trail&step={run}', 'trail-drawer'],
     ['actions', '/dashboard/runs/{run}?tab=trail&step={run}', 'trail-actions']
   ]),
   tour('build-a-team', { needs: 'organizations', example: 'siteReliability' }, [
-    ['canvas', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-canvas'],
-    ['palette', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-palette'],
+    // Below 768 pixels Design lists the units as cards instead of the canvas; the first four steps point at that list,
+    // the Add unit button, a keeper on a card, and a card's budget bar.
+    ['canvas', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-canvas', 'org-design-list'],
+    ['palette', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-palette', 'org-design-add-unit'],
     // UXP1-S026: panel= opens the unit's Keepers and Budget tabs, so each step shows the tab it describes.
-    ['keepers', '/dashboard/organizations/{organization}?tab=design&unit={unit}&panel=keepers', 'org-unit-keepers'],
-    ['budget', '/dashboard/organizations/{organization}?tab=design&unit={unit}&panel=budget', 'org-unit-budget'],
+    ['keepers', '/dashboard/organizations/{organization}?tab=design&unit={unit}&panel=keepers', 'org-unit-keepers', 'org-card-keeper'],
+    ['budget', '/dashboard/organizations/{organization}?tab=design&unit={unit}&panel=budget', 'org-unit-budget', 'org-card-budget'],
     ['publish', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-publish']
   ]),
   tour('keep-it-safe', { needs: 'keepers', example: 'gerbil' }, [

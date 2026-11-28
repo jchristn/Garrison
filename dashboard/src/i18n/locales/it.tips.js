@@ -5406,3 +5406,44 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "target": "Dove la connessione invia il lavoro: l'URL di base di un'API del provider, il nome dell'endpoint di una connessione Mux o l'eseguibile di un harness CLI."
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "Trova le esecuzioni il cui nome dell’agente o del chiamante contiene questo testo, senza distinguere maiuscole e minuscole. Il chiamante è la persona, la chiave o l’esecuzione che ha avviato l’esecuzione.",
+   "filters": {
+    "kind": "Solo le esecuzioni di questo tipo: un’invocazione, un’esecuzione figlia, un ciclo del custode, un risveglio da messaggio, un caso di valutazione e così via.",
+    "hasHops": "Richiesta più lunga tiene le esecuzioni che hanno inviato o ricevuto un messaggio, avviato un’altra esecuzione o sono state avviate da una, o appartengono a un fan-out, compresa l’esecuzione con cui è iniziata la richiesta. Esecuzione singola tiene il resto."
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "Nascondi questo messaggio. Un errore diverso viene mostrato di nuovo."
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "Richiesta più lunga tiene le esecuzioni che hanno inviato o ricevuto un messaggio, avviato un’altra esecuzione o sono state avviate da una, o appartengono a un fan-out, compresa l’esecuzione con cui è iniziata la richiesta. Esecuzione singola tiene il resto."
+ }
+});

@@ -30,7 +30,7 @@ import { isMissingEndpoint } from './errors';
 export const ORG_SOURCE_METHODS = ['load', 'addUnit', 'removeUnit', 'moveUnit', 'setLead', 'addMember', 'removeMember', 'connectUnits', 'disconnectUnits', 'setBudget', 'attachMandate', 'detachMandate', 'validate'];
 
 /** Codes the validate route answers with severity Error (LP3.7); an Error stops a publish. */
-export const ORG_ERROR_CODES = ['AgentInTwoUnits', 'PeerLineToMissingUnit', 'BudgetOverParent', 'UnitDetachedFromRoot', 'OneRoot', 'Cycle', 'UnitNameTaken', 'TooManyUnits', 'TooManyMembers', 'TooManyPeerLines', 'BudgetPeriodTaken', 'BudgetInvalid', 'AgentInactive'];
+export const ORG_ERROR_CODES = ['AgentInTwoUnits', 'PeerLineToMissingUnit', 'BudgetOverParent', 'UnitDetachedFromRoot', 'OneRoot', 'NoRootUnit', 'Cycle', 'UnitNameTaken', 'TooManyUnits', 'TooManyMembers', 'TooManyPeerLines', 'BudgetPeriodTaken', 'BudgetInvalid', 'AgentInactive'];
 
 /** Codes the validate route answers with severity Warning; a tree with only warnings still publishes. */
 export const ORG_WARNING_CODES = ['UnitWithoutLead', 'KeeperDeploymentMissing', 'MandateMismatch'];
@@ -487,9 +487,9 @@ export function rulesForUnit(rules, units, unitId) {
 
 /** A problem in words, with its unit, agent, and keeper named; an unknown code shows the server's message. */
 export function problemText(t, p) {
-  // UXP1-S016: the validate route answers OneRoot without a unit for an empty tree (or one with no root at all), which
-  // the "more than one root" wording does not fit.
-  if (p?.code === 'OneRoot' && !p.unit && !p.unitId) return t('components.orgDesigner.problems.OneRootMissing');
+  // UXP1-S016: the server answers NoRootUnit for an empty tree or one with no root at all. A server from before that
+  // code answers OneRoot without a unit, which the "more than one root" wording does not fit, so it reads the same.
+  if (p?.code === 'OneRoot' && !p.unit && !p.unitId) return t('components.orgDesigner.problems.NoRootUnit');
   if (ORG_PROBLEM_CODES.includes(p?.code)) {
     return t(`components.orgDesigner.problems.${p.code}`, { unit: p.unit || p.unitId || '-', agent: p.agent || p.agentId || '-', mandate: p.mandate || p.mandateId || '-' });
   }

@@ -10366,7 +10366,7 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
    "outlineUnits_one": "L’unità ({{count}}) a parole",
    "outlineUnits_other": "Tutte le {{count}} unità a parole",
    "problems": {
-    "OneRootMissing": "Aggiungi l’unità radice. Un’organizzazione ha bisogno di un’unità senza unità superiore prima di poter essere pubblicata.",
+    "NoRootUnit": "Aggiungi l’unità radice. Un’organizzazione ha bisogno di un’unità senza unità superiore prima di poter essere pubblicata.",
     "titleEmpty": "Controlli",
     "noUnits": "Ancora nessuna unità. Aggiungi l’unità radice con Aggiungi unità, qui sopra, poi le unità sotto di essa. I controlli partono appena c’è un’unità."
    },
@@ -10611,6 +10611,75 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
  "components": {
   "autoRefresh": {
    "short": "{{count}} sec."
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "Agente o chiamante",
+   "filters": {
+    "hasHops": "Salti",
+    "hasHopsTrue": "Richiesta più lunga",
+    "hasHopsFalse": "Esecuzione singola"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "Aggiungi l’unità radice. Un’organizzazione ha bisogno di un’unità senza unità superiore prima di poter essere pubblicata."
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "L’elenco su un telefono",
+      "body": "Sequenza e Grafo richiedono uno schermo largo almeno 768 pixel, quindi un telefono mostra la vista Elenco: ogni passo della richiesta come una riga che puoi filtrare. Apri l’esecuzione su uno schermo più largo per le corsie degli agenti o il grafo."
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "Unità come schede",
+      "body": "Su un telefono, Progettazione elenca le unità come schede invece di disegnare il canvas. Ogni scheda mostra il responsabile, i membri e le linee tra pari, con sotto le unità che le riferiscono."
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "Persone",
+      "body": "Aggiungi unità crea un’unità con il suo responsabile. Per cambiare chi guida un’unità o chi ne fa parte, scegli Modifica sulla sua scheda. Trascinare agenti sulle unità richiede il canvas più largo."
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "Custodi",
+      "body": "L’etichetta accanto a un responsabile o a un membro indica il custode che sveglia quell’agente secondo una pianificazione. Scegli Modifica sulla scheda per prendere un altro custode dell’agente; quando si sveglia si cambia nella pagina del custode."
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "Budget",
+      "body": "La barra di una scheda è la spesa dell’unità rispetto al suo limite giornaliero o mensile, che copre tutto ciò che eseguono l’unità e ogni unità sotto di essa. Scegli Modifica sulla scheda per impostare o cambiare un limite."
+     }
+    }
+   }
   }
  }
 });

@@ -10,7 +10,7 @@ import CopyableId from '../components/CopyableId';
 import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import Tabs from '../components/Tabs';
-import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
+import { LoadingState, ErrorBanner, EmptyNote, EmptyState } from '../components/States';
 import { StopIcon, RetryIcon, CodeIcon } from '../components/Icons';
 import { RunStatus, TurnSession } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
@@ -763,7 +763,7 @@ export default function RunDetailView({ recordId }) {
             )}
           </div>
         )}
-        {tab === 'stderr' && <CodeBlock value={run.stderrTail} emptyText={t('views.runDetail.noStderr')} />}
+        {tab === 'stderr' && (run.stderrTail ? <CodeBlock value={run.stderrTail} /> : <EmptyNote data-testid="run-stderr-empty">{t('views.runDetail.noStderr')}</EmptyNote>)}
         {tab === 'children' && <RunChildrenTree runId={recordId} items={children} highlightGroup={highlightGroup} />}
         {tab === 'trail' && <RunTrailPanel runId={recordId} />}
         {tab === 'approvals' && <RunApprovals approvals={approvals} loading={approvalsLoading} error={approvalsError} onDecide={(approval, decision) => setDeciding({ approval, decision })} />}

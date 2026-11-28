@@ -204,10 +204,10 @@ export const runsConfig = {
       {t('resources.runs.emptyAction')}
     </button>
   ),
-  // The server's run list has no text search, so the page offers an agent filter instead of a search box that would
-  // do nothing (UXP1-S001).
-  search: false,
-  urlFilters: ['status', 'agentId', 'outcome', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'rootRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId', 'callerId'],
+  // UXP1-S001: the search box matches the agent name and the caller name on the server, ignoring case.
+  searchPlaceholder: (t) => t('resources.runs.searchPlaceholder'),
+  searchTip: (t) => t('tips.resources.runs.search'),
+  urlFilters: ['status', 'agentId', 'outcome', 'kind', 'hasHops', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'rootRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId', 'callerId'],
   // Agent names for the agent filter; an agent named in the URL stays selectable even before the names load.
   loadLookups: async ({ apiClient, tenantId }) => {
     const agents = await apiClient
@@ -233,6 +233,16 @@ export const runsConfig = {
     },
     { name: 'status', label: (t) => t('resources.runs.columns.status'), options: ENUMS.runStatus, enumGroup: 'runStatus' },
     { name: 'outcome', label: (t) => t('resources.runs.columns.outcome'), tip: (t) => t('tips.resources.runs.filters.outcome'), options: ENUMS.runOutcome.filter((o) => o !== 'None'), enumGroup: 'runOutcome' },
+    { name: 'kind', label: (t) => t('resources.runs.columns.kind'), tip: (t) => t('tips.resources.runs.filters.kind'), options: ENUMS.runKind, enumGroup: 'runKind' },
+    // UXP1-S001: runs that crossed runs (a message sent or received, a child run, a parent, a fan-out), including the
+    // origin run of a request, which the dashboard cannot tell from the run record alone.
+    {
+      name: 'hasHops',
+      label: (t) => t('resources.runs.filters.hasHops'),
+      tip: (t) => t('tips.resources.runs.filters.hasHops'),
+      options: ['true', 'false'],
+      optionLabel: (o, t) => t(o === 'true' ? 'resources.runs.filters.hasHopsTrue' : 'resources.runs.filters.hasHopsFalse')
+    },
     { name: 'harnessType', label: (t) => t('resources.runs.columns.harnessType'), options: ENUMS.harnessType, enumGroup: 'harnessType' },
     { name: 'fromUtc', type: 'datetime', label: (t) => t('components.filters.from') },
     { name: 'toUtc', type: 'datetime', label: (t) => t('components.filters.to') }
@@ -240,7 +250,9 @@ export const runsConfig = {
   canDelete: (r) => TERMINAL_RUN_STATUSES.includes(r.status),
   canDuplicate: false,
   columns: ({ t, i18n, navigate }) => [
-    col('runs', t, 'id', (r) => <CopyableId value={r.id} />, { pinned: true, cellClass: 'cell-id' }),
+    // UXP1-V016: 14 characters keep the prefix and the time part of the ID, which tell runs apart; the full ID is in
+    // the tooltip and the copy button. With the Caller column the table then fits 1280 in German.
+    col('runs', t, 'id', (r) => <CopyableId value={r.id} max={14} />, { pinned: true, cellClass: 'cell-id' }),
     col('runs', t, 'agentName', (r) => <strong>{r.agentName}</strong>, { sortable: true, serverSort: false }),
     // Run kind, caller, and how the run joined a longer request show by default, so a request that crossed several
     // agents can be found from this list (UXP1-S001).

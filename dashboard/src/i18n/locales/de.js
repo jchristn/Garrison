@@ -10373,7 +10373,7 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
    "outlineUnits_one": "Die {{count}} Einheit in Worten",
    "outlineUnits_other": "Alle {{count}} Einheiten in Worten",
    "problems": {
-    "OneRootMissing": "Fügen Sie die Stammeinheit hinzu. Eine Organisation braucht eine Einheit ohne übergeordnete Einheit, bevor sie veröffentlicht werden kann.",
+    "NoRootUnit": "Fügen Sie die Stammeinheit hinzu. Eine Organisation braucht eine Einheit ohne übergeordnete Einheit, bevor sie veröffentlicht werden kann.",
     "titleEmpty": "Prüfungen",
     "noUnits": "Noch keine Einheiten. Fügen Sie oben mit Einheit hinzufügen die Stammeinheit hinzu, dann die Einheiten darunter. Die Prüfungen laufen, sobald es eine Einheit gibt."
    },
@@ -10658,6 +10658,75 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
  "components": {
   "autoRefresh": {
    "short": "{{count}} Sek."
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "Agent oder Aufrufer",
+   "filters": {
+    "hasHops": "Sprünge",
+    "hasHopsTrue": "Längere Anfrage",
+    "hasHopsFalse": "Einzelner Lauf"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "Fügen Sie die Stammeinheit hinzu. Eine Organisation braucht eine Einheit ohne übergeordnete Einheit, bevor sie veröffentlicht werden kann."
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "Die Liste auf dem Telefon",
+      "body": "Ablauf und Graph brauchen einen Bildschirm von mindestens 768 Pixeln Breite, deshalb zeigt ein Telefon die Listenansicht: jeden Schritt der Anfrage als Zeile, die du filtern kannst. Öffne den Lauf auf einem breiteren Bildschirm für Agentenspuren oder den Graphen."
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "Einheiten als Karten",
+      "body": "Auf dem Telefon listet Entwurf die Einheiten als Karten auf, statt die Fläche zu zeichnen. Jede Karte zeigt die Leitung, die Mitglieder und die Peer-Linien, darunter die Einheiten, die an sie berichten."
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "Personen",
+      "body": "Einheit hinzufügen legt eine Einheit mit ihrer Leitung an. Um zu ändern, wer eine Einheit leitet oder zu ihr gehört, wähle Bearbeiten auf ihrer Karte. Agenten auf Einheiten ziehen geht nur auf der breiteren Fläche."
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "Wächter",
+      "body": "Das Schild neben einer Leitung oder einem Mitglied nennt den Wächter, der diesen Agenten nach Zeitplan weckt. Wähle Bearbeiten auf der Karte, um einen anderen Wächter des Agenten zu nehmen; wann er aufwacht, änderst du auf der Seite des Wächters."
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "Budget",
+      "body": "Der Balken auf einer Karte zeigt die Ausgaben der Einheit gegen ihre Tages- oder Monatsgrenze, die alles abdeckt, was die Einheit und jede Einheit darunter ausführen. Wähle Bearbeiten auf der Karte, um eine Grenze zu setzen oder zu ändern."
+     }
+    }
+   }
   }
  }
 });

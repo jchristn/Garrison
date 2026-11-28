@@ -10366,7 +10366,7 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
    "outlineUnits_one": "L’unité ({{count}}) en mots",
    "outlineUnits_other": "Les {{count}} unités en mots",
    "problems": {
-    "OneRootMissing": "Ajoutez l’unité racine. Une organisation a besoin d’une unité sans parent avant de pouvoir être publiée.",
+    "NoRootUnit": "Ajoutez l’unité racine. Une organisation a besoin d’une unité sans parent avant de pouvoir être publiée.",
     "titleEmpty": "Vérifications",
     "noUnits": "Aucune unité pour l’instant. Ajoutez l’unité racine avec Ajouter une unité, plus haut, puis les unités en dessous. Les vérifications démarrent dès qu’il y a une unité."
    },
@@ -10611,6 +10611,75 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
  "components": {
   "autoRefresh": {
    "short": "{{count}} s"
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "Agent ou appelant",
+   "filters": {
+    "hasHops": "Sauts",
+    "hasHopsTrue": "Requête plus longue",
+    "hasHopsFalse": "Exécution seule"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "Ajoutez l’unité racine. Une organisation a besoin d’une unité sans parent avant de pouvoir être publiée."
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "La liste sur un téléphone",
+      "body": "Séquence et Graphe ont besoin d’un écran d’au moins 768 pixels de large, donc un téléphone affiche la vue Liste : chaque étape de la requête sur une ligne que vous pouvez filtrer. Ouvrez l’exécution sur un écran plus large pour voir les couloirs des agents ou le graphe."
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "Les unités en cartes",
+      "body": "Sur un téléphone, Conception liste les unités sous forme de cartes au lieu de dessiner le canevas. Chaque carte montre le responsable, les membres et les lignes entre pairs, avec en dessous les unités qui lui rendent compte."
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "Personnes",
+      "body": "Ajouter une unité crée une unité avec son responsable. Pour changer qui dirige une unité ou qui en fait partie, choisissez Modifier sur sa carte. Glisser des agents sur les unités demande le canevas plus large."
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "Gardiens",
+      "body": "L’étiquette à côté d’un responsable ou d’un membre nomme le gardien qui réveille cet agent selon un calendrier. Choisissez Modifier sur la carte pour prendre un autre gardien de l’agent ; le moment du réveil se change sur la page du gardien."
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "Budget",
+      "body": "La barre d’une carte montre les dépenses de l’unité face à son plafond journalier ou mensuel, qui couvre tout ce que l’unité et chaque unité en dessous exécutent. Choisissez Modifier sur la carte pour fixer ou changer un plafond."
+     }
+    }
+   }
   }
  }
 });

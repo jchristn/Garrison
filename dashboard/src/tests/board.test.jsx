@@ -301,6 +301,9 @@ describe('BoardView', () => {
     expect(h.u1).toMatchObject({ health: null, attention: { escalations: 5, capped: false, needs: true } });
     expect(h.u4.attention.needs).toBe(true);
     expect(unitAttention(b.unitHealth[2]).needs).toBe(false);
+    // The server's needsAttention wins when it is sent; without it the dashboard works it out.
+    expect(unitAttention({ openEscalations: 0, overBudget: false, needsAttention: true }).needs).toBe(true);
+    expect(unitAttention({ openEscalations: 2, needsAttention: false }).needs).toBe(false);
     expect(t('board.attention.reports', { count: 3 })).toBe('3 degraded or unhealthy reports');
     const groups = groupEscalations([
       { id: 'e1', agentId: 'a1', question: 'Is the probe down?', createdUtc: '2026-11-28T01:00:00Z' },

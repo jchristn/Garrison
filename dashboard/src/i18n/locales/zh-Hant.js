@@ -10320,7 +10320,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    "outlineUnits_one": "以文字描述 {{count}} 個單位",
    "outlineUnits_other": "以文字描述全部 {{count}} 個單位",
    "problems": {
-    "OneRootMissing": "請新增根單位。組織需要一個沒有上層的單位才能發布。",
+    "NoRootUnit": "請新增根單位。組織需要一個沒有上層的單位才能發布。",
     "titleEmpty": "檢查",
     "noUnits": "還沒有單位。請用上方的「新增單位」新增根單位，再新增它下方的單位。有單位之後就會開始檢查。"
    },
@@ -10565,6 +10565,75 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
  "components": {
   "autoRefresh": {
    "short": "{{count}} 秒"
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "代理或呼叫端",
+   "filters": {
+    "hasHops": "跳轉",
+    "hasHopsTrue": "較長的請求",
+    "hasHopsFalse": "單一執行"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "請新增根單位。組織需要一個沒有上層的單位才能發布。"
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "手機上顯示清單",
+      "body": "「序列」和「圖」需要至少 768 像素寬的螢幕，所以手機上顯示清單檢視：請求的每一步都是可以篩選的一列。在更寬的螢幕上開啟執行，就能看到代理泳道或圖。"
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "以卡片列出單位",
+      "body": "在手機上，設計不繪製畫布，而是把單位列成卡片。每張卡片顯示負責人、成員和對等線，下方是向它匯報的單位。"
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "人員",
+      "body": "新增單位會建立一個帶負責人的單位。要變更誰領導一個單位或誰在其中，請在它的卡片上選擇編輯。把代理拖到單位上需要更寬的畫布。"
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "守護者",
+      "body": "負責人或成員旁邊的標籤是依排程喚醒該代理的守護者。在卡片上選擇編輯可以換成該代理的另一個守護者；何時喚醒在守護者自己的頁面上修改。"
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "預算",
+      "body": "卡片上的長條顯示單位支出與其每日或每月上限的比較，上限涵蓋該單位及其下每個單位執行的所有內容。在卡片上選擇編輯即可設定或變更上限。"
+     }
+    }
+   }
   }
  }
 });

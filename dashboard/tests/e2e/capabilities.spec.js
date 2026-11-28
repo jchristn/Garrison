@@ -291,7 +291,8 @@ test('shows revision capabilities and chooses them on the draft', async ({ page 
   await page.goto('/dashboard/agents/agt_0001');
   await page.getByRole('tab', { name: 'Revisions' }).click();
   await expect(page.locator('[data-revision="3"] [data-cell="capabilities"]')).toHaveText('-');
-  await page.locator('[data-revision="3"]').getByTestId('revision-capabilities').click();
+  await page.getByTestId('revision-menu-3').click();
+  await page.getByTestId('revision-capabilities').click();
   const modal = page.locator('.modal');
   await expect(modal.getByTestId('revision-capabilities-source')).toContainText('draft revision 3');
   await expect(modal.getByTestId('revision-capabilities-save')).toBeDisabled();

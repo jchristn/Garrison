@@ -5404,3 +5404,44 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   "target": "接続が作業を送る先です。プロバイダー API のベース URL、Mux 接続のエンドポイント名、または CLI ハーネスの実行ファイルです。"
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "エージェント名または呼び出し元の名前にこの文字列を含む実行を探します。大文字と小文字は区別しません。呼び出し元とは、実行を開始した人、キー、または実行です。",
+   "filters": {
+    "kind": "この種類の実行だけを表示します。呼び出し、子実行、キーパーの起動、メッセージによる起動、評価ケースなどです。",
+    "hasHops": "「複数の実行にまたがる依頼」は、メッセージを送受信した実行、別の実行を開始したか別の実行から開始された実行、ファンアウトに属する実行を残します。依頼が始まった実行も含みます。「単独の実行」はそれ以外を残します。"
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "このメッセージを閉じます。別のエラーが起きると再び表示されます。"
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "「複数の実行にまたがる依頼」は、メッセージを送受信した実行、別の実行を開始したか別の実行から開始された実行、ファンアウトに属する実行を残します。依頼が始まった実行も含みます。「単独の実行」はそれ以外を残します。"
+ }
+});

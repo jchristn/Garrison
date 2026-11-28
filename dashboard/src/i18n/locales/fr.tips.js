@@ -5406,3 +5406,44 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "target": "Où la connexion envoie le travail : l'URL de base d'une API de fournisseur, le nom du point de terminaison d'une connexion Mux ou l'exécutable d'un harness CLI."
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "Trouve les exécutions dont le nom de l’agent ou de l’appelant contient ce texte, sans tenir compte de la casse. L’appelant est la personne, la clé ou l’exécution qui a lancé l’exécution.",
+   "filters": {
+    "kind": "Seulement les exécutions de ce type : un appel, une exécution enfant, un cycle de gardien, un réveil par message, un cas d’évaluation, etc.",
+    "hasHops": "Requête plus longue garde les exécutions qui ont envoyé ou reçu un message, lancé une autre exécution ou été lancées par une, ou qui appartiennent à un fan-out, y compris l’exécution par laquelle la requête a commencé. Exécution seule garde le reste."
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "Masquer ce message. Une autre erreur s’affiche à nouveau."
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "Requête plus longue garde les exécutions qui ont envoyé ou reçu un message, lancé une autre exécution ou été lancées par une, ou qui appartiennent à un fan-out, y compris l’exécution par laquelle la requête a commencé. Exécution seule garde le reste."
+ }
+});

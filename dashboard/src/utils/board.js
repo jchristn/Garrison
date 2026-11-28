@@ -100,12 +100,14 @@ export function ceoUnavailable(t, ceo) {
 /**
  * What a unit's row on the board says needs a person (UXP1-S013): open escalations and a budget cap, which the report
  * health alone leaves out (a unit that files no report shows Unknown however many questions it raised). Answers
- * { escalations, capped, needs } where needs is true when either is present.
+ * { escalations, capped, needs }. needs is the server's needsAttention on the unit health row; a server from before
+ * that field sends none, and then needs is true when either fact is present.
  */
 export function unitAttention(h) {
   const escalations = Number(h?.openEscalations || 0);
   const capped = !!h?.overBudget;
-  return { escalations, capped, needs: escalations > 0 || capped };
+  const needs = typeof h?.needsAttention === 'boolean' ? h.needsAttention : escalations > 0 || capped;
+  return { escalations, capped, needs };
 }
 
 /**

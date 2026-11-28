@@ -5,13 +5,18 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useTours } from '../../context/TourContext';
-import { findTour } from '../../config/tours';
+import { TOUR_PHONE_QUERY, findTour, stepForViewport } from '../../config/tours';
 import { tourKey } from '../learn/learnSections';
 import { TOUR_TARGET_TIMEOUT_MS } from '../../utils/constants';
 import { isRtl } from '../../utils/direction';
 import { fillRoute, placeTourCard, prefersReducedMotion, resolveTourRecords, targetSelector, tenantHas, waitForTarget } from '../../utils/tours';
 import { tip } from '../Tooltip';
 import TourSampleModal from './TourSampleModal';
+
+/** True below 768 pixels, where a step with a phone variant points at what the narrow layout shows. */
+function isPhone() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(TOUR_PHONE_QUERY).matches;
+}
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const REMEASURE_MS = 200;
@@ -105,7 +110,7 @@ export default function TourRunner({ timeoutMs = TOUR_TARGET_TIMEOUT_MS }) {
   useEffect(() => {
     if (phase !== 'seeking' || !tour) return undefined;
     let cancelled = false;
-    const step = tour.steps[index];
+    const step = stepForViewport(tour.steps[index], isPhone());
     const skip = (reasonKey) => {
       setNotes((list) => [...list, t(reasonKey, { step: t(step.title) })]);
       let next = index + direction.current;
@@ -244,7 +249,7 @@ export default function TourRunner({ timeoutMs = TOUR_TARGET_TIMEOUT_MS }) {
     }
   };
 
-  const step = tour.steps[index];
+  const step = stepForViewport(tour.steps[index], isPhone());
   const total = tour.steps.length;
   const showing = phase === 'showing';
   const ended = phase === 'end';

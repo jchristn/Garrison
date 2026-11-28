@@ -425,7 +425,8 @@ describe('capabilities on revisions', () => {
     await flush();
     expect(q('[data-revision="3"] [data-cell="capabilities"]').textContent).toBe('pandoc');
     expect(q('[data-revision="2"] [data-cell="capabilities"]').textContent).toBe('-');
-    expect(q('[data-revision="3"] [data-testid="revision-capabilities"]')).not.toBeNull();
+    click(q('[data-revision="3"] [data-testid="revision-menu-3"]'));
+    expect(q('[data-testid="revision-capabilities"]')).not.toBeNull();
     expect(q('[data-testid="revision-capabilities-new"]')).toBeNull();
   });
 

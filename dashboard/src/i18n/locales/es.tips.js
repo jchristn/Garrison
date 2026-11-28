@@ -5406,3 +5406,44 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "target": "Adónde envía el trabajo la conexión: la URL base de una API de proveedor, el nombre del endpoint de una conexión Mux o el ejecutable de un harness de CLI."
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "Busca ejecuciones cuyo nombre de agente o de llamante contenga este texto, sin distinguir mayúsculas. El llamante es la persona, la clave o la ejecución que inició la ejecución.",
+   "filters": {
+    "kind": "Solo ejecuciones de este tipo: una invocación, una ejecución hija, un ciclo de guardián, un despertar por mensaje, un caso de evaluación, etcétera.",
+    "hasHops": "Solicitud más larga conserva las ejecuciones que enviaron o recibieron un mensaje, iniciaron otra ejecución o fueron iniciadas por una, o pertenecen a un fan-out, incluida la ejecución con la que empezó la solicitud. Ejecución única conserva el resto."
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "Oculta este mensaje. Un error distinto vuelve a mostrarse."
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "Solicitud más larga conserva las ejecuciones que enviaron o recibieron un mensaje, iniciaron otra ejecución o fueron iniciadas por una, o pertenecen a un fan-out, incluida la ejecución con la que empezó la solicitud. Ejecución única conserva el resto."
+ }
+});

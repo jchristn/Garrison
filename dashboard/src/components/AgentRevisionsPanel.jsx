@@ -10,6 +10,7 @@ import AgentAssetPinsModal from './AgentAssetPinsModal';
 import AgentCapabilitiesModal from './AgentCapabilitiesModal';
 import { tip } from './Tooltip';
 import LocalTableFrame from './LocalTableFrame';
+import RowActions from './RowActions';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -171,29 +172,29 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
       pinned: true,
       headerClass: 'right',
       cellClass: 'right',
-      render: (r) => (
-        <span className="flex gap-sm" style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          <button type="button" className="button-ghost button-sm" onClick={() => compareWith(r)} data-testid="revision-compare" {...tip(t('tips.revisions.compare'))}>
-            {t('components.revisions.compare')}
-          </button>
-          {r.state === 'Draft' && (
-            <>
-              <button type="button" className="button-primary button-sm" onClick={() => setPublishing(r)} data-testid="revision-publish" {...tip(t('tips.revisions.publish'))}>
-                {t('components.revisions.publish')}
-              </button>
-              <button type="button" className="button-ghost button-sm" onClick={() => setPinning(r)} data-testid="revision-assets" {...tip(t('tips.assets.editPins'))}>
-                {t('components.assets.editPins')}
-              </button>
-              <button type="button" className="button-ghost button-sm" onClick={() => setChoosing(r)} data-testid="revision-capabilities" {...tip(t('tips.capabilities.editDraft'))}>
-                {t('components.capabilities.editDraft')}
-              </button>
-              <button type="button" className="button-ghost button-sm" onClick={() => setDiscarding(r)} data-testid="revision-discard" {...tip(t('tips.revisions.discard'))}>
-                {t('components.revisions.discard')}
-              </button>
-            </>
-          )}
-        </span>
-      )
+      // UXP1-V027: the shared row pattern. A draft shows Publish inline and the rest in its menu, whose items keep the
+      // test IDs the buttons had; any other revision shows Compare inline and has no menu.
+      render: (r) => {
+        const draft = r.state === 'Draft';
+        const compare = { label: t('components.revisions.compare'), tip: t('tips.revisions.compare'), onClick: () => compareWith(r), testId: 'revision-compare' };
+        return (
+          <RowActions
+            label={t('components.revisions.number', { number: r.number })}
+            menuTestId={`revision-menu-${r.number}`}
+            primary={draft ? { label: t('components.revisions.publish'), tip: t('tips.revisions.publish'), onClick: () => setPublishing(r), testId: 'revision-publish' } : compare}
+            items={
+              draft
+                ? [
+                    compare,
+                    { label: t('components.assets.editPins'), tip: t('tips.assets.editPins'), onClick: () => setPinning(r), testId: 'revision-assets' },
+                    { label: t('components.capabilities.editDraft'), tip: t('tips.capabilities.editDraft'), onClick: () => setChoosing(r), testId: 'revision-capabilities' },
+                    { label: t('components.revisions.discard'), tip: t('tips.revisions.discard'), onClick: () => setDiscarding(r), testId: 'revision-discard', danger: true }
+                  ]
+                : []
+            }
+          />
+        );
+      }
     })
   ];
 

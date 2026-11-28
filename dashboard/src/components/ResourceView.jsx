@@ -61,7 +61,8 @@ function applyClientFilters(config, filters, rows) {
  * Filters are selects (options may be a function of the lookups), date pickers, or free text (type 'text'); a filter with
  * `clientSide: true` is applied to the loaded page instead of being sent to the server;
  * `toDuplicate(row)` replaces the generic Duplicate stripping for records whose children keep references (pipelines);
- * `search: false` hides the name search for lists the server cannot search; `lockedReason(row, ctx)` shows Edit and
+ * `search: false` hides the name search for lists the server cannot search, and `searchPlaceholder(t)` and
+ * `searchTip(t)` say what a list's search matches when it is not the name; `lockedReason(row, ctx)` shows Edit and
  * Delete disabled with that explanation for records that cannot change; `bulkDelete: false` turns off row selection;
  * `deniedReason(action, row, ctx)` ('create', 'update', 'delete') returns the missing permission's explanation, which
  * keeps the add button, Edit, and Delete visible but disabled with that tooltip (ctx carries the lookups, so
@@ -471,9 +472,9 @@ export default function ResourceView({ config }) {
           type="search"
           className="filter-search"
           value={search}
-          placeholder={t('components.filters.searchName')}
-          aria-label={t('components.filters.searchName')}
-          {...tip(t('tips.table.search'))}
+          placeholder={config.searchPlaceholder ? config.searchPlaceholder(t) : t('components.filters.searchName')}
+          aria-label={config.searchPlaceholder ? config.searchPlaceholder(t) : t('components.filters.searchName')}
+          {...tip(config.searchTip ? config.searchTip(t) : t('tips.table.search'))}
           onChange={(e) => setSearch(e.target.value)}
         />
       )}

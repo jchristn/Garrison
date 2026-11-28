@@ -5409,3 +5409,44 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "target": "Wohin die Verbindung die Arbeit schickt: die Basis-URL einer Anbieter-API, der Endpunktname einer Mux-Verbindung oder das Programm eines CLI-Harness."
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "Findet Läufe, deren Agentenname oder Aufrufername diesen Text enthält, ohne Groß- und Kleinschreibung zu beachten. Der Aufrufer ist die Person, der Schlüssel oder der Lauf, der den Lauf gestartet hat.",
+   "filters": {
+    "kind": "Nur Läufe dieser Art: ein Aufruf, ein Kindlauf, ein Wächter-Zyklus, ein Wecken durch eine Nachricht, ein Evaluierungsfall und so weiter.",
+    "hasHops": "Längere Anfrage behält Läufe, die eine Nachricht gesendet oder empfangen haben, einen anderen Lauf gestartet haben oder von einem gestartet wurden oder zu einem Fan-out gehören, einschließlich des Laufs, mit dem die Anfrage begann. Einzelner Lauf behält den Rest."
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "Diese Meldung ausblenden. Ein anderer Fehler wird wieder angezeigt."
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "Längere Anfrage behält Läufe, die eine Nachricht gesendet oder empfangen haben, einen anderen Lauf gestartet haben oder von einem gestartet wurden oder zu einem Fan-out gehören, einschließlich des Laufs, mit dem die Anfrage begann. Einzelner Lauf behält den Rest."
+ }
+});

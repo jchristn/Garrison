@@ -11,6 +11,7 @@ import { stripCodePrefix } from './serverText';
 /** 409 codes the organization routes answer with, each explained under organizations.errors.<code>. */
 export const ORG_ERROR_CODES = [
   'OneRoot',
+  'NoRootUnit',
   'ParentNotFound',
   'Cycle',
   'UnitNameTaken',

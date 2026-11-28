@@ -282,11 +282,13 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await audit(page, 'revision publish');
   await closeModal(page);
   // AD2.8: the asset pins editor on the draft, with a pin added.
+  await page.locator('[data-testid^="revision-menu-"]').first().click();
   await page.getByTestId('revision-assets').first().click();
   await page.getByTestId('asset-pin-add').click();
   await audit(page, 'asset pins');
   await closeModal(page);
   // AD4.8: the capability editor on the draft, with a capability added (and one not in the catalog).
+  await page.locator('[data-testid^="revision-menu-"]').first().click();
   await page.getByTestId('revision-capabilities').first().click();
   await settle(page);
   await page.getByTestId('revision-capability-choice').selectOption('pandoc');

@@ -5403,3 +5403,44 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "target": "Where the connection sends work: the base URL of a provider API, the endpoint name of a Mux connection, or the executable of a CLI harness."
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "Finds runs whose agent name or caller name contains this text, ignoring case. The caller is the person, key, or run that started the run.",
+   "filters": {
+    "kind": "Only runs of this kind: an invoke, a child run, a keeper tick, a message wake, an eval case, and so on.",
+    "hasHops": "Longer request keeps runs that sent or received a message, started another run or were started by one, or belong to a fan-out, including the run the request began with. Single run keeps the rest."
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "Hide this message. A different error shows again."
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "Longer request keeps runs that sent or received a message, started another run or were started by one, or belong to a fan-out, including the run the request began with. Single run keeps the rest."
+ }
+});

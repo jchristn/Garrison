@@ -400,6 +400,9 @@ describe('large charts and the publish summary (UXP1-V002, S015, S016, S025)', (
 
   it('explains an empty organization instead of a second root, and lists what an added unit brings', () => {
     expect(problemText(t, { code: 'OneRoot', unit: '', unitId: null })).toBe('Add the root unit. An organization needs one unit without a parent before it can be published.');
+    // UXP1-S016: the server's own code for an empty tree reads the same, and publishing answers it as a 409.
+    expect(problemText(t, { code: 'NoRootUnit', unit: '', unitId: null })).toBe('Add the root unit. An organization needs one unit without a parent before it can be published.');
+    expect(orgErrorMessage(t, conflict('NoRootUnit', ''))).toBe('Add the root unit. An organization needs one unit without a parent before it can be published.');
     expect(problemText(t, { code: 'OneRoot', unit: 'rogue', unitId: 'u9' })).toContain('more than one root unit, including rogue');
     const diff = diffOrgUnits([], [{ id: 'u1', name: 'support', leadAgentId: 'agt_1', leadAgentName: 'lead-agent', leadMandateId: 'mdt_1', leadMandateName: 'inbox-keeper', members: [{ agentId: 'agt_2', agentName: 'helper' }], peerLines: [], budgets: [{ period: 'Day', amountUsd: 5 }] }]);
     expect(diff.added).toEqual(['support']);

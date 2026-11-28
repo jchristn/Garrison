@@ -5404,3 +5404,44 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   "target": "連線將工作送去邊度：供應商 API 嘅基礎 URL、Mux 連線嘅端點名稱，或者 CLI Harness 嘅執行檔。"
  }
 });
+
+// LP5.5 (UX pass 1, closing): run search and filter tooltips (UXP1-S001) and the error banner's close button (UXP1-V020).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "runs": {
+   "search": "搵代理名稱或者呼叫端名稱包含呢段文字嘅執行，唔分大細楷。呼叫端係開始個執行嘅人、金鑰或者執行。",
+   "filters": {
+    "kind": "只顯示呢種類型嘅執行：呼叫、子執行、守護者週期、訊息喚醒、評估案例等等。",
+    "hasHops": "較長嘅請求會保留發送或者收到訊息、開始咗另一個執行或者由另一個執行開始、或者屬於扇出嘅執行，包括請求開始嗰個執行。單一執行就保留其餘嘅。"
+   }
+  }
+ },
+ "actions": {
+  "dismissError": "隱藏呢個訊息。出現另一個錯誤嘅話會再顯示。"
+ }
+});
+
+// LP5.5 (UX pass 1, closing): the generic tooltip of the hasHops filter (UXP1-S001).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "filters": {
+  "hasHops": "較長嘅請求會保留發送或者收到訊息、開始咗另一個執行或者由另一個執行開始、或者屬於扇出嘅執行，包括請求開始嗰個執行。單一執行就保留其餘嘅。"
+ }
+});

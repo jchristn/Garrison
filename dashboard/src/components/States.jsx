@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshIcon } from './Icons';
+import { RefreshIcon, XIcon } from './Icons';
 import { tip } from './Tooltip';
 
 /** Centered loading block. */
@@ -38,17 +39,38 @@ export function EmptyNote({ children, className = '', ...rest }) {
   );
 }
 
-/** Dismissible/retryable error banner. */
-export function ErrorBanner({ message, onRetry }) {
+/**
+ * Dismissible/retryable error banner. The close button hides this message (UXP1-V020); a different message, or the
+ * banner shown again after its error cleared, appears as usual. onDismiss, when given, is called as well.
+ */
+export function ErrorBanner({ message, onRetry, onDismiss }) {
   const { t } = useTranslation();
+  const text = message || t('common.errors.loadFailed');
+  const [hidden, setHidden] = useState(null);
+  if (hidden === text) return null;
   return (
     <div className="error-banner">
-      <span>{message || t('common.errors.loadFailed')}</span>
-      {onRetry && (
-        <button type="button" className="button-secondary button-sm" onClick={onRetry} {...tip(t('tips.actions.retryLoad'))}>
-          <RefreshIcon /> {t('common.actions.retry')}
+      <span>{text}</span>
+      <span className="error-banner-actions">
+        {onRetry && (
+          <button type="button" className="button-secondary button-sm" onClick={onRetry} {...tip(t('tips.actions.retryLoad'))}>
+            <RefreshIcon /> {t('common.actions.retry')}
+          </button>
+        )}
+        <button
+          type="button"
+          className="error-banner-dismiss"
+          aria-label={t('common.actions.close')}
+          data-testid="error-banner-dismiss"
+          onClick={() => {
+            setHidden(text);
+            if (onDismiss) onDismiss();
+          }}
+          {...tip(t('tips.actions.dismissError'))}
+        >
+          <XIcon size={16} />
         </button>
-      )}
+      </span>
     </div>
   );
 }

@@ -10319,7 +10319,7 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
    "outlineUnits_one": "組織単位 {{count}} 件の説明文",
    "outlineUnits_other": "全 {{count}} 件の組織単位の説明文",
    "problems": {
-    "OneRootMissing": "ルート組織単位を追加してください。公開するには、親を持たない組織単位が 1 つ必要です。",
+    "NoRootUnit": "ルート組織単位を追加してください。公開するには、親を持たない組織単位が 1 つ必要です。",
     "titleEmpty": "チェック",
     "noUnits": "まだ組織単位がありません。上の「組織単位を追加」でルート組織単位を追加し、その下に組織単位を追加してください。組織単位ができるとチェックが動きます。"
    },
@@ -10564,6 +10564,75 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
  "components": {
   "autoRefresh": {
    "short": "{{count}} 秒"
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "エージェントまたは呼び出し元",
+   "filters": {
+    "hasHops": "ホップ",
+    "hasHopsTrue": "複数の実行にまたがる依頼",
+    "hasHopsFalse": "単独の実行"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "ルート組織単位を追加してください。公開するには、親を持たない組織単位が 1 つ必要です。"
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "スマートフォンでは一覧",
+      "body": "シーケンスとグラフには幅 768 ピクセル以上の画面が必要なため、スマートフォンでは一覧ビューを表示します。依頼の各ステップが 1 行ずつ並び、絞り込めます。エージェントごとのレーンやグラフを見るには、広い画面で実行を開いてください。"
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "カードで並ぶ組織単位",
+      "body": "スマートフォンでは、設計タブはキャンバスを描かずに組織単位をカードで並べます。各カードに責任者、メンバー、ピアラインが表示され、その下に報告先がこの単位である組織単位が続きます。"
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "メンバー",
+      "body": "「組織単位を追加」で責任者を決めて組織単位を作成します。責任者やメンバーを変えるには、カードの「編集」を選びます。エージェントを組織単位にドラッグするには、広い画面のキャンバスが必要です。"
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "キーパー",
+      "body": "責任者やメンバーの横のタグは、そのエージェントを予定どおりに起動するキーパーの名前です。カードの「編集」で、そのエージェントの別のキーパーを選べます。起動のタイミングはキーパー自体のページで変更します。"
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "予算",
+      "body": "カードのバーは、組織単位の支出を日次または月次の上限と比べて示します。上限は、その組織単位と配下のすべての組織単位の実行を対象とします。上限の設定や変更は、カードの「編集」から行います。"
+     }
+    }
+   }
   }
  }
 });

@@ -15,7 +15,7 @@ import TourRunner from '../components/tours/TourRunner';
 import HubTourButton from '../components/tours/HubTourButton';
 import HomeLearnCard from '../components/tours/HomeLearnCard';
 import SetupWizard from '../components/SetupWizard';
-import { HUB_TOURS, TOURS, findTour, hubTourFor, tourNamespace } from '../config/tours';
+import { HUB_TOURS, TOURS, findTour, hubTourFor, stepForViewport, tourNamespace } from '../config/tours';
 import { HUBS } from '../config/navConfig';
 import { TOUR_IDS, tourKey } from '../components/learn/learnSections';
 import { STORAGE_KEYS, TOUR_TARGET_TIMEOUT_MS } from '../utils/constants';
@@ -155,12 +155,31 @@ describe('tour definitions (LP-009, LP4.7)', () => {
         for (const s of x.steps) {
           expect(typeof lookup(catalog, s.title), s.title).toBe('string');
           expect(typeof lookup(catalog, s.body), s.body).toBe('string');
+          if (s.phone) {
+            expect(typeof lookup(catalog, s.phone.title), s.phone.title).toBe('string');
+            expect(typeof lookup(catalog, s.phone.body), s.phone.body).toBe('string');
+          }
         }
       }
       for (const key of ['skip', 'back', 'next', 'done', 'hub', 'start', 'replay', 'sampleLoad', 'sampleContinue', 'homeCardOpen', 'homeCardDismiss', 'wizardLearn', 'wizardTour']) {
         expect(typeof lookup(catalog, `tips.tours.${key}`), key).toBe('string');
       }
     }
+  });
+
+  it('gives the steps whose wide controls a phone hides a phone target, so no tour skips a step at 390', () => {
+    const phoneSteps = (id) => findTour(id).steps.filter((s) => s.phone).map((s) => [s.id, s.phone.target]);
+    expect(phoneSteps('follow-a-request')).toEqual([['views', 'trail-narrow-note']]);
+    expect(phoneSteps('build-a-team')).toEqual([
+      ['canvas', 'org-design-list'],
+      ['palette', 'org-design-add-unit'],
+      ['keepers', 'org-card-keeper'],
+      ['budget', 'org-card-budget']
+    ]);
+    const views = findTour('follow-a-request').steps[0];
+    expect(stepForViewport(views, false)).toBe(views);
+    expect(stepForViewport(views, true)).toMatchObject({ id: 'views', route: views.route, target: 'trail-narrow-note', title: 'tours.followARequest.steps.views.phone.title' });
+    expect(stepForViewport(findTour('build-a-team').steps[4], true).target).toBe('org-publish');
   });
 
   it('maps hubs to tours, with tab overrides, and only names real hubs and tours', () => {

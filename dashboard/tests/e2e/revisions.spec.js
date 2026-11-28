@@ -109,7 +109,8 @@ test('discards the draft after confirmation', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/agents/agt_0001');
   await page.getByRole('tab', { name: 'Revisions' }).click();
-  await page.locator('[data-revision="3"]').getByTestId('revision-discard').click();
+  await page.getByTestId('revision-menu-3').click();
+  await page.getByTestId('revision-discard').click();
   await page.locator('.modal').getByRole('button', { name: 'Discard draft' }).click();
   await expect.poll(() => deleted).toContain('/revisions/arv_0001_3');
   await expect(page.locator('.toast-success')).toContainText('The draft was discarded.');

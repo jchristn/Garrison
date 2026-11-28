@@ -85,7 +85,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
               <>
                 <strong>{lead}</strong>
                 {unit.leadTitle ? <span className="text-muted">{` ${unit.leadTitle}`}</span> : null}
-                {leadMandate ? <span className="org-unit-mandate" {...tip(unit.leadMandateSummary || t('tips.organizations.chart.mandate'))}>{leadMandate}</span> : null}
+                {leadMandate ? <span className="org-unit-mandate" data-tour="org-card-keeper" {...tip(unit.leadMandateSummary || t('tips.organizations.chart.mandate'))}>{leadMandate}</span> : null}
               </>
             ) : (
               <span className="text-muted">{t('organizations.chart.noLead')}</span>
@@ -101,7 +101,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
                   <li key={m.agentId}>
                     <span>{agentText(m.agentId, m.agentName, names)}</span>
                     {m.title ? <span className="text-muted">{` ${m.title}`}</span> : null}
-                    {m.mandateId ? <span className="org-unit-mandate" {...tip(m.mandateSummary || t('tips.organizations.chart.mandate'))}>{mandateText(m.mandateId, m.mandateName, names)}</span> : null}
+                    {m.mandateId ? <span className="org-unit-mandate" data-tour="org-card-keeper" {...tip(m.mandateSummary || t('tips.organizations.chart.mandate'))}>{mandateText(m.mandateId, m.mandateName, names)}</span> : null}
                   </li>
                 ))}
               </ul>
@@ -138,7 +138,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
         ) : null}
       </dl>
       {rows.length > 0 && (
-        <div className="org-unit-spend">
+        <div className="org-unit-spend" data-tour="org-card-budget">
           {rows.map((r) => (
             <SpendBar key={r.period} row={r} t={t} lng={lng} testId="org-unit-spend" />
           ))}

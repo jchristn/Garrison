@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import i18n from '../i18n';
 import TableFrame from '../components/TableFrame';
 import RowActions from '../components/RowActions';
+import { ErrorBanner } from '../components/States';
 import { columnWidthClass } from '../components/DataTable';
 import { TooltipLayer } from '../components/Tooltip';
 import { ToastProvider } from '../context/ToastContext';
@@ -54,6 +55,19 @@ describe('table states', () => {
     expect(container.textContent).not.toContain('records');
     expect(container.textContent).not.toContain('No records match');
     expect(container.textContent).not.toContain('Page 1 of 1');
+    unmount();
+  });
+
+  it('closes an error banner with its own button until a different error comes (UXP1-V020)', () => {
+    const onDismiss = vi.fn();
+    mount(<ErrorBanner message="Boom" onDismiss={onDismiss} />);
+    const close = q('[data-testid="error-banner-dismiss"]');
+    expect(close.getAttribute('aria-label')).toBe('Close');
+    act(() => close.click());
+    expect(q('.error-banner')).toBeNull();
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    act(() => root.render(<ToastProvider><ErrorBanner message="Another failure" /></ToastProvider>));
+    expect(q('.error-banner').textContent).toContain('Another failure');
     unmount();
   });
 

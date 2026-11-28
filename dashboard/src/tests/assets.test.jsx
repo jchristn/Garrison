@@ -390,7 +390,8 @@ describe('asset pins', () => {
     expect(q('[data-revision="3"] [data-cell="assetPins"]').textContent).toBe('review-skill (current)style-guide v2');
     expect(q('[data-revision="2"] [data-cell="assetPins"]').textContent).toBe('review-skill (current)');
     expect(q('[data-revision="1"] [data-cell="assetPins"]').textContent).toBe('-');
-    expect(q('[data-revision="3"] [data-testid="revision-assets"]')).not.toBeNull();
+    click(q('[data-revision="3"] [data-testid="revision-menu-3"]'));
+    expect(q('[data-testid="revision-assets"]')).not.toBeNull();
     expect(q('[data-testid="revision-assets-new"]')).toBeNull();
     expect(qa('[data-testid="revision-diff"] [data-field="assetPins"]').map((r) => r.getAttribute('data-change'))).toEqual(['Added']);
   });

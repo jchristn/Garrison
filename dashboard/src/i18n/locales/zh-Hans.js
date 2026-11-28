@@ -10320,7 +10320,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    "outlineUnits_one": "用文字描述 {{count}} 个单元",
    "outlineUnits_other": "用文字描述全部 {{count}} 个单元",
    "problems": {
-    "OneRootMissing": "请添加根单元。组织需要一个没有上级的单元才能发布。",
+    "NoRootUnit": "请添加根单元。组织需要一个没有上级的单元才能发布。",
     "titleEmpty": "检查",
     "noUnits": "还没有单元。用上方的“添加单元”添加根单元，再添加它下面的单元。有了单元后检查就会运行。"
    },
@@ -10565,6 +10565,75 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
  "components": {
   "autoRefresh": {
    "short": "{{count}} 秒"
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "代理或调用方",
+   "filters": {
+    "hasHops": "跳转",
+    "hasHopsTrue": "较长的请求",
+    "hasHopsFalse": "单个运行"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "请添加根单元。组织需要一个没有上级的单元才能发布。"
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "手机上显示列表",
+      "body": "“序列”和“图”需要至少 768 像素宽的屏幕，所以手机上显示列表视图：请求的每一步都是可以筛选的一行。在更宽的屏幕上打开运行，就能看到代理泳道或图。"
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "以卡片列出单元",
+      "body": "在手机上，设计不绘制画布，而是把单元列成卡片。每张卡片显示负责人、成员和对等线，下方是向它汇报的单元。"
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "人员",
+      "body": "添加单元会创建一个带负责人的单元。要更改谁领导一个单元或谁在其中，请在它的卡片上选择编辑。把代理拖到单元上需要更宽的画布。"
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "守护者",
+      "body": "负责人或成员旁边的标签是按计划唤醒该代理的守护者。在卡片上选择编辑可以换成该代理的另一个守护者；何时唤醒在守护者自己的页面上修改。"
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "预算",
+      "body": "卡片上的条形显示单元支出与其每日或每月上限的对比，上限涵盖该单元及其下每个单元运行的所有内容。在卡片上选择编辑即可设置或更改上限。"
+     }
+    }
+   }
   }
  }
 });

@@ -433,7 +433,7 @@ export default function OrganizationDetailView({ recordId }) {
   };
 
   const actionButton = (key, labelText, tipText, onClick, { className = 'button-secondary', denied = '', icon = null } = {}) => (
-    <button type="button" className={className} aria-disabled={denied || busy ? 'true' : undefined} onClick={() => !denied && !busy && onClick()} data-testid={`org-${key}`} data-tour={key === 'publish' ? 'org-publish' : undefined} {...tip(denied || tipText)}>
+    <button type="button" className={className} aria-disabled={denied || busy ? 'true' : undefined} onClick={() => !denied && !busy && onClick()} data-testid={`org-${key}`} data-tour={key === 'publish' ? 'org-publish' : key === 'design-add-unit' ? 'org-design-add-unit' : undefined} {...tip(denied || tipText)}>
       {icon}
       {icon ? ' ' : ''}
       {labelText}
@@ -660,7 +660,7 @@ export default function OrganizationDetailView({ recordId }) {
               }} />
             </Suspense>
           ) : (
-            <>
+            <div className="org-design-narrow" data-tour="org-design-list">
               <p className="text-muted">{t('components.orgDesigner.narrow')}</p>
               {actionButton('design-add-unit', units.length ? t('views.organizationDetail.addUnit') : t('views.organizationDetail.addRoot'), t('tips.views.organizationDetail.addUnit'), () => setUnitEditor({ unit: null, parentUnitId: units.find((u) => !u.parentUnitId)?.id || null }), {
                 denied: editBlocked,
@@ -683,7 +683,7 @@ export default function OrganizationDetailView({ recordId }) {
                   }}
                 />
               )}
-            </>
+            </div>
           )}
         </section>
       )}

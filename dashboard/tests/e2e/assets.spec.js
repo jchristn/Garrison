@@ -175,7 +175,8 @@ test('pins assets on the agent draft and saves the complete draft', async ({ pag
   // The diff lists the pin the draft adds.
   await expect(page.locator('[data-testid="revision-diff"] [data-field="assetPins"]')).toContainText('aas_0001@2');
 
-  await page.locator('[data-revision="3"]').getByTestId('revision-assets').click();
+  await page.getByTestId('revision-menu-3').click();
+  await page.getByTestId('revision-assets').click();
   const modal = page.locator('.modal');
   await expect(modal.getByTestId('asset-pins-source')).toContainText('draft revision 3');
   await expect(modal.getByTestId('asset-pin-asset')).toHaveCount(2);

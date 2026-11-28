@@ -44,6 +44,21 @@ function toneFor(e, notice) {
 }
 
 /** Event transcript for a run: assistant text, thinking, tool calls and results, usage, warnings, and errors. */
+/**
+ * A tool name with break opportunities after each "__" (UXP1-V017), so an MCP name such as
+ * mcp__garrison__garrison_send_message wraps between its server and its tool instead of inside a word.
+ */
+function toolNameParts(name) {
+  const parts = String(name).split('__');
+  return parts.map((part, i) => (
+    <span key={i}>
+      {part}
+      {i < parts.length - 1 ? '__' : ''}
+      {i < parts.length - 1 ? <wbr /> : null}
+    </span>
+  ));
+}
+
 export default function RunTimeline({ events, filter = 'all' }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -69,7 +84,7 @@ export default function RunTimeline({ events, filter = 'all' }) {
                   {codeLabel}
                 </span>
               )}
-              {e.toolName && <code className="timeline-tool">{e.toolName}</code>}
+              {e.toolName && <code className="timeline-tool">{toolNameParts(e.toolName)}</code>}
               {notice?.decision && (
                 <Badge tone={approvalActionTone(notice.decision)} tip={enumTip(t, 'approvalDecision', notice.decision)}>
                   {enumLabel(t, 'approvalDecision', notice.decision)}

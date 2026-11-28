@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import LocalTableFrame from './LocalTableFrame';
+import { EmptyNote } from './States';
 import { tip } from './Tooltip';
 import { approvalsConfig } from '../views/runConfigs';
 import { pathFor } from '../config/navConfig';
@@ -53,6 +54,14 @@ export default function RunApprovals({ approvals, loading, error, onDecide }) {
       )
     }
   ];
+  // UXP1-V008: a run without approvals shows the same empty note as its Child runs and Stderr tabs.
+  if (!loading && (!approvals || approvals.length === 0)) {
+    return (
+      <div data-testid="run-approvals">
+        <EmptyNote data-testid="run-approvals-empty">{t('views.runDetail.noApprovals')}</EmptyNote>
+      </div>
+    );
+  }
   return (
     <div data-testid="run-approvals">
       <LocalTableFrame tableId="run-approvals" columns={columns} items={approvals} loading={loading} emptyMessage={t('views.runDetail.noApprovals')} onRowClick={(a) => navigate(pathFor('approvals', a.id))} />

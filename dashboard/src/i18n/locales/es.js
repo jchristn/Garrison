@@ -10370,7 +10370,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    "outlineUnits_one": "La {{count}} unidad en palabras",
    "outlineUnits_other": "Las {{count}} unidades en palabras",
    "problems": {
-    "OneRootMissing": "Añade la unidad raíz. Una organización necesita una unidad sin superior antes de poder publicarse.",
+    "NoRootUnit": "Añade la unidad raíz. Una organización necesita una unidad sin superior antes de poder publicarse.",
     "titleEmpty": "Comprobaciones",
     "noUnits": "Todavía no hay unidades. Añade la unidad raíz con Añadir unidad, arriba, y luego las unidades que dependen de ella. Las comprobaciones se ejecutan en cuanto hay una unidad."
    },
@@ -10615,6 +10615,75 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
  "components": {
   "autoRefresh": {
    "short": "{{count}} seg."
+  }
+ }
+});
+
+// LP5.5 (UX pass 1, closing): run search and filters (UXP1-S001), the NoRootUnit refusal (UXP1-S016), and phone steps
+// for Follow a request and Build a team.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "resources": {
+  "runs": {
+   "searchPlaceholder": "Agente o llamante",
+   "filters": {
+    "hasHops": "Saltos",
+    "hasHopsTrue": "Solicitud más larga",
+    "hasHopsFalse": "Ejecución única"
+   }
+  }
+ },
+ "organizations": {
+  "errors": {
+   "NoRootUnit": "Añade la unidad raíz. Una organización necesita una unidad sin superior antes de poder publicarse."
+  }
+ },
+ "tours": {
+  "followARequest": {
+   "steps": {
+    "views": {
+     "phone": {
+      "title": "La lista en un teléfono",
+      "body": "Secuencia y Grafo necesitan una pantalla de al menos 768 píxeles de ancho, así que un teléfono muestra la vista de lista: cada paso de la solicitud como una fila que puedes filtrar. Abre la ejecución en una pantalla más ancha para ver los carriles de agentes o el grafo."
+     }
+    }
+   }
+  },
+  "buildATeam": {
+   "steps": {
+    "canvas": {
+     "phone": {
+      "title": "Unidades como tarjetas",
+      "body": "En un teléfono, Diseño muestra las unidades como tarjetas en lugar de dibujar el lienzo. Cada tarjeta muestra el responsable, los miembros y las líneas entre pares, con las unidades que le reportan debajo."
+     }
+    },
+    "palette": {
+     "phone": {
+      "title": "Personas",
+      "body": "Añadir unidad crea una unidad con su responsable. Para cambiar quién dirige una unidad o quién está en ella, elige Editar en su tarjeta. Arrastrar agentes a las unidades necesita el lienzo más ancho."
+     }
+    },
+    "keepers": {
+     "phone": {
+      "title": "Guardianes",
+      "body": "La etiqueta junto a un responsable o miembro nombra al guardián que despierta a ese agente según un horario. Elige Editar en la tarjeta para escoger otro guardián del agente; cuándo despierta se cambia en la página del guardián."
+     }
+    },
+    "budget": {
+     "phone": {
+      "title": "Presupuesto",
+      "body": "La barra de una tarjeta es el gasto de la unidad frente a su límite diario o mensual, que cubre todo lo que ejecutan la unidad y cada unidad que tiene debajo. Elige Editar en la tarjeta para fijar o cambiar un límite."
+     }
+    }
+   }
   }
  }
 });
