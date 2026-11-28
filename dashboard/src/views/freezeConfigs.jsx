@@ -13,6 +13,7 @@ import { loadCallerPermissions } from '../utils/apps';
 import { resourceTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
 import { FREEZES_CHANGED_EVENT, freezeDenied, freezeIndex, freezeTargetPath, isActive, isKillSwitch } from '../utils/freezes';
+import { PlusIcon } from '../components/Icons';
 
 const ID = 'freezes';
 
@@ -142,7 +143,7 @@ export const freezesConfig = {
     const denied = freezeDenied(ctx.t, ctx.lookups?.permissions, 'Create');
     return (
       <button type="button" className="button-danger" aria-disabled={denied ? 'true' : undefined} onClick={() => !denied && openFreeze(ctx)} data-testid="freezes-add" {...tip(denied || ctx.t('tips.freezes.actions.freezeAny'))}>
-        {ctx.t('freezes.actions.freezeAny')}
+        <PlusIcon /> {ctx.t('freezes.actions.freezeAny')}
       </button>
     );
   },

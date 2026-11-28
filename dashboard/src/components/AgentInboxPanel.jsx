@@ -32,7 +32,7 @@ export default function AgentInboxPanel({ agent }) {
   const permissions = useCallerPermissions();
   const [status, setStatus] = useState('');
   const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = usePageSizePref(TABLE_ID, 50);
+  const [pageSize, setPageSize] = usePageSizePref(TABLE_ID);
   const [page, setPage] = useState(null);
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);

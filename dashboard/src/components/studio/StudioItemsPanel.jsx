@@ -14,6 +14,7 @@ import { enumTip } from '../../utils/tips';
 import { formatDateTime, formatRelativeTime } from '../../i18n/formatters';
 import { DELETABLE_KINDS, DRAFT_KINDS, DRAFT_OPERATIONS, draftChanges, draftItems, itemKey, itemTemplate, newItemErrors, noItemChanges, staleKeys } from '../../utils/studio';
 import { EmptyNote } from '../States';
+import RowActions from '../RowActions';
 
 /**
  * The notice after a save or removal failed with 409 DraftVersionConflict: the draft was read again, and the notice
@@ -171,22 +172,14 @@ export default function StudioItemsPanel({ draft, diff, blocked = '', onDraft })
       cellClass: 'actions-cell',
       render: (item) => {
         const key = itemKey(item);
+        // UXP1-V027: Edit inline, Remove in the row menu.
         return (
-          <>
-            <button type="button" className="button-ghost button-sm" onClick={() => open(item)} data-testid={`studio-item-edit-${key}`} {...tip(t(blocked ? 'tips.studio.items.viewItem' : 'tips.studio.items.editItem'))}>
-              {t(blocked ? 'common.actions.view' : 'common.actions.edit')}
-            </button>
-            <button
-              type="button"
-              className="button-ghost button-sm"
-              onClick={() => !blocked && setRemoving(item)}
-              data-testid={`studio-item-remove-${key}`}
-              {...disabledProps(blocked)}
-              {...tip(blocked || t('tips.studio.items.remove'))}
-            >
-              {t('components.studio.items.remove')}
-            </button>
-          </>
+          <RowActions
+            label={item.name || key}
+            menuTestId={`studio-item-menu-${key}`}
+            primary={{ label: t(blocked ? 'common.actions.view' : 'common.actions.edit'), tip: t(blocked ? 'tips.studio.items.viewItem' : 'tips.studio.items.editItem'), onClick: () => open(item), testId: `studio-item-edit-${key}` }}
+            items={[{ label: t('components.studio.items.remove'), tip: blocked || t('tips.studio.items.remove'), disabled: !!blocked, danger: true, onClick: () => setRemoving(item), testId: `studio-item-remove-${key}` }]}
+          />
         );
       }
     }

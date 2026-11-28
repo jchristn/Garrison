@@ -13,6 +13,7 @@ import { copyToClipboard } from '../utils/clipboard';
 import { loadCallerPermissions } from '../utils/apps';
 import { resourceTip } from '../utils/tips';
 import { MESSAGES_CHANGED_EVENT, messageDenied, recipientText, senderDetail, senderText, threadPath } from '../utils/messages';
+import { PlusIcon } from '../components/Icons';
 
 const ID = 'messages';
 
@@ -156,7 +157,7 @@ export const messagesConfig = {
     const denied = messageDenied(ctx.t, ctx.lookups?.permissions, 'Create');
     return (
       <button type="button" className="button-primary" aria-disabled={denied ? 'true' : undefined} onClick={() => !denied && openSend(ctx)} data-testid="messages-send" {...tip(denied || ctx.t('tips.messages.actions.send'))}>
-        {ctx.t('messages.actions.send')}
+        <PlusIcon /> {ctx.t('messages.actions.send')}
       </button>
     );
   },

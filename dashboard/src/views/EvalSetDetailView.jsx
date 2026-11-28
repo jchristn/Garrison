@@ -29,6 +29,7 @@ import { evalSetsConfig } from './resourceConfigs';
 import { targetText } from './evaluationConfigs';
 import { deniedProps, permissionDenied } from '../utils/permissions';
 import useCallerPermissions from '../hooks/useCallerPermissions';
+import RowActions from '../components/RowActions';
 
 /**
  * One eval set version (AA9.15): its state, origin, judge, tags, and who wrote and approved it; its cases with their
@@ -333,14 +334,12 @@ export default function EvalSetDetailView({ recordId }) {
                 headerClass: 'right',
                 cellClass: 'actions-cell',
                 render: (c) => (
-                  <div className="flex gap-sm eval-row-actions">
-                    <button type="button" className="button-ghost button-sm" onClick={() => !deniedUpdate && setModal({ kind: 'case', item: c })} data-testid={`eval-case-edit-${c.order}`} {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t(approved ? 'tips.evals.setDetail.editCaseApproved' : 'tips.evals.setDetail.editCase'))}>
-                      {t('common.actions.edit')}
-                    </button>
-                    <button type="button" className="button-ghost button-sm" onClick={() => !deniedUpdate && setModal({ kind: 'removeCase', item: c })} data-testid={`eval-case-remove-${c.order}`} {...deniedProps(deniedUpdate)} {...tip(deniedUpdate || t('tips.evals.setDetail.removeCase'))}>
-                      {t('common.actions.remove')}
-                    </button>
-                  </div>
+                  <RowActions
+                    label={t('evals.setDetail.caseLabel', { order: c.order, defaultValue: String(c.order) })}
+                    menuTestId={`eval-case-menu-${c.order}`}
+                    primary={{ label: t('common.actions.edit'), tip: deniedUpdate || t(approved ? 'tips.evals.setDetail.editCaseApproved' : 'tips.evals.setDetail.editCase'), disabled: !!deniedUpdate, onClick: () => setModal({ kind: 'case', item: c }), testId: `eval-case-edit-${c.order}` }}
+                    items={[{ label: t('common.actions.remove'), tip: deniedUpdate || t('tips.evals.setDetail.removeCase'), disabled: !!deniedUpdate, danger: true, onClick: () => setModal({ kind: 'removeCase', item: c }), testId: `eval-case-remove-${c.order}` }]}
+                  />
                 )
               }
             ]}

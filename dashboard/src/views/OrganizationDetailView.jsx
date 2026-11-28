@@ -37,6 +37,7 @@ import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from
 import { upsertProposal } from '../utils/changeRules';
 import { cascadeDenied } from '../utils/performance';
 import { budgetOf, chartToUnits, diffIsEmpty, diffOrgUnits, orgDenied, orgErrorMessage, organizationFormErrors, organizationFormToBody, organizationToForm, spendOf, statusBody, treeOrder } from '../utils/organizations';
+import RowActions from '../components/RowActions';
 
 // The designer and the Chart canvas carry React Flow, so they load when first shown (the studio canvas does the same).
 const OrgDesigner = lazy(() => import('../components/orgDesigner/OrgDesigner'));
@@ -770,34 +771,29 @@ export default function OrganizationDetailView({ recordId }) {
                   render: (r) => {
                     const current = r.id === org.currentRevisionId;
                     const canRollBack = !current && !!r.publishedUtc && r.state !== 'Draft';
+                    // UXP1-V027: Compare inline, Publish and Roll back in the row menu.
+                    const blocked = editBlocked || (busy ? t('common.generic.saving') : '');
                     return (
-                      <>
-                        <button type="button" className="button-ghost button-sm" onClick={() => compare(r)} data-testid={`org-revision-diff-${r.number}`} {...tip(t('tips.views.organizationDetail.compare'))}>
-                          {t('views.organizationDetail.compare')}
-                        </button>
-                        {r.state === 'Draft' && (
-                          <button type="button" className="button-secondary button-sm" aria-disabled={editBlocked || busy ? 'true' : undefined} onClick={() => !editBlocked && !busy && publishDraft(r)} data-testid={`org-revision-publish-${r.number}`} {...tip(editBlocked || t('tips.views.organizationDetail.publishRevision'))}>
-                            {t('views.organizationDetail.publishRevision')}
-                          </button>
-                        )}
-                        {canRollBack && (
-                          <button
-                            type="button"
-                            className="button-secondary button-sm"
-                            aria-disabled={editBlocked || busy ? 'true' : undefined}
-                            onClick={() => {
-                              if (editBlocked || busy) return;
+                      <RowActions
+                        label={t('views.organizationDetail.revisionLabel', { number: r.number, defaultValue: String(r.number) })}
+                        menuTestId={`org-revision-menu-${r.number}`}
+                        primary={{ label: t('views.organizationDetail.compare'), tip: t('tips.views.organizationDetail.compare'), onClick: () => compare(r), testId: `org-revision-diff-${r.number}` }}
+                        items={[
+                          { label: t('views.organizationDetail.publishRevision'), tip: blocked || t('tips.views.organizationDetail.publishRevision'), hidden: r.state !== 'Draft', disabled: !!blocked, onClick: () => publishDraft(r), testId: `org-revision-publish-${r.number}` },
+                          {
+                            label: t('views.organizationDetail.rollback'),
+                            tip: blocked || t('tips.views.organizationDetail.rollback'),
+                            hidden: !canRollBack,
+                            disabled: !!blocked,
+                            onClick: () => {
                               setConfirmError(null);
                               setRollbackTicks('Finish');
                               setConfirm({ kind: 'rollback', revision: r });
-                            }}
-                            data-testid={`org-revision-rollback-${r.number}`}
-                            {...tip(editBlocked || t('tips.views.organizationDetail.rollback'))}
-                          >
-                            {t('views.organizationDetail.rollback')}
-                          </button>
-                        )}
-                      </>
+                            },
+                            testId: `org-revision-rollback-${r.number}`
+                          }
+                        ]}
+                      />
                     );
                   }
                 }

@@ -425,7 +425,8 @@ test('architect prompt panel: clone a built-in, edit and select it; built-ins ar
   await expect(page.getByTestId('architect-prompt-selection')).toContainText('architect uses agent-architect-team');
   await expect(panel.locator('tbody tr').first()).toHaveAttribute('data-prompt', 'builtin/agent-architect');
 
-  // Built-ins keep Edit and Delete visible but disabled, with a tooltip that says to clone.
+  // Built-ins keep Edit and Delete in the row menu (UXP1-V027) but disabled, with a tooltip that says to clone.
+  await page.getByTestId('architect-prompt-menu-builtin/agent-architect').click();
   const lockedEdit = page.getByTestId('architect-prompt-edit-builtin/agent-architect');
   await expect(lockedEdit).toHaveAttribute('aria-disabled', 'true');
   await expect(lockedEdit).toHaveAttribute('data-tip', /Clone this prompt and change the clone/);
@@ -433,6 +434,8 @@ test('architect prompt panel: clone a built-in, edit and select it; built-ins ar
   await expect(page.locator('.tooltip')).toContainText('Clone this prompt');
   await expect(page.getByTestId('architect-prompt-delete-builtin/agent-architect')).toHaveAttribute('aria-disabled', 'true');
 
+  await page.keyboard.press('Escape');
+  await page.getByTestId('architect-prompt-menu-builtin/agent-architect').click();
   await page.getByTestId('architect-prompt-clone-builtin/agent-architect').click();
   await expect(page.locator('#clone-name')).toHaveValue(/agent-architect-custom/);
   await page.locator('#clone-name').fill('agent-architect-custom');
@@ -452,6 +455,7 @@ test('architect prompt panel: clone a built-in, edit and select it; built-ins ar
   expect(selections[0]).toEqual({ architectPromptTemplateId: 'pt_builtin_agent_architect_guided' });
   await expect(page.getByTestId('architect-prompt-selection')).toContainText('architect uses builtin/agent-architect-guided');
 
+  await page.getByTestId('architect-prompt-menu-agent-architect-team').click();
   await page.getByTestId('architect-prompt-delete-agent-architect-team').click();
   await page.locator('.modal').getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByTestId('architect-prompt-in-use')).toContainText('agent-architect-team cannot be deleted while deployments use it: architect');

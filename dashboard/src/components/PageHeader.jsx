@@ -10,7 +10,8 @@ import HubTourButton from './tours/HubTourButton';
  *
  * `tour` is a data-tour name for the header, so a guided tour can point at it (LP4.5). `hubKey` names the standalone
  * hub this page is (home, invoke, connections): its "?" button starts the tour that covers the hub, and a hub with no
- * tour gets no button (LP4.7). Inside a hub tab the hub header carries the button instead.
+ * tour gets no button (LP4.7). Inside a hub tab the hub header carries the button instead. The "?" always sits right of
+ * the title, on every page and hub (UXP1-V028).
  */
 export default function PageHeader({ title, subtitle, actions, tour, hubKey }) {
   const { t } = useTranslation();
@@ -33,15 +34,13 @@ export default function PageHeader({ title, subtitle, actions, tour, hubKey }) {
   return (
     <header className="page-header" data-tour={tour || undefined}>
       <div className="page-header-text">
-        <h1 className="page-header-title">{title}</h1>
-        {subtitle && <div className="page-header-subtitle">{subtitle}</div>}
-      </div>
-      {(actions || help) && (
-        <div className="page-header-actions">
-          {actions}
+        <div className="page-header-title-row">
+          <h1 className="page-header-title">{title}</h1>
           {help}
         </div>
-      )}
+        {subtitle && <div className="page-header-subtitle">{subtitle}</div>}
+      </div>
+      {actions && <div className="page-header-actions">{actions}</div>}
     </header>
   );
 }

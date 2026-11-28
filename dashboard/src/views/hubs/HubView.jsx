@@ -65,10 +65,12 @@ export default function HubView({ hubKey, apiClient }) {
     <div className="hub" data-hub={hub.key}>
       <header className="page-header hub-header">
         <div className="page-header-text">
-          <h1 className="page-header-title">{title}</h1>
+          <div className="page-header-title-row">
+            <h1 className="page-header-title">{title}</h1>
+            <HubTourButton hubKey={hub.key} tab={active?.id || null} />
+          </div>
           <div className="page-header-subtitle">{t(`nav.hubs.${hub.key}.tip`)}</div>
         </div>
-        <HubTourButton hubKey={hub.key} tab={active?.id || null} />
         {['configuration', 'operations'].includes(hub.key) && <Link className="button button-secondary" to={pathFor('manifests')} {...tip(t('tips.runtime.importExport'))}>{t('runtime.importExport')}</Link>}
       </header>
       {tabs.length > 0 ? <UrlTabs tabs={tabs} label={title} /> : <EmptyState title={t('common.states.forbiddenTitle')} body={t('common.states.forbiddenBody')} />}

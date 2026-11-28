@@ -14,6 +14,7 @@ import { loadCallerPermissions } from '../utils/apps';
 import { resourceTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
 import { REPORTS_CHANGED_EVENT, authorText, filedByText, issueCounts, periodText, reportDenied } from '../utils/reports';
+import { PlusIcon } from '../components/Icons';
 
 const ID = 'reports';
 
@@ -143,7 +144,7 @@ export const reportsConfig = {
     const denied = reportDenied(ctx.t, ctx.lookups?.permissions, 'Create');
     return (
       <button type="button" className="button-primary" aria-disabled={denied ? 'true' : undefined} onClick={() => !denied && openFile(ctx)} data-testid="reports-file" {...tip(denied || ctx.t('tips.reports.actions.file'))}>
-        {ctx.t('reports.actions.file')}
+        <PlusIcon /> {ctx.t('reports.actions.file')}
       </button>
     );
   },

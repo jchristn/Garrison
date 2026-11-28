@@ -402,6 +402,7 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await audit(page, 'studio apply approval');
   await page.goto('/dashboard/studio/drf_0001?tab=prompts');
   await settle(page);
+  await page.getByTestId('architect-prompt-menu-agent-architect-team').click();
   await page.getByTestId('architect-prompt-edit-agent-architect-team').click();
   await expect(page.getByTestId('architect-prompt-editor')).toBeVisible();
   await settle(page);

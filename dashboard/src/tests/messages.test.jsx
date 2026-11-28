@@ -338,12 +338,13 @@ describe('agent inbox tab', () => {
     const sendMessage = vi.fn(async () => SENT_MESSAGE);
     mount(<AgentInboxPanel agent={{ id: 'agt_0002', name: 'agent-2' }} />, { apiClient: { listMessages, sendMessage, listAgents: vi.fn(async () => page([])) } });
     await flush();
-    expect(listMessages).toHaveBeenCalledWith('default', { recipient: 'agt_0002', pageNumber: 1, pageSize: 50 });
+    // The inbox pages by 25 like every other table (UXP1-V027).
+    expect(listMessages).toHaveBeenCalledWith('default', { recipient: 'agt_0002', pageNumber: 1, pageSize: 25 });
     expect(qa('[data-testid="agent-inbox-table"] tbody tr').map((r) => r.getAttribute('data-message-id'))).toEqual(['amg_0007', 'amg_0006', 'amg_0004', 'amg_0002']);
     expect(qa('[data-testid="agent-inbox-thread"]')[2].getAttribute('href')).toBe('/dashboard/message-threads/amg_0001?message=amg_0004');
     await act(async () => choose(q('[data-testid="agent-inbox-status"]'), 'Rejected'));
     await flush();
-    expect(listMessages).toHaveBeenLastCalledWith('default', { recipient: 'agt_0002', status: 'Rejected', pageNumber: 1, pageSize: 50 });
+    expect(listMessages).toHaveBeenLastCalledWith('default', { recipient: 'agt_0002', status: 'Rejected', pageNumber: 1, pageSize: 25 });
     expect(qa('[data-testid="agent-inbox-table"] tbody tr').length).toBe(2);
     await click(q('[data-testid="agent-inbox-send"]'));
     await flush();

@@ -17,6 +17,7 @@ import { errorMessage } from '../../utils/errors';
 import { formatDateTime, formatNumber } from '../../i18n/formatters';
 import { ARCHITECT_AGENT, inUseDeployments, sortArchitectPrompts } from '../../utils/studio';
 import { EmptyNote } from '../States';
+import RowActions from '../RowActions';
 
 /** Sample values the architect prompt preview renders with. */
 const PREVIEW_CONTEXT = {
@@ -198,16 +199,11 @@ function PromptEditor({ entry, deniedEdit, onSaved, onClose }) {
               headerClass: 'right',
               cellClass: 'actions-cell',
               render: (v) => (
-                <>
-                  <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
-                    {t('views.templateEditor.diff')}
-                  </button>
-                  {editable && v.version !== template?.currentVersion && (
-                    <button type="button" className="button-ghost button-sm" onClick={() => setRestore(v.version)} {...tip(t('tips.views.templateEditor.restore'))}>
-                      {t('views.templateEditor.restore')}
-                    </button>
-                  )}
-                </>
+                <RowActions
+                  label={`v${v.version}`}
+                  primary={{ label: t('views.templateEditor.diff'), tip: t('tips.views.templateEditor.diff'), onClick: () => setDiffVersion(v) }}
+                  items={[{ label: t('views.templateEditor.restore'), tip: t('tips.views.templateEditor.restore'), hidden: !(editable && v.version !== template?.currentVersion), onClick: () => setRestore(v.version) }]}
+                />
               )
             }
           ]}
@@ -320,7 +316,6 @@ export default function ArchitectPromptPanel({ architect = null, deployments = [
 
   const builtInTip = t('tips.studio.prompts.builtInLocked');
   const selectedId = selection?.architectPromptTemplateId || null;
-  const disabled = (reason) => (reason ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {});
 
   const pcol = (key, extra) => ({ key, label: t(`components.studio.prompts.columns.${key}`), tip: t(`tips.studio.prompts.columns.${key}`), ...extra });
   const promptColumns = [
@@ -367,54 +362,25 @@ export default function ArchitectPromptPanel({ architect = null, deployments = [
         const editDenied = entry.isBuiltIn ? builtInTip : denied.editPrompt;
         const deleteDenied = entry.isBuiltIn ? builtInTip : denied.deletePrompt;
         const selectDenied = !architect ? t('tips.studio.prompts.selectNoArchitect') : denied.select;
+        // UXP1-V027: Select inline, the rest in the row menu.
         return (
-          <>
-            <button
-              type="button"
-              className="button-ghost button-sm"
-              onClick={() => !selectDenied && !isSelected && select(entry)}
-              {...disabled(selectDenied || (isSelected ? 'selected' : ''))}
-              data-testid={`architect-prompt-select-${entry.name}`}
-              {...tip(selectDenied || t(isSelected ? 'tips.studio.prompts.alreadySelected' : 'tips.studio.prompts.select'))}
-            >
-              {t('components.studio.prompts.select')}
-            </button>
-            <button
-              type="button"
-              className="button-ghost button-sm"
-              onClick={() => !denied.clone && setCloning(entry)}
-              {...disabled(denied.clone)}
-              data-testid={`architect-prompt-clone-${entry.name}`}
-              {...tip(denied.clone || t('tips.studio.prompts.clone'))}
-            >
-              {t('common.actions.clone')}
-            </button>
-            <button
-              type="button"
-              className="button-ghost button-sm"
-              onClick={() => !editDenied && setEditing(entry)}
-              {...disabled(editDenied)}
-              data-testid={`architect-prompt-edit-${entry.name}`}
-              {...tip(editDenied || t('tips.studio.prompts.edit'))}
-            >
-              {t('common.actions.edit')}
-            </button>
-            {entry.isBuiltIn && (
-              <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'reset', entry })} data-testid={`architect-prompt-reset-${entry.name}`} {...tip(t('tips.views.templateEditor.reset'))}>
-                {t('views.templateEditor.reset')}
-              </button>
-            )}
-            <button
-              type="button"
-              className="button-ghost button-sm"
-              onClick={() => !deleteDenied && setConfirm({ type: 'delete', entry })}
-              {...disabled(deleteDenied)}
-              data-testid={`architect-prompt-delete-${entry.name}`}
-              {...tip(deleteDenied || t('tips.studio.prompts.delete'))}
-            >
-              {t('common.actions.delete')}
-            </button>
-          </>
+          <RowActions
+            label={entry.name}
+            menuTestId={`architect-prompt-menu-${entry.name}`}
+            primary={{
+              label: t('components.studio.prompts.select'),
+              tip: selectDenied || t(isSelected ? 'tips.studio.prompts.alreadySelected' : 'tips.studio.prompts.select'),
+              disabled: !!(selectDenied || isSelected),
+              onClick: () => select(entry),
+              testId: `architect-prompt-select-${entry.name}`
+            }}
+            items={[
+              { label: t('common.actions.clone'), tip: denied.clone || t('tips.studio.prompts.clone'), disabled: !!denied.clone, onClick: () => setCloning(entry), testId: `architect-prompt-clone-${entry.name}` },
+              { label: t('common.actions.edit'), tip: editDenied || t('tips.studio.prompts.edit'), disabled: !!editDenied, onClick: () => setEditing(entry), testId: `architect-prompt-edit-${entry.name}` },
+              { label: t('views.templateEditor.reset'), tip: t('tips.views.templateEditor.reset'), hidden: !entry.isBuiltIn, onClick: () => setConfirm({ type: 'reset', entry }), testId: `architect-prompt-reset-${entry.name}` },
+              { label: t('common.actions.delete'), tip: deleteDenied || t('tips.studio.prompts.delete'), disabled: !!deleteDenied, danger: true, onClick: () => setConfirm({ type: 'delete', entry }), testId: `architect-prompt-delete-${entry.name}` }
+            ]}
+          />
         );
       }
     }

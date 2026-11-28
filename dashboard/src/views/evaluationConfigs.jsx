@@ -33,6 +33,7 @@ import {
 import { EVAL_FIELD_CODES } from '../utils/evalErrors';
 import { loadCallerPermissions } from '../utils/apps';
 import { deniedProps, deniedReasonFor, permissionDenied, permissionsLookup } from '../utils/permissions';
+import { PlusIcon } from '../components/Icons';
 
 function col(t, id, key, render, extra = {}) {
   return { key, label: t(`resources.${id}.columns.${key}`), tip: resourceTip(t, id, key), render, ...extra };
@@ -257,7 +258,7 @@ export const evalRunsConfig = {
     const denied = permissionDenied(ctx.t, ctx.lookups?.permissions, 'EvalRun', 'Execute');
     return (
       <button type="button" className="button-primary" onClick={() => !denied && openRun(ctx)} data-testid="eval-runs-start" {...deniedProps(denied)} {...tip(denied || ctx.t('tips.evals.actions.runSet'))}>
-        {ctx.t('evals.actions.runSet')}
+        <PlusIcon /> {ctx.t('evals.actions.runSet')}
       </button>
     );
   },

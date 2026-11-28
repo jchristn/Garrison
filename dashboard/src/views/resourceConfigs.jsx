@@ -36,7 +36,7 @@ import { ASSET_KINDS } from '../utils/assets';
 import CapabilityDetail, { CapabilityHints, CapabilitySource } from '../components/CapabilityDetail';
 import CapabilityRefreshModal from '../components/CapabilityRefreshModal';
 import { holds, loadCallerPermissions } from '../utils/apps';
-import { RefreshIcon, WandIcon } from '../components/Icons';
+import { PlusIcon, RefreshIcon, WandIcon } from '../components/Icons';
 import { translateServerText } from '../utils/serverText';
 import {
   CAPABILITY_KINDS,
@@ -1880,7 +1880,7 @@ export const promptTemplatesConfig = {
   fields: () => [],
   headerActions: ({ t, navigate }) => (
     <button type="button" className="button-primary" onClick={() => navigate(pathFor('promptTemplates', 'new'))} data-testid="add-template" {...tip(t('tips.resources.promptTemplates.add'))}>
-      {t('resources.promptTemplates.add')}
+      <PlusIcon /> {t('resources.promptTemplates.add')}
     </button>
   ),
   detailPath: (r) => pathFor('promptTemplates', r.id),

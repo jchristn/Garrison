@@ -311,13 +311,18 @@ describe('organization page', () => {
     const rows = qa('[data-testid="org-revisions-table"] tbody tr');
     expect(rows.map((r) => r.getAttribute('data-revision'))).toEqual(['3', '2', '1']);
     expect(rows[1].textContent).toContain('Live');
-    expect(q('[data-testid="org-revision-rollback-2"]')).toBeNull();
+    // Publish and Roll back live in each row's menu (UXP1-V027).
+    // The live revision has nothing to publish or roll back, so its row has no menu.
+    expect(q('[data-testid="org-revision-menu-2"]')).toBeNull();
+    await click(q('[data-testid="org-revision-menu-3"]'));
     expect(q('[data-testid="org-revision-publish-3"]')).toBeTruthy();
+    await click(q('[data-testid="org-revision-menu-3"]'));
     await click(q('[data-testid="org-revision-diff-1"]'));
     await flush();
     expect(q('[data-testid="org-diff-removed"]').textContent).toContain('Support');
     expect(q('[data-testid="org-diff-note"]').textContent).toBe('Note: First chart');
     await click(q('[aria-label="Close"], .modal-close'));
+    await click(q('[data-testid="org-revision-menu-1"]'));
     await click(q('[data-testid="org-revision-rollback-1"]'));
     expect(q('.modal').textContent).toContain('Make revision 1 live again in place of revision 2?');
     await click(q('[data-testid="confirm-button"]'));

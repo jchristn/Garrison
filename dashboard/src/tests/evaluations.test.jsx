@@ -241,7 +241,9 @@ describe('read-only callers (UT-03)', () => {
     mount(<EvalSetDetailView recordId={set.id} />, { apiClient, principal: { userId: 'usr_vic' } });
     await flush();
     await flush();
-    const ids = ['eval-set-edit', 'eval-set-delete', 'eval-set-approve', 'eval-set-run', 'eval-case-add', `eval-case-remove-${evalCase(set.id, 1).order}`];
+    // Remove sits in the case row's menu (UXP1-V027); open it first.
+    await act(async () => q(`[data-testid="eval-case-menu-${evalCase(set.id, 1).order}"]`).click());
+    const ids = ['eval-set-edit', 'eval-set-delete', 'eval-set-approve', 'eval-set-run', 'eval-case-add', `eval-case-edit-${evalCase(set.id, 1).order}`, `eval-case-remove-${evalCase(set.id, 1).order}`];
     for (const id of ids) {
       const button = q(`[data-testid="${id}"]`);
       expect(button, id).not.toBeNull();

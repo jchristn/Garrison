@@ -26,6 +26,7 @@ import { tip } from '../components/Tooltip';
 import { resourceTip } from '../utils/tips';
 import CloneTemplateModal from '../components/CloneTemplateModal';
 import { templateDeletePreview } from './resourceConfigs';
+import RowActions from '../components/RowActions';
 
 const SAMPLE_CONTEXT = {
   tenant: { id: 'default', name: 'Default' },
@@ -307,16 +308,11 @@ export default function PromptTemplateEditorView({ recordId }) {
                   headerClass: 'right',
                   cellClass: 'actions-cell',
                   render: (v) => (
-                    <>
-                      <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
-                        {t('views.templateEditor.diff')}
-                      </button>
-                      {!readOnly && v.version !== template?.currentVersion && (
-                        <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'restore', version: v.version })} {...tip(t('tips.views.templateEditor.restore'))}>
-                          {t('views.templateEditor.restore')}
-                        </button>
-                      )}
-                    </>
+                    <RowActions
+                      label={`v${v.version}`}
+                      primary={{ label: t('views.templateEditor.diff'), tip: t('tips.views.templateEditor.diff'), onClick: () => setDiffVersion(v) }}
+                      items={[{ label: t('views.templateEditor.restore'), tip: t('tips.views.templateEditor.restore'), hidden: !(!readOnly && v.version !== template?.currentVersion), onClick: () => setConfirm({ type: 'restore', version: v.version }) }]}
+                    />
                   )
                 }
               ]}
