@@ -76,7 +76,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | LP1 | Activity trail: server | LP0 | Done | 14 / 14 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | In progress | 1 / 12 |
-| LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
+| LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | In progress | 9 / 10 |
 | LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | Not started | 0 / 5 |
 | LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
 | LP7 | Release integration | LP6 | Not started | 0 / 5 |
@@ -385,15 +385,15 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
   Every box links to its page and its doc.  Accept: each diagram reviewed against the code paths named in `docs/ARCHITECTURE.md`; light and dark screenshots.
 - [x] LP4.3 The Learn page `/dashboard/learn`, in the sidebar's utility group next to Guided tour. It has the diagrams in learning order, one short paragraph each, a Start tour button per section, and a glossary that uses the same words as the docs vocabulary. `Explainer` panels gain a "See the diagram" link to their section.  Accept: route in nav; vitest for the page; reviewed for human voice.  | claude 2026-11-27 views/LearnView.jsx, components/learn/learnSections.js, hidden nav entry plus a sidebar utility link next to Guided tour, Explainer link for 26 topics; Start tour calls startTour(tourId) and opens the shell tour until LP4.5; vitest src/tests/learn.test.jsx 13/13; i18nKeys and tooltips vitest show no failures from these strings; lint and build pass
 - [x] LP4.4 `scripts/export-diagrams.mjs` renders each diagram to an English SVG in `docs/images/learn/`, and `docs/ARCHITECTURE.md`, `docs/ORGANIZATIONS.md`, `docs/EXECUTIVES.md`, and `docs/BRAKES.md` embed them.  Accept: images render on GitHub in both themes.  | claude 2026-11-27 renders through Vite SSR from dashboard/node_modules (no new dependency), seven SVGs with an embedded light palette and a prefers-color-scheme dark palette; checked in headless Chromium in both schemes; embedded in ARCHITECTURE (runtime, request, autonomy, teams), ORGANIZATIONS, EXECUTIVES, BRAKES; check-em-dash passes
-- [ ] LP4.5 Tour engine per LP-009:
+- [x] LP4.5 Tour engine per LP-009:
   - **Definitions:** tour definitions live in `config/tours.js`.
   - **Steps:** each step can navigate to a route; the engine waits for the target (default timeout 3 seconds, a setting in `constants`) and skips a missing target with a note.
   - **Persistence:** completion is saved per tour per user, with replay from the Learn page and the sidebar.
   - **Accessibility:** focus moves into the step card and the card has a visible focus ring. `prefers-reduced-motion` turns off the scroll animation, and Escape closes the tour.
 
-  The existing shell tour becomes the "First look" tour on the new engine.  Accept: vitest for navigation, waiting, skipping, and persistence.
-- [ ] LP4.6 Sample data. When a tour needs records the tenant does not have, it offers to load the gerbil example (and the site reliability example for the organization tours) through the existing manifest apply, with a confirm modal that says what will be created.  Accept: the offer appears on an empty tenant and not on a populated one.
-- [ ] LP4.7 Six tours, each three to seven steps:
+  The existing shell tour becomes the "First look" tour on the new engine.  Accept: vitest for navigation, waiting, skipping, and persistence.  | claude 2026-11-27 020b2553; config/tours.js, components/tours/TourRunner.jsx, context/TourContext.jsx, utils/tours.js; TOUR_TARGET_TIMEOUT_MS 3000 in constants; completion keyed by tenant and principal; card focused with a visible ring, Tab trapped, Escape closes, focus returns, page behind is inert; card placed by placeTourCard in LTR and RTL down to 390px; the sidebar's Guided tour now lists the six tours with Start or Replay. vitest src/tests/tours.test.jsx
+- [x] LP4.6 Sample data. When a tour needs records the tenant does not have, it offers to load the gerbil example (and the site reliability example for the organization tours) through the existing manifest apply, with a confirm modal that says what will be created.  Accept: the offer appears on an empty tenant and not on a populated one.  | claude 2026-11-27 020b2553; components/tours/TourSampleModal.jsx dry-runs the apply and lists each resource with Created, Updated, or Unchanged; needs: agents or runs (gerbil), keepers (gerbil), organizations (site reliability); a failed check never offers. vitest for empty and populated tenants
+- [~] LP4.7 Six tours, each three to seven steps:
   - **First look** (the shell).
   - **Run an agent:** harness profile, agent, deployment, Invoke, Run detail, Trail.
   - **Follow a request:** the Trail tab's three views and the drawer.
@@ -401,10 +401,10 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
   - **Keep it safe:** freezes, spend caps, kill switch, change rules, approvals.
   - **Watch an organization:** the board, performance, reports, escalations.
 
-  Each hub's "?" button starts the tour that covers it.  Accept: each tour walks to the end on a fresh tenant with sample data.
-- [ ] LP4.8 First run. The setup wizard's last step offers the Learn page and the Run an agent tour. A new user who skips the wizard sees one dismissible Home card pointing to Learn, and the dismissal is saved per user.  Accept: vitest.
-- [ ] LP4.9 i18n and tooltips for diagrams, the Learn page, and all tours in nine locales, with a right-to-left check of two diagrams.  Accept: missing-key and pseudo-locale checks pass.
-- [ ] LP4.10 One e2e spec per tour in `dashboard/tests/e2e/tours/`, each asserting every step's target is visible. The annotation records which specs were run (targeted).  Accept: specs committed.
+  Each hub's "?" button starts the tour that covers it.  Accept: each tour walks to the end on a fresh tenant with sample data.  | claude 2026-11-27 95a0a76d; 7, 6, 5, 5, 5, 5 steps, text checked against the components; Keep it safe also shows a keeper's limits for spend caps and the kill switch on Home; the Design tab takes ?unit= so the unit panel tabs show; HUB_TOURS maps home, invoke, agents, connections, runs, organizations, autonomy, approvals (tab overrides for board, performance, change rules, freezes, keepers). Outstanding: walk each tour on a fresh tenant with sample data on a real server
+- [x] LP4.8 First run. The setup wizard's last step offers the Learn page and the Run an agent tour. A new user who skips the wizard sees one dismissible Home card pointing to Learn, and the dismissal is saved per user.  Accept: vitest.  | claude 2026-11-27 fee908e9; SetupWizard last step, components/tours/HomeLearnCard.jsx; Skip wizard sets garrison_setup_skipped per user. vitest in tours.test.jsx
+- [x] LP4.9 i18n and tooltips for diagrams, the Learn page, and all tours in nine locales, with a right-to-left check of two diagrams.  Accept: missing-key and pseudo-locale checks pass.  | claude 2026-11-27 34b11942; tour strings and tips in nine locales, plus trail entry surface labels and the Shadowed and Delivered edges; the brakes diagram and glossary now say message wakes are refused too, brakes.svg re-exported; RTL mirroring covered by learn.test.jsx. vitest tours, learn, i18nKeys (with pseudo-locale), tooltips, runTrail, trailLayout, runTrailApi pass
+- [x] LP4.10 One e2e spec per tour in `dashboard/tests/e2e/tours/`, each asserting every step's target is visible. The annotation records which specs were run (targeted).  Accept: specs committed.  | claude 2026-11-27 dashboard/tests/e2e/tours/ (six specs and tourHelpers.js, steps read from config/tours.js; first-look adds 390px RTL and Escape, keep-it-safe adds the empty-tenant offer). Written, not run
 
 ### Phase LP5: UX pass 1, design review of the whole dashboard
 
