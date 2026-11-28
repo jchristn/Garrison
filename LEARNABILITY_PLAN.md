@@ -73,7 +73,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | Phase | Name | Depends on | Status | Done / Total |
 |---|---|---|---|---|
 | LP0 | Plan wiring | none | Done | 2 / 2 |
-| LP1 | Activity trail: server | LP0 | In progress (LP1.10, LP1.11 open) | 9 / 11 |
+| LP1 | Activity trail: server | LP0 | In progress (LP1.10 to LP1.14 open) | 9 / 14 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | In progress | 1 / 12 |
 | LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
@@ -81,7 +81,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
 | LP7 | Release integration | LP6 | Not started | 0 / 5 |
 
-Total tasks: 60.
+Total tasks: 63.
 
 ```
 LP0 wiring
@@ -170,6 +170,9 @@ The gap is that nothing stitches these into one picture.
 | LP-010 | The trail is available to people: REST, the management MCP server, and the SDKs. The trail tool is hidden from run tokens, and the route answers 403 to a run token. | A run seeing other units' work across the organization is more than its unit gives it. Revisit after 0.3.0 if agents need their own lineage. |
 | LP-011 | The live trail of a running request refreshes through the existing auto-refresh control (`AutoRefreshSelect`, default 5 seconds while any node is running, off when all are terminal). There is no new WebSocket channel in 0.3.0. | It reuses a pattern operators already know and adds no new channel to secure and document. |
 | LP-012 | Each UX pass is a gate. Pass 1 is a design review of every route. Pass 2 is a simulated user session per `SIMULATED_USER_TESTING.md` on a fresh instance. Neither pass fixes anything while it runs. The user triages each finding, and approved fixes are verified before the next pass starts. | The user asked for at least two passes that check the dashboard looks good and makes sense. Observe, then decide, then fix is the requirement's own rule. |
+| LP-013 | Runs record their entry surface (`EntrySurface`: Rest, Mcp, A2a, App, Dashboard, Trigger, Keeper, Message, Escalation, Eval, Shadow, Internal) as a structured column, and the trail's Caller node and root Run node carry it. The reply stays drawn from the root run's terminal state; no reply record is added. | User decision 2026-11-27. The reply is what the caller receives when the root run ends; the surface is the missing half of "from my request". |
+| LP-014 | Shadow runs store the live run they copy as `ShadowOfRunId`, a structured column, and the trail draws a `Shadowed` edge from the live run to its shadow copy. | User decision 2026-11-27. The link was only inside an idempotency key string, which breaks the structured-persistence rule for a fact the product relies on. |
+| LP-015 | The trail follows a non-blocking escalation answer into the keeper tick that received it (`DeliveredTickId`) and that tick's run, with an `Answered` edge. Organization validation `valid` means no Error; Warnings show but do not block Publish. | User decisions 2026-11-27. The answer link already exists in the data; warnings match what publishing enforces today. |
 
 ---
 
@@ -303,6 +306,10 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
   - Newman runs the new request.
 
   Accept: all pass; doc reviewed for human voice.
+
+- [ ] LP1.12 Entry surface (LP-013): `EntrySurfaceEnum`, a `runs.entry_surface` column in the next free migration, set on every start path from the LP1.1 inventory, `entrySurface` on the trail's Caller and root Run nodes, the fixture updated, and the dashboard showing it on the caller lane.  Accept: Touchstone cases per start path on both providers; fixture and dashboard vitest updated.
+- [ ] LP1.13 Shadow link (LP-014): `runs.shadow_of_run_id`, filled by `ShadowTrialService` when a shadow copy starts, a `Shadowed` edge kind, and trail cases.  Accept: Touchstone cases on both providers.
+- [ ] LP1.14 Escalation answer into the tick (LP-015): the trail walks from an answered non-blocking escalation to the tick in `DeliveredTickId` and its run.  Accept: Touchstone case.
 
 ### Phase LP2: Activity trail, dashboard
 
