@@ -89,7 +89,7 @@ Unit budgets are set on the organization and take effect when a revision is publ
 The kill switch is a tenant-wide freeze of autonomy. While it is on:
 
 - no keeper wakes; each due wake is recorded as a `Skipped` tick with error code `KillSwitch`;
-- a new keeper run is refused with 409 `Frozen`;
+- a new keeper run, or a run that a message would wake, is refused with 409 `Frozen`, so agents stop waking each other too;
 - ordinary invocations, conversations, pipelines, and triggers keep working.
 
 Turning it on creates a `TenantAutonomy` freeze, which appears in the freeze list like any other. Turning it off lifts that freeze. Turning it on while it is already on changes nothing and returns the current state.

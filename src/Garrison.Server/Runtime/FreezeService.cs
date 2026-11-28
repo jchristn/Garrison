@@ -155,14 +155,14 @@ namespace Garrison.Server.Runtime
 
         /// <summary>
         /// The first active freeze that covers a run: one on its agent, deployment, mandate, or app, or the kill switch for
-        /// a keeper run.
+        /// a keeper run or a message-woken run.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
         /// <param name="agentId">Agent identifier.</param>
         /// <param name="deploymentId">Deployment identifier, or null.</param>
         /// <param name="mandateId">Mandate identifier for a keeper tick, or null.</param>
         /// <param name="appId">Agentic app identifier for a run started through an app, or null.</param>
-        /// <param name="keeper">True for a keeper tick, which the kill switch stops.</param>
+        /// <param name="keeper">True for a keeper tick or a message-woken run, which the kill switch stops.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>The freeze, or null.</returns>
         /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
@@ -204,7 +204,7 @@ namespace Garrison.Server.Runtime
         /// <param name="deploymentId">Deployment identifier, or null.</param>
         /// <param name="mandateId">Mandate identifier for a keeper tick, or null.</param>
         /// <param name="appId">Agentic app identifier, or null.</param>
-        /// <param name="keeper">True for a keeper tick.</param>
+        /// <param name="keeper">True for a keeper tick or a message-woken run.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
         /// <exception cref="FrozenException">Thrown when a freeze covers the run.</exception>
