@@ -5,6 +5,7 @@
 import { ARCHITECT_AGENT_NAME, STORAGE_KEYS, TOUR_TARGET_POLL_MS, TOUR_TARGET_TIMEOUT_MS } from './constants';
 import { GERBIL_MANIFEST, SITE_RELIABILITY_MANIFEST } from './orgTemplateManifests';
 import { templateContents } from './orgTemplates';
+import { pickHopRun } from './trailLayout';
 
 /** The example a tour offers when the tenant lacks what it needs (LP4.6), applied through the manifest apply route. */
 export const TOUR_EXAMPLES = {
@@ -173,6 +174,9 @@ export function placeTourCard({ rect, cardHeight = 200, viewport, rtl = false, g
 
 const asItems = (r) => (Array.isArray(r) ? r : r?.items || []);
 
+/** How many of the newest runs a tour about trails looks through for a hop of a longer request. */
+export const HOP_RUN_SCAN = 100;
+
 /**
  * Whether the tenant already has what a tour needs: at least one agent other than the seeded agent architect, run,
  * keeper, or organization. A failed read counts as having them, so an error never pushes an apply on anyone.
@@ -182,6 +186,11 @@ export async function tenantHas(apiClient, tenantId, needs) {
     if (needs === 'agents') {
       const r = await apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 2 });
       return asItems(r).some((a) => a?.name !== ARCHITECT_AGENT_NAME) || (r?.totalCount ?? 0) > asItems(r).length;
+    }
+    if (needs === 'trails') {
+      // A request that crossed agents: one of the newest runs is a hop of a longer one (UXP1-S010).
+      const r = await apiClient.listRuns(tenantId, { pageNumber: 1, pageSize: HOP_RUN_SCAN });
+      return !!pickHopRun(asItems(r));
     }
     const list = { runs: 'listRuns', keepers: 'listMandates', organizations: 'listOrganizations' }[needs];
     if (!list || typeof apiClient[list] !== 'function') return true;
@@ -209,8 +218,12 @@ export async function resolveTourRecords(apiClient, tenantId, tour) {
   const records = {};
   const settle = (p) => Promise.resolve(p).then((v) => v, () => null);
   if (wanted.includes('run')) {
-    const r = await settle(apiClient.listRuns?.(tenantId, { pageNumber: 1, pageSize: 1 }));
-    records.run = asItems(r)[0]?.id || null;
+    // A tour about trails opens the newest run that is a hop of a longer request, so its trail crosses agents
+    // (UXP1-S010); without one, and for every other tour, the newest run.
+    const trails = tour?.sample?.needs === 'trails';
+    const r = await settle(apiClient.listRuns?.(tenantId, { pageNumber: 1, pageSize: trails ? HOP_RUN_SCAN : 1 }));
+    const items = asItems(r);
+    records.run = (trails ? pickHopRun(items)?.id : null) || items[0]?.id || null;
   }
   if (wanted.includes('keeper')) {
     const r = await settle(apiClient.listMandates?.(tenantId, { pageNumber: 1, pageSize: 1 }));

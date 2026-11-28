@@ -115,6 +115,7 @@ export default function TourSampleModal({ tourId, sample, onLoaded, onContinue, 
           {t('tours.sample.fake')}
         </div>
         {sample?.needs === 'runs' && <p className="field-hint">{t('tours.sample.runsLater')}</p>}
+        {sample?.needs === 'trails' && <p className="field-hint" data-testid="tour-sample-trails-later">{t('tours.sample.trailsLater')}</p>}
         {error && (
           <div className="error-banner" role="alert" data-testid="tour-sample-error">
             {error}

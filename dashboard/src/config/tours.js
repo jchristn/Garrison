@@ -5,11 +5,13 @@
 // Fields:
 //   tour:  { id, sample?, steps }
 //          sample: { needs, example } offers to load an example when the tenant has none of `needs` (LP4.6).
-//          needs is 'agents', 'runs', 'keepers', or 'organizations'; example is a key of TOUR_EXAMPLES in
+//          needs is 'agents', 'runs', 'trails' (a run that is a hop of a longer request), 'keepers', or
+//          'organizations'; example is a key of TOUR_EXAMPLES in
 //          utils/tours.js ('gerbil' or 'siteReliability').
 //   step:  { id, route, target, title, body }
 //          route is a dashboard path. {run}, {organization}, {unit}, and {keeper} are filled from the tenant's own
-//          records when the tour starts (the newest run, an organization and its root unit, a keeper). A step whose
+//          records when the tour starts (the newest run, or for needs 'trails' the newest hop run, an organization and
+//          its root unit, a keeper). A step whose
 //          placeholder has no record is skipped with a note.
 //          target is the value of a data-tour attribute on the page; the engine looks for [data-tour="<target>"].
 //
@@ -48,7 +50,9 @@ export const TOURS = [
     ['run', '/dashboard/runs/{run}', 'run-header'],
     ['trail', '/dashboard/runs/{run}', 'run-tab-trail']
   ]),
-  tour('follow-a-request', { needs: 'runs', example: 'gerbil' }, [
+  // Follow a request needs a request that crossed agents (UXP1-S010): it opens the newest run that is a hop of one, and
+  // offers the site reliability example, whose keepers message each other, when the tenant has none.
+  tour('follow-a-request', { needs: 'trails', example: 'siteReliability' }, [
     ['views', '/dashboard/runs/{run}?tab=trail', 'trail-views'],
     ['summary', '/dashboard/runs/{run}?tab=trail', 'trail-summary'],
     ['steps', '/dashboard/runs/{run}?tab=trail', 'trail-steps'],
