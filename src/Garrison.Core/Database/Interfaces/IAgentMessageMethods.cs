@@ -232,5 +232,27 @@ namespace Garrison.Core.Database.Interfaces
         /// <returns>Count by sending agent identifier; agents without refusals are absent.</returns>
         /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty or senderAgentIds is null.</exception>
         Task<Dictionary<string, long>> CountLoopGuardRejectionsAsync(string tenantId, List<string> senderAgentIds, DateTime fromUtc, DateTime toUtc, CancellationToken token = default);
+
+        /// <summary>
+        /// Messages sent by any of a set of runs (by SenderRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Sender run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Messages without artifacts.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<AgentMessage>> ListBySenderRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Messages delivered to any of a set of runs (by DeliveredRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Delivered run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Messages without artifacts.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<AgentMessage>> ListByDeliveredRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

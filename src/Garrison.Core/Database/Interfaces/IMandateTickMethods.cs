@@ -85,5 +85,15 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Rows deleted.</returns>
         Task<int> PruneAsync(DateTime olderThanUtc, CancellationToken token = default);
+
+        /// <summary>
+        /// Keeper ticks of a tenant by identifier, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Ticks in no particular order; missing and other-tenant identifiers are left out.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<MandateTick>> ListByIdsAsync(string tenantId, List<string> ids, CancellationToken token = default);
     }
 }

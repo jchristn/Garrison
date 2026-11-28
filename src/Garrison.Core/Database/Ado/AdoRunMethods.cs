@@ -1413,6 +1413,38 @@ namespace Garrison.Core.Database.Ado
             }
         }
 
+        /// <inheritdoc />
+        public async Task<List<Run>> ListByIdsAsync(string tenantId, List<string> ids, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<Run> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND id IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, 100000, token).ConfigureAwait(false);
+            return rows;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Run>> ListByParentsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<Run> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND parentrunid IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, limit, token).ConfigureAwait(false);
+            return rows;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Run>> ListRetriesOfAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<Run> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND retryofrunid IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, limit, token).ConfigureAwait(false);
+            return rows;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Run>> ListByPipelineRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<Run> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND pipelinerunid IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, limit, token).ConfigureAwait(false);
+            return rows;
+        }
+
         #endregion
 
         #region Private-Methods

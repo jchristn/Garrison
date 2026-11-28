@@ -1,5 +1,6 @@
 namespace Garrison.Core.Database.Interfaces
 {
+    using System;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
@@ -81,5 +82,16 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Groups deleted.</returns>
         Task<int> RemoveOrphansAsync(CancellationToken token = default);
+
+        /// <summary>
+        /// Fan-out groups started by any of a set of runs (by ParentRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Parent run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Groups without members.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<FanOutGroup>> ListByParentsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

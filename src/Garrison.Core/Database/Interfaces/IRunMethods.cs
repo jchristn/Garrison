@@ -522,5 +522,49 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
         Task LoadRequirementsAsync(List<Run> runs, CancellationToken token = default);
+
+        /// <summary>
+        /// Runs of a tenant by identifier, for the activity trail (LP1.4). Reads are batched by identifier set.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs without requirements or parameters, in no particular order; missing and other-tenant identifiers are left out.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Run>> ListByIdsAsync(string tenantId, List<string> ids, CancellationToken token = default);
+
+        /// <summary>
+        /// Child runs of a set of parent runs (by ParentRunId), oldest first, for the activity trail (LP1.4). Fan-out members
+        /// are children too and carry their FanOutGroupId.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Parent run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs without requirements or parameters.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Run>> ListByParentsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Runs that retry any of a set of runs (by RetryOfRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Identifiers of the retried runs; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs without requirements or parameters.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Run>> ListRetriesOfAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Stage runs of a set of pipeline runs (by PipelineRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Pipeline run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs without requirements or parameters.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Run>> ListByPipelineRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

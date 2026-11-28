@@ -159,5 +159,27 @@ namespace Garrison.Core.Database.Interfaces
         /// <returns>Escalations with options.</returns>
         /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
         Task<List<Escalation>> ListChangedAsync(string tenantId, DateTime afterUtc, string afterId, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Escalations raised by any of a set of runs (by RaisingRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Raising run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Escalations without options.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Escalation>> ListByRaisingRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Escalations routed to any of a set of runs (by RoutedRunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Routed run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Escalations without options.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Escalation>> ListByRoutedRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

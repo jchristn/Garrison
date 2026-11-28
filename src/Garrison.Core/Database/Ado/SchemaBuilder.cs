@@ -447,6 +447,12 @@ namespace Garrison.Core.Database.Ado
             v60.BuildVersion60();
             migrations.Add(new SchemaMigration(60, "Harness profile MCP tool name prefix", v60._Statements, v60._Columns));
 
+            // LP1.2: indexes for the activity trail's batched reads, each led by the tenant so every trail query stays
+            // inside one tenant.
+            SchemaBuilder v61 = new SchemaBuilder(catalog, dialect);
+            v61.BuildVersion61();
+            migrations.Add(new SchemaMigration(61, "Activity trail lineage indexes", v61._Statements, v61._Columns));
+
             return migrations;
         }
 
@@ -516,6 +522,19 @@ namespace Garrison.Core.Database.Ado
         {
             SqlDialect d = _Dialect;
             Column("organizations", "budgetfreezemarginpercent", d.TypeInt);
+        }
+
+        private void BuildVersion61()
+        {
+            Index("runs", "tenantparent", false, "tenantid", "parentrunid");
+            Index("runs", "tenantroot", false, "tenantid", "rootrunid");
+            PartialIndex("runs", "retryof", false, "retryofrunid IS NOT NULL", "tenantid", "retryofrunid");
+            PartialIndex("runs", "tenantpipeline", false, "pipelinerunid IS NOT NULL", "tenantid", "pipelinerunid");
+            Index("agent_messages", "senderrun", false, "tenantid", "senderrunid");
+            Index("agent_messages", "tenantdeliveredrun", false, "tenantid", "deliveredrunid");
+            Index("reports", "run", false, "tenantid", "runid");
+            PartialIndex("escalations", "routedrun", false, "routedrunid IS NOT NULL", "tenantid", "routedrunid");
+            Index("approvals", "tenantrun", false, "tenantid", "runid");
         }
 
         private void BuildVersion60()

@@ -72,5 +72,16 @@ namespace Garrison.Core.Database.Interfaces
         /// <returns>Reports with their children.</returns>
         /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
         Task<List<Report>> ListFiledAfterAsync(string tenantId, DateTime afterUtc, string afterId, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Reports filed by any of a set of runs (by RunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Reports without metrics, issues, or decisions.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Report>> ListByRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

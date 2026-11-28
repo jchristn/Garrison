@@ -192,6 +192,14 @@ namespace Garrison.Core.Database.Ado
             return removed;
         }
 
+        /// <inheritdoc />
+        public async Task<List<FanOutGroup>> ListByParentsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<FanOutGroup> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Groups + " WHERE tenantid = @tenantid AND parentrunid IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, limit, token).ConfigureAwait(false);
+            return rows;
+        }
+
         #endregion
 
         #region Private-Methods

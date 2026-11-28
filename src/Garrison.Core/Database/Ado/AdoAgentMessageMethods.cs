@@ -505,6 +505,22 @@ namespace Garrison.Core.Database.Ado
             return obj;
         }
 
+        /// <inheritdoc />
+        public async Task<List<AgentMessage>> ListBySenderRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<AgentMessage> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND senderrunid IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, limit, token).ConfigureAwait(false);
+            return rows;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<AgentMessage>> ListByDeliveredRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<AgentMessage> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND deliveredrunid IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, limit, token).ConfigureAwait(false);
+            return rows;
+        }
+
         #endregion
 
         #region Private-Methods

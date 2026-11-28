@@ -1,5 +1,6 @@
 namespace Garrison.Core.Database.Interfaces
 {
+    using System;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
@@ -21,5 +22,16 @@ namespace Garrison.Core.Database.Interfaces
         Task<bool> CheckpointAsync(string tenantId, string runId, long epoch, bool gatewayOnlyCoverage, CancellationToken token = default);
         /// <summary>Whether the current attempt has a known-coverage checkpoint and no dispatched, unknown, or completed operations after it. Completed effects require continuation rather than rerunning the prompt.</summary>
         Task<bool> RecoverySafeAsync(string tenantId, string runId, long epoch, CancellationToken token = default);
+
+        /// <summary>
+        /// Effect journal entries of any of a set of runs (by RunId), oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Effect operations.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<EffectOperation>> ListByRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

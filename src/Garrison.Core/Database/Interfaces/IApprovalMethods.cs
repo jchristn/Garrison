@@ -109,5 +109,16 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Count.</returns>
         Task<long> CountPendingAsync(string? tenantId, CancellationToken token = default);
+
+        /// <summary>
+        /// Approvals requested by any of a set of runs (by RunId) within one tenant, oldest first, for the activity trail (LP1.4).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Run identifiers; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Approvals.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Approval>> ListByRunsAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
     }
 }

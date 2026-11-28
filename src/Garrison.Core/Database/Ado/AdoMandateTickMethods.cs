@@ -170,6 +170,14 @@ namespace Garrison.Core.Database.Ado
             return obj;
         }
 
+        /// <inheritdoc />
+        public async Task<List<MandateTick>> ListByIdsAsync(string tenantId, List<string> ids, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            List<MandateTick> rows = await AdoIdSetQuery.QueryAsync(_Driver, tenantId, ids, names => "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND id IN (" + names + ") ORDER BY createdutc ASC, id ASC" + _Driver.Dialect.LimitOffsetClause() + ";", Map, 100000, token).ConfigureAwait(false);
+            return rows;
+        }
+
         #endregion
 
         #region Private-Methods
