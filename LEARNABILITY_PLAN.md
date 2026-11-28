@@ -80,8 +80,9 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | In progress | 0 / 5 |
 | LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
 | LP7 | Release integration | LP6 | Not started | 0 / 5 |
+| LP8 | App appearance | LP0 (before LP6) | Not started | 0 / 6 |
 
-Total tasks: 63.
+Total tasks: 69.
 
 ```
 LP0 wiring
@@ -173,6 +174,8 @@ The gap is that nothing stitches these into one picture.
 | LP-013 | Runs record their entry surface (`EntrySurface`: Rest, Mcp, A2a, App, Dashboard, Trigger, Keeper, Message, Escalation, Eval, Shadow, Internal) as a structured column, and the trail's Caller node and root Run node carry it. The reply stays drawn from the root run's terminal state; no reply record is added. | User decision 2026-11-27. The reply is what the caller receives when the root run ends; the surface is the missing half of "from my request". |
 | LP-014 | Shadow runs store the live run they copy as `ShadowOfRunId`, a structured column, and the trail draws a `Shadowed` edge from the live run to its shadow copy. | User decision 2026-11-27. The link was only inside an idempotency key string, which breaks the structured-persistence rule for a fact the product relies on. |
 | LP-015 | The trail follows a non-blocking escalation answer into the keeper tick that received it (`DeliveredTickId`) and that tick's run, with an `Answered` edge. Organization validation `valid` means no Error; Warnings show but do not block Publish. | User decisions 2026-11-27. The answer link already exists in the data; warnings match what publishing enforces today. |
+| LP-016 | Agentic apps get full appearance settings (user request 2026-11-27): a palette with light and dark variants (eight built-in presets or custom), a subtitle, welcome title, composer placeholder, agent display name and avatar, starter prompts (at most 4), default theme and whether users may switch it, corner style, density, and toggles for the files panel, language picker, and a Powered by Garrison footer. Logo, favicon, and avatar upload inline in the app form and are stored as assets. | The user asked for palettes and configurable appearance; the eight existing color fields and the asset picker covered only part of it. |
+| LP-017 | Presets live in the dashboard (`utils/appPalettes.js`) and fill the color fields; the server stores the resolved colors plus the `paletteId` the operator chose, so the app page needs no palette catalog and an operator can start from a preset and adjust it. A dark color left null is derived from its light color by the app page. Every preset passes WCAG AA for text on each surface in both themes. | Keeps one source of truth for what the app page draws, and lets presets change without a migration. |
 
 ---
 
@@ -405,6 +408,33 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 - [x] LP4.8 First run. The setup wizard's last step offers the Learn page and the Run an agent tour. A new user who skips the wizard sees one dismissible Home card pointing to Learn, and the dismissal is saved per user.  Accept: vitest.  | claude 2026-11-27 fee908e9; SetupWizard last step, components/tours/HomeLearnCard.jsx; Skip wizard sets garrison_setup_skipped per user. vitest in tours.test.jsx
 - [x] LP4.9 i18n and tooltips for diagrams, the Learn page, and all tours in nine locales, with a right-to-left check of two diagrams.  Accept: missing-key and pseudo-locale checks pass.  | claude 2026-11-27 34b11942; tour strings and tips in nine locales, plus trail entry surface labels and the Shadowed and Delivered edges; the brakes diagram and glossary now say message wakes are refused too, brakes.svg re-exported; RTL mirroring covered by learn.test.jsx. vitest tours, learn, i18nKeys (with pseudo-locale), tooltips, runTrail, trailLayout, runTrailApi pass
 - [x] LP4.10 One e2e spec per tour in `dashboard/tests/e2e/tours/`, each asserting every step's target is visible. The annotation records which specs were run (targeted).  Accept: specs committed.  | claude 2026-11-27 dashboard/tests/e2e/tours/ (six specs and tourHelpers.js, steps read from config/tours.js; first-look adds 390px RTL and Escape, keep-it-safe adds the empty-tenant offer). Written, not run
+
+### Phase LP8: App appearance (LP-016, LP-017)
+
+Field names on the agentic app (REST, manifests, SDKs, the app page config), camelCase. These are fixed here so the server and front-end work can run in parallel:
+
+| Field | Type, default | Notes |
+|---|---|---|
+| `subtitle` | string?, null | Up to 200 characters, under the name in the header and on the welcome screen |
+| `welcomeTitle` | string?, null | Up to 120 characters; null shows the display name |
+| `composerPlaceholder` | string?, null | Up to 120 characters |
+| `agentDisplayName` | string?, null | Up to 80 characters, the author name on agent messages; null shows the entry agent's name |
+| `agentAvatarAssetId` | string?, null | An image asset, like `logoAssetId` |
+| `paletteId` | string?, null | The preset the operator started from, or `custom`; informational only |
+| `darkPrimaryColor`, `darkAccentColor`, `darkBackgroundColor`, `darkHeaderColor`, `darkAgentBubbleColor`, `darkConversationListColor`, `darkComposerColor`, `darkFilesColor` | string?, null | `#rgb` or `#rrggbb`; null derives from the light color |
+| `themeDefault` | `AppThemeDefaultEnum` (`System`, `Light`, `Dark`), `System` | |
+| `allowThemeSwitch` | bool, true | False hides the toggle and ignores a saved choice |
+| `cornerStyle` | `AppCornerStyleEnum` (`Sharp`, `Rounded`, `Pill`), `Rounded` | |
+| `density` | `AppDensityEnum` (`Compact`, `Comfortable`), `Comfortable` | |
+| `showFilesPanel`, `showLanguagePicker`, `showPoweredBy` | bool, true | |
+| `starterPrompts` | string[], empty | At most 4, each up to 200 characters, a child table with an order column |
+
+- [ ] LP8.1 Models, enums, schema (next free migration), validation with field codes, app revisions and export include the new fields, starter prompts as an ordered child table, backup and tenant deletion coverage.  Accept: Touchstone cases on both providers, migrate-twice.
+- [ ] LP8.2 REST, manifests (`kind: AgenticApp` spec), the public app config the app page reads, the management MCP app tools, OpenAPI, Postman, `REST_API.md`, `MCP_API.md`, and the four SDKs.  Accept: `scripts/check-api-docs.py`, SDK harness cases, Newman for the app folder.
+- [ ] LP8.3 Dashboard palettes: eight presets with light and dark variants in `utils/appPalettes.js`, each checked for WCAG AA by a vitest; a swatch picker plus a custom editor with light and dark columns and a contrast warning per pair.  Accept: vitest for presets and contrast.
+- [ ] LP8.4 Dashboard appearance step: every field above, inline upload for logo, favicon, and avatar through the existing asset upload, starter prompt editor (add, reorder, remove), and a live preview of the app page in light and dark that updates as fields change.  Accept: vitest; no sideways scroll at 1366; nine locales with tooltips.
+- [ ] LP8.5 App page (`app-ui`) applies everything: dark palette and derivation, subtitle, welcome title, starter prompt buttons on a new conversation, placeholder, agent name and avatar, default theme and the switch rule, corner style, density, hidden files panel or language picker, and the footer.  Accept: app-ui vitest and lint and build; axe-relevant contrast holds for every preset.
+- [ ] LP8.6 Docs: `docs/APPS.md` (fields and presets) and `docs/APP_UI.md` (theming variables, dark derivation), `CHANGELOG.md`, and an example app manifest using a preset and starter prompts.  Accept: reviewed for human voice.
 
 ### Phase LP5: UX pass 1, design review of the whole dashboard
 
