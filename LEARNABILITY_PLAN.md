@@ -77,7 +77,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | In progress | 1 / 12 |
 | LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | In progress | 9 / 10 |
-| LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | Not started | 0 / 5 |
+| LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | In progress | 0 / 5 |
 | LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
 | LP7 | Release integration | LP6 | Not started | 0 / 5 |
 
@@ -410,12 +410,12 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 
 This pass covers every route, not only the new ones. It asks two questions of each one: does it look good, and does it make sense? Nothing is fixed during the review (LP-012).
 
-- [ ] LP5.1 Capture. Stand up a seeded instance with the gerbil and site reliability examples, runs, a three-hop message chain, an escalation, a canary, and an eval. Extend `dashboard/tests/audit/tableWidths.mjs` into `dashboard/tests/audit/capture.mjs`, which screenshots every route, tab, detail page, and modal opened from a row action. It captures:
+- [~] LP5.1 Capture. Stand up a seeded instance with the gerbil and site reliability examples, runs, a three-hop message chain, an escalation, a canary, and an eval. Extend `dashboard/tests/audit/tableWidths.mjs` into `dashboard/tests/audit/capture.mjs`, which screenshots every route, tab, detail page, and modal opened from a row action. It captures:
   - 1366x768, 1280x800, 768x1024, and 390x844;
   - light and dark;
   - English and German, plus Japanese at 1366.
 
-  It also captures the loading, empty, and error states using mocked responses where the live instance cannot produce them. Record the environment (commit, image tags, ports) at the top of `docs/testing/UX_PASS_1.md`.  Accept: a coverage matrix of route by viewport by theme by locale, with every cell captured or a stated reason.
+  It also captures the loading, empty, and error states using mocked responses where the live instance cannot produce them. Record the environment (commit, image tags, ports) at the top of `docs/testing/UX_PASS_1.md`.  Accept: a coverage matrix of route by viewport by theme by locale, with every cell captured or a stated reason.  | claude 2026-11-27 tooling done: `dashboard/tests/audit/seed.mjs` and `capture.mjs`; first full capture at a7e7829d (3,994 cells captured, the rest skipped with reasons, none failed) and the environment header in `docs/testing/UX_PASS_1.md`. Final capture pending after LP4
 - [ ] LP5.2 Visual review against the visual parts of `DASHBOARD_STYLE_AND_USABILITY.md` (Look and Feel, Controls, Data Tables, Responsive, Accessibility, Error and Empty States), done by a reviewer who did not build LP1 to LP4. It checks:
   - spacing, alignment, and type scale;
   - visual hierarchy, and nested card clutter;
