@@ -334,7 +334,7 @@ export default function AgentDetailView({ recordId }) {
         }
         confirmLabel={t('common.actions.delete')}
         confirmTip={t('tips.confirm.delete')}
-        confirmWord="delete"
+        confirmWord={t('views.agentDetail.confirmWord')}
         error={deleteError}
         onConfirm={doDelete}
         onCancel={() => setDeleting(false)}

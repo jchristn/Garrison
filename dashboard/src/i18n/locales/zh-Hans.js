@@ -10412,3 +10412,51 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "chart": {
+   "sparse": "目前只有一个点有数据，因此还无法显示趋势。"
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "服务器未报告任何功能标志。"
+  },
+  "agentDetail": {
+   "confirmWord": "删除"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "从董事会治理一个组织：查看组织、答复上报、施加和解除冻结、给出指示、发布和回滚、编写变更规则、决定提案和发布，并与最高层智能体对话。在组织上以资源范围分配，可将其限制在该组织。",
+   "AppUser": "使用智能体应用的聊天界面。在应用上以资源范围分配。",
+   "Releaser": "在环境之间提升智能体和应用的修订，并回滚提升。",
+   "AgentRegistrar": "自行注册远程智能体。",
+   "NodeAgent": "工作节点凭据使用的内部角色。仅授予节点协议。",
+   "SecretUser": "在部署、MCP 服务器、连接、制品存储、工作区模板和智能体中使用机密（对机密执行），但不管理它们。以资源范围分配可只允许一个机密。",
+   "SecretManager": "管理机密并在配置中使用。",
+   "AgentInvoker": "调用智能体并查看运行。适用于集成用的访问密钥。",
+   "AgentOperator": "操作运行、决定权限审批并监控节点。",
+   "AgentDeveloper": "创建连接、提示词、智能体、部署、MCP 服务器和工作区；调用智能体。",
+   "Custom": "租户自定义角色的模板标记。不带任何权限。",
+   "TenantMember": "租户中的最低存在：查看智能体和自己的资料。",
+   "Viewer": "查看领域资源。",
+   "Editor": "查看和写入领域资源；无管理权限。",
+   "ResourceAdmin": "对某一个特定资源的全部权限（以资源范围分配）。",
+   "Auditor": "对安全记录和审计的只读访问。",
+   "SecurityAdmin": "管理用户、访问密钥、角色、权限、分配、会话和审计。",
+   "TenantAdmin": "租户内所有资源的全部权限。"
+  }
+ }
+});

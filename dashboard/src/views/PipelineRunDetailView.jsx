@@ -203,7 +203,7 @@ export default function PipelineRunDetailView({ recordId }) {
   const input = r.inputText ? (r.inputText.length > 4000 ? `${r.inputText.slice(0, 4000)}...` : r.inputText) : '';
 
   return (
-    <div data-testid="pipeline-run-detail">
+    <div className="page-flow" data-testid="pipeline-run-detail">
       <PageHeader
         title={t('views.pipelineRunDetail.heading', { pipeline: r.pipelineName })}
         subtitle={
@@ -310,7 +310,7 @@ export default function PipelineRunDetailView({ recordId }) {
               ? t('views.pipelineRunDetail.reviewExpires', { time: formatDateTime(review.expiresUtc, lng), decision: enumLabel(t, 'pipelineReviewDecision', review.timeoutAction || 'Reject') })
               : t('views.pipelineRunDetail.reviewNoTimeout')}
           </p>
-          <div className="flex gap-sm items-center">
+          <div className="flex gap-sm items-center wrap">
             <button type="button" className="button-primary" onClick={() => setDeciding({ review, decision: 'Approve' })} data-testid="pipeline-review-approve" {...tip(t('tips.resources.pipelineReviews.actions.approve'))}>
               {t('resources.pipelineReviews.actions.approve')}
             </button>

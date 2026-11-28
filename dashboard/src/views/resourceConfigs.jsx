@@ -331,13 +331,19 @@ export const credentialsConfig = {
   ]
 };
 
+/** A built-in role's description in the page language (UXP1-V035); a custom role keeps the text its author wrote. */
+function roleDescription(t, r) {
+  if (r?.isBuiltIn && r.name) return t(`roles.builtInDescriptions.${r.name}`, { defaultValue: r.description || '' });
+  return r?.description || '';
+}
+
 export const rolesConfig = {
   id: 'roles',
   explainer: 'roles',
   api: tenantApi('listRoles', 'createRole', 'updateRole', 'deleteRole'),
   isEditable: notBuiltIn,
   blank: () => ({ name: '', description: '', active: true }),
-  columns: ({ t, i18n }) => [nameCol('roles', t), col('roles', t, 'description', (r) => r.description || '-'), builtInCol('roles', t), activeCol('roles', t), idCol('roles', t), createdCol('roles', t, i18n)],
+  columns: ({ t, i18n }) => [nameCol('roles', t), col('roles', t, 'description', (r) => roleDescription(t, r) || '-', { csv: (r) => roleDescription(t, r) }), builtInCol('roles', t), activeCol('roles', t), idCol('roles', t), createdCol('roles', t, i18n)],
   fields: (_d, { t }) => [field('roles', t, 'name', 'text', { required: true }), field('roles', t, 'description', 'textarea'), field('roles', t, 'active', 'checkbox')],
   validate: (d, t) => (!d.name ? { name: t('common.errors.required') } : null),
   toBody: (d) => ({ name: d.name, description: d.description, active: !!d.active }),

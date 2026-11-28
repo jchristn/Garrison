@@ -5350,3 +5350,34 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "Une tendance demande au moins deux points. Le graphique se remplit à mesure que d'autres données arrivent sur cette période."
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Les indicateurs de fonctionnalité sont des interrupteurs que le serveur active depuis ses paramètres, comme MCP, A2A et l'historique des requêtes.",
+   "flagOn": "La fonctionnalité {{name}} est activée sur ce serveur.",
+   "flagOff": "La fonctionnalité {{name}} est désactivée sur ce serveur."
+  },
+  "settings": {
+   "groupLive": "La plupart des paramètres de cette section s'appliquent dès l'enregistrement. Un paramètre marqué Redémarrage requis prend effet après un redémarrage du serveur.",
+   "groupRestart": "La plupart des paramètres de cette section prennent effet après un redémarrage du serveur. Un paramètre marqué Immédiat s'applique dès l'enregistrement."
+  },
+  "agentDetail": {
+   "confirmWord": "Le mot à saisir pour confirmer la suppression de cet agent.",
+   "delete": "Supprimer cet agent avec ses déploiements et son historique de révisions. Vous confirmez en saisissant supprimer ; un déclencheur, un pipeline, une application ou un point de terminaison de notification qui l'utilise empêche la suppression."
+  }
+ }
+});

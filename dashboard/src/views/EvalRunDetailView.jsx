@@ -245,7 +245,7 @@ export default function EvalRunDetailView({ recordId }) {
   const close = () => setModal(null);
 
   return (
-    <div data-testid="eval-run-detail">
+    <div className="page-flow" data-testid="eval-run-detail">
       <PageHeader
         title={t('evals.setVersion', { name: r.setName || r.setId, version: r.setVersion })}
         subtitle={
@@ -258,11 +258,13 @@ export default function EvalRunDetailView({ recordId }) {
             )}
           </span>
         }
+        back={
+          <EvalLink to={pathFor('evalRuns')} tipText={t('tips.evals.runDetail.back')} testId="eval-run-back">
+            {t('evals.runDetail.back')}
+          </EvalLink>
+        }
         actions={
           <>
-            <EvalLink to={pathFor('evalRuns')} tipText={t('tips.evals.runDetail.back')} testId="eval-run-back">
-              {t('evals.runDetail.back')}
-            </EvalLink>
             <EvalLink to={pathFor('evaluations', r.setId)} tipText={t('tips.evals.actions.openSet')} testId="eval-run-open-set">
               {t('evals.actions.openSet')}
             </EvalLink>

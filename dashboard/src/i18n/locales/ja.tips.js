@@ -5348,3 +5348,34 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "推移の表示には 2 点以上が必要です。この期間のデータが増えるとグラフが埋まっていきます。"
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "機能フラグは、サーバーが設定から有効にするスイッチです。MCP、A2A、リクエスト履歴などがあります。",
+   "flagOn": "このサーバーでは機能 {{name}} が有効です。",
+   "flagOff": "このサーバーでは機能 {{name}} が無効です。"
+  },
+  "settings": {
+   "groupLive": "このセクションのほとんどの設定は保存するとすぐに反映されます。「再起動が必要」と表示された設定は、サーバーの再起動後に反映されます。",
+   "groupRestart": "このセクションのほとんどの設定は、サーバーの再起動後に反映されます。「即時反映」と表示された設定は保存するとすぐに反映されます。"
+  },
+  "agentDetail": {
+   "confirmWord": "このエージェントの削除を確認するために入力する語です。",
+   "delete": "このエージェントを、デプロイメントとリビジョン履歴とともに削除します。削除 と入力して確認します。使用中のトリガー、パイプライン、アプリ、通知エンドポイントがあると削除できません。"
+  }
+ }
+});

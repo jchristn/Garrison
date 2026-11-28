@@ -225,9 +225,23 @@ export default function SettingsView() {
 
       <KillSwitchControl />
 
-      {groups.map((g) => (
-        <fieldset key={g.name} className="panel settings-group">
-          <legend className="section-title" {...tip(t(`tips.views.settings.groups.${g.name}`, { defaultValue: t('tips.views.settings.groupGeneric', { group: g.name }) }))}>{t(`views.settings.groups.${g.name}`, { defaultValue: g.name })}</legend>
+      {groups.map((g) => {
+        // UXP1-V031: the section heading carries the apply mode most of its fields share, so a field shows its own
+        // badge only when it differs; the source shows only when a value does not come from the settings file.
+        const restartCount = g.fields.filter((f) => f.applyMode !== 'Live').length;
+        const groupMode = restartCount * 2 >= g.fields.length ? 'RestartRequired' : 'Live';
+        const modeOf = (f) => (f.applyMode === 'Live' ? 'Live' : 'RestartRequired');
+        const headingId = `settings-group-${g.name}`;
+        return (
+        <section key={g.name} className="panel settings-group" aria-labelledby={headingId}>
+          <h2 id={headingId} className="section-title settings-group-head">
+            <span {...tip(t(`tips.views.settings.groups.${g.name}`, { defaultValue: t('tips.views.settings.groupGeneric', { group: g.name }) }))}>{t(`views.settings.groups.${g.name}`, { defaultValue: g.name })}</span>
+            {g.fields.length > 0 && (
+              <Badge tone={groupMode === 'Live' ? 'success' : 'warning'} tip={t(groupMode === 'Live' ? 'tips.views.settings.groupLive' : 'tips.views.settings.groupRestart')}>
+                {groupMode === 'Live' ? t('views.settings.live') : t('views.settings.restartRequired')}
+              </Badge>
+            )}
+          </h2>
           <div className="form-grid">
             {g.fields.map((f) => {
               const id = `setting-${f.path}`;
@@ -238,19 +252,20 @@ export default function SettingsView() {
                 .filter(Boolean)
                 .join(' ');
               return (
-                <div key={f.path} className={`field ${errors[f.path] ? 'has-error' : ''} ${f.type === 'list' ? 'span-full' : ''}`}>
+                <div key={f.path} className={`field ${errors[f.path] ? 'has-error' : ''} ${f.type === 'list' ? 'span-full' : ''} ${f.type === 'boolean' ? 'settings-boolean' : ''}`}>
                   <label htmlFor={id} className="settings-label" {...tip(fieldTip)}>
+                    {f.type === 'boolean' && <input id={id} {...tip(fieldTip)} type="checkbox" checked={!!value} disabled={disabled} onChange={(e) => setValue(f, e.target.checked)} />}
                     <span>
                       {label} <code className="settings-path">{f.path}</code>
                     </span>
-                    <span className="settings-badges">
-                      <Badge tone={f.applyMode === 'Live' ? 'success' : 'warning'} tip={t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart')}>{f.applyMode === 'Live' ? t('views.settings.live') : t('views.settings.restartRequired')}</Badge>
-                      <Badge tip={t(`tips.views.settings.source.${f.source}`, { defaultValue: t('tips.views.settings.sourceGeneric') })}>{t(`views.settings.sources.${f.source}`, { defaultValue: f.source })}</Badge>
-                    </span>
+                    {(modeOf(f) !== groupMode || f.source !== 'File') && (
+                      <span className="settings-badges">
+                        {modeOf(f) !== groupMode && <Badge tone={f.applyMode === 'Live' ? 'success' : 'warning'} tip={t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart')}>{f.applyMode === 'Live' ? t('views.settings.live') : t('views.settings.restartRequired')}</Badge>}
+                        {f.source !== 'File' && <Badge tip={t(`tips.views.settings.source.${f.source}`, { defaultValue: t('tips.views.settings.sourceGeneric') })}>{t(`views.settings.sources.${f.source}`, { defaultValue: f.source })}</Badge>}
+                      </span>
+                    )}
                   </label>
-                  {f.type === 'boolean' ? (
-                    <input id={id} {...tip(fieldTip)} type="checkbox" checked={!!value} disabled={disabled} onChange={(e) => setValue(f, e.target.checked)} />
-                  ) : f.isSecret ? (
+                  {f.type === 'boolean' ? null : f.isSecret ? (
                     <SecretInput id={id} value={value} isSet={f.isSet} disabled={disabled} onChange={(v) => setValue(f, v)} t={t} tipText={fieldTip} />
                   ) : f.options ? (
                     <select id={id} {...tip(fieldTip)} value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value)}>
@@ -286,8 +301,9 @@ export default function SettingsView() {
               {dbTest && !dbTest.busy && <Badge tone={dbTest.ok ? 'success' : 'danger'}>{dbTest.ok ? t('views.settings.dbOk') : dbTest.message || t('views.settings.dbFailed')}</Badge>}
             </div>
           )}
-        </fieldset>
-      ))}
+        </section>
+        );
+      })}
 
       <ConfirmModal open={confirmRestart} danger title={t('views.settings.restartConfirmTitle')} message={t('views.settings.restartConfirmMessage')} confirmLabel={t('views.settings.restart')} confirmTip={t('tips.views.settings.restart')} onConfirm={restart} onCancel={() => setConfirmRestart(false)} />
       <JsonViewerModal open={jsonOpen} value={raw} onClose={() => setJsonOpen(false)} />

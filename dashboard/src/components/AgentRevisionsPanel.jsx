@@ -201,7 +201,7 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
     <div data-testid="agent-revisions-panel">
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!draft && latest && (
-        <div className="flex gap-sm" style={{ marginBlockEnd: 'var(--spacing-sm)' }}>
+        <div className="flex gap-sm wrap" style={{ marginBlockEnd: 'var(--spacing-sm)' }}>
           <button type="button" className="button-secondary button-sm" onClick={() => setPinning(latest)} data-testid="revision-assets-new" {...tip(t('tips.assets.pinsNewDraft'))}>
             {t('components.assets.pinsNewDraftButton')}
           </button>

@@ -3,6 +3,7 @@
 // configuration-wide tests (tooltips, i18n keys, enum labels) cover it.
 
 import CopyableId from '../components/CopyableId';
+import FreezeDetail from '../components/FreezeDetail';
 import FreezeModal from '../components/FreezeModal';
 import LiftFreezeModal from '../components/LiftFreezeModal';
 import { FreezeStatusBadge } from '../components/FreezeBadges';
@@ -139,6 +140,8 @@ export const freezesConfig = {
     ];
   },
   fields: () => [],
+  // The list has no form fields, so the details dialog renders the record itself (UXP1-V004).
+  viewExtra: (d) => <FreezeDetail freeze={d} />,
   headerActions: (ctx) => {
     const denied = freezeDenied(ctx.t, ctx.lookups?.permissions, 'Create');
     return (

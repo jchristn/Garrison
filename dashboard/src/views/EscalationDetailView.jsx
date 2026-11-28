@@ -156,7 +156,7 @@ export default function EscalationDetailView({ recordId }) {
   };
 
   return (
-    <div data-testid="escalation-detail">
+    <div className="page-flow" data-testid="escalation-detail">
       <PageHeader
         title={t('views.escalationDetail.titleWithAgent', { agent: e.agentName || e.agentId || '-' })}
         subtitle={
@@ -164,11 +164,13 @@ export default function EscalationDetailView({ recordId }) {
             <CopyableId value={e.id} max={40} /> <EscalationStatusBadge escalation={e} t={t} /> <EscalationSeverityBadge severity={e.severity} t={t} />
           </span>
         }
+        back={
+          <Link to={pathFor('escalations')} tipText={t('tips.views.escalationDetail.back')} testId="escalation-back">
+            {t('views.escalationDetail.back')}
+          </Link>
+        }
         actions={
           <>
-            <Link to={pathFor('escalations')} tipText={t('tips.views.escalationDetail.back')} testId="escalation-back">
-              {t('views.escalationDetail.back')}
-            </Link>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.escalationDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

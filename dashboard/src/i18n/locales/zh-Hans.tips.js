@@ -5347,3 +5347,34 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "趋势至少需要两个点。随着此时间范围内的数据增加，图表会逐渐填满。"
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "功能标志是服务器根据其设置开启的开关，例如 MCP、A2A 和请求历史。",
+   "flagOn": "此服务器已开启 {{name}} 功能。",
+   "flagOff": "此服务器未开启 {{name}} 功能。"
+  },
+  "settings": {
+   "groupLive": "此部分的大多数设置保存后立即生效。标有“需要重启”的设置在服务器重启后生效。",
+   "groupRestart": "此部分的大多数设置在服务器重启后生效。标有“即时生效”的设置保存后立即生效。"
+  },
+  "agentDetail": {
+   "confirmWord": "确认删除此代理时需要输入的词。",
+   "delete": "删除此代理及其部署和修订历史。需要输入 删除 进行确认；如果有触发器、流水线、应用或通知端点在使用它，则无法删除。"
+  }
+ }
+});

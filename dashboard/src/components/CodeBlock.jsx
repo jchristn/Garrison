@@ -19,13 +19,13 @@ function format(value, prettyJson) {
   }
 }
 
-/** Read-only code block with a copy button. */
-export default function CodeBlock({ value, prettyJson = false, emptyText = '-' }) {
+/** Read-only code block with a copy button. With `wrap`, long lines wrap inside the block instead of scrolling sideways. */
+export default function CodeBlock({ value, prettyJson = false, emptyText = '-', wrap = false }) {
   const { t } = useTranslation();
   const text = format(value, prettyJson);
   if (!text) return <div className="text-muted" style={{ fontSize: 'var(--font-size-sm)' }}>{emptyText}</div>;
   return (
-    <div className="code-block">
+    <div className={wrap ? 'code-block is-wrapped' : 'code-block'}>
       <div className="code-block-toolbar">
         <CopyButton value={text} tipText={t('tips.copy.block')} />
       </div>

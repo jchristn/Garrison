@@ -196,7 +196,7 @@ export default function MessageThreadView({ recordId }) {
   const replyDenied = messageDenied(t, permissions, 'Create');
 
   return (
-    <div data-testid="message-thread">
+    <div className="page-flow" data-testid="message-thread">
       <PageHeader
         title={first?.subject || t('views.messageThread.title')}
         subtitle={
@@ -205,11 +205,13 @@ export default function MessageThreadView({ recordId }) {
             {rejected > 0 && <span className="text-muted">{t('views.messageThread.rejectedCount', { count: rejected })}</span>}
           </span>
         }
+        back={
+          <Link to={pathFor('messages')} tipText={t('tips.views.messageThread.back')} testId="thread-back">
+            {t('views.messageThread.back')}
+          </Link>
+        }
         actions={
           <>
-            <Link to={pathFor('messages')} tipText={t('tips.views.messageThread.back')} testId="thread-back">
-              {t('views.messageThread.back')}
-            </Link>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.messageThread.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

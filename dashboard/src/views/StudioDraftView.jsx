@@ -233,11 +233,22 @@ export default function StudioDraftView({ recordId }) {
             </span>
           </span>
         }
+        back={
+          <a
+            href={pathFor('agentWizard', draft.id)}
+            data-testid="studio-back-to-wizard"
+            {...tip(t('tips.views.studioDraft.back'))}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+              e.preventDefault();
+              navigate(pathFor('agentWizard', draft.id));
+            }}
+          >
+            {t('views.studioDraft.back')}
+          </a>
+        }
         actions={
           <>
-            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', draft.id))} data-testid="studio-back-to-wizard" {...tip(t('tips.views.studioDraft.back'))}>
-              {t('views.studioDraft.back')}
-            </button>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.studioDraft.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

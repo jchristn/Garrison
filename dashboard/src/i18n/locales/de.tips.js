@@ -5348,3 +5348,39 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "Für einen Verlauf braucht es mindestens zwei Punkte. Das Diagramm füllt sich, sobald in diesem Zeitraum mehr Daten eintreffen."
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Feature-Flags sind Schalter, die der Server aus seinen Einstellungen aktiviert, etwa MCP, A2A und den Anfrageverlauf.",
+   "flagOn": "Das Feature {{name}} ist auf diesem Server aktiviert.",
+   "flagOff": "Das Feature {{name}} ist auf diesem Server deaktiviert."
+  },
+  "settings": {
+   "groupLive": "Die meisten Einstellungen in diesem Abschnitt gelten sofort nach dem Speichern. Eine mit „Neustart erforderlich“ markierte Einstellung wirkt erst nach einem Serverneustart.",
+   "groupRestart": "Die meisten Einstellungen in diesem Abschnitt wirken erst nach einem Serverneustart. Eine mit „Sofort wirksam“ markierte Einstellung gilt direkt nach dem Speichern."
+  },
+  "agentDetail": {
+   "confirmWord": "Das Wort, das Sie zur Bestätigung des Löschens dieses Agenten eingeben.",
+   "delete": "Diesen Agenten mit seinen Bereitstellungen und seinem Revisionsverlauf löschen. Sie bestätigen durch Eingabe von löschen; ein Trigger, eine Pipeline, eine App oder ein Benachrichtigungsendpunkt, der ihn verwendet, verhindert das Löschen."
+  }
+ },
+ "enums": {
+  "trustLevel": {
+   "Trusted": "Eingaben kommen nur von vertrauenswürdigen Aufrufern. Läufe dürfen die Prozessausführung nutzen, die nicht von anderen Läufen oder dem Worker isoliert ist."
+  }
+ }
+});

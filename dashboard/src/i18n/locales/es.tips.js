@@ -5350,3 +5350,34 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "Una tendencia necesita al menos dos puntos. El gráfico se completa a medida que llegan más datos en este intervalo."
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Los indicadores de función son interruptores que el servidor activa desde su configuración, como MCP, A2A y el historial de solicitudes.",
+   "flagOn": "La función {{name}} está activada en este servidor.",
+   "flagOff": "La función {{name}} está desactivada en este servidor."
+  },
+  "settings": {
+   "groupLive": "La mayoría de los ajustes de esta sección se aplican en cuanto guardas. Un ajuste marcado con Requiere reinicio surte efecto tras reiniciar el servidor.",
+   "groupRestart": "La mayoría de los ajustes de esta sección surten efecto tras reiniciar el servidor. Un ajuste marcado con En vivo se aplica en cuanto guardas."
+  },
+  "agentDetail": {
+   "confirmWord": "La palabra que hay que escribir para confirmar la eliminación de este agente.",
+   "delete": "Elimina este agente con sus despliegues y su historial de revisiones. Confirmas escribiendo eliminar, y un disparador, pipeline, aplicación o endpoint de notificación que lo use impide eliminarlo."
+  }
+ }
+});

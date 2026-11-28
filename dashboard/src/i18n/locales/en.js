@@ -10432,3 +10432,51 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "chart": {
+   "sparse": "Only one point has data so far, so there is no trend to show yet."
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "The server reports no feature flags."
+  },
+  "agentDetail": {
+   "confirmWord": "delete"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "Govern an organization from its board: read it, answer escalations, apply and lift freezes, give direction, publish and roll back, write change rules, decide proposals and releases, and talk to the top agent. Assign with Resource scope on an organization to limit it to that organization.",
+   "AppUser": "Use an agentic app's chat UI. Assign it with resource scope on the app.",
+   "Releaser": "Promote agent and app revisions between environments and roll promotions back.",
+   "AgentRegistrar": "Self-register remote agents.",
+   "NodeAgent": "Internal role for worker node credentials. Grants the node protocol only.",
+   "SecretUser": "Use secrets in deployments, MCP servers, harness profiles, artifact stores, workspace templates, and agents (Execute on Secret) without managing them. Assign at Resource scope to allow one secret.",
+   "SecretManager": "Manage secrets and use them in configuration.",
+   "AgentInvoker": "Invoke agents and read runs. Intended for integration credentials.",
+   "AgentOperator": "Operate runs, decide permission approvals, and observe nodes.",
+   "AgentDeveloper": "Author harness profiles, prompts, agents, deployments, MCP servers, and workspaces; invoke agents.",
+   "Custom": "Template marker for tenant-defined roles. Carries no permissions.",
+   "TenantMember": "Minimal tenant presence: read agents and own profile.",
+   "Viewer": "Read domain resources.",
+   "Editor": "Read and write domain resources; no administration.",
+   "ResourceAdmin": "All permissions on one specific resource (assign with Resource scope).",
+   "Auditor": "Read-only access to security records and audit.",
+   "SecurityAdmin": "Administers users, credentials, roles, permissions, assignments, sessions, and audit.",
+   "TenantAdmin": "All permissions on all resources within the tenant."
+  }
+ }
+});

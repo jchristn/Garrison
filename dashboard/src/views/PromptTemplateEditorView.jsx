@@ -282,7 +282,7 @@ export default function PromptTemplateEditorView({ recordId }) {
             </div>
             <div>
               <div className="section-title">{t('views.templateEditor.rendered')}</div>
-              {previewError ? <div className="error-banner">{previewError}</div> : <CodeBlock value={preview?.rendered ?? preview?.text ?? (typeof preview === 'string' ? preview : '')} emptyText={t('views.templateEditor.previewEmpty')} />}
+              {previewError ? <div className="error-banner">{previewError}</div> : <CodeBlock value={preview?.rendered ?? preview?.text ?? (typeof preview === 'string' ? preview : '')} emptyText={t('views.templateEditor.previewEmpty')} wrap />}
               {preview?.missingVariables?.length > 0 && <div className="warning-banner">{t('views.templateEditor.missing', { list: preview.missingVariables.join(', ') })}</div>}
             </div>
           </div>

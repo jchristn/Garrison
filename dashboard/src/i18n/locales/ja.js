@@ -10411,3 +10411,51 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "chart": {
+   "sparse": "データがあるのはまだ 1 点だけなので、推移はまだ表示できません。"
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "サーバーが報告している機能フラグはありません。"
+  },
+  "agentDetail": {
+   "confirmWord": "削除"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "組織をボードから統括します。組織の閲覧、エスカレーションへの回答、凍結の適用と解除、方針の指示、公開とロールバック、変更ルールの作成、提案とリリースの判断、最上位エージェントとの対話ができます。組織に対してリソース範囲で割り当てると、その組織だけに限定できます。",
+   "AppUser": "エージェントアプリのチャット画面を使います。アプリに対してリソース範囲で割り当てます。",
+   "Releaser": "エージェントとアプリのリビジョンを環境間で昇格し、昇格をロールバックします。",
+   "AgentRegistrar": "リモートエージェントを自分で登録します。",
+   "NodeAgent": "ワーカーノードの認証情報用の内部ロールです。ノードプロトコルだけを許可します。",
+   "SecretUser": "シークレットを管理せずに、デプロイメント、MCP サーバー、接続、成果物ストア、ワークスペーステンプレート、エージェントで使います（シークレットに対する実行）。1 つのシークレットだけを許可するにはリソース範囲で割り当てます。",
+   "SecretManager": "シークレットを管理し、設定で使います。",
+   "AgentInvoker": "エージェントを呼び出し、実行を閲覧します。連携用の認証キー向けです。",
+   "AgentOperator": "実行を運用し、権限の承認を判断し、ノードを監視します。",
+   "AgentDeveloper": "接続、プロンプト、エージェント、デプロイメント、MCP サーバー、ワークスペースを作成し、エージェントを呼び出します。",
+   "Custom": "テナント定義ロール用のテンプレートの目印です。権限は持ちません。",
+   "TenantMember": "テナントへの最小限の参加です。エージェントと自分のプロフィールを閲覧します。",
+   "Viewer": "ドメインリソースを閲覧します。",
+   "Editor": "ドメインリソースを閲覧、編集します。管理権限はありません。",
+   "ResourceAdmin": "特定の 1 つのリソースに対するすべての権限です（リソース範囲で割り当てます）。",
+   "Auditor": "セキュリティ記録と監査への読み取り専用アクセスです。",
+   "SecurityAdmin": "ユーザー、認証キー、ロール、権限、割り当て、セッション、監査を管理します。",
+   "TenantAdmin": "テナント内のすべてのリソースに対するすべての権限です。"
+  }
+ }
+});

@@ -10462,3 +10462,51 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "chart": {
+   "sparse": "Por ahora solo un punto tiene datos, así que todavía no hay tendencia que mostrar."
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "El servidor no informa de ningún indicador de función."
+  },
+  "agentDetail": {
+   "confirmWord": "eliminar"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "Gobernar una organización desde su consejo: leerla, responder escalados, aplicar y levantar congelaciones, dar directrices, publicar y revertir, escribir reglas de cambio, decidir propuestas y lanzamientos y hablar con el agente principal. Asígnalo con ámbito de recurso en una organización para limitarlo a ella.",
+   "AppUser": "Usar la interfaz de chat de una aplicación agéntica. Asígnalo con ámbito de recurso en la aplicación.",
+   "Releaser": "Promover revisiones de agentes y aplicaciones entre entornos y revertir promociones.",
+   "AgentRegistrar": "Registrar agentes remotos por sí mismos.",
+   "NodeAgent": "Rol interno para las credenciales de los nodos de trabajo. Solo permite el protocolo de nodos.",
+   "SecretUser": "Usar secretos en despliegues, servidores MCP, conexiones, almacenes de artefactos, plantillas de espacio de trabajo y agentes (Ejecutar sobre Secreto) sin gestionarlos. Asígnalo con ámbito de recurso para permitir un solo secreto.",
+   "SecretManager": "Gestionar secretos y usarlos en la configuración.",
+   "AgentInvoker": "Invocar agentes y leer ejecuciones. Pensado para claves de acceso de integraciones.",
+   "AgentOperator": "Operar ejecuciones, decidir aprobaciones de permisos y observar nodos.",
+   "AgentDeveloper": "Crear conexiones, prompts, agentes, despliegues, servidores MCP y espacios de trabajo; invocar agentes.",
+   "Custom": "Marcador de plantilla para roles definidos por el inquilino. No incluye permisos.",
+   "TenantMember": "Presencia mínima en el inquilino: leer agentes y el propio perfil.",
+   "Viewer": "Leer recursos del dominio.",
+   "Editor": "Leer y escribir recursos del dominio; sin administración.",
+   "ResourceAdmin": "Todos los permisos sobre un recurso concreto (asígnalo con ámbito de recurso).",
+   "Auditor": "Acceso de solo lectura a los registros de seguridad y a la auditoría.",
+   "SecurityAdmin": "Administra usuarios, claves de acceso, roles, permisos, asignaciones, sesiones y auditoría.",
+   "TenantAdmin": "Todos los permisos sobre todos los recursos del inquilino."
+  }
+ }
+});

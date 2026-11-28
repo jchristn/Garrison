@@ -86,7 +86,7 @@ export default function CanaryReleaseDetailView({ recordId }) {
   const close = () => setModal(null);
 
   return (
-    <div data-testid="canary-detail">
+    <div className="page-flow" data-testid="canary-detail">
       <PageHeader
         title={t('evals.canaryDetail.heading', { agent })}
         subtitle={
@@ -94,11 +94,13 @@ export default function CanaryReleaseDetailView({ recordId }) {
             <CopyableId value={x.id} max={40} /> <CanaryStatusBadge status={x.status} t={t} /> <span data-testid="canary-step">{stepText(t, x)}</span>
           </span>
         }
+        back={
+          <EvalLink to={pathFor('canaryReleases')} tipText={t('tips.evals.canaryDetail.back')} testId="canary-back">
+            {t('evals.canaryDetail.back')}
+          </EvalLink>
+        }
         actions={
           <>
-            <EvalLink to={pathFor('canaryReleases')} tipText={t('tips.evals.canaryDetail.back')} testId="canary-back">
-              {t('evals.canaryDetail.back')}
-            </EvalLink>
             <button type="button" className="button-secondary" onClick={() => setModal('json')} {...tip(t('tips.evals.canaryDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

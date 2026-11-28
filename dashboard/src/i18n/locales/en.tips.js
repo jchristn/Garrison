@@ -5348,3 +5348,33 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "A trend needs at least two points. The chart fills in as more data arrives in this range."
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Feature flags are switches the server turns on from its settings, such as MCP, A2A, and request history.",
+   "flagOn": "The {{name}} feature is on for this server.",
+   "flagOff": "The {{name}} feature is off for this server."
+  },
+  "settings": {
+   "groupLive": "Most settings in this section apply as soon as you save. A setting marked Restart required takes effect after a server restart.",
+   "groupRestart": "Most settings in this section take effect after a server restart. A setting marked Live applies as soon as you save."
+  },
+  "agentDetail": {
+   "confirmWord": "The word to type to confirm deleting this agent."
+  }
+ }
+});

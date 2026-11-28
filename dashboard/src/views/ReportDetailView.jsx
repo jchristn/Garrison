@@ -107,7 +107,7 @@ export default function ReportDetailView({ recordId }) {
   const decisions = r.decisions || [];
 
   return (
-    <div data-testid="report-detail">
+    <div className="page-flow" data-testid="report-detail">
       <PageHeader
         title={r.title}
         subtitle={
@@ -118,11 +118,13 @@ export default function ReportDetailView({ recordId }) {
             </span>
           </span>
         }
+        back={
+          <Link to={pathFor('reports')} tipText={t('tips.views.reportDetail.back')} testId="report-back">
+            {t('views.reportDetail.back')}
+          </Link>
+        }
         actions={
           <>
-            <Link to={pathFor('reports')} tipText={t('tips.views.reportDetail.back')} testId="report-back">
-              {t('views.reportDetail.back')}
-            </Link>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.reportDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

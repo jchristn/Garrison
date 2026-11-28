@@ -85,7 +85,7 @@ export default function ShadowTrialDetailView({ recordId }) {
   const comparison = x.comparisonEvalSetId ? 'set' : x.useJudge ? 'judge' : 'text';
 
   return (
-    <div data-testid="shadow-trial-detail">
+    <div className="page-flow" data-testid="shadow-trial-detail">
       <PageHeader
         title={x.name || t('evals.shadowDetail.title')}
         subtitle={
@@ -93,11 +93,13 @@ export default function ShadowTrialDetailView({ recordId }) {
             <CopyableId value={x.id} max={40} /> <ShadowTrialStatusBadge status={x.status} t={t} />
           </span>
         }
+        back={
+          <EvalLink to={pathFor('shadowTrials')} tipText={t('tips.evals.shadowDetail.back')} testId="shadow-back">
+            {t('evals.shadowDetail.back')}
+          </EvalLink>
+        }
         actions={
           <>
-            <EvalLink to={pathFor('shadowTrials')} tipText={t('tips.evals.shadowDetail.back')} testId="shadow-back">
-              {t('evals.shadowDetail.back')}
-            </EvalLink>
             <button type="button" className="button-secondary" onClick={() => setModal('json')} {...tip(t('tips.evals.shadowDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

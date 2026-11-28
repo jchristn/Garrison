@@ -195,7 +195,7 @@ export default function EvalSetDetailView({ recordId }) {
   const editFields = evalSetsConfig.fields(editForm || {}, { t, i18n, options: { agents }, mode: 'edit' });
 
   return (
-    <div data-testid="eval-set-detail">
+    <div className="page-flow" data-testid="eval-set-detail">
       <PageHeader
         title={s.name}
         subtitle={
@@ -203,11 +203,13 @@ export default function EvalSetDetailView({ recordId }) {
             <CopyableId value={s.id} max={40} /> <span className="pill pill-neutral">{t('evals.versionShort', { version: s.version })}</span> <EvalSetStateBadge state={s.state} t={t} />
           </span>
         }
+        back={
+          <EvalLink to={pathFor('evaluations')} tipText={t('tips.evals.setDetail.back')} testId="eval-set-back">
+            {t('evals.setDetail.back')}
+          </EvalLink>
+        }
         actions={
           <>
-            <EvalLink to={pathFor('evaluations')} tipText={t('tips.evals.setDetail.back')} testId="eval-set-back">
-              {t('evals.setDetail.back')}
-            </EvalLink>
             <button type="button" className="button-secondary" onClick={() => setModal({ kind: 'json' })} {...tip(t('tips.evals.setDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

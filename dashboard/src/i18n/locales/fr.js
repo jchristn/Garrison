@@ -10458,3 +10458,51 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "chart": {
+   "sparse": "Un seul point a des données pour l'instant, il n'y a donc pas encore de tendance à montrer."
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Le serveur ne signale aucun indicateur de fonctionnalité."
+  },
+  "agentDetail": {
+   "confirmWord": "supprimer"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "Gouverner une organisation depuis son conseil : la consulter, répondre aux escalades, appliquer et lever des gels, donner des orientations, publier et revenir en arrière, écrire des règles de changement, trancher sur les propositions et les versions, et parler à l'agent de tête. Attribuez-le avec une portée de ressource sur une organisation pour le limiter à celle-ci.",
+   "AppUser": "Utiliser l'interface de chat d'une application agentique. Attribuez-le avec une portée de ressource sur l'application.",
+   "Releaser": "Promouvoir des révisions d'agents et d'applications d'un environnement à l'autre et annuler des promotions.",
+   "AgentRegistrar": "Enregistrer soi-même des agents distants.",
+   "NodeAgent": "Rôle interne pour les identifiants des nœuds de travail. N'accorde que le protocole des nœuds.",
+   "SecretUser": "Utiliser des secrets dans les déploiements, serveurs MCP, connexions, stockages d'artefacts, modèles d'espace de travail et agents (Exécuter sur Secret) sans les gérer. Attribuez-le avec une portée de ressource pour autoriser un seul secret.",
+   "SecretManager": "Gérer les secrets et les utiliser dans la configuration.",
+   "AgentInvoker": "Invoquer des agents et consulter les exécutions. Prévu pour les clés d'accès d'intégration.",
+   "AgentOperator": "Piloter les exécutions, trancher les approbations d'autorisation et surveiller les nœuds.",
+   "AgentDeveloper": "Créer des connexions, prompts, agents, déploiements, serveurs MCP et espaces de travail ; invoquer des agents.",
+   "Custom": "Marqueur de modèle pour les rôles définis par le locataire. Ne porte aucune autorisation.",
+   "TenantMember": "Présence minimale dans le locataire : consulter les agents et son propre profil.",
+   "Viewer": "Consulter les ressources métier.",
+   "Editor": "Consulter et modifier les ressources métier ; aucune administration.",
+   "ResourceAdmin": "Toutes les autorisations sur une ressource précise (à attribuer avec une portée de ressource).",
+   "Auditor": "Accès en lecture seule aux enregistrements de sécurité et à l'audit.",
+   "SecurityAdmin": "Administre les utilisateurs, clés d'accès, rôles, autorisations, attributions, sessions et l'audit.",
+   "TenantAdmin": "Toutes les autorisations sur toutes les ressources du locataire."
+  }
+ }
+});

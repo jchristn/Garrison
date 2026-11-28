@@ -5348,3 +5348,34 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): tooltips for the chart note, server info flags, settings sections, and the delete word
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "chart": {
+  "sparse": "趨勢最少要兩個點。呢段時間有多啲數據入嚟，圖表就會慢慢填滿。"
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "功能旗標係伺服器根據設定開啟嘅開關，例如 MCP、A2A 同請求紀錄。",
+   "flagOn": "呢部伺服器已經開咗 {{name}} 功能。",
+   "flagOff": "呢部伺服器冇開 {{name}} 功能。"
+  },
+  "settings": {
+   "groupLive": "呢個部分大部分設定一儲存就即刻生效。標咗「需要重新啟動」嘅設定，要等伺服器重新啟動先生效。",
+   "groupRestart": "呢個部分大部分設定要等伺服器重新啟動先生效。標咗「即時生效」嘅設定一儲存就生效。"
+  },
+  "agentDetail": {
+   "confirmWord": "確認刪除呢個代理要輸入嘅字。",
+   "delete": "刪除呢個代理同佢嘅部署同修訂紀錄。要輸入 刪除 確認；如果有觸發器、管線、應用程式或者通知端點用緊佢，就刪唔到。"
+  }
+ }
+});

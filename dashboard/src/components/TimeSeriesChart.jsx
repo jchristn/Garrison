@@ -16,6 +16,10 @@ import { distinctAxisLabels } from '../utils/chart';
 
 const TALL_H = 400;
 const SHORT_H = 280;
+// A chart with fewer than two points has no trend to show: it draws compact, with a note (UXP1-V030).
+const SPARSE_H = 180;
+// Average width of one 11px axis label glyph, to keep the first and last labels inside the chart.
+const AXIS_CHAR_W = 6.2;
 const NARROW = 720;
 const PAD_TOP = 16;
 const PAD_RIGHT = 20;
@@ -33,7 +37,7 @@ function labelIndices(count, max = MAX_X_LABELS) {
 }
 
 function axisTime(iso, bucketSeconds, spanMs, locale, withSeconds = false) {
-  const opts = bucketSeconds && bucketSeconds >= 86400 ? { month: 'short', day: 'numeric' } : spanMs > 26 * 3600 * 1000 ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' };
+  const opts = bucketSeconds && bucketSeconds >= 86400 ? { month: 'short', day: 'numeric' } : spanMs >= 20 * 3600 * 1000 ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' };
   return formatDateTime(iso, locale, withSeconds && !(bucketSeconds && bucketSeconds >= 86400) ? { ...opts, second: '2-digit' } : opts);
 }
 
@@ -57,7 +61,9 @@ export default function TimeSeriesChart({ id, title, help, titleTip, kind = 'lin
   const bodyRef = useRef(null);
   const svgRef = useRef(null);
   const W = useMeasuredWidth(bodyRef);
-  const H = W >= NARROW ? TALL_H : SHORT_H;
+  const pointCount = times.filter((_, i) => series.some((s) => s.values[i] !== null && s.values[i] !== undefined && s.values[i] !== 0)).length;
+  const sparse = pointCount > 0 && pointCount < 2;
+  const H = sparse ? SPARSE_H : W >= NARROW ? TALL_H : SHORT_H;
   const plotW = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
   const plotH = H - PAD_TOP - PAD_BOTTOM;
   const [hiddenKeys, setHiddenKeys] = useState([]);
@@ -76,6 +82,11 @@ export default function TimeSeriesChart({ id, title, help, titleTip, kind = 'lin
   // UT-11: ticks in the same minute get seconds, so the axis never repeats a label.
   const lng = i18n.language;
   const axisLabels = distinctAxisLabels(times, labels, (iso, withSeconds) => axisTime(iso, bucketSeconds, spanMs, lng, withSeconds));
+  // The first and last labels stay inside the chart instead of being cut at its edge.
+  const labelX = (i, text) => {
+    const half = ((text || '').length * AXIS_CHAR_W) / 2;
+    return Math.min(Math.max(xCenter(i), half), W - half);
+  };
   const hasData = visible.some((s) => s.values.some((v) => v !== null && v !== undefined && v !== 0));
   const name = (s) => s.label || t(`views.analytics.metrics.${s.metric}`);
 
@@ -190,12 +201,17 @@ export default function TimeSeriesChart({ id, title, help, titleTip, kind = 'lin
 
               {times.map((iso, i) =>
                 axisLabels.has(i) ? (
-                  <text key={`x${i}`} className="chart-svg-text" x={xCenter(i)} y={H - PAD_BOTTOM + 20} textAnchor="middle">
+                  <text key={`x${i}`} className="chart-svg-text" x={labelX(i, axisLabels.get(i))} y={H - PAD_BOTTOM + 20} textAnchor="middle">
                     {axisLabels.get(i)}
                   </text>
                 ) : null
               )}
             </svg>
+            {sparse && (
+              <p className="chart-sparse-note" data-testid="chart-sparse" {...tip(t('tips.chart.sparse'))}>
+                {t('components.chart.sparse')}
+              </p>
+            )}
             {hover && (
               <ChartTooltip
                 pos={{ x: hover.x, y: hover.y }}

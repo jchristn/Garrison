@@ -201,6 +201,7 @@ export default function HomeView() {
         />
       </div>
 
+      <div className="page-stack">
       <div className="home-grid">
         <section className="panel" aria-labelledby="nodes-title" data-testid="home-nodes">
           <h2 id="nodes-title" className="section-title">
@@ -266,7 +267,7 @@ export default function HomeView() {
           {(overview?.recentFailures || []).length === 0 ? (
             <EmptyNote>{t('views.home.noFailures')}</EmptyNote>
           ) : (
-            <ul className="plain-list">
+            <ul className="plain-list failure-list">
               {overview.recentFailures.map((r) => (
                 <li key={r.id}>
                   <a href={pathFor('runs', r.id)} {...tip(t('tips.views.home.openFailure'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
@@ -314,6 +315,7 @@ export default function HomeView() {
       </section>
 
       <ExternalServicesCard />
+      </div>
     </div>
   );
 }

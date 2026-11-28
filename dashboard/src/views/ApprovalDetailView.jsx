@@ -122,7 +122,7 @@ export default function ApprovalDetailView({ recordId }) {
     );
 
   return (
-    <div data-testid="approval-detail">
+    <div className="page-flow" data-testid="approval-detail">
       <PageHeader
         title={t('views.approvalDetail.titleWithTool', { tool: a.toolName || '-' })}
         subtitle={
@@ -130,11 +130,13 @@ export default function ApprovalDetailView({ recordId }) {
             <CopyableId value={a.id} max={40} /> <ApprovalStatusBadge status={a.status} t={t} /> <ApprovalDecisionBadge decision={a.decision} t={t} />
           </span>
         }
+        back={
+          <Link to={pathFor('approvals')} tipText={t('tips.views.approvalDetail.backToInbox')} testId="approval-back">
+            {t('views.approvalDetail.backToInbox')}
+          </Link>
+        }
         actions={
           <>
-            <Link to={pathFor('approvals')} tipText={t('tips.views.approvalDetail.backToInbox')} testId="approval-back">
-              {t('views.approvalDetail.backToInbox')}
-            </Link>
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.approvalDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>

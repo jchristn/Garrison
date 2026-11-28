@@ -10412,3 +10412,51 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "chart": {
+   "sparse": "目前只有一個點有資料，因此還無法顯示趨勢。"
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "伺服器未回報任何功能旗標。"
+  },
+  "agentDetail": {
+   "confirmWord": "刪除"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "從董事會治理一個組織：檢視組織、回覆上報、套用與解除凍結、給出指示、發布與復原、撰寫變更規則、決定提案與發行，並與最高層代理程式對話。在組織上以資源範圍指派，可將其限制在該組織。",
+   "AppUser": "使用代理應用程式的聊天介面。在應用程式上以資源範圍指派。",
+   "Releaser": "在環境之間提升代理程式與應用程式的修訂，並復原提升。",
+   "AgentRegistrar": "自行註冊遠端代理程式。",
+   "NodeAgent": "工作節點憑證使用的內部角色。僅授予節點協定。",
+   "SecretUser": "在部署、MCP 伺服器、連線、成品存放區、工作區範本與代理程式中使用祕密（對祕密執行），但不管理它們。以資源範圍指派可只允許一個祕密。",
+   "SecretManager": "管理祕密並在設定中使用。",
+   "AgentInvoker": "呼叫代理程式並檢視執行。適用於整合用的存取金鑰。",
+   "AgentOperator": "操作執行、決定權限核准並監看節點。",
+   "AgentDeveloper": "建立連線、提示、代理程式、部署、MCP 伺服器與工作區；呼叫代理程式。",
+   "Custom": "租戶自訂角色的範本標記。不帶任何權限。",
+   "TenantMember": "租戶中的最低存在：檢視代理程式與自己的個人資料。",
+   "Viewer": "檢視領域資源。",
+   "Editor": "檢視與寫入領域資源；無管理權限。",
+   "ResourceAdmin": "對某一個特定資源的全部權限（以資源範圍指派）。",
+   "Auditor": "對安全紀錄與稽核的唯讀存取。",
+   "SecurityAdmin": "管理使用者、存取金鑰、角色、權限、指派、工作階段與稽核。",
+   "TenantAdmin": "租戶內所有資源的全部權限。"
+  }
+ }
+});

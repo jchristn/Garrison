@@ -10465,3 +10465,91 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "chart": {
+   "sparse": "Bisher hat nur ein Punkt Daten, daher lässt sich noch kein Verlauf zeigen."
+  },
+  "architectHints": {
+   "harness": "Einmal hier konfigurieren. Architekten und Bereitstellungen verweisen auf diese Verbindung; Änderungen gelten beim nächsten Lauf für alle Nutzer."
+  },
+  "secretReveal": {
+   "reveal": "Wert anzeigen"
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Der Server meldet keine Feature-Flags."
+  },
+  "agentDetail": {
+   "confirmWord": "löschen"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "Eine Organisation über ihr Board steuern: sie lesen, Eskalationen beantworten, Sperren setzen und aufheben, Vorgaben machen, veröffentlichen und zurückrollen, Änderungsregeln schreiben, über Vorschläge und Releases entscheiden und mit dem obersten Agenten sprechen. Mit Ressourcenbereich auf einer Organisation zuweisen, um sie auf diese Organisation zu beschränken.",
+   "AppUser": "Die Chat-Oberfläche einer agentischen App nutzen. Mit Ressourcenbereich auf der App zuweisen.",
+   "Releaser": "Agenten- und App-Revisionen zwischen Umgebungen hochstufen und Hochstufungen zurückrollen.",
+   "AgentRegistrar": "Entfernte Agenten selbst registrieren.",
+   "NodeAgent": "Interne Rolle für die Zugangsdaten von Worker-Knoten. Erlaubt nur das Knotenprotokoll.",
+   "SecretUser": "Geheimnisse in Bereitstellungen, MCP-Servern, Verbindungen, Artefaktspeichern, Arbeitsbereichsvorlagen und Agenten verwenden (Ausführen auf Geheimnis), ohne sie zu verwalten. Mit Ressourcenbereich zuweisen, um ein einzelnes Geheimnis zu erlauben.",
+   "SecretManager": "Geheimnisse verwalten und in der Konfiguration verwenden.",
+   "AgentInvoker": "Agenten aufrufen und Läufe lesen. Gedacht für Zugangsschlüssel von Integrationen.",
+   "AgentOperator": "Läufe betreiben, über Berechtigungsfreigaben entscheiden und Knoten beobachten.",
+   "AgentDeveloper": "Verbindungen, Prompts, Agenten, Bereitstellungen, MCP-Server und Arbeitsbereiche erstellen; Agenten aufrufen.",
+   "Custom": "Vorlagenmarkierung für mandanteneigene Rollen. Enthält keine Berechtigungen.",
+   "TenantMember": "Minimale Präsenz im Mandanten: Agenten und das eigene Profil lesen.",
+   "Viewer": "Fachliche Ressourcen lesen.",
+   "Editor": "Fachliche Ressourcen lesen und schreiben; keine Administration.",
+   "ResourceAdmin": "Alle Berechtigungen auf einer bestimmten Ressource (mit Ressourcenbereich zuweisen).",
+   "Auditor": "Nur-Lese-Zugriff auf Sicherheitsdatensätze und das Audit.",
+   "SecurityAdmin": "Verwaltet Benutzer, Zugangsschlüssel, Rollen, Berechtigungen, Zuweisungen, Sitzungen und das Audit.",
+   "TenantAdmin": "Alle Berechtigungen auf allen Ressourcen innerhalb des Mandanten."
+  }
+ },
+ "processSecurity": {
+  "trustedOnly": "Prozessausführung: nur für vertrauenswürdige Aufgaben. Läufe teilen Benutzer, Dateisystem und Netzwerk des Workers und können auf andere Läufe und Worker-Zugangsdaten zugreifen. Für nicht vertrauenswürdige Eingaben Kubernetes-Job verwenden."
+ },
+ "common": {
+  "fieldCodes": {
+   "UntrustedNeedsIsolation": "Eine nicht vertrauenswürdige Bereitstellung kann die Prozessausführung nicht nutzen. Wählen Sie Kubernetes-Job oder lassen Sie die Ausführung leer."
+  }
+ },
+ "resources": {
+  "deployments": {
+   "trust": {
+    "untrustedProcess": "Nicht vertrauenswürdige Bereitstellungen können die Prozessausführung nicht nutzen. Wählen Sie Kubernetes-Job oder lassen Sie die Ausführung leer."
+   }
+  },
+  "harnessProfiles": {
+   "subtitle": "Einmal hier konfigurieren. Architekten und Bereitstellungen verweisen auf diese Verbindung; Änderungen gelten beim nächsten Lauf für alle Nutzer."
+  },
+  "artifacts": {
+   "emptyBody": "Konfigurieren Sie einen Speicher und ausdrückliche Dateimuster für die Bereitstellung."
+  },
+  "secrets": {
+   "actions": {
+    "reveal": "Wert anzeigen"
+   }
+  }
+ },
+ "explainers": {
+  "secrets": {
+   "p2": "Verbindungen verweisen zur Authentifizierung auf diese Geheimnisse. Aktualisieren Sie den Wert hier, ohne jeden Architekten oder jede Bereitstellung neu zu konfigurieren."
+  },
+  "harnessProfiles": {
+   "p2": "Einmal hier konfigurieren. Architekten und Bereitstellungen verweisen auf diese Verbindung; Änderungen gelten beim nächsten Lauf für alle Nutzer."
+  }
+ }
+});

@@ -10458,3 +10458,51 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "chart": {
+   "sparse": "Per ora solo un punto ha dati, quindi non c'è ancora un andamento da mostrare."
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "Il server non segnala alcun flag di funzionalità."
+  },
+  "agentDetail": {
+   "confirmWord": "elimina"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "Governare un'organizzazione dal suo consiglio: leggerla, rispondere alle escalation, applicare e rimuovere blocchi, dare indicazioni, pubblicare e ripristinare, scrivere regole di modifica, decidere su proposte e rilasci e parlare con l'agente di vertice. Assegnalo con ambito di risorsa su un'organizzazione per limitarlo a quell'organizzazione.",
+   "AppUser": "Usare l'interfaccia di chat di un'applicazione agentica. Assegnalo con ambito di risorsa sull'applicazione.",
+   "Releaser": "Promuovere revisioni di agenti e applicazioni tra ambienti e annullare le promozioni.",
+   "AgentRegistrar": "Registrare autonomamente agenti remoti.",
+   "NodeAgent": "Ruolo interno per le credenziali dei nodi worker. Consente solo il protocollo dei nodi.",
+   "SecretUser": "Usare i segreti in distribuzioni, server MCP, connessioni, archivi di artefatti, modelli di area di lavoro e agenti (Esegui su Segreto) senza gestirli. Assegnalo con ambito di risorsa per consentire un solo segreto.",
+   "SecretManager": "Gestire i segreti e usarli nella configurazione.",
+   "AgentInvoker": "Invocare agenti e leggere le esecuzioni. Pensato per le chiavi di accesso delle integrazioni.",
+   "AgentOperator": "Gestire le esecuzioni, decidere le approvazioni dei permessi e osservare i nodi.",
+   "AgentDeveloper": "Creare connessioni, prompt, agenti, distribuzioni, server MCP e aree di lavoro; invocare agenti.",
+   "Custom": "Segnaposto di modello per i ruoli definiti dal tenant. Non include autorizzazioni.",
+   "TenantMember": "Presenza minima nel tenant: leggere gli agenti e il proprio profilo.",
+   "Viewer": "Leggere le risorse di dominio.",
+   "Editor": "Leggere e scrivere le risorse di dominio; nessuna amministrazione.",
+   "ResourceAdmin": "Tutte le autorizzazioni su una risorsa specifica (da assegnare con ambito di risorsa).",
+   "Auditor": "Accesso in sola lettura ai record di sicurezza e all'audit.",
+   "SecurityAdmin": "Amministra utenti, chiavi di accesso, ruoli, autorizzazioni, assegnazioni, sessioni e audit.",
+   "TenantAdmin": "Tutte le autorizzazioni su tutte le risorse del tenant."
+  }
+ }
+});

@@ -15,9 +15,9 @@ import { enumLabel } from '../utils/enums';
 import { tip } from '../components/Tooltip';
 import { pathFor } from '../config/navConfig';
 
-function Row({ label, value, copy, tip: tipText }) {
+function Row({ label, value, copy, tip: tipText, stacked = false }) {
   return (
-    <div className="info-row">
+    <div className={stacked ? 'info-row info-row-stacked' : 'info-row'}>
       <div className="info-label" {...tip(tipText)}>
         {label}
       </div>
@@ -27,6 +27,25 @@ function Row({ label, value, copy, tip: tipText }) {
       </div>
     </div>
   );
+}
+
+/** One endpoint URL: on one line, cut with an ellipsis when narrow, the whole value in its tooltip (UXP1-V021). */
+function Url({ value, testId }) {
+  return (
+    <code className="info-url" data-testid={testId} {...tip(value)}>
+      {value}
+    </code>
+  );
+}
+
+/** Feature flags as the server reports them: a list of names, or names mapped to on and off. */
+function flagEntries(flags) {
+  if (Array.isArray(flags)) return flags.every((f) => typeof f === 'string') ? flags.map((name) => ({ name, on: true })) : null;
+  if (flags && typeof flags === 'object') {
+    const entries = Object.entries(flags);
+    return entries.every(([, v]) => typeof v === 'boolean') ? entries.map(([name, on]) => ({ name, on })) : null;
+  }
+  return null;
 }
 
 /**
@@ -53,9 +72,11 @@ export default function ServerInfoView() {
   const mcpUrl = info?.mcpUrl || info?.mcpPublicUrl || null;
   const a2aUrl = info?.a2aUrl || (restUrl ? `${restUrl.replace(/\/$/, '')}/v1.0/a2a/${principal?.tenantId || ''}` : null);
   const flags = info?.featureFlags || info?.features || null;
+  const flagList = flagEntries(flags);
+  const openApiUrl = info?.openApiUrl || `${serverUrl}/openapi.json`;
 
   return (
-    <div>
+    <div className="page-flow">
       <PageHeader title={t('views.serverInfo.title')} subtitle={t('views.serverInfo.subtitle')} />
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!info && !error && <LoadingState />}
@@ -88,13 +109,13 @@ export default function ServerInfoView() {
         </div>
       </section>
       <div className="info-grid">
-        <section className="panel">
+        <section className="panel info-grid-wide" data-testid="server-info-endpoints">
           <h2 className="section-title">{t('views.serverInfo.endpoints')}</h2>
-          <Row label={t('views.serverInfo.serverInUse')} tip={t('tips.views.serverInfo.serverInUse')} value={serverUrl ? <code data-testid="about-server-in-use">{serverUrl}</code> : null} copy={serverUrl} />
-          <Row label={t('views.serverInfo.rest')} tip={t('tips.views.serverInfo.rest')} value={<code>{restUrl}</code>} copy={restUrl} />
-          <Row label={t('views.serverInfo.mcp')} tip={t('tips.views.serverInfo.mcp')} value={mcpUrl ? <code>{mcpUrl}</code> : null} copy={mcpUrl} />
-          <Row label={t('views.serverInfo.a2a')} tip={t('tips.views.serverInfo.a2a')} value={a2aUrl ? <code>{a2aUrl}</code> : null} copy={a2aUrl} />
-          <Row label={t('views.serverInfo.openapi')} tip={t('tips.views.serverInfo.openapi')} value={<code>{info?.openApiUrl || `${serverUrl}/openapi.json`}</code>} copy={info?.openApiUrl || `${serverUrl}/openapi.json`} />
+          <Row stacked label={t('views.serverInfo.serverInUse')} tip={t('tips.views.serverInfo.serverInUse')} value={serverUrl ? <Url value={serverUrl} testId="about-server-in-use" /> : null} copy={serverUrl} />
+          <Row stacked label={t('views.serverInfo.rest')} tip={t('tips.views.serverInfo.rest')} value={restUrl ? <Url value={restUrl} /> : null} copy={restUrl} />
+          <Row stacked label={t('views.serverInfo.mcp')} tip={t('tips.views.serverInfo.mcp')} value={mcpUrl ? <Url value={mcpUrl} /> : null} copy={mcpUrl} />
+          <Row stacked label={t('views.serverInfo.a2a')} tip={t('tips.views.serverInfo.a2a')} value={a2aUrl ? <Url value={a2aUrl} /> : null} copy={a2aUrl} />
+          <Row stacked label={t('views.serverInfo.openapi')} tip={t('tips.views.serverInfo.openapi')} value={<Url value={openApiUrl} />} copy={openApiUrl} />
         </section>
         <section className="panel">
           <h2 className="section-title">{t('views.serverInfo.server')}</h2>
@@ -128,7 +149,21 @@ export default function ServerInfoView() {
         {flags && (
           <section className="panel">
             <h2 className="section-title">{t('views.serverInfo.features')}</h2>
-            <CodeBlock value={flags} prettyJson />
+            {flagList ? (
+              flagList.length === 0 ? (
+                <p className="text-muted" {...tip(t('tips.views.serverInfo.noFeatures'))}>{t('views.serverInfo.noFeatures')}</p>
+              ) : (
+                <div className="feature-flags" data-testid="server-info-flags">
+                  {flagList.map((f) => (
+                    <Badge key={f.name} tone={f.on ? 'success' : 'neutral'} tip={t(f.on ? 'tips.views.serverInfo.flagOn' : 'tips.views.serverInfo.flagOff', { name: f.name })}>
+                      {f.name}
+                    </Badge>
+                  ))}
+                </div>
+              )
+            ) : (
+              <CodeBlock value={flags} prettyJson />
+            )}
           </section>
         )}
       </div>

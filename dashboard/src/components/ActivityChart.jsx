@@ -22,7 +22,11 @@ const PAD_RIGHT = 20;
 const PAD_BOTTOM = 40;
 const PAD_LEFT = 52;
 
-function chartHeight(width) {
+// A range with requests in only one bucket has no trend to show: the chart draws compact, with a note (UXP1-V030).
+const SPARSE_H = 180;
+
+function chartHeight(width, sparse = false) {
+  if (sparse) return SPARSE_H;
   return width >= NARROW_BREAKPOINT ? TALL_H : SHORT_H;
 }
 
@@ -91,7 +95,8 @@ export default function ActivityChart({
   const bodyRef = useRef(null);
   const svgRef = useRef(null);
   const W = useMeasuredWidth(bodyRef);
-  const H = chartHeight(W);
+  const sparse = (summary?.buckets || []).filter((b) => (b.successCount || 0) + (b.failureCount || 0) > 0).length === 1;
+  const H = chartHeight(W, sparse);
   const PLOT_W = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
   const PLOT_H = H - PAD_TOP - PAD_BOTTOM;
   const [hover, setHover] = useState(null); // { index, x, y }
@@ -255,6 +260,11 @@ export default function ActivityChart({
               ) : null
             )}
           </svg>
+          {sparse && (
+            <p className="chart-sparse-note" data-testid="chart-sparse" {...tip(t('tips.chart.sparse'))}>
+              {t('components.chart.sparse')}
+            </p>
+          )}
 
           {hovered && (
             <ChartTooltip

@@ -10411,3 +10411,51 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// UX pass 1 page fixes (LP5.5): chart, server info, settings, agent delete word, and built-in role descriptions
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "chart": {
+   "sparse": "暫時得一個點有數據，所以仲未有趨勢可以顯示。"
+  }
+ },
+ "views": {
+  "serverInfo": {
+   "noFeatures": "伺服器冇報告任何功能旗標。"
+  },
+  "agentDetail": {
+   "confirmWord": "刪除"
+  }
+ },
+ "roles": {
+  "builtInDescriptions": {
+   "BoardMember": "喺董事會度管理一個組織：睇組織、回覆上報、施加同解除凍結、俾指示、發佈同復原、寫變更規則、決定提案同發佈，同埋同最高層代理傾偈。喺組織上面用資源範圍指派，就可以限制喺嗰個組織。",
+   "AppUser": "用代理應用程式嘅聊天介面。喺應用程式上面用資源範圍指派。",
+   "Releaser": "喺環境之間提升代理同應用程式嘅修訂，同埋復原提升。",
+   "AgentRegistrar": "自行登記遠端代理。",
+   "NodeAgent": "工作節點憑證用嘅內部角色。只准用節點協定。",
+   "SecretUser": "喺部署、MCP 伺服器、連線、成品存放區、工作區範本同代理入面用機密（對機密執行），但唔使管理佢哋。用資源範圍指派就只准用一個機密。",
+   "SecretManager": "管理機密，同埋喺設定入面用。",
+   "AgentInvoker": "呼叫代理同睇執行。俾整合用嘅存取金鑰用。",
+   "AgentOperator": "操作執行、決定權限批核，同埋監察節點。",
+   "AgentDeveloper": "建立連線、提示、代理、部署、MCP 伺服器同工作區；呼叫代理。",
+   "Custom": "租戶自訂角色嘅範本標記。冇任何權限。",
+   "TenantMember": "租戶入面最基本嘅存在：睇代理同自己嘅個人檔案。",
+   "Viewer": "睇領域資源。",
+   "Editor": "睇同寫領域資源；冇管理權。",
+   "ResourceAdmin": "對一個指定資源嘅所有權限（用資源範圍指派）。",
+   "Auditor": "唯讀存取安全紀錄同審計。",
+   "SecurityAdmin": "管理用戶、存取金鑰、角色、權限、指派、工作階段同審計。",
+   "TenantAdmin": "租戶入面所有資源嘅所有權限。"
+  }
+ }
+});

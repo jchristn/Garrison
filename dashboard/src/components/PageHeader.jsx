@@ -12,8 +12,11 @@ import HubTourButton from './tours/HubTourButton';
  * hub this page is (home, invoke, connections): its "?" button starts the tour that covers the hub, and a hub with no
  * tour gets no button (LP4.7). Inside a hub tab the hub header carries the button instead. The "?" always sits right of
  * the title, on every page and hub (UXP1-V028).
+ *
+ * `back` is a link to the list a detail page belongs to; it sits above the title, never among the actions, so every
+ * detail page has the same header: back link, then title and badges on the left, actions on the right (UXP1-V026).
  */
-export default function PageHeader({ title, subtitle, actions, tour, hubKey }) {
+export default function PageHeader({ title, subtitle, actions, tour, hubKey, back }) {
   const { t } = useTranslation();
   const { embedded } = useHub();
   useEffect(() => {
@@ -34,6 +37,7 @@ export default function PageHeader({ title, subtitle, actions, tour, hubKey }) {
   return (
     <header className="page-header" data-tour={tour || undefined}>
       <div className="page-header-text">
+        {back && <div className="page-header-back">{back}</div>}
         <div className="page-header-title-row">
           <h1 className="page-header-title">{title}</h1>
           {help}
