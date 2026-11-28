@@ -10215,3 +10215,38 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "Rien dans la vue par défaut. D'autres enregistrements existent en dehors.",
+   "showAll": "Tout afficher",
+   "errorStatus": "Statut {{status}}."
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Invoquer un agent"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "Révision {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "Cas {{order}}"
+  }
+ }
+});

@@ -10219,3 +10219,38 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "No hay nada en la vista predeterminada. Hay otros registros fuera de ella.",
+   "showAll": "Mostrar todo",
+   "errorStatus": "Estado {{status}}."
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Invocar un agente"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "Revisión {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "Caso {{order}}"
+  }
+ }
+});

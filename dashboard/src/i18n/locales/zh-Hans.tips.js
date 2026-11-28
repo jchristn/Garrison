@@ -5205,3 +5205,24 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "promptsFull": "一个应用最多可有 {{max}} 个开场问题。要添加新的请先移除一个。"
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "清除默认筛选，列出此类的所有记录。"
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "打开调用页面，开始一次代理运行。"
+  }
+ }
+});

@@ -5206,3 +5206,24 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "promptsFull": "An app can have at most {{max}} starter prompts. Remove one to add another."
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "Clear the default filters and list every record of this kind."
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Open the Invoke page and start a run of an agent."
+  }
+ }
+});

@@ -10168,3 +10168,38 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "既定のビューには何もありません。ビューの外に他のレコードがあります。",
+   "showAll": "すべて表示",
+   "errorStatus": "ステータス {{status}}。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "エージェントを呼び出す"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "リビジョン {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "ケース {{order}}"
+  }
+ }
+});

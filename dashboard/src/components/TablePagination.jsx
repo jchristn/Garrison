@@ -14,7 +14,9 @@ import {
 
 /**
  * Above-table control bar: total count, page size, first/prev/jump/next/last,
- * refresh. `totalRecords` is the full (server) count.
+ * refresh. `totalRecords` is the full (server) count. While `pending` (a first load, or a load that failed) the count
+ * is unknown, so the summary and the page count are hidden rather than showing zero (UXP1-V007, V029). The page
+ * buttons and the page box form one group that wraps as a unit (UXP1-V019).
  */
 export default function TablePagination({
   totalRecords = 0,
@@ -27,7 +29,8 @@ export default function TablePagination({
   leftSlot = null,
   rightSlot = null,
   autoRefreshSeconds = null,
-  onAutoRefreshChange = null
+  onAutoRefreshChange = null,
+  pending = false
 }) {
   const { t } = useTranslation();
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
@@ -51,11 +54,13 @@ export default function TablePagination({
   return (
     <div className="table-pagination" role="group" aria-label={t('components.table.pageSize')}>
       <div className="table-pagination-summary">
-        <span>
-          <strong>{formatNumber(totalRecords)}</strong>{' '}
-          {t('components.table.records', { count: totalRecords })}
-        </span>
-        {totalRecords > 0 && (
+        {!pending && (
+          <span>
+            <strong>{formatNumber(totalRecords)}</strong>{' '}
+            {t('components.table.records', { count: totalRecords })}
+          </span>
+        )}
+        {!pending && totalRecords > 0 && (
           <span className="text-muted">{t('components.table.showing', { from, to })}</span>
         )}
         {leftSlot}
@@ -83,6 +88,7 @@ export default function TablePagination({
             </select>
           </label>
         )}
+        <div className="table-pager">
         <button
           type="button"
           className="table-pagination-btn"
@@ -114,7 +120,7 @@ export default function TablePagination({
             aria-label={t('components.table.jump')}
             {...tip(t('tips.table.jump', { total: totalPages }))}
           />
-          <span>{t('components.table.pageOf', { page: pageNumber, total: totalPages })}</span>
+          {!pending && <span>{t('components.table.pageOf', { page: pageNumber, total: totalPages })}</span>}
         </div>
         <button
           type="button"
@@ -136,6 +142,7 @@ export default function TablePagination({
         >
           <ChevronsRightIcon />
         </button>
+        </div>
         {onRefresh && (
           <button
             type="button"

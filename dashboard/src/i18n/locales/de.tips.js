@@ -5206,3 +5206,24 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "promptsFull": "Eine App kann höchstens {{max}} Einstiegsfragen haben. Entfernen Sie eine, um eine neue hinzuzufügen."
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "Die Standardfilter entfernen und alle Datensätze dieser Art auflisten."
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Die Seite Aufrufen öffnen und einen Lauf eines Agenten starten."
+  }
+ }
+});

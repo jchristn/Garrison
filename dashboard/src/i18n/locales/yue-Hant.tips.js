@@ -5206,3 +5206,24 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   "promptsFull": "一個 App 最多可以有 {{max}} 個開場問題。要加新嘅請先移除一個。"
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "清除預設篩選，列出呢類嘅所有記錄。"
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "打開調用頁面，開始一次代理運行。"
+  }
+ }
+});

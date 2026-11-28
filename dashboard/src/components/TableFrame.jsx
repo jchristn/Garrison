@@ -13,6 +13,8 @@ import { exportFileName as buildExportFileName, tableCsv } from '../utils/export
  * action bar when rows are selected, and an optional filter row slot. The column choice is saved under `tableId`.
  * `compact`, `testId`, and `rowProps` pass through to DataTable. `exportFileName(ext)`, `exportCsv()`, and `exportTestId`
  * replace the export menu's defaults (the current page's visible columns) for a table whose export carries more. For a list held in memory, use LocalTableFrame.
+ * `error` (a node, usually an ErrorBanner) replaces the rows while the list failed to load, and hides the counts with
+ * the empty message (UXP1-V007); a first load hides the counts too (UXP1-V029).
  */
 export default function TableFrame({
   tableId,
@@ -45,7 +47,8 @@ export default function TableFrame({
   rowProps,
   exportFileName,
   exportCsv,
-  exportTestId
+  exportTestId,
+  error = null
 }) {
   const { t, i18n } = useTranslation();
   const { hidden, toggle, visibleColumns } = useColumnPrefs(tableId || 'default', columns);
@@ -61,11 +64,12 @@ export default function TableFrame({
           onPageSizeChange={onPageSizeChange}
           onRefresh={onRefresh}
           disabled={loading}
+          pending={!!error || (loading && (!items || items.length === 0))}
           leftSlot={leftSlot}
           rightSlot={
             <>
               {rightSlot}
-              {items && items.length > 0 && (
+              {!error && items && items.length > 0 && (
                 <ExportMenu title={t('components.export.tableTitle', { table: tableId })} testId={exportTestId || `export-table-${tableId}`} fileName={exportFileName || ((ext) => buildExportFileName(tableId || 'table', `page-${pageNumber || 1}`, {}, ext))} csv={exportCsv || (() => tableCsv(visibleColumns, items))} />
               )}
               <ColumnPicker columns={columns} hidden={hidden} onToggle={toggle} />
@@ -101,6 +105,7 @@ export default function TableFrame({
         compact={compact}
         testId={testId}
         rowProps={rowProps}
+        error={error}
       />
     </div>
   );

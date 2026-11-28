@@ -5206,3 +5206,24 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   "promptsFull": "アプリの質問の候補は最大 {{max}} 件です。追加するには 1 件削除してください。"
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "既定のフィルターを外して、この種類のレコードをすべて一覧表示します。"
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "呼び出しページを開いて、エージェントの実行を開始します。"
+  }
+ }
+});

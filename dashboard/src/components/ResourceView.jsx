@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { cloneElement, isValidElement, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from './PageHeader';
@@ -160,6 +160,25 @@ export default function ResourceView({ config }) {
   useEffect(() => {
     load(1);
   }, [load]);
+
+  // A list with default filters (open escalations, active freezes) that comes back empty: ask once, without them, whether
+  // the tenant has any record of this kind, so the page can tell "none yet" from "none in this view" (UXP1-S007).
+  const [anyRecords, setAnyRecords] = useState(null);
+  const probeDefaults = Object.values(config.defaultFilters || {}).some((v) => v) && !loading && !error && items.length === 0;
+  useEffect(() => {
+    if (!probeDefaults || !apiClient || anyRecords !== null) return undefined;
+    let live = true;
+    config.api
+      .list(apiClient, tenantId, buildListParams({ pageNumber: 1, pageSize: 1, filters: {} }))
+      .then((r) => live && setAnyRecords((r.totalCount ?? (r.items || []).length) > 0 || (r.items || []).length > 0))
+      .catch(() => live && setAnyRecords(true));
+    return () => {
+      live = false;
+    };
+  }, [probeDefaults, apiClient, tenantId, config, anyRecords]);
+  useEffect(() => {
+    if (items.length > 0 && anyRecords === false) setAnyRecords(true);
+  }, [items.length, anyRecords]);
 
   // Window events that change what the lookups hold (for example a freeze applied from a row action, AA3.8) reload
   // them and the list, so row menus and badges follow at once.
@@ -384,7 +403,12 @@ export default function ResourceView({ config }) {
   const steps = config.steps || null;
   const fields = steps ? allFields.filter((f) => (f.step || 0) === step) : allFields;
   const missing = isMissingEndpoint(error);
-  const noData = !loading && !error && items.length === 0 && !debouncedSearch && Object.values(filters).every((v) => !v);
+  const defaultsSet = Object.values(config.defaultFilters || {}).some((v) => v);
+  const atDefaults = !debouncedSearch && Object.keys({ ...filters, ...(config.defaultFilters || {}) }).every((k) => (filters[k] || '') === ((config.defaultFilters || {})[k] || ''));
+  const listEmpty = !loading && !error && items.length === 0 && !debouncedSearch;
+  // An empty list with no filter set, or with only the default filters set while the tenant has no record of this kind at
+  // all (anyRecords false), is a real empty state with the first action (UXP1-S007, V008).
+  const noData = listEmpty && (Object.values(filters).every((v) => !v) || (atDefaults && defaultsSet && anyRecords === false));
 
   const filterTip = (f) => (typeof f.tip === 'function' ? f.tip(t) : f.tip) || t(`tips.filters.${f.name}`);
   // Options may depend on the lookups (for example agent IDs with their names).
@@ -398,6 +422,47 @@ export default function ResourceView({ config }) {
     if (!addDenied) open('create', config.blank ? config.blank(ctx) : {});
   };
   const addProps = addDenied ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {};
+
+  // The empty state offers the page's primary action (UXP1-V008): `config.emptyAction(ctx)`, or else a lone primary
+  // header button (Send message, File report, Run set), repeated with its own test ID.
+  const emptyAction = (() => {
+    if (config.emptyAction === false) return null;
+    if (typeof config.emptyAction === 'function') return config.emptyAction({ ...extraCtx(), lookups });
+    if (!config.headerActions) return null;
+    const el = config.headerActions({ ...ctx, lookups, reload: () => load(page.pageNumber), setExtraModal });
+    if (!isValidElement(el) || el.type !== 'button' || !/\bbutton-(primary|danger)\b/.test(el.props.className || '')) return null;
+    return cloneElement(el, { 'data-testid': `empty-${el.props['data-testid'] || 'action'}` });
+  })();
+  const showAll = () => setFilters(Object.fromEntries(Object.keys({ ...filters, ...(config.defaultFilters || {}) }).map((k) => [k, ''])));
+  const emptyMessage = atDefaults && defaultsSet ? (
+    <span className="table-empty-text">
+      {t('components.table.noneInDefaultView')}{' '}
+      <button type="button" className="button-link" onClick={showAll} data-testid="table-show-all" {...tip(t('tips.table.showAll'))}>
+        {t('components.table.showAll')}
+      </button>
+    </span>
+  ) : (
+    <span className="table-empty-text">
+      {t('components.table.noMatches')}{' '}
+      {(search || filtersChanged) && (
+        <button
+          type="button"
+          className="button-link"
+          data-testid="table-clear-filters"
+          {...tip(t('tips.table.clearFilters'))}
+          onClick={() => {
+            setSearch('');
+            setFilters(config.defaultFilters || {});
+          }}
+        >
+          {t('components.filters.clear')}
+        </button>
+      )}
+    </span>
+  );
+  const loadError = error && !missing ? (
+    <ErrorBanner message={[errorMessage(t, error), error.status ? t('components.table.errorStatus', { status: error.status }) : '', errorDetail(t, error)].filter(Boolean).join(' ')} onRetry={() => load(page.pageNumber)} />
+  ) : null;
 
   const filterSlot = (
     <div className="filter-inline">
@@ -473,7 +538,7 @@ export default function ResourceView({ config }) {
       {config.explainer && <Explainer topic={config.explainer} diagram={config.explainerDiagram ? config.explainerDiagram(ctx) : null} />}
       {intro && <div className="page-intro">{intro}</div>}
 
-      {error && !missing && <ErrorBanner message={`${errorMessage(t, error)} ${errorDetail(t, error)}`.trim()} onRetry={() => load(page.pageNumber)} />}
+      {loadError && items.length > 0 && loadError}
 
       {missing ? (
         <div className="table-frame">
@@ -485,8 +550,9 @@ export default function ResourceView({ config }) {
             title={recordLabel('emptyTitle')}
             body={config.studioEmptyState ? `${t(`${prefix}.emptyBody`)} ${t('common.states.studioHint')}` : recordLabel('emptyBody')}
             action={
-              (config.studioEmptyState || (config.api.create && canManage)) && (
+              (config.studioEmptyState || (config.api.create && canManage) || emptyAction) && (
                 <div className="flex gap-sm state-actions">
+                  {!(config.api.create && canManage) && emptyAction}
                   {config.studioEmptyState && (
                     <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', 'new'))} data-testid="empty-open-studio" {...tip(t('tips.common.openStudio'))}>
                       {t('common.states.openStudio')}
@@ -508,7 +574,8 @@ export default function ResourceView({ config }) {
           columns={columns}
           items={displayItems}
           loading={loading}
-          emptyMessage={t('components.table.noMatches')}
+          emptyMessage={emptyMessage}
+          error={items.length === 0 ? loadError : null}
           rowId={(r) => r.id}
           onRowClick={openRow}
           sortKey={sort.key}

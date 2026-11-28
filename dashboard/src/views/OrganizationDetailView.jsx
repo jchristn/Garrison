@@ -265,7 +265,17 @@ export default function OrganizationDetailView({ recordId }) {
       <div>
         <PageHeader title={t('views.organizationDetail.title')} />
         <ErrorBanner message={orgErrorMessage(t, error)} onRetry={loadOrg} />
-        <EmptyState title={t('views.organizationDetail.notFoundTitle')} body={t('views.organizationDetail.notFoundBody')} />
+        {/* UXP1-V007: "not found" only when the server said 404, not under any error. */}
+        {error.status === 404 && <EmptyState title={t('views.organizationDetail.notFoundTitle')} body={t('views.organizationDetail.notFoundBody')} />}
+      </div>
+    );
+  }
+  // UXP1-V029: the header stays in place while the organization loads, so the layout does not jump.
+  if (!org) {
+    return (
+      <div>
+        <PageHeader title={t('views.organizationDetail.title')} />
+        <LoadingState />
       </div>
     );
   }

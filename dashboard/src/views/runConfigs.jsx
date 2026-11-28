@@ -157,6 +157,12 @@ export const runsConfig = {
   id: 'runs',
   explainer: 'runs',
   autoRefresh: 5,
+  // UXP1-V008: the empty state's first action.
+  emptyAction: ({ t, navigate }) => (
+    <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke'))} data-testid="empty-runs-invoke" {...tip(t('tips.resources.runs.emptyAction'))}>
+      {t('resources.runs.emptyAction')}
+    </button>
+  ),
   urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId'],
   api: {
     list: (c, tenant, p) => c.listRuns(tenant, p),

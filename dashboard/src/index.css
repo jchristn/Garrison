@@ -2360,3 +2360,67 @@ a.sidebar-utility { text-decoration: none; }
 .pv-input { flex: 1 1 auto; min-width: 0; padding: 0.4em 0.55em; border: 1px solid var(--pv-border); border-radius: var(--pv-radius); color: var(--pv-muted-composer); font-size: 0.88em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-send { inline-size: 2.4em; block-size: 1.9em; border-radius: var(--pv-radius); background: var(--pv-primary); flex: none; }
 .pv-powered { text-align: center; font-size: 0.7em; padding: 0.15em 0 0.3em; background: var(--pv-composer); color: var(--pv-muted-composer); }
+
+/* ------------------------------------------------------------------------------------------------------------------
+   LP5.5 shared tables, states, tabs, and headers (UX pass 1).
+   ------------------------------------------------------------------------------------------------------------------ */
+/* UXP1-V003, V017: words in a table cell wrap between words, never inside one. A cell that held `overflow-wrap: anywhere`
+   shrank to a few letters a line when the table was tight; only IDs and cells marked .cell-break may still break
+   anywhere, and those keep a readable minimum width. Short values (times, statuses, kinds, numbers; DataTable marks
+   them .col-short) stay on one line. Below 1100 pixels a long text column (.col-text) keeps a readable width and the
+   table scrolls sideways inside its frame instead (LEARNABILITY_PLAN 1.3). */
+.data-table td, .data-table td * { overflow-wrap: break-word; }
+.data-table td.cell-break, .data-table td .cell-break { overflow-wrap: anywhere; min-width: 8rem; }
+.data-table td.col-short { white-space: nowrap; }
+@media (max-width: 1100px) {
+  .data-table td.col-text { min-width: 11rem; }
+}
+/* UXP1-V016: up to a wide desktop, cells use tighter side padding, so the default columns fit at 1280 pixels in German
+   as well as at 1366 in English. A long compound header word may hyphenate (headers only, never values). */
+@media (max-width: 1440px) {
+  .data-table th, .data-table td { padding-inline: 0.5rem; }
+  .data-table th.select-cell, .data-table td.select-cell { padding-inline: 0.5rem 0.25rem; }
+}
+.data-table th { hyphens: auto; -webkit-hyphens: auto; }
+/* UXP1-V016: the Actions column stays pinned at the end edge, so the row menu is reachable however far the table
+   scrolls, with a shadow while columns hide behind it. */
+.data-table th.col-actions, .data-table td.col-actions { position: sticky; inset-inline-end: 0; z-index: 1; background: var(--color-surface); }
+.data-table th.col-actions { background: var(--color-surface-alt); }
+.data-table tbody tr.clickable:hover td.col-actions, .data-table tr.is-selected td.col-actions { background: var(--color-surface-alt); }
+.table-scroll.is-overflowing:not(.at-end) .col-actions { box-shadow: -10px 0 10px -10px rgba(0, 0, 0, 0.35); }
+[dir='rtl'] .table-scroll.is-overflowing:not(.at-end) .col-actions { box-shadow: 10px 0 10px -10px rgba(0, 0, 0, 0.35); }
+/* UXP1-V008: the empty message sits below the scrolling table, centered on the frame, not on the scrolled width. */
+.table-frame > .table-empty, .table-scroll + .table-empty { border-top: 1px solid var(--color-border); overflow-wrap: break-word; }
+.table-empty .button-link { margin-inline-start: var(--spacing-xs); }
+/* UXP1-V007: a failed load shows its error in place of the rows. */
+.table-error { padding: var(--spacing-md); }
+.table-error .error-banner { margin-bottom: 0; }
+/* UXP1-V019: one aligned toolbar. The page buttons and page box wrap as one unit, and the auto-refresh select is as
+   wide as its longest option, with its label visible at every width. */
+.table-pagination-controls { justify-content: flex-end; }
+.table-pager { display: inline-flex; align-items: center; gap: var(--spacing-xs); flex-wrap: nowrap; }
+.table-pagination-jump span { white-space: nowrap; }
+.auto-refresh-select select { width: auto; min-width: 0; max-width: 8.5rem; }
+.table-pagination-size select { min-width: 0; max-width: 5rem; }
+@media (max-width: 560px) { .auto-refresh-label { display: inline; } }
+/* UXP1-V025: filters wide enough for their values and placeholders; below 600 pixels labels sit above inputs and every
+   filter takes the full width. */
+.filter-date input { min-width: 12rem; }
+.filter-inline .filter-search { min-width: 12rem; }
+.filter-date span, .filter-select span { white-space: nowrap; }
+@media (max-width: 600px) {
+  .filter-date { flex-direction: column; align-items: stretch; gap: 2px; }
+  .filter-text, .filter-text .filter-search, .filter-inline .filter-search, .filter-date input { width: 100%; min-width: 0; }
+  .filter-inline > * { flex: 1 1 100%; }
+  .filter-bar .field { flex-basis: 100%; }
+}
+/* UXP1-V028: the page help button always sits right of the title. */
+.page-header-title-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }
+.page-header-title-row > .page-header-title { min-width: 0; }
+.page-header-title-row > .hub-tour-button { flex: 0 0 auto; }
+/* UXP1-V027: one inline primary row action, then the row menu. */
+.row-actions { display: inline-flex; align-items: center; gap: var(--spacing-xs); white-space: nowrap; }
+/* UXP1-V017: an ID shown as a value stays on one line (the copy button or its link carries the whole ID), and an
+   "Open trail" link after an ID keeps its own space. */
+.detail-item-value > a > code, .detail-item-value > code { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.detail-item-value .trail-open-link { margin-inline-start: var(--spacing-sm); }

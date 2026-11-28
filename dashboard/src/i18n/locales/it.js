@@ -10215,3 +10215,38 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "Niente nella vista predefinita. Esistono altri record al di fuori di essa.",
+   "showAll": "Mostra tutto",
+   "errorStatus": "Stato {{status}}."
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Invoca un agente"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "Revisione {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "Caso {{order}}"
+  }
+ }
+});

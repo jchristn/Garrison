@@ -10189,3 +10189,38 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "Nothing in the default view. Other records exist outside it.",
+   "showAll": "Show all",
+   "errorStatus": "Status {{status}}."
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Invoke an agent"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "Revision {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "Case {{order}}"
+  }
+ }
+});

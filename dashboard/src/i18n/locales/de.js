@@ -10204,3 +10204,56 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "Nichts in der Standardansicht. Außerhalb davon gibt es weitere Datensätze.",
+   "showAll": "Alle anzeigen",
+   "errorStatus": "Status {{status}}."
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Einen Agenten aufrufen"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "Revision {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "Fall {{order}}"
+  }
+ }
+});
+
+// Shared tables and states (LP5.5): the load error status names the HTTP status code.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "table": {
+   "errorStatus": "HTTP-Statuscode {{status}}."
+  }
+ }
+});

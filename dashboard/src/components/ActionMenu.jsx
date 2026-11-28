@@ -7,14 +7,15 @@ import { popupLeft } from '../utils/direction';
 
 /**
  * Three-dot row action menu. Portaled to document.body so it is never clipped by
- * table overflow. `items`: [{ label, tip, onClick, danger?, hidden?, disabled? }]. `label` names the record for the trigger
+ * table overflow. `items`: [{ label, tip, onClick, danger?, hidden?, disabled?, testId? }]. `label` names the record for the trigger
  * tooltip. A disabled item stays in the menu with aria-disabled (not the disabled attribute, so its tooltip still shows
- * on hover and focus) and does nothing when chosen; its tip says why it is unavailable.
+ * on hover and focus) and does nothing when chosen; its tip says why it is unavailable. An item's optional `testId` and the
+ * optional `testId` of the menu become data-testid attributes on the item and the trigger.
  */
-export default function ActionMenu({ items = [], label = '' }) {
+export default function ActionMenu({ items = [], label = '', testId }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: null });
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -24,17 +25,30 @@ export default function ActionMenu({ items = [], label = '' }) {
     if (!triggerRef.current) return false;
     const rect = triggerRef.current.getBoundingClientRect();
     if (rect.bottom < 0 || rect.top > window.innerHeight || !triggerRef.current.isConnected) return false;
-    const menuH = visible.length * 34 + 8;
+    // The menu's real height once it has rendered, an estimate before. It opens below the trigger and flips above only
+    // when it does not fit below and there is more room above; otherwise it stays below and scrolls (UXP1-V038).
+    const menuH = menuRef.current ? menuRef.current.scrollHeight : visible.length * 34 + 8;
     const menuW = 180;
+    const below = window.innerHeight - rect.bottom - 12;
+    const above = rect.top - 12;
     let top = rect.bottom + 4;
-    if (window.innerHeight - rect.bottom < menuH + 8) top = rect.top - menuH - 4;
+    let maxHeight = null;
+    if (menuH > below && above > below) {
+      top = Math.max(8, rect.top - Math.min(menuH, above) - 4);
+      if (menuH > above) maxHeight = above;
+    } else if (menuH > below) {
+      maxHeight = Math.max(120, below);
+    }
     const left = popupLeft(rect, menuW);
-    setPos((p) => (p.top === top && p.left === left ? p : { top, left }));
+    setPos((p) => (p.top === top && p.left === left && p.maxHeight === maxHeight ? p : { top, left, maxHeight }));
     return true;
   }, [visible.length]);
 
   useLayoutEffect(() => {
-    if (open) place();
+    if (!open) return;
+    place();
+    // Measure again with the menu on screen, so placement uses its real height.
+    place();
   }, [open, place]);
 
   useEffect(() => {
@@ -74,6 +88,7 @@ export default function ActionMenu({ items = [], label = '' }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('common.generic.actions')}
+        data-testid={testId}
         {...tip(label ? t('tips.table.actionsFor', { name: label }) : t('tips.table.actionsMenu'))}
         onClick={(e) => {
           e.stopPropagation();
@@ -88,7 +103,7 @@ export default function ActionMenu({ items = [], label = '' }) {
             ref={menuRef}
             className="action-menu-dropdown"
             role="menu"
-            style={{ top: pos.top, left: pos.left }}
+            style={pos.maxHeight ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight, overflowY: 'auto' } : { top: pos.top, left: pos.left }}
             onClick={(e) => e.stopPropagation()}
           >
             {visible.map((it, i) => (
@@ -98,6 +113,7 @@ export default function ActionMenu({ items = [], label = '' }) {
                 role="menuitem"
                 className={`action-menu-item ${it.danger ? 'danger' : ''} ${it.disabled ? 'disabled' : ''}`}
                 aria-disabled={it.disabled ? 'true' : undefined}
+                data-testid={it.testId}
                 {...tip(it.tip)}
                 onClick={(e) => {
                   e.stopPropagation();

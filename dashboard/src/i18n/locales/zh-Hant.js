@@ -10169,3 +10169,38 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// Shared tables and states (LP5.5): the default-view empty message, the load error status, and row labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "table": {
+   "noneInDefaultView": "預設檢視中沒有內容。檢視之外還有其他記錄。",
+   "showAll": "顯示全部",
+   "errorStatus": "狀態 {{status}}。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "呼叫代理"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "revisionLabel": "修訂 {{number}}"
+  }
+ },
+ "evals": {
+  "setDetail": {
+   "caseLabel": "案例 {{order}}"
+  }
+ }
+});

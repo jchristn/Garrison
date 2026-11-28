@@ -5208,3 +5208,24 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "promptsFull": "Un'app può avere al massimo {{max}} domande iniziali. Rimuovine una per aggiungerne un'altra."
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "Rimuovi i filtri predefiniti ed elenca tutti i record di questo tipo."
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Apri la pagina Invoca e avvia un'esecuzione di un agente."
+  }
+ }
+});

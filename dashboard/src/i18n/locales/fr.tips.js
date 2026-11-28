@@ -5208,3 +5208,24 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "promptsFull": "Une app accepte au plus {{max}} questions de départ. Retirez-en une pour en ajouter une autre."
  }
 });
+
+// Shared tables and states (LP5.5).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "table": {
+  "showAll": "Retirer les filtres par défaut et lister tous les enregistrements de ce type."
+ },
+ "resources": {
+  "runs": {
+   "emptyAction": "Ouvrir la page Invoquer et lancer une exécution d'un agent."
+  }
+ }
+});
