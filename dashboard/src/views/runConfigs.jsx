@@ -4,6 +4,7 @@ import CopyableId from '../components/CopyableId';
 import { Badge } from '../components/StatusBadge';
 import { ENUMS, TERMINAL_RUN_STATUSES, runStatusTone, nodeStatusTone } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
+import { trailPath } from '../components/trail/trailParts';
 import { formatDateTime, formatNumber, formatRelativeTime, formatUptime } from '../i18n/formatters';
 import ControlNodeDetail from '../components/ControlNodeDetail';
 import { ControlNodeStatus, LeaderBadge, HeartbeatAge } from '../components/ControlNodeBadges';
@@ -262,6 +263,7 @@ export const runsConfig = {
   fields: () => [],
   detailPath: (r) => pathFor('runs', r.id),
   rowActions: (r, ctx) => [
+    { label: ctx.t('trail.openTrail'), tip: ctx.t('tips.trail.openTrail'), onClick: () => ctx.navigate(trailPath(r.id)) },
     { label: ctx.t('resources.runs.actions.cancel'), tip: ctx.t('tips.resources.runs.actions.cancel'), hidden: TERMINAL_RUN_STATUSES.includes(r.status), onClick: () => act(ctx, () => ctx.apiClient.cancelRun(ctx.tenantId, r.id), 'resources.runs.toasts.cancelRequested') },
     { label: ctx.t('resources.runs.actions.retry'), tip: ctx.t('tips.resources.runs.actions.retry'), hidden: !TERMINAL_RUN_STATUSES.includes(r.status), onClick: () => act(ctx, () => ctx.apiClient.retryRun(ctx.tenantId, r.id), 'resources.runs.toasts.retried') }
   ]

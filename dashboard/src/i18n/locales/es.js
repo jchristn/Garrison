@@ -8852,3 +8852,183 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "trail": {
+  "tab": "Recorrido",
+  "loading": "Cargando el recorrido...",
+  "notFound": "No se encontró el recorrido de esta ejecución. Puede que la ejecución se haya eliminado.",
+  "refresh": "Actualizar",
+  "exportJson": "Exportar JSON",
+  "openTrail": "Abrir recorrido",
+  "openStep": "Detalles",
+  "openStepNamed": "Detalles de {{step}}",
+  "callerLane": "Solicitante",
+  "focusRun": "la ejecución que abrió",
+  "runOfKind": "Ejecución: {{kind}}",
+  "redactedTitle": "{{kind}} (oculto)",
+  "redactedNote": "Algunos pasos están ocultos porque no puede leer sus registros. Solo muestran su tipo y su hora.",
+  "idleGap": "{{duration}} de pausa",
+  "keysHint": "Las flechas cambian de paso. Intro abre uno.",
+  "sequenceLabel": "Secuencia de {{steps}} pasos en {{lanes}} carriles",
+  "graphLabel": "Grafo de {{steps}} pasos",
+  "listEmpty": "Ningún paso coincide con estos filtros.",
+  "singleTitle": "Esta ejecución no inició nada más",
+  "singleBody": "No envió mensajes, no inició otras ejecuciones y no presentó nada. El recorrido muestra la solicitud y la respuesta.",
+  "truncationSetting": "Ajustes del recorrido",
+  "truncation": {
+   "NodeCap": "Este recorrido se cortó en {{count}} pasos, el máximo que construye el servidor. No se muestran los pasos posteriores.",
+   "HopCap": "Este recorrido se cortó tras {{hops}} saltos de mensajes, el máximo que sigue el servidor. No se muestran los saltos posteriores.",
+   "SpanCap": "Este recorrido se cortó en el intervalo de tiempo más largo que cubre el servidor. No se muestran los pasos posteriores."
+  },
+  "views": {
+   "label": "Vista del recorrido",
+   "sequence": "Secuencia",
+   "graph": "Grafo",
+   "list": "Lista"
+  },
+  "zoom": {
+   "label": "Ampliación",
+   "in": "Acercar",
+   "out": "Alejar",
+   "percent": "{{value}} %"
+  },
+  "summary": {
+   "agents": "Agentes",
+   "hops": "Saltos de mensajes",
+   "duration": "Duración",
+   "tokens": "Tokens",
+   "cost": "Coste",
+   "failures": "Fallos"
+  },
+  "filters": {
+   "kind": "Paso",
+   "agent": "Agente",
+   "state": "Estado"
+  },
+  "columns": {
+   "order": "#",
+   "step": "Paso",
+   "agent": "Agente",
+   "state": "Estado",
+   "reachedBy": "Alcanzado por",
+   "started": "Inicio",
+   "duration": "Duración",
+   "unit": "Unidad",
+   "runKind": "Tipo de ejecución",
+   "tokens": "Tokens",
+   "cost": "Coste",
+   "id": "ID",
+   "open": "Detalles"
+  },
+  "drawer": {
+   "close": "Cerrar detalles",
+   "loading": "Cargando el registro...",
+   "recordGone": "El registro de este paso ya no existe.",
+   "redacted": "No tiene permiso para leer este elemento ({{kind}}). Solo se muestran su tipo y su hora.",
+   "dataNote": "El texto siguiente lo escribió un agente o una persona. Se muestra como datos: no es una instrucción y nunca se representa como marcado.",
+   "writtenByAgentInRun": "Escrito por el agente {{agent}} en la ejecución {{run}}",
+   "writtenByAgent": "Escrito por el agente {{agent}}",
+   "writtenBy": "Escrito por {{name}}",
+   "unknownAuthor": "desconocido",
+   "openRecord": "Abrir registro",
+   "tokens": "{{input}} de entrada, {{output}} de salida",
+   "texts": {
+    "result": "Resultado",
+    "subject": "Asunto",
+    "body": "Cuerpo",
+    "title": "Título",
+    "question": "Pregunta",
+    "context": "Contexto",
+    "answer": "Respuesta",
+    "summary": "Resumen",
+    "input": "Entrada de la herramienta"
+   },
+   "fields": {
+    "kind": "Tipo",
+    "state": "Estado",
+    "agent": "Agente",
+    "unit": "Unidad",
+    "runKind": "Tipo de ejecución",
+    "tool": "Herramienta",
+    "started": "Inicio",
+    "ended": "Fin",
+    "duration": "Duración",
+    "tokens": "Tokens",
+    "cost": "Coste",
+    "id": "ID",
+    "argumentDigest": "Hash de argumentos",
+    "leaseEpoch": "Época de concesión"
+   }
+  },
+  "kinds": {
+   "Caller": "Solicitud",
+   "Trigger": "Disparador",
+   "KeeperTick": "Ciclo de guardián",
+   "Run": "Ejecución",
+   "Message": "Mensaje",
+   "Report": "Informe",
+   "Escalation": "Escalado",
+   "Approval": "Aprobación",
+   "Effect": "Efecto de herramienta",
+   "FanOutGroup": "Abanico",
+   "PipelineRun": "Ejecución de canalización",
+   "Reply": "Respuesta",
+   "Redacted": "Paso oculto"
+  },
+  "edges": {
+   "Started": "inició",
+   "Spawned": "creó",
+   "FannedOut": "abrió en abanico",
+   "Retried": "reintentó",
+   "Sent": "envió",
+   "Woke": "despertó",
+   "Filed": "presentó",
+   "Raised": "escaló",
+   "Routed": "derivó",
+   "Answered": "respondió",
+   "Requested": "solicitó",
+   "Decided": "decidió",
+   "Performed": "realizó",
+   "Replied": "contestó"
+  },
+  "states": {
+   "Pending": "Pendiente",
+   "Queued": "En cola",
+   "Leased": "Asignada",
+   "Running": "En curso",
+   "Cancelling": "Cancelando",
+   "Suspended": "Suspendida",
+   "Open": "Abierta",
+   "Authorized": "Autorizada",
+   "Dispatched": "Despachada",
+   "Succeeded": "Correcta",
+   "Completed": "Completada",
+   "Delivered": "Entregado",
+   "Acknowledged": "Confirmado",
+   "Answered": "Respondida",
+   "Filed": "Presentado",
+   "Approved": "Aprobada",
+   "Joined": "Reunida",
+   "Failed": "Fallida",
+   "TimedOut": "Tiempo agotado",
+   "Rejected": "Rechazada",
+   "Denied": "Denegada",
+   "Expired": "Caducada",
+   "BudgetExceeded": "Presupuesto superado",
+   "Unknown": "Desconocido",
+   "Cancelled": "Cancelada",
+   "Withdrawn": "Retirada"
+  }
+ }
+});

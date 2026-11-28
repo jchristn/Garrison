@@ -8848,3 +8848,183 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "trail": {
+  "tab": "Percorso",
+  "loading": "Caricamento del percorso...",
+  "notFound": "Il percorso di questa esecuzione non è stato trovato. L'esecuzione potrebbe essere stata eliminata.",
+  "refresh": "Aggiorna",
+  "exportJson": "Esporta JSON",
+  "openTrail": "Apri percorso",
+  "openStep": "Dettagli",
+  "openStepNamed": "Dettagli di {{step}}",
+  "callerLane": "Richiedente",
+  "focusRun": "l'esecuzione aperta",
+  "runOfKind": "Esecuzione: {{kind}}",
+  "redactedTitle": "{{kind}} (nascosto)",
+  "redactedNote": "Alcuni passi sono nascosti perché non puoi leggerne i record. Mostrano solo il tipo e l'ora.",
+  "idleGap": "{{duration}} di pausa",
+  "keysHint": "Le frecce cambiano passo. Invio ne apre uno.",
+  "sequenceLabel": "Sequenza di {{steps}} passi in {{lanes}} corsie",
+  "graphLabel": "Grafo di {{steps}} passi",
+  "listEmpty": "Nessun passo corrisponde a questi filtri.",
+  "singleTitle": "Questa esecuzione non ha avviato nient'altro",
+  "singleBody": "Non ha inviato messaggi, non ha avviato altre esecuzioni e non ha depositato nulla. Il percorso mostra la richiesta e la risposta.",
+  "truncationSetting": "Impostazioni del percorso",
+  "truncation": {
+   "NodeCap": "Questo percorso è stato tagliato a {{count}} passi, il massimo che il server costruisce. I passi successivi non sono mostrati.",
+   "HopCap": "Questo percorso è stato tagliato dopo {{hops}} salti di messaggi, il massimo che il server segue. I salti successivi non sono mostrati.",
+   "SpanCap": "Questo percorso è stato tagliato all'intervallo di tempo più lungo coperto dal server. I passi successivi non sono mostrati."
+  },
+  "views": {
+   "label": "Vista del percorso",
+   "sequence": "Sequenza",
+   "graph": "Grafo",
+   "list": "Elenco"
+  },
+  "zoom": {
+   "label": "Ingrandimento",
+   "in": "Ingrandisci",
+   "out": "Riduci",
+   "percent": "{{value}} %"
+  },
+  "summary": {
+   "agents": "Agenti",
+   "hops": "Salti di messaggi",
+   "duration": "Durata",
+   "tokens": "Token",
+   "cost": "Costo",
+   "failures": "Errori"
+  },
+  "filters": {
+   "kind": "Passo",
+   "agent": "Agente",
+   "state": "Stato"
+  },
+  "columns": {
+   "order": "#",
+   "step": "Passo",
+   "agent": "Agente",
+   "state": "Stato",
+   "reachedBy": "Raggiunto tramite",
+   "started": "Inizio",
+   "duration": "Durata",
+   "unit": "Unità",
+   "runKind": "Tipo di esecuzione",
+   "tokens": "Token",
+   "cost": "Costo",
+   "id": "ID",
+   "open": "Dettagli"
+  },
+  "drawer": {
+   "close": "Chiudi dettagli",
+   "loading": "Caricamento del record...",
+   "recordGone": "Il record dietro questo passo non esiste più.",
+   "redacted": "Non hai il permesso di leggere questo elemento ({{kind}}). Sono mostrati solo il tipo e l'ora.",
+   "dataNote": "Il testo qui sotto è stato scritto da un agente o da una persona. È mostrato come dati: non è un'istruzione e non viene mai reso come markup.",
+   "writtenByAgentInRun": "Scritto dall'agente {{agent}} nell'esecuzione {{run}}",
+   "writtenByAgent": "Scritto dall'agente {{agent}}",
+   "writtenBy": "Scritto da {{name}}",
+   "unknownAuthor": "sconosciuto",
+   "openRecord": "Apri record",
+   "tokens": "{{input}} in ingresso, {{output}} in uscita",
+   "texts": {
+    "result": "Risultato",
+    "subject": "Oggetto",
+    "body": "Corpo",
+    "title": "Titolo",
+    "question": "Domanda",
+    "context": "Contesto",
+    "answer": "Risposta",
+    "summary": "Riepilogo",
+    "input": "Input dello strumento"
+   },
+   "fields": {
+    "kind": "Tipo",
+    "state": "Stato",
+    "agent": "Agente",
+    "unit": "Unità",
+    "runKind": "Tipo di esecuzione",
+    "tool": "Strumento",
+    "started": "Inizio",
+    "ended": "Fine",
+    "duration": "Durata",
+    "tokens": "Token",
+    "cost": "Costo",
+    "id": "ID",
+    "argumentDigest": "Hash degli argomenti",
+    "leaseEpoch": "Epoca del lease"
+   }
+  },
+  "kinds": {
+   "Caller": "Richiesta",
+   "Trigger": "Attivatore",
+   "KeeperTick": "Ciclo del custode",
+   "Run": "Esecuzione",
+   "Message": "Messaggio",
+   "Report": "Rapporto",
+   "Escalation": "Escalation",
+   "Approval": "Approvazione",
+   "Effect": "Effetto dello strumento",
+   "FanOutGroup": "Ventaglio",
+   "PipelineRun": "Esecuzione di pipeline",
+   "Reply": "Risposta",
+   "Redacted": "Passo nascosto"
+  },
+  "edges": {
+   "Started": "ha avviato",
+   "Spawned": "ha creato",
+   "FannedOut": "ha aperto a ventaglio",
+   "Retried": "ha riprovato",
+   "Sent": "ha inviato",
+   "Woke": "ha risvegliato",
+   "Filed": "ha depositato",
+   "Raised": "ha sollevato",
+   "Routed": "ha inoltrato",
+   "Answered": "ha risposto",
+   "Requested": "ha chiesto",
+   "Decided": "ha deciso",
+   "Performed": "ha eseguito",
+   "Replied": "ha restituito"
+  },
+  "states": {
+   "Pending": "In sospeso",
+   "Queued": "In coda",
+   "Leased": "Assegnata",
+   "Running": "In corso",
+   "Cancelling": "Annullamento in corso",
+   "Suspended": "Sospesa",
+   "Open": "Aperta",
+   "Authorized": "Autorizzata",
+   "Dispatched": "Inviata",
+   "Succeeded": "Riuscita",
+   "Completed": "Completata",
+   "Delivered": "Consegnato",
+   "Acknowledged": "Confermato",
+   "Answered": "Risposta data",
+   "Filed": "Depositato",
+   "Approved": "Approvata",
+   "Joined": "Ricongiunta",
+   "Failed": "Non riuscita",
+   "TimedOut": "Tempo scaduto",
+   "Rejected": "Respinta",
+   "Denied": "Negata",
+   "Expired": "Scaduta",
+   "BudgetExceeded": "Budget superato",
+   "Unknown": "Sconosciuto",
+   "Cancelled": "Annullata",
+   "Withdrawn": "Ritirata"
+  }
+ }
+});

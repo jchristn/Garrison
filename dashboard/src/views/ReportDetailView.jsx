@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
@@ -157,9 +158,12 @@ export default function ReportDetailView({ recordId }) {
         <Detail name="filedBy" t={t}>{filedByText(t, r) || '-'}</Detail>
         <Detail name="runId" t={t}>
           {r.runId ? (
-            <Link to={pathFor('runs', r.runId)} tipText={t('tips.views.reportDetail.openRun')} testId="report-run-link">
-              <code>{r.runId}</code>
-            </Link>
+            <span className="inline-meta">
+              <Link to={pathFor('runs', r.runId)} tipText={t('tips.views.reportDetail.openRun')} testId="report-run-link">
+                <code>{r.runId}</code>
+              </Link>
+              <OpenTrailLink runId={r.runId} step={r.id} testId="report-open-trail" />
+            </span>
           ) : (
             '-'
           )}

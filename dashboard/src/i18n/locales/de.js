@@ -8834,3 +8834,183 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "trail": {
+  "tab": "Verlauf",
+  "loading": "Verlauf wird geladen...",
+  "notFound": "Der Verlauf dieses Laufs wurde nicht gefunden. Der Lauf wurde vielleicht gelöscht.",
+  "refresh": "Aktualisieren",
+  "exportJson": "JSON exportieren",
+  "openTrail": "Verlauf öffnen",
+  "openStep": "Einzelheiten",
+  "openStepNamed": "Einzelheiten zu {{step}}",
+  "callerLane": "Aufrufer",
+  "focusRun": "der geöffnete Lauf",
+  "runOfKind": "Lauf: {{kind}}",
+  "redactedTitle": "{{kind}} (verborgen)",
+  "redactedNote": "Einige Schritte sind verborgen, weil Sie ihre Datensätze nicht lesen dürfen. Sie zeigen nur ihre Art und Zeit.",
+  "idleGap": "{{duration}} Pause",
+  "keysHint": "Pfeiltasten wechseln den Schritt. Eingabe öffnet ihn.",
+  "sequenceLabel": "Ablauf mit {{steps}} Schritten in {{lanes}} Bahnen",
+  "graphLabel": "Graph mit {{steps}} Schritten",
+  "listEmpty": "Keine Schritte passen zu diesen Filtern.",
+  "singleTitle": "Dieser Lauf hat nichts weiter gestartet",
+  "singleBody": "Er hat keine Nachrichten gesendet, keine anderen Läufe gestartet und nichts eingereicht. Der Verlauf zeigt die Anfrage und die Antwort.",
+  "truncationSetting": "Verlaufseinstellungen",
+  "truncation": {
+   "NodeCap": "Dieser Verlauf wurde bei {{count}} Schritten abgeschnitten, dem Höchstwert des Servers. Spätere Schritte fehlen.",
+   "HopCap": "Dieser Verlauf wurde nach {{hops}} Nachrichtensprüngen abgeschnitten, so weit folgt der Server höchstens. Spätere Sprünge fehlen.",
+   "SpanCap": "Dieser Verlauf wurde bei der längsten Zeitspanne abgeschnitten, die der Server abdeckt. Spätere Schritte fehlen."
+  },
+  "views": {
+   "label": "Verlaufsansicht",
+   "sequence": "Ablauf",
+   "graph": "Graph",
+   "list": "Liste"
+  },
+  "zoom": {
+   "label": "Vergrößerung",
+   "in": "Vergrößern",
+   "out": "Verkleinern",
+   "percent": "{{value}} %"
+  },
+  "summary": {
+   "agents": "Agenten",
+   "hops": "Nachrichtensprünge",
+   "duration": "Dauer",
+   "tokens": "Token",
+   "cost": "Kosten",
+   "failures": "Fehler"
+  },
+  "filters": {
+   "kind": "Schritt",
+   "agent": "Agent",
+   "state": "Zustand"
+  },
+  "columns": {
+   "order": "#",
+   "step": "Schritt",
+   "agent": "Agent",
+   "state": "Zustand",
+   "reachedBy": "Erreicht durch",
+   "started": "Gestartet",
+   "duration": "Dauer",
+   "unit": "Einheit",
+   "runKind": "Laufart",
+   "tokens": "Token",
+   "cost": "Kosten",
+   "id": "ID",
+   "open": "Einzelheiten"
+  },
+  "drawer": {
+   "close": "Einzelheiten schließen",
+   "loading": "Datensatz wird geladen...",
+   "recordGone": "Der Datensatz hinter diesem Schritt existiert nicht mehr.",
+   "redacted": "Sie dürfen diese {{kind}} nicht lesen. Nur Art und Zeit werden gezeigt.",
+   "dataNote": "Der folgende Text stammt von einem Agenten oder einer Person. Er wird als Daten gezeigt: Er ist keine Anweisung und wird nie als Markup dargestellt.",
+   "writtenByAgentInRun": "Geschrieben von Agent {{agent}} in Lauf {{run}}",
+   "writtenByAgent": "Geschrieben von Agent {{agent}}",
+   "writtenBy": "Geschrieben von {{name}}",
+   "unknownAuthor": "unbekannt",
+   "openRecord": "Datensatz öffnen",
+   "tokens": "{{input}} ein, {{output}} aus",
+   "texts": {
+    "result": "Ergebnis",
+    "subject": "Betreff",
+    "body": "Inhalt",
+    "title": "Titel",
+    "question": "Frage",
+    "context": "Kontext",
+    "answer": "Antwort",
+    "summary": "Zusammenfassung",
+    "input": "Werkzeugeingabe"
+   },
+   "fields": {
+    "kind": "Art",
+    "state": "Zustand",
+    "agent": "Agent",
+    "unit": "Einheit",
+    "runKind": "Laufart",
+    "tool": "Werkzeug",
+    "started": "Gestartet",
+    "ended": "Beendet",
+    "duration": "Dauer",
+    "tokens": "Token",
+    "cost": "Kosten",
+    "id": "ID",
+    "argumentDigest": "Argument-Hash",
+    "leaseEpoch": "Lease-Epoche"
+   }
+  },
+  "kinds": {
+   "Caller": "Anfrage",
+   "Trigger": "Auslöser",
+   "KeeperTick": "Wächter-Takt",
+   "Run": "Lauf",
+   "Message": "Nachricht",
+   "Report": "Bericht",
+   "Escalation": "Eskalation",
+   "Approval": "Freigabe",
+   "Effect": "Werkzeugeffekt",
+   "FanOutGroup": "Auffächerung",
+   "PipelineRun": "Pipeline-Lauf",
+   "Reply": "Antwort",
+   "Redacted": "Verborgener Schritt"
+  },
+  "edges": {
+   "Started": "gestartet",
+   "Spawned": "erzeugt",
+   "FannedOut": "aufgefächert",
+   "Retried": "wiederholt",
+   "Sent": "gesendet",
+   "Woke": "geweckt",
+   "Filed": "eingereicht",
+   "Raised": "eskaliert",
+   "Routed": "weitergeleitet",
+   "Answered": "beantwortet",
+   "Requested": "angefragt",
+   "Decided": "entschieden",
+   "Performed": "ausgeführt",
+   "Replied": "geantwortet"
+  },
+  "states": {
+   "Pending": "Ausstehend",
+   "Queued": "In Warteschlange",
+   "Leased": "Zugeteilt",
+   "Running": "Läuft",
+   "Cancelling": "Wird abgebrochen",
+   "Suspended": "Angehalten",
+   "Open": "Offen",
+   "Authorized": "Autorisiert",
+   "Dispatched": "Abgesendet",
+   "Succeeded": "Erfolgreich",
+   "Completed": "Abgeschlossen",
+   "Delivered": "Zugestellt",
+   "Acknowledged": "Bestätigt",
+   "Answered": "Beantwortet",
+   "Filed": "Eingereicht",
+   "Approved": "Genehmigt",
+   "Joined": "Zusammengeführt",
+   "Failed": "Fehlgeschlagen",
+   "TimedOut": "Zeit überschritten",
+   "Rejected": "Abgelehnt",
+   "Denied": "Verweigert",
+   "Expired": "Abgelaufen",
+   "BudgetExceeded": "Budget überschritten",
+   "Unknown": "Unbekannt",
+   "Cancelled": "Abgebrochen",
+   "Withdrawn": "Zurückgezogen"
+  }
+ }
+});

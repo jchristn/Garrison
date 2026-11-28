@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
@@ -278,7 +279,9 @@ export default function EscalationDetailView({ recordId }) {
             '-'
           )}
         </Detail>
-        <Detail name="raisingRunId" t={t}>{runLink(e.raisingRunId, 'escalation-run-link')}</Detail>
+        <Detail name="raisingRunId" t={t}>
+          {runLink(e.raisingRunId, 'escalation-run-link')} <OpenTrailLink runId={e.raisingRunId} step={e.id} testId="escalation-open-trail" />
+        </Detail>
         <Detail name="mandate" t={t}>
           {e.mandateId ? (
             <Link to={pathFor('keepers', e.mandateId)} tipText={keeperName ? t('tips.views.escalationDetail.openKeeperNamed', { id: e.mandateId }) : t('tips.views.escalationDetail.openKeeper')} testId="escalation-keeper-link">

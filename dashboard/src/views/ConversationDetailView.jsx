@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import TranscriptExportMenu from '../components/TranscriptExportMenu';
@@ -280,7 +281,11 @@ export default function ConversationDetailView({ recordId }) {
                 items={turns}
                 columns={[
                   { key: 'turn', label: t('views.conversationDetail.columns.turn'), tip: t('tips.views.conversationDetail.columns.turn'), headerClass: 'right', cellClass: 'right', render: (r) => formatNumber(r.conversationTurn ?? 0, {}, lng) },
-                  { key: 'run', label: t('views.conversationDetail.columns.run'), tip: t('tips.views.conversationDetail.columns.run'), cellClass: 'cell-id', render: (r) => runLink(r.id) },
+                  { key: 'run', label: t('views.conversationDetail.columns.run'), tip: t('tips.views.conversationDetail.columns.run'), cellClass: 'cell-id', render: (r) => (
+                      <span className="inline-meta">
+                        {runLink(r.id)} <OpenTrailLink runId={r.id} step={r.id} testId="conversation-turn-trail" />
+                      </span>
+                    ) },
                   { key: 'status', label: t('views.conversationDetail.columns.status'), tip: t('tips.views.conversationDetail.columns.status'), render: (r) => <RunStatus status={r.status} t={t} /> },
                   { key: 'outcome', label: t('views.conversationDetail.columns.outcome'), tip: t('tips.views.conversationDetail.columns.outcome'), defaultHidden: true, render: (r) => (r.outcome && r.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', r.outcome))}>{enumLabel(t, 'runOutcome', r.outcome)}</span> : '-') },
                   { key: 'session', label: t('views.conversationDetail.columns.session'), tip: t('tips.views.conversationDetail.columns.session'), render: (r) => <TurnSession run={r} t={t} /> },

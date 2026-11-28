@@ -4813,3 +4813,121 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "harness": "Le CLI de harness ou l'API HTTP exécuté par cette connexion. En choisir un remplit ses valeurs par défaut ; Harness personnalisé part d'un profil vide."
  }
 });
+
+// Tooltips for the activity trail (LP2): views, summary, filters, columns, the step drawer, step kinds, and link kinds.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "tab": "Suivez cette demande à travers chaque agent : messages, exécutions enfants, rapports, escalades, approbations et effets d'outils, de la demande de départ jusqu'à la réponse.",
+  "refresh": "Recharger le parcours maintenant. Tant qu'une étape est en cours, il se rafraîchit aussi à l'intervalle choisi à côté de ce bouton.",
+  "exportJson": "Télécharger le parcours en JSON : étapes, liens, états, heures, jetons et coût. Il ne contient aucun texte écrit par des agents.",
+  "openTrail": "Ouvrir le parcours d'activité de cette exécution avec cette étape sélectionnée, pour voir ce qui y a mené et ce qui en a découlé.",
+  "openStep": "Ouvrir les détails de cette étape : son état, ses heures, son coût et l'enregistrement qui se trouve derrière.",
+  "keysHint": "Tab atteint l'étape sélectionnée. Haut et Bas parcourent les étapes dans l'ordre chronologique, Gauche et Droite passent au couloir voisin, Début et Fin vont à la première et à la dernière étape, et Entrée ouvre les détails.",
+  "truncationSetting": "Ouvrir les paramètres, où un administrateur peut changer le nombre d'étapes, de sauts de messages et d'heures que peut couvrir un parcours.",
+  "views": {
+   "sequence": "Un couloir par agent, le temps s'écoulant vers le bas. Idéal pour lire une demande du début jusqu'à la réponse.",
+   "graph": "Chaque étape une colonne après sa cause. Idéal pour voir d'un coup d'œil les éventails et les boucles.",
+   "list": "Chaque étape sous forme de ligne de tableau à filtrer et à trier. Elle contient les mêmes informations que les diagrammes."
+  },
+  "zoom": {
+   "in": "Agrandir la séquence. Faites glisser le fond vide ou faites défiler pour vous déplacer.",
+   "out": "Réduire la séquence pour voir plus d'étapes à la fois.",
+   "reset": "Remettre l'échelle à 100 pour cent."
+  },
+  "summary": {
+   "agents": "Combien d'agents différents ont pris part à ce parcours.",
+   "hops": "Combien de messages sont passés d'un agent à l'autre en chemin. Le serveur cesse de les suivre à sa limite de sauts.",
+   "duration": "Temps écoulé entre le début de la première étape et la fin de la dernière.",
+   "tokens": "Jetons d'entrée et de sortie additionnés sur toutes les exécutions du parcours.",
+   "cost": "Coût en dollars américains additionné sur toutes les exécutions du parcours qui en ont déclaré un.",
+   "failures": "Étapes qui ont échoué, dépassé leur délai, expiré, ou ont été rejetées ou refusées."
+  },
+  "filters": {
+   "kind": "N'afficher que les étapes d'une nature, comme les messages ou les exécutions.",
+   "agent": "N'afficher que les étapes du couloir d'un agent ou du demandeur.",
+   "state": "N'afficher que les étapes dans un état, comme Échouée."
+  },
+  "columns": {
+   "order": "La position de l'étape dans l'ordre chronologique, en comptant depuis la demande.",
+   "step": "Ce qu'est l'étape : une exécution et son type, un message, un rapport, un effet d'outil, etc.",
+   "agent": "L'agent dans le couloir duquel se trouve l'étape, ou Demandeur pour la demande et la réponse.",
+   "state": "L'état de l'étape, avec une icône et un libellé.",
+   "reachedBy": "Comment le parcours est arrivé à cette étape depuis celle qui l'a causée, par exemple a envoyé ou a réveillé.",
+   "started": "Quand l'étape a commencé.",
+   "duration": "Combien de temps l'étape a duré, une fois terminée.",
+   "unit": "L'unité de l'organisation à laquelle appartenait l'agent au début de l'étape.",
+   "runKind": "Pour une exécution, comment elle a commencé : invoquée, déléguée, réveillée par un message, lancée par un gardien, etc.",
+   "tokens": "Jetons d'entrée plus jetons de sortie d'une exécution.",
+   "cost": "Coût d'une exécution en dollars américains, déclaré ou estimé.",
+   "id": "L'ID de l'enregistrement derrière l'étape. Copiez-le pour retrouver l'enregistrement ailleurs.",
+   "open": "Ouvrir les détails d'une étape à côté du parcours."
+  },
+  "drawer": {
+   "close": "Fermer les détails et revenir à l'étape dans le parcours.",
+   "provenance": "Qui a écrit ce texte et dans quelle exécution. Le texte d'un agent est une donnée issue de cette exécution, pas une instruction qui vous est adressée.",
+   "openRecord": "Ouvrir la page de l'enregistrement derrière cette étape.",
+   "fields": {
+    "kind": "La nature de cette étape.",
+    "state": "L'état de l'étape au chargement du parcours.",
+    "agent": "L'agent qui a réalisé cette étape, ou la personne ou le demandeur derrière une demande.",
+    "unit": "L'unité de l'organisation à laquelle appartenait l'agent au début de l'étape.",
+    "runKind": "Comment l'exécution a commencé : invoquée, déléguée, réveillée par un message, lancée par un gardien, etc.",
+    "tool": "L'outil Garrison que l'exécution a appelé. Ses arguments ne sont jamais affichés ici.",
+    "started": "Quand cette étape a commencé.",
+    "ended": "Quand cette étape s'est terminée.",
+    "duration": "Combien de temps cette étape a duré du début à la fin.",
+    "tokens": "Jetons d'entrée et de sortie de cette exécution.",
+    "cost": "Coût de cette exécution en dollars américains.",
+    "id": "L'ID de l'enregistrement derrière cette étape.",
+    "argumentDigest": "Une empreinte des arguments de l'outil. Le journal des effets la conserve pour reconnaître une répétition sans stocker les arguments.",
+    "leaseEpoch": "L'époque du bail de l'exécution au moment de l'appel. Un appel issu d'une époque plus ancienne est refusé."
+   }
+  },
+  "states": {
+   "running": "{{state}} : cette étape est encore en cours.",
+   "success": "{{state}} : cette étape s'est terminée comme prévu.",
+   "danger": "{{state}} : cette étape a échoué ou a été refusée.",
+   "neutral": "{{state}} : cette étape a été arrêtée avant la fin."
+  },
+  "kinds": {
+   "Caller": "La personne, le client de l'API ou le canal qui a envoyé la demande par laquelle commence ce parcours.",
+   "Trigger": "Un déclencheur, comme une planification ou un webhook, qui a lancé la première exécution.",
+   "KeeperTick": "Un gardien s'est réveillé selon sa planification et a lancé une exécution.",
+   "Run": "Une exécution d'un agent : un seul lancement de son harness.",
+   "Message": "Un message d'un agent à un autre. Il peut réveiller le destinataire dans une nouvelle exécution.",
+   "Report": "Un rapport qu'un agent a déposé pour son responsable ou pour le conseil.",
+   "Escalation": "Une question qu'un agent a posée à une personne ou à un autre agent parce qu'il était bloqué.",
+   "Approval": "Une demande d'autorisation faite par une exécution avant d'utiliser un outil.",
+   "Effect": "Un appel d'outil qui a changé quelque chose, consigné dans le journal des effets.",
+   "FanOutGroup": "Un groupe d'exécutions enfants qu'une exécution a lancées en même temps et attendues.",
+   "PipelineRun": "L'exécution de pipeline dont cette exécution était une étape.",
+   "Reply": "La réponse renvoyée au demandeur quand la première exécution s'est terminée.",
+   "Redacted": "Une étape que vous ne pouvez pas lire. Seules sa nature et son heure sont affichées."
+  },
+  "edges": {
+   "Started": "Le demandeur, le déclencheur ou le gardien a lancé cette exécution.",
+   "Spawned": "Une exécution ou un éventail a lancé cette exécution enfant.",
+   "FannedOut": "L'exécution a lancé en même temps un groupe d'exécutions enfants.",
+   "Retried": "Cette exécution réessaie l'exécution échouée qui la précède.",
+   "Sent": "L'exécution a envoyé ce message.",
+   "Woke": "Le message a réveillé son destinataire dans une nouvelle exécution.",
+   "Filed": "L'exécution a déposé ce rapport.",
+   "Raised": "L'exécution a soulevé cette escalade.",
+   "Routed": "L'escalade a été transmise à l'exécution d'un autre agent.",
+   "Answered": "La réponse à l'escalade est revenue à l'exécution.",
+   "Requested": "L'exécution a demandé cette approbation.",
+   "Decided": "Une personne ou une règle a statué sur cette approbation.",
+   "Performed": "L'exécution a effectué cet effet d'outil.",
+   "Replied": "La réponse de l'exécution est revenue au demandeur."
+  }
+ }
+});

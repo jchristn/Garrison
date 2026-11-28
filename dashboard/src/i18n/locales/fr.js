@@ -8848,3 +8848,183 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "trail": {
+  "tab": "Parcours",
+  "loading": "Chargement du parcours...",
+  "notFound": "Le parcours de cette exécution est introuvable. L'exécution a peut-être été supprimée.",
+  "refresh": "Actualiser",
+  "exportJson": "Exporter en JSON",
+  "openTrail": "Ouvrir le parcours",
+  "openStep": "Détails",
+  "openStepNamed": "Détails de {{step}}",
+  "callerLane": "Demandeur",
+  "focusRun": "l'exécution ouverte",
+  "runOfKind": "Exécution : {{kind}}",
+  "redactedTitle": "{{kind}} (masqué)",
+  "redactedNote": "Certaines étapes sont masquées, car vous ne pouvez pas lire leurs enregistrements. Elles n'affichent que leur nature et leur heure.",
+  "idleGap": "{{duration}} d'inactivité",
+  "keysHint": "Les flèches changent d'étape. Entrée en ouvre une.",
+  "sequenceLabel": "Séquence de {{steps}} étapes sur {{lanes}} couloirs",
+  "graphLabel": "Graphe de {{steps}} étapes",
+  "listEmpty": "Aucune étape ne correspond à ces filtres.",
+  "singleTitle": "Cette exécution n'a rien lancé d'autre",
+  "singleBody": "Elle n'a envoyé aucun message, lancé aucune autre exécution ni déposé quoi que ce soit. Le parcours montre la demande et la réponse.",
+  "truncationSetting": "Paramètres du parcours",
+  "truncation": {
+   "NodeCap": "Ce parcours a été coupé à {{count}} étapes, le maximum que construit le serveur. Les étapes suivantes ne sont pas affichées.",
+   "HopCap": "Ce parcours a été coupé après {{hops}} sauts de messages, le maximum que suit le serveur. Les sauts suivants ne sont pas affichés.",
+   "SpanCap": "Ce parcours a été coupé à la plus longue durée que couvre le serveur. Les étapes suivantes ne sont pas affichées."
+  },
+  "views": {
+   "label": "Vue du parcours",
+   "sequence": "Séquence",
+   "graph": "Graphe",
+   "list": "Liste"
+  },
+  "zoom": {
+   "label": "Échelle",
+   "in": "Agrandir",
+   "out": "Réduire",
+   "percent": "{{value}} %"
+  },
+  "summary": {
+   "agents": "Agents",
+   "hops": "Sauts de messages",
+   "duration": "Durée",
+   "tokens": "Jetons",
+   "cost": "Coût",
+   "failures": "Échecs"
+  },
+  "filters": {
+   "kind": "Étape",
+   "agent": "Agent",
+   "state": "État"
+  },
+  "columns": {
+   "order": "#",
+   "step": "Étape",
+   "agent": "Agent",
+   "state": "État",
+   "reachedBy": "Atteinte par",
+   "started": "Début",
+   "duration": "Durée",
+   "unit": "Unité",
+   "runKind": "Type d'exécution",
+   "tokens": "Jetons",
+   "cost": "Coût",
+   "id": "ID",
+   "open": "Détails"
+  },
+  "drawer": {
+   "close": "Fermer les détails",
+   "loading": "Chargement de l'enregistrement...",
+   "recordGone": "L'enregistrement derrière cette étape n'existe plus.",
+   "redacted": "Vous n'avez pas le droit de lire cet élément ({{kind}}). Seules sa nature et son heure sont affichées.",
+   "dataNote": "Le texte ci-dessous a été écrit par un agent ou une personne. Il est affiché comme des données : ce n'est pas une instruction, et il n'est jamais rendu comme du balisage.",
+   "writtenByAgentInRun": "Écrit par l'agent {{agent}} dans l'exécution {{run}}",
+   "writtenByAgent": "Écrit par l'agent {{agent}}",
+   "writtenBy": "Écrit par {{name}}",
+   "unknownAuthor": "inconnu",
+   "openRecord": "Ouvrir l'enregistrement",
+   "tokens": "{{input}} en entrée, {{output}} en sortie",
+   "texts": {
+    "result": "Résultat",
+    "subject": "Objet",
+    "body": "Corps",
+    "title": "Titre",
+    "question": "Question",
+    "context": "Contexte",
+    "answer": "Réponse",
+    "summary": "Résumé",
+    "input": "Entrée de l'outil"
+   },
+   "fields": {
+    "kind": "Nature",
+    "state": "État",
+    "agent": "Agent",
+    "unit": "Unité",
+    "runKind": "Type d'exécution",
+    "tool": "Outil",
+    "started": "Début",
+    "ended": "Fin",
+    "duration": "Durée",
+    "tokens": "Jetons",
+    "cost": "Coût",
+    "id": "ID",
+    "argumentDigest": "Empreinte des arguments",
+    "leaseEpoch": "Époque du bail"
+   }
+  },
+  "kinds": {
+   "Caller": "Demande",
+   "Trigger": "Déclencheur",
+   "KeeperTick": "Cycle de gardien",
+   "Run": "Exécution",
+   "Message": "Message",
+   "Report": "Rapport",
+   "Escalation": "Escalade",
+   "Approval": "Approbation",
+   "Effect": "Effet d'outil",
+   "FanOutGroup": "Éventail",
+   "PipelineRun": "Exécution de pipeline",
+   "Reply": "Réponse",
+   "Redacted": "Étape masquée"
+  },
+  "edges": {
+   "Started": "a lancé",
+   "Spawned": "a créé",
+   "FannedOut": "a déployé",
+   "Retried": "a réessayé",
+   "Sent": "a envoyé",
+   "Woke": "a réveillé",
+   "Filed": "a déposé",
+   "Raised": "a escaladé",
+   "Routed": "a transmis",
+   "Answered": "a répondu",
+   "Requested": "a demandé",
+   "Decided": "a décidé",
+   "Performed": "a effectué",
+   "Replied": "a renvoyé"
+  },
+  "states": {
+   "Pending": "En attente",
+   "Queued": "En file",
+   "Leased": "Attribuée",
+   "Running": "En cours",
+   "Cancelling": "Annulation en cours",
+   "Suspended": "Suspendue",
+   "Open": "Ouverte",
+   "Authorized": "Autorisée",
+   "Dispatched": "Expédiée",
+   "Succeeded": "Réussie",
+   "Completed": "Terminée",
+   "Delivered": "Remis",
+   "Acknowledged": "Accusé",
+   "Answered": "Répondue",
+   "Filed": "Déposé",
+   "Approved": "Approuvée",
+   "Joined": "Regroupée",
+   "Failed": "Échouée",
+   "TimedOut": "Délai dépassé",
+   "Rejected": "Rejetée",
+   "Denied": "Refusée",
+   "Expired": "Expirée",
+   "BudgetExceeded": "Budget dépassé",
+   "Unknown": "Inconnu",
+   "Cancelled": "Annulée",
+   "Withdrawn": "Retirée"
+  }
+ }
+});

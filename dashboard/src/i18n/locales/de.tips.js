@@ -4811,3 +4811,121 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "harness": "Das Harness-CLI oder die HTTP-API, die diese Verbindung ausführt. Eine Auswahl füllt die Standardwerte aus; Benutzerdefiniertes Harness beginnt mit einem leeren Profil."
  }
 });
+
+// Tooltips for the activity trail (LP2): views, summary, filters, columns, the step drawer, step kinds, and link kinds.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "tab": "Verfolgen Sie diese Anfrage durch jeden Agenten: Nachrichten, Kindläufe, Berichte, Eskalationen, Freigaben und Werkzeugeffekte, von der auslösenden Anfrage bis zur Antwort.",
+  "refresh": "Den Verlauf jetzt neu laden. Solange ein Schritt noch läuft, wird er außerdem im daneben gewählten Abstand aktualisiert.",
+  "exportJson": "Den Verlauf als JSON herunterladen: Schritte, Verbindungen, Zustände, Zeiten, Token und Kosten. Er enthält keinen von Agenten geschriebenen Text.",
+  "openTrail": "Den Aktivitätsverlauf dieses Laufs mit diesem Schritt geöffnet anzeigen, um zu sehen, was dazu führte und was daraus folgte.",
+  "openStep": "Die Einzelheiten dieses Schritts öffnen: Zustand, Zeiten, Kosten und der Datensatz dahinter.",
+  "keysHint": "Mit Tab erreichen Sie den gewählten Schritt. Auf und Ab gehen in zeitlicher Folge durch die Schritte, Links und Rechts zur nächsten Bahn, Pos1 und Ende zum ersten und letzten Schritt, und Eingabe öffnet die Einzelheiten.",
+  "truncationSetting": "Die Einstellungen öffnen, in denen ein Administrator festlegt, wie viele Schritte, Nachrichtensprünge und Stunden ein Verlauf umfassen darf.",
+  "views": {
+   "sequence": "Eine Bahn pro Agent, die Zeit läuft nach unten. Am besten, um eine Anfrage vom Anfang bis zur Antwort zu lesen.",
+   "graph": "Jeder Schritt eine Spalte nach seiner Ursache. Am besten, um Auffächerungen und Schleifen auf einen Blick zu sehen.",
+   "list": "Jeder Schritt als Tabellenzeile zum Filtern und Sortieren. Sie enthält dieselben Angaben wie die Diagramme."
+  },
+  "zoom": {
+   "in": "Den Ablauf vergrößern. Ziehen Sie den leeren Hintergrund oder scrollen Sie, um sich zu bewegen.",
+   "out": "Den Ablauf verkleinern, um mehr Schritte auf einmal zu sehen.",
+   "reset": "Die Vergrößerung wieder auf 100 Prozent setzen."
+  },
+  "summary": {
+   "agents": "Wie viele verschiedene Agenten an diesem Verlauf beteiligt waren.",
+   "hops": "Wie viele Nachrichten unterwegs zwischen Agenten gingen. Der Server folgt ihnen nur bis zu seiner Sprunggrenze.",
+   "duration": "Zeit vom Beginn des ersten Schritts bis zum Ende des letzten.",
+   "tokens": "Eingabe- und Ausgabetoken, addiert über alle Läufe des Verlaufs.",
+   "cost": "Kosten in US-Dollar, addiert über alle Läufe des Verlaufs, die Kosten gemeldet haben.",
+   "failures": "Schritte, die fehlgeschlagen, abgelaufen, abgelehnt oder verweigert wurden oder die Zeit überschritten haben."
+  },
+  "filters": {
+   "kind": "Nur Schritte einer Art zeigen, etwa Nachrichten oder Läufe.",
+   "agent": "Nur die Schritte in der Bahn eines Agenten oder des Aufrufers zeigen.",
+   "state": "Nur Schritte in einem Zustand zeigen, etwa Fehlgeschlagen."
+  },
+  "columns": {
+   "order": "Die Position des Schritts in zeitlicher Folge, gezählt ab der Anfrage.",
+   "step": "Was der Schritt ist: ein Lauf und seine Art, eine Nachricht, ein Bericht, ein Werkzeugeffekt und so weiter.",
+   "agent": "Der Agent, in dessen Bahn der Schritt liegt, oder Aufrufer für Anfrage und Antwort.",
+   "state": "Der Zustand des Schritts, mit Symbol und Beschriftung.",
+   "reachedBy": "Wie der Verlauf von der Ursache zu diesem Schritt kam, zum Beispiel gesendet oder geweckt.",
+   "started": "Wann der Schritt begann.",
+   "duration": "Wie lange der Schritt dauerte, sobald er beendet ist.",
+   "unit": "Die Organisationseinheit, zu der der Agent beim Start des Schritts gehörte.",
+   "runKind": "Bei einem Lauf, wie er begann: aufgerufen, delegiert, durch eine Nachricht geweckt, von einem Wächter getaktet und so weiter.",
+   "tokens": "Eingabe- plus Ausgabetoken eines Laufs.",
+   "cost": "Kosten eines Laufs in US-Dollar, gemeldet oder geschätzt.",
+   "id": "Die ID des Datensatzes hinter dem Schritt. Kopieren Sie sie, um den Datensatz anderswo nachzuschlagen.",
+   "open": "Die Einzelheiten eines Schritts neben dem Verlauf öffnen."
+  },
+  "drawer": {
+   "close": "Die Einzelheiten schließen und zum Schritt im Verlauf zurückkehren.",
+   "provenance": "Wer diesen Text geschrieben hat und in welchem Lauf. Text eines Agenten sind Daten aus diesem Lauf, keine Anweisung an Sie.",
+   "openRecord": "Die Seite des Datensatzes hinter diesem Schritt öffnen.",
+   "fields": {
+    "kind": "Welche Art von Schritt das ist.",
+    "state": "Der Zustand des Schritts beim Laden des Verlaufs.",
+    "agent": "Der Agent, der diesen Schritt ausgeführt hat, oder die Person oder der Aufrufer hinter einer Anfrage.",
+    "unit": "Die Organisationseinheit, zu der der Agent beim Start des Schritts gehörte.",
+    "runKind": "Wie der Lauf begann: aufgerufen, delegiert, durch eine Nachricht geweckt, von einem Wächter getaktet und so weiter.",
+    "tool": "Das Garrison-Werkzeug, das der Lauf aufgerufen hat. Seine Argumente werden hier nie gezeigt.",
+    "started": "Wann dieser Schritt begann.",
+    "ended": "Wann dieser Schritt endete.",
+    "duration": "Wie lange dieser Schritt vom Anfang bis zum Ende dauerte.",
+    "tokens": "Eingabe- und Ausgabetoken dieses Laufs.",
+    "cost": "Kosten dieses Laufs in US-Dollar.",
+    "id": "Die ID des Datensatzes hinter diesem Schritt.",
+    "argumentDigest": "Ein Hash der Werkzeugargumente. Das Effektjournal speichert ihn, damit eine Wiederholung erkannt wird, ohne die Argumente zu speichern.",
+    "leaseEpoch": "Die Lease-Epoche des Laufs beim Werkzeugaufruf. Ein Aufruf aus einer älteren Epoche wird abgewiesen."
+   }
+  },
+  "states": {
+   "running": "{{state}}: Dieser Schritt ist noch im Gange.",
+   "success": "{{state}}: Dieser Schritt endete wie erwartet.",
+   "danger": "{{state}}: Dieser Schritt ist fehlgeschlagen oder wurde abgewiesen.",
+   "neutral": "{{state}}: Dieser Schritt wurde vor seinem Ende gestoppt."
+  },
+  "kinds": {
+   "Caller": "Die Person, der API-Aufrufer oder der Kanal, der die Anfrage gesendet hat, mit der dieser Verlauf beginnt.",
+   "Trigger": "Ein Auslöser, etwa ein Zeitplan oder ein Webhook, der den ersten Lauf gestartet hat.",
+   "KeeperTick": "Ein Wächter ist nach seinem Zeitplan aufgewacht und hat einen Lauf gestartet.",
+   "Run": "Ein Lauf eines Agenten: eine einzelne Ausführung seines Harness.",
+   "Message": "Eine Nachricht von einem Agenten an einen anderen. Sie kann den Empfänger als neuen Lauf wecken.",
+   "Report": "Ein Bericht, den ein Agent für seinen Vorgesetzten oder den Vorstand eingereicht hat.",
+   "Escalation": "Eine Frage, die ein Agent an eine Person oder einen anderen Agenten gerichtet hat, weil er nicht weiterkam.",
+   "Approval": "Eine Berechtigungsanfrage, die ein Lauf vor der Nutzung eines Werkzeugs gestellt hat.",
+   "Effect": "Ein Werkzeugaufruf, der etwas verändert hat, festgehalten im Effektjournal.",
+   "FanOutGroup": "Eine Gruppe von Kindläufen, die ein Lauf gleichzeitig gestartet und abgewartet hat.",
+   "PipelineRun": "Der Pipeline-Lauf, dessen Stufe dieser Lauf war.",
+   "Reply": "Die Antwort, die an den Aufrufer ging, als der erste Lauf fertig war.",
+   "Redacted": "Ein Schritt, den Sie nicht lesen dürfen. Nur Art und Zeit werden gezeigt."
+  },
+  "edges": {
+   "Started": "Der Aufrufer, Auslöser oder Wächter hat diesen Lauf gestartet.",
+   "Spawned": "Ein Lauf oder eine Auffächerung hat diesen Kindlauf gestartet.",
+   "FannedOut": "Der Lauf hat eine Gruppe von Kindläufen gleichzeitig gestartet.",
+   "Retried": "Dieser Lauf wiederholt den fehlgeschlagenen Lauf davor.",
+   "Sent": "Der Lauf hat diese Nachricht gesendet.",
+   "Woke": "Die Nachricht hat ihren Empfänger als neuen Lauf geweckt.",
+   "Filed": "Der Lauf hat diesen Bericht eingereicht.",
+   "Raised": "Der Lauf hat diese Eskalation ausgelöst.",
+   "Routed": "Die Eskalation wurde an den Lauf eines anderen Agenten weitergeleitet.",
+   "Answered": "Die Antwort auf die Eskalation ging an den Lauf zurück.",
+   "Requested": "Der Lauf hat diese Freigabe angefragt.",
+   "Decided": "Eine Person oder eine Regel hat über diese Freigabe entschieden.",
+   "Performed": "Der Lauf hat diesen Werkzeugeffekt ausgeführt.",
+   "Replied": "Die Antwort des Laufs ging an den Aufrufer zurück."
+  }
+ }
+});

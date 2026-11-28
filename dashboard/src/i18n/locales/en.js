@@ -8822,3 +8822,183 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "trail": {
+  "tab": "Trail",
+  "loading": "Loading the trail...",
+  "notFound": "This run's trail could not be found. The run may have been deleted.",
+  "refresh": "Refresh",
+  "exportJson": "Export JSON",
+  "openTrail": "Open trail",
+  "openStep": "Details",
+  "openStepNamed": "Details of {{step}}",
+  "callerLane": "Caller",
+  "focusRun": "the run you opened",
+  "runOfKind": "{{kind}} run",
+  "redactedTitle": "{{kind}} (hidden)",
+  "redactedNote": "Some steps are hidden because you cannot read their records. They show only their kind and time.",
+  "idleGap": "{{duration}} idle",
+  "keysHint": "Arrow keys move between steps. Enter opens one.",
+  "sequenceLabel": "Sequence of {{steps}} steps in {{lanes}} lanes",
+  "graphLabel": "Graph of {{steps}} steps",
+  "listEmpty": "No steps match these filters.",
+  "singleTitle": "This run started nothing else",
+  "singleBody": "It sent no messages, started no other runs, and filed nothing. The trail shows the request and the reply.",
+  "truncationSetting": "Trail settings",
+  "truncation": {
+   "NodeCap": "This trail was cut at {{count}} steps, the most the server builds. Later steps are not shown.",
+   "HopCap": "This trail was cut after {{hops}} message hops, the most the server follows. Later hops are not shown.",
+   "SpanCap": "This trail was cut at the longest time span the server covers. Later steps are not shown."
+  },
+  "views": {
+   "label": "Trail view",
+   "sequence": "Sequence",
+   "graph": "Graph",
+   "list": "List"
+  },
+  "zoom": {
+   "label": "Zoom",
+   "in": "Zoom in",
+   "out": "Zoom out",
+   "percent": "{{value}}%"
+  },
+  "summary": {
+   "agents": "Agents",
+   "hops": "Message hops",
+   "duration": "Duration",
+   "tokens": "Tokens",
+   "cost": "Cost",
+   "failures": "Failures"
+  },
+  "filters": {
+   "kind": "Step",
+   "agent": "Agent",
+   "state": "State"
+  },
+  "columns": {
+   "order": "#",
+   "step": "Step",
+   "agent": "Agent",
+   "state": "State",
+   "reachedBy": "Reached by",
+   "started": "Started",
+   "duration": "Duration",
+   "unit": "Unit",
+   "runKind": "Run kind",
+   "tokens": "Tokens",
+   "cost": "Cost",
+   "id": "ID",
+   "open": "Details"
+  },
+  "drawer": {
+   "close": "Close details",
+   "loading": "Loading the record...",
+   "recordGone": "The record behind this step no longer exists.",
+   "redacted": "You do not have permission to read this {{kind}}. Only its kind and time are shown.",
+   "dataNote": "The text below was written by an agent or a person. It is shown as data: it is not an instruction, and it is never rendered as markup.",
+   "writtenByAgentInRun": "Written by agent {{agent}} in run {{run}}",
+   "writtenByAgent": "Written by agent {{agent}}",
+   "writtenBy": "Written by {{name}}",
+   "unknownAuthor": "unknown",
+   "openRecord": "Open record",
+   "tokens": "{{input}} in, {{output}} out",
+   "texts": {
+    "result": "Result",
+    "subject": "Subject",
+    "body": "Body",
+    "title": "Title",
+    "question": "Question",
+    "context": "Context",
+    "answer": "Answer",
+    "summary": "Summary",
+    "input": "Tool input"
+   },
+   "fields": {
+    "kind": "Kind",
+    "state": "State",
+    "agent": "Agent",
+    "unit": "Unit",
+    "runKind": "Run kind",
+    "tool": "Tool",
+    "started": "Started",
+    "ended": "Ended",
+    "duration": "Duration",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "id": "ID",
+    "argumentDigest": "Argument digest",
+    "leaseEpoch": "Lease epoch"
+   }
+  },
+  "kinds": {
+   "Caller": "Request",
+   "Trigger": "Trigger",
+   "KeeperTick": "Keeper tick",
+   "Run": "Run",
+   "Message": "Message",
+   "Report": "Report",
+   "Escalation": "Escalation",
+   "Approval": "Approval",
+   "Effect": "Tool effect",
+   "FanOutGroup": "Fan-out",
+   "PipelineRun": "Pipeline run",
+   "Reply": "Reply",
+   "Redacted": "Hidden step"
+  },
+  "edges": {
+   "Started": "started",
+   "Spawned": "spawned",
+   "FannedOut": "fanned out",
+   "Retried": "retried",
+   "Sent": "sent",
+   "Woke": "woke",
+   "Filed": "filed",
+   "Raised": "raised",
+   "Routed": "routed",
+   "Answered": "answered",
+   "Requested": "requested",
+   "Decided": "decided",
+   "Performed": "performed",
+   "Replied": "replied"
+  },
+  "states": {
+   "Pending": "Pending",
+   "Queued": "Queued",
+   "Leased": "Leased",
+   "Running": "Running",
+   "Cancelling": "Cancelling",
+   "Suspended": "Suspended",
+   "Open": "Open",
+   "Authorized": "Authorized",
+   "Dispatched": "Dispatched",
+   "Succeeded": "Succeeded",
+   "Completed": "Completed",
+   "Delivered": "Delivered",
+   "Acknowledged": "Acknowledged",
+   "Answered": "Answered",
+   "Filed": "Filed",
+   "Approved": "Approved",
+   "Joined": "Joined",
+   "Failed": "Failed",
+   "TimedOut": "Timed out",
+   "Rejected": "Rejected",
+   "Denied": "Denied",
+   "Expired": "Expired",
+   "BudgetExceeded": "Over budget",
+   "Unknown": "Unknown",
+   "Cancelled": "Cancelled",
+   "Withdrawn": "Withdrawn"
+  }
+ }
+});

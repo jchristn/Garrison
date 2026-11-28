@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
@@ -536,7 +537,7 @@ export default function KeeperDetailView({ recordId }) {
                 { key: 'started', label: t('views.keeperDetail.columns.started'), tip: t('tips.views.keeperDetail.columns.started'), cellClass: 'nowrap', render: (x) => when(x.startedUtc) },
                 { key: 'source', label: t('views.keeperDetail.columns.source'), tip: t('tips.views.keeperDetail.columns.source'), render: (x) => <span {...tip(enumTip(t, 'wakeSource', x.wakeSource))}>{enumLabel(t, 'wakeSource', x.wakeSource)}</span> },
                 { key: 'outcome', label: t('views.keeperDetail.columns.outcome'), tip: t('tips.views.keeperDetail.columns.outcome'), render: (x) => (x.finishedUtc || x.outcome ? <TickOutcomeBadge outcome={x.outcome} t={t} /> : <Badge tone="info" tip={t('tips.resources.keepers.ticking')}>{t('resources.keepers.ticking')}</Badge>) },
-                { key: 'run', label: t('views.keeperDetail.columns.run'), tip: t('tips.views.keeperDetail.columns.run'), cellClass: 'cell-id', render: (x) => (x.runId ? runLink(x.runId, `keeper-tick-run-${x.id}`) : '-') },
+                { key: 'run', label: t('views.keeperDetail.columns.run'), tip: t('tips.views.keeperDetail.columns.run'), cellClass: 'cell-id', render: (x) => (x.runId ? <span className="inline-meta">{runLink(x.runId, `keeper-tick-run-${x.id}`)} <OpenTrailLink runId={x.runId} step={x.id} testId={`keeper-tick-trail-${x.id}`} /></span> : '-') },
                 {
                   key: 'interval',
                   label: t('views.keeperDetail.columns.interval'),

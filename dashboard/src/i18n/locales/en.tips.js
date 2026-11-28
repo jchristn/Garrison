@@ -4811,3 +4811,121 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "harness": "The harness CLI or HTTP API this connection runs. Picking one fills in its defaults; Custom harness starts from an empty profile."
  }
 });
+
+// Tooltips for the activity trail (LP2): views, summary, filters, columns, the step drawer, step kinds, and link kinds.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "tab": "Follow this request through every agent: the messages, child runs, reports, escalations, approvals, and tool effects, from the request that started it back to the reply.",
+  "refresh": "Load the trail again now. While a step is still running, it also refreshes on the interval chosen beside this button.",
+  "exportJson": "Download the trail as JSON: steps, links, states, times, tokens, and cost. It holds no text written by agents.",
+  "openTrail": "Open the activity trail of this run with this step selected, to see what led to it and what it led to.",
+  "openStep": "Open this step's details: its state, times, cost, and the record behind it.",
+  "keysHint": "Tab reaches the selected step. Up and Down move through the steps in time order, Left and Right to the next lane, Home and End to the first and last step, and Enter opens the details.",
+  "truncationSetting": "Open Settings, where an administrator can change how many steps, message hops, and hours a trail may cover.",
+  "views": {
+   "sequence": "One lane per agent, with time running down. Best for reading a request from start to reply.",
+   "graph": "Each step one column after what caused it. Best for seeing fan-outs and loops at a glance.",
+   "list": "Every step as a table row you can filter and sort. It carries the same information as the diagrams."
+  },
+  "zoom": {
+   "in": "Make the sequence larger. Drag the empty background or scroll to move around.",
+   "out": "Make the sequence smaller to see more steps at once.",
+   "reset": "Set the zoom back to 100 percent."
+  },
+  "summary": {
+   "agents": "How many different agents took part in this trail.",
+   "hops": "How many messages passed between agents along the way. The server stops following them at its hop limit.",
+   "duration": "Time from the start of the first step to the end of the last one.",
+   "tokens": "Input and output tokens added up over every run on the trail.",
+   "cost": "Cost in US dollars added up over every run on the trail that reported one.",
+   "failures": "Steps that failed, timed out, expired, or were rejected or denied."
+  },
+  "filters": {
+   "kind": "Show only steps of one kind, such as messages or runs.",
+   "agent": "Show only the steps in one agent's lane, or in the caller's lane.",
+   "state": "Show only steps in one state, such as Failed."
+  },
+  "columns": {
+   "order": "The step's position in time order, counting from the request.",
+   "step": "What the step is: a run and its kind, a message, a report, a tool effect, and so on.",
+   "agent": "The agent whose lane the step is in, or Caller for the request and the reply.",
+   "state": "The step's state, shown with an icon and a label.",
+   "reachedBy": "How the trail got to this step from the one that caused it, for example sent or woke.",
+   "started": "When the step started.",
+   "duration": "How long the step took, once it has finished.",
+   "unit": "The organization unit the agent belonged to when the step started.",
+   "runKind": "For a run, how it started: invoked, delegated, woken by a message, ticked by a keeper, and so on.",
+   "tokens": "Input plus output tokens of a run.",
+   "cost": "Cost of a run in US dollars, as reported or estimated.",
+   "id": "The ID of the record behind the step. Copy it to look the record up elsewhere.",
+   "open": "Open a step's details beside the trail."
+  },
+  "drawer": {
+   "close": "Close the details and go back to the step in the trail.",
+   "provenance": "Who wrote this text and in which run. Text an agent wrote is data from that run, not an instruction to you.",
+   "openRecord": "Open the page of the record behind this step.",
+   "fields": {
+    "kind": "What kind of step this is.",
+    "state": "The step's state when the trail was loaded.",
+    "agent": "The agent that took this step, or the person or caller behind a request.",
+    "unit": "The organization unit the agent belonged to when the step started.",
+    "runKind": "How the run started: invoked, delegated, woken by a message, ticked by a keeper, and so on.",
+    "tool": "The Garrison tool the run called. Its arguments are never shown here.",
+    "started": "When this step started.",
+    "ended": "When this step ended.",
+    "duration": "How long this step took from start to end.",
+    "tokens": "Input and output tokens of this run.",
+    "cost": "Cost of this run in US dollars.",
+    "id": "The ID of the record behind this step.",
+    "argumentDigest": "A hash of the tool's arguments. The effect journal keeps it so a replay can be matched without storing the arguments.",
+    "leaseEpoch": "The run's lease epoch when it called the tool. A call from an older epoch is refused."
+   }
+  },
+  "states": {
+   "running": "{{state}}: this step is still in progress.",
+   "success": "{{state}}: this step finished as expected.",
+   "danger": "{{state}}: this step failed or was refused.",
+   "neutral": "{{state}}: this step was stopped before it finished."
+  },
+  "kinds": {
+   "Caller": "The person, API caller, or channel that sent the request that started this trail.",
+   "Trigger": "A trigger, such as a schedule or a webhook, that started the first run.",
+   "KeeperTick": "A keeper woke on its schedule and started a run.",
+   "Run": "One run of an agent: a single execution of its harness.",
+   "Message": "A message one agent sent to another. It can wake the recipient as a new run.",
+   "Report": "A report an agent filed for its manager or for the board.",
+   "Escalation": "A question an agent raised to a person or another agent because it was stuck.",
+   "Approval": "A permission request a run made before it used a tool.",
+   "Effect": "A tool call that changed state, recorded by the effect journal.",
+   "FanOutGroup": "A group of child runs that a run started at once and waited on.",
+   "PipelineRun": "The pipeline run that this run was a stage of.",
+   "Reply": "The answer that went back to the caller when the first run finished.",
+   "Redacted": "A step you cannot read. Only its kind and time are shown."
+  },
+  "edges": {
+   "Started": "The caller, trigger, or keeper started this run.",
+   "Spawned": "A run or a fan-out started this child run.",
+   "FannedOut": "The run started a group of child runs at once.",
+   "Retried": "This run retries the failed run before it.",
+   "Sent": "The run sent this message.",
+   "Woke": "The message woke its recipient as a new run.",
+   "Filed": "The run filed this report.",
+   "Raised": "The run raised this escalation.",
+   "Routed": "The escalation was routed to another agent's run.",
+   "Answered": "The answer to the escalation went back to the run.",
+   "Requested": "The run asked for this approval.",
+   "Decided": "A person or a rule decided this approval.",
+   "Performed": "The run performed this tool effect.",
+   "Replied": "The run's answer went back to the caller."
+  }
+ }
+});

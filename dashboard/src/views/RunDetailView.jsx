@@ -42,9 +42,13 @@ import { AwaitingApprovalBadge } from '../components/ApprovalBadges';
 import { errorDetail } from '../utils/errors';
 import RunChildrenTree from '../components/RunChildrenTree';
 import { jsonToText } from '../utils/jsonFields';
+import RunTrailPanel from '../components/trail/RunTrailPanel';
 
-/** Tabs of the page; `?tab=children&group={fanOutGroupId}` opens the run tree at one fan-out group (AD5.8). */
-const TAB_KEYS = ['artifacts', 'transcript', 'result', 'input', 'stderr', 'children', 'approvals'];
+/**
+ * Tabs of the page; `?tab=children&group={fanOutGroupId}` opens the run tree at one fan-out group (AD5.8), and
+ * `?tab=trail&step={nodeId}` opens the activity trail with one step selected (LP2.7).
+ */
+const TAB_KEYS = ['artifacts', 'transcript', 'result', 'input', 'stderr', 'children', 'approvals', 'trail'];
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -505,7 +509,8 @@ export default function RunDetailView({ recordId }) {
           { id: 'input', label: t('views.runDetail.input'), tip: t('tips.views.runDetail.tabs.input') },
           { id: 'stderr', label: t('views.runDetail.stderr'), tip: t('tips.views.runDetail.tabs.stderr') },
           { id: 'children', label: t('views.runDetail.children', { count: children.length }), tip: t('tips.views.runDetail.tabs.children') },
-          { id: 'approvals', label: t('views.runDetail.approvals', { count: approvals.length }), tip: t('tips.views.runDetail.tabs.approvals') }
+          { id: 'approvals', label: t('views.runDetail.approvals', { count: approvals.length }), tip: t('tips.views.runDetail.tabs.approvals') },
+          { id: 'trail', label: t('trail.tab'), tip: t('tips.trail.tab') }
         ]}
       />
 
@@ -569,6 +574,7 @@ export default function RunDetailView({ recordId }) {
         )}
         {tab === 'stderr' && <CodeBlock value={run.stderrTail} emptyText={t('views.runDetail.noStderr')} />}
         {tab === 'children' && <RunChildrenTree runId={recordId} items={children} highlightGroup={highlightGroup} />}
+        {tab === 'trail' && <RunTrailPanel runId={recordId} />}
         {tab === 'approvals' && <RunApprovals approvals={approvals} loading={approvalsLoading} error={approvalsError} onDecide={(approval, decision) => setDeciding({ approval, decision })} />}
       </div>
 

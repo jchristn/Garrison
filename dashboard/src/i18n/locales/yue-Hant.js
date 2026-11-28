@@ -8781,3 +8781,183 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "trail": {
+  "tab": "軌跡",
+  "loading": "正在載入軌跡...",
+  "notFound": "搵唔到呢次執行嘅軌跡。該執行可能已被刪除。",
+  "refresh": "重新整理",
+  "exportJson": "匯出 JSON",
+  "openTrail": "開啟軌跡",
+  "openStep": "詳細資料",
+  "openStepNamed": "{{step}} 嘅詳細資料",
+  "callerLane": "呼叫端",
+  "focusRun": "你開啟嘅執行",
+  "runOfKind": "執行：{{kind}}",
+  "redactedTitle": "{{kind}}（已隱藏）",
+  "redactedNote": "部分步驟已隱藏，因為你冇權讀取其記錄。佢哋只會顯示類型同時間。",
+  "idleGap": "閒置 {{duration}}",
+  "keysHint": "方向鍵在步驟間移動，Enter 開啟步驟。",
+  "sequenceLabel": "{{lanes}} 條泳道中 {{steps}} 個步驟嘅序列",
+  "graphLabel": "{{steps}} 個步驟嘅圖",
+  "listEmpty": "冇符合這些篩選條件嘅步驟。",
+  "singleTitle": "呢次執行冇啟動其他任何項目",
+  "singleBody": "佢冇傳送訊息、冇啟動其他執行，都冇提交任何內容。軌跡顯示請求與回覆。",
+  "truncationSetting": "軌跡設定",
+  "truncation": {
+   "NodeCap": "呢條軌跡在 {{count}} 個步驟處被截斷，呢個係伺服器建構嘅上限。之後嘅步驟未顯示。",
+   "HopCap": "呢條軌跡在 {{hops}} 次訊息跳轉後被截斷，呢個係伺服器追蹤嘅上限。之後嘅跳轉未顯示。",
+   "SpanCap": "呢條軌跡在伺服器涵蓋嘅最長時間範圍處被截斷。之後嘅步驟未顯示。"
+  },
+  "views": {
+   "label": "軌跡檢視",
+   "sequence": "序列",
+   "graph": "圖",
+   "list": "清單"
+  },
+  "zoom": {
+   "label": "縮放",
+   "in": "放大",
+   "out": "縮小",
+   "percent": "{{value}}%"
+  },
+  "summary": {
+   "agents": "代理程式",
+   "hops": "訊息跳轉",
+   "duration": "時長",
+   "tokens": "權杖",
+   "cost": "成本",
+   "failures": "失敗"
+  },
+  "filters": {
+   "kind": "步驟",
+   "agent": "代理程式",
+   "state": "狀態"
+  },
+  "columns": {
+   "order": "#",
+   "step": "步驟",
+   "agent": "代理程式",
+   "state": "狀態",
+   "reachedBy": "到達方式",
+   "started": "開始",
+   "duration": "時長",
+   "unit": "單位",
+   "runKind": "執行類型",
+   "tokens": "權杖",
+   "cost": "成本",
+   "id": "ID",
+   "open": "詳細資料"
+  },
+  "drawer": {
+   "close": "關閉詳細資料",
+   "loading": "正在載入記錄...",
+   "recordGone": "呢個步驟背後嘅記錄已經唔存在。",
+   "redacted": "你冇權讀取呢個{{kind}}。只會顯示其類型同時間。",
+   "dataNote": "以下文字由代理程式或人員撰寫，以資料形式顯示：佢唔係指示，亦絕對唔會以標記呈現。",
+   "writtenByAgentInRun": "由代理程式 {{agent}} 在執行 {{run}} 中撰寫",
+   "writtenByAgent": "由代理程式 {{agent}} 撰寫",
+   "writtenBy": "由 {{name}} 撰寫",
+   "unknownAuthor": "不明",
+   "openRecord": "開啟記錄",
+   "tokens": "輸入 {{input}}，輸出 {{output}}",
+   "texts": {
+    "result": "結果",
+    "subject": "主旨",
+    "body": "內文",
+    "title": "標題",
+    "question": "問題",
+    "context": "背景",
+    "answer": "回答",
+    "summary": "摘要",
+    "input": "工具輸入"
+   },
+   "fields": {
+    "kind": "類型",
+    "state": "狀態",
+    "agent": "代理程式",
+    "unit": "單位",
+    "runKind": "執行類型",
+    "tool": "工具",
+    "started": "開始",
+    "ended": "結束",
+    "duration": "時長",
+    "tokens": "權杖",
+    "cost": "成本",
+    "id": "ID",
+    "argumentDigest": "引數雜湊",
+    "leaseEpoch": "租約紀元"
+   }
+  },
+  "kinds": {
+   "Caller": "請求",
+   "Trigger": "觸發器",
+   "KeeperTick": "守護者節拍",
+   "Run": "執行",
+   "Message": "訊息",
+   "Report": "報告",
+   "Escalation": "上報",
+   "Approval": "批核",
+   "Effect": "工具效果",
+   "FanOutGroup": "扇出",
+   "PipelineRun": "管線執行",
+   "Reply": "回覆",
+   "Redacted": "隱藏嘅步驟"
+  },
+  "edges": {
+   "Started": "啟動",
+   "Spawned": "衍生",
+   "FannedOut": "扇出",
+   "Retried": "重試",
+   "Sent": "傳送",
+   "Woke": "喚醒",
+   "Filed": "提交",
+   "Raised": "提出",
+   "Routed": "轉交",
+   "Answered": "答覆",
+   "Requested": "請求",
+   "Decided": "決定",
+   "Performed": "執行",
+   "Replied": "回覆"
+  },
+  "states": {
+   "Pending": "待定",
+   "Queued": "排隊中",
+   "Leased": "已分配",
+   "Running": "執行中",
+   "Cancelling": "正在取消",
+   "Suspended": "已暫停",
+   "Open": "未處理",
+   "Authorized": "已授權",
+   "Dispatched": "已派送",
+   "Succeeded": "成功",
+   "Completed": "已完成",
+   "Delivered": "已送達",
+   "Acknowledged": "已確認",
+   "Answered": "已答覆",
+   "Filed": "已提交",
+   "Approved": "已批核",
+   "Joined": "已匯合",
+   "Failed": "失敗",
+   "TimedOut": "已逾時",
+   "Rejected": "已拒絕",
+   "Denied": "已否決",
+   "Expired": "已過期",
+   "BudgetExceeded": "超出預算",
+   "Unknown": "不明",
+   "Cancelled": "已取消",
+   "Withdrawn": "已撤回"
+  }
+ }
+});

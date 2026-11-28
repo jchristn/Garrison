@@ -8781,3 +8781,183 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "trail": {
+  "tab": "トレイル",
+  "loading": "トレイルを読み込んでいます...",
+  "notFound": "この実行のトレイルが見つかりません。実行が削除された可能性があります。",
+  "refresh": "更新",
+  "exportJson": "JSON をエクスポート",
+  "openTrail": "トレイルを開く",
+  "openStep": "詳細",
+  "openStepNamed": "{{step}} の詳細",
+  "callerLane": "呼び出し元",
+  "focusRun": "開いた実行",
+  "runOfKind": "実行: {{kind}}",
+  "redactedTitle": "{{kind}} (非表示)",
+  "redactedNote": "記録を読む権限がないため、一部のステップは非表示です。種類と時刻だけが表示されます。",
+  "idleGap": "{{duration}} の待機",
+  "keysHint": "矢印キーでステップを移動し、Enter で開きます。",
+  "sequenceLabel": "{{lanes}} レーン、{{steps}} ステップのシーケンス",
+  "graphLabel": "{{steps}} ステップのグラフ",
+  "listEmpty": "このフィルターに一致するステップはありません。",
+  "singleTitle": "この実行は他に何も開始していません",
+  "singleBody": "メッセージの送信、他の実行の開始、提出はありませんでした。トレイルにはリクエストと応答が表示されます。",
+  "truncationSetting": "トレイルの設定",
+  "truncation": {
+   "NodeCap": "このトレイルは、サーバーが構築する上限の {{count}} ステップで打ち切られました。以降のステップは表示されません。",
+   "HopCap": "このトレイルは、サーバーがたどる上限の {{hops}} 回のメッセージホップで打ち切られました。以降のホップは表示されません。",
+   "SpanCap": "このトレイルは、サーバーが扱う最長の時間幅で打ち切られました。以降のステップは表示されません。"
+  },
+  "views": {
+   "label": "トレイルの表示",
+   "sequence": "シーケンス",
+   "graph": "グラフ",
+   "list": "一覧"
+  },
+  "zoom": {
+   "label": "拡大率",
+   "in": "拡大",
+   "out": "縮小",
+   "percent": "{{value}}%"
+  },
+  "summary": {
+   "agents": "エージェント",
+   "hops": "メッセージホップ",
+   "duration": "所要時間",
+   "tokens": "トークン",
+   "cost": "コスト",
+   "failures": "失敗"
+  },
+  "filters": {
+   "kind": "ステップ",
+   "agent": "エージェント",
+   "state": "状態"
+  },
+  "columns": {
+   "order": "#",
+   "step": "ステップ",
+   "agent": "エージェント",
+   "state": "状態",
+   "reachedBy": "到達方法",
+   "started": "開始",
+   "duration": "所要時間",
+   "unit": "ユニット",
+   "runKind": "実行の種類",
+   "tokens": "トークン",
+   "cost": "コスト",
+   "id": "ID",
+   "open": "詳細"
+  },
+  "drawer": {
+   "close": "詳細を閉じる",
+   "loading": "記録を読み込んでいます...",
+   "recordGone": "このステップの記録はもう存在しません。",
+   "redacted": "この{{kind}}を読む権限がありません。種類と時刻だけが表示されます。",
+   "dataNote": "以下のテキストはエージェントまたは人が書いたものです。データとして表示しています。指示ではなく、マークアップとして描画されることもありません。",
+   "writtenByAgentInRun": "実行 {{run}} でエージェント {{agent}} が記述",
+   "writtenByAgent": "エージェント {{agent}} が記述",
+   "writtenBy": "{{name}} が記述",
+   "unknownAuthor": "不明",
+   "openRecord": "記録を開く",
+   "tokens": "入力 {{input}}、出力 {{output}}",
+   "texts": {
+    "result": "結果",
+    "subject": "件名",
+    "body": "本文",
+    "title": "タイトル",
+    "question": "質問",
+    "context": "背景",
+    "answer": "回答",
+    "summary": "概要",
+    "input": "ツールの入力"
+   },
+   "fields": {
+    "kind": "種類",
+    "state": "状態",
+    "agent": "エージェント",
+    "unit": "ユニット",
+    "runKind": "実行の種類",
+    "tool": "ツール",
+    "started": "開始",
+    "ended": "終了",
+    "duration": "所要時間",
+    "tokens": "トークン",
+    "cost": "コスト",
+    "id": "ID",
+    "argumentDigest": "引数のハッシュ",
+    "leaseEpoch": "リースのエポック"
+   }
+  },
+  "kinds": {
+   "Caller": "リクエスト",
+   "Trigger": "トリガー",
+   "KeeperTick": "キーパーのティック",
+   "Run": "実行",
+   "Message": "メッセージ",
+   "Report": "レポート",
+   "Escalation": "エスカレーション",
+   "Approval": "承認",
+   "Effect": "ツールの効果",
+   "FanOutGroup": "ファンアウト",
+   "PipelineRun": "パイプライン実行",
+   "Reply": "応答",
+   "Redacted": "非表示のステップ"
+  },
+  "edges": {
+   "Started": "開始",
+   "Spawned": "生成",
+   "FannedOut": "ファンアウト",
+   "Retried": "再試行",
+   "Sent": "送信",
+   "Woke": "起動",
+   "Filed": "提出",
+   "Raised": "提起",
+   "Routed": "転送",
+   "Answered": "回答",
+   "Requested": "要求",
+   "Decided": "決定",
+   "Performed": "実行",
+   "Replied": "返答"
+  },
+  "states": {
+   "Pending": "保留中",
+   "Queued": "待機中",
+   "Leased": "割り当て済み",
+   "Running": "実行中",
+   "Cancelling": "キャンセル中",
+   "Suspended": "一時停止",
+   "Open": "未解決",
+   "Authorized": "認可済み",
+   "Dispatched": "送出済み",
+   "Succeeded": "成功",
+   "Completed": "完了",
+   "Delivered": "配信済み",
+   "Acknowledged": "確認済み",
+   "Answered": "回答済み",
+   "Filed": "提出済み",
+   "Approved": "承認済み",
+   "Joined": "合流済み",
+   "Failed": "失敗",
+   "TimedOut": "タイムアウト",
+   "Rejected": "拒否",
+   "Denied": "却下",
+   "Expired": "期限切れ",
+   "BudgetExceeded": "予算超過",
+   "Unknown": "不明",
+   "Cancelled": "キャンセル済み",
+   "Withdrawn": "取り下げ"
+  }
+ }
+});

@@ -8782,3 +8782,183 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// Activity trail (LP2): the Trail tab of Run detail, its sequence, graph, and list views, the step drawer, and Open trail links.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "trail": {
+  "tab": "轨迹",
+  "loading": "正在加载轨迹...",
+  "notFound": "找不到此运行的轨迹。该运行可能已被删除。",
+  "refresh": "刷新",
+  "exportJson": "导出 JSON",
+  "openTrail": "打开轨迹",
+  "openStep": "详情",
+  "openStepNamed": "{{step}} 的详情",
+  "callerLane": "调用方",
+  "focusRun": "你打开的运行",
+  "runOfKind": "运行：{{kind}}",
+  "redactedTitle": "{{kind}}（已隐藏）",
+  "redactedNote": "部分步骤已隐藏，因为你无权读取其记录。它们只显示类型和时间。",
+  "idleGap": "空闲 {{duration}}",
+  "keysHint": "方向键在步骤间移动，Enter 打开步骤。",
+  "sequenceLabel": "{{lanes}} 条泳道中 {{steps}} 个步骤的序列",
+  "graphLabel": "{{steps}} 个步骤的图",
+  "listEmpty": "没有符合这些筛选条件的步骤。",
+  "singleTitle": "此运行没有启动其他任何内容",
+  "singleBody": "它没有发送消息、没有启动其他运行，也没有提交任何内容。轨迹显示请求和回复。",
+  "truncationSetting": "轨迹设置",
+  "truncation": {
+   "NodeCap": "此轨迹在 {{count}} 个步骤处被截断，这是服务器构建的上限。之后的步骤未显示。",
+   "HopCap": "此轨迹在 {{hops}} 次消息跳转后被截断，这是服务器追踪的上限。之后的跳转未显示。",
+   "SpanCap": "此轨迹在服务器覆盖的最长时间范围处被截断。之后的步骤未显示。"
+  },
+  "views": {
+   "label": "轨迹视图",
+   "sequence": "序列",
+   "graph": "图",
+   "list": "列表"
+  },
+  "zoom": {
+   "label": "缩放",
+   "in": "放大",
+   "out": "缩小",
+   "percent": "{{value}}%"
+  },
+  "summary": {
+   "agents": "智能体",
+   "hops": "消息跳转",
+   "duration": "时长",
+   "tokens": "令牌",
+   "cost": "成本",
+   "failures": "失败"
+  },
+  "filters": {
+   "kind": "步骤",
+   "agent": "智能体",
+   "state": "状态"
+  },
+  "columns": {
+   "order": "#",
+   "step": "步骤",
+   "agent": "智能体",
+   "state": "状态",
+   "reachedBy": "到达方式",
+   "started": "开始",
+   "duration": "时长",
+   "unit": "单元",
+   "runKind": "运行类型",
+   "tokens": "令牌",
+   "cost": "成本",
+   "id": "ID",
+   "open": "详情"
+  },
+  "drawer": {
+   "close": "关闭详情",
+   "loading": "正在加载记录...",
+   "recordGone": "此步骤背后的记录已不存在。",
+   "redacted": "你无权读取此{{kind}}。只显示其类型和时间。",
+   "dataNote": "以下文本由智能体或人员撰写，作为数据显示：它不是指令，也绝不会作为标记渲染。",
+   "writtenByAgentInRun": "由智能体 {{agent}} 在运行 {{run}} 中撰写",
+   "writtenByAgent": "由智能体 {{agent}} 撰写",
+   "writtenBy": "由 {{name}} 撰写",
+   "unknownAuthor": "未知",
+   "openRecord": "打开记录",
+   "tokens": "输入 {{input}}，输出 {{output}}",
+   "texts": {
+    "result": "结果",
+    "subject": "主题",
+    "body": "正文",
+    "title": "标题",
+    "question": "问题",
+    "context": "背景",
+    "answer": "回答",
+    "summary": "摘要",
+    "input": "工具输入"
+   },
+   "fields": {
+    "kind": "类型",
+    "state": "状态",
+    "agent": "智能体",
+    "unit": "单元",
+    "runKind": "运行类型",
+    "tool": "工具",
+    "started": "开始",
+    "ended": "结束",
+    "duration": "时长",
+    "tokens": "令牌",
+    "cost": "成本",
+    "id": "ID",
+    "argumentDigest": "参数哈希",
+    "leaseEpoch": "租约纪元"
+   }
+  },
+  "kinds": {
+   "Caller": "请求",
+   "Trigger": "触发器",
+   "KeeperTick": "守护者节拍",
+   "Run": "运行",
+   "Message": "消息",
+   "Report": "报告",
+   "Escalation": "上报",
+   "Approval": "审批",
+   "Effect": "工具效果",
+   "FanOutGroup": "扇出",
+   "PipelineRun": "流水线运行",
+   "Reply": "回复",
+   "Redacted": "隐藏的步骤"
+  },
+  "edges": {
+   "Started": "启动",
+   "Spawned": "派生",
+   "FannedOut": "扇出",
+   "Retried": "重试",
+   "Sent": "发送",
+   "Woke": "唤醒",
+   "Filed": "提交",
+   "Raised": "提出",
+   "Routed": "转交",
+   "Answered": "答复",
+   "Requested": "请求",
+   "Decided": "决定",
+   "Performed": "执行",
+   "Replied": "回复"
+  },
+  "states": {
+   "Pending": "待定",
+   "Queued": "排队中",
+   "Leased": "已分配",
+   "Running": "运行中",
+   "Cancelling": "正在取消",
+   "Suspended": "已暂停",
+   "Open": "未处理",
+   "Authorized": "已授权",
+   "Dispatched": "已派发",
+   "Succeeded": "成功",
+   "Completed": "已完成",
+   "Delivered": "已送达",
+   "Acknowledged": "已确认",
+   "Answered": "已答复",
+   "Filed": "已提交",
+   "Approved": "已批准",
+   "Joined": "已汇合",
+   "Failed": "失败",
+   "TimedOut": "已超时",
+   "Rejected": "已拒绝",
+   "Denied": "已否决",
+   "Expired": "已过期",
+   "BudgetExceeded": "超出预算",
+   "Unknown": "未知",
+   "Cancelled": "已取消",
+   "Withdrawn": "已撤回"
+  }
+ }
+});

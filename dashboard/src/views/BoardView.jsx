@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Explainer from '../components/Explainer';
@@ -542,7 +543,7 @@ function Board({ organizationId }) {
                         {e.question}
                       </StudioLink>
                       <div className="text-muted">
-                        {t('board.attention.raisedBy', { name: e.agentName || e.agentId || '-' })} {when(e.createdUtc)}
+                        {t('board.attention.raisedBy', { name: e.agentName || e.agentId || '-' })} {when(e.createdUtc)} <OpenTrailLink runId={e.raisingRunId} step={e.id} testId={`board-escalation-trail-${e.id}`} />
                       </div>
                     </li>
                   ))}
@@ -560,7 +561,7 @@ function Board({ organizationId }) {
                         {r.title}
                       </StudioLink>
                       <div className="text-muted">
-                        {t('board.attention.filedBy', { name: r.authorAgentName || r.filedByName || '-' })} {when(r.createdUtc)}
+                        {t('board.attention.filedBy', { name: r.authorAgentName || r.filedByName || '-' })} {when(r.createdUtc)} <OpenTrailLink runId={r.runId} step={r.id} testId={`board-report-trail-${r.id}`} />
                         {earlier[r.id] > 0 && (
                           <>
                             {' '}
@@ -624,7 +625,7 @@ function Board({ organizationId }) {
                 </StudioLink>
               </h3>
               <div className="text-muted">
-                <ReportHealthBadge health={brief.health} t={t} /> {t('board.attention.filedBy', { name: brief.authorAgentName || brief.filedByName || '-' })} {when(brief.createdUtc)}
+                <ReportHealthBadge health={brief.health} t={t} /> {t('board.attention.filedBy', { name: brief.authorAgentName || brief.filedByName || '-' })} {when(brief.createdUtc)} <OpenTrailLink runId={brief.runId} step={brief.id} testId="board-brief-trail" />
               </div>
               <p className="org-text">{brief.body}</p>
             </article>

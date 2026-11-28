@@ -1969,3 +1969,118 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 
 /* A table cell value with no spaces (a file path, a long name) that may break anywhere so it cannot widen the table. */
 .cell-break { overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------------------------------------------------------------
+   Activity trail (LP2): the Trail tab of Run detail. The sequence view is SVG drawn from these tokens, the graph view
+   reuses the same tone colors on its cards, and the list view is a LocalTableFrame. State is always an icon plus a
+   label; color only reinforces it. The sequence scrolls inside its own box, so the page never scrolls sideways.
+   ------------------------------------------------------------------------------------------------------------------ */
+.trail-panel { display: flex; flex-direction: column; gap: var(--spacing-sm); min-width: 0; }
+.trail-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.trail-toolbar-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); margin-inline-start: auto; }
+.trail-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: var(--spacing-sm); margin: 0; }
+.trail-summary-item { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-surface); min-width: 0; }
+.trail-summary-item dt { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.trail-summary-item dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.trail-redacted-note { font-size: var(--font-size-sm); margin: 0; }
+.trail-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-md); align-items: start; }
+.trail-body.has-drawer { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); }
+.trail-views { min-width: 0; }
+@media (max-width: 1180px) {
+  .trail-body.has-drawer { grid-template-columns: minmax(0, 1fr); }
+}
+
+.trail-view-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-xs); }
+.trail-zoom { display: inline-flex; gap: 2px; }
+.trail-keys-hint { font-size: var(--font-size-xs); }
+.trail-sequence-scroll { overflow: auto; max-height: 70vh; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); cursor: grab; touch-action: pan-x pan-y; }
+.trail-sequence-scroll:active { cursor: grabbing; }
+.trail-sequence-scroll svg { display: block; }
+.trail-lane-bg { fill: var(--color-surface); stroke: var(--color-border); }
+.trail-lane.is-caller .trail-lane-bg { fill: var(--color-surface-alt); }
+.trail-lifeline { stroke: var(--color-border); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.trail-lane-name { fill: var(--color-text); font-size: 13px; font-weight: 600; }
+.trail-lane-unit { fill: var(--color-text-secondary); font-size: 11px; }
+.trail-lane-badge { fill: var(--color-warning); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.trail-gap-line { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 2 5; }
+.trail-gap-label { fill: var(--color-text-muted); font-size: 10px; font-style: italic; }
+.trail-edge-line { fill: none; stroke: var(--color-text-secondary); stroke-width: 1.4; }
+.trail-edge.is-back .trail-edge-line { stroke-dasharray: 5 3; }
+.trail-edge.kind-Retried .trail-edge-line { stroke: var(--color-warning); }
+.trail-arrow { fill: var(--color-text-secondary); }
+.trail-edge-label { fill: var(--color-text-secondary); font-size: 10px; paint-order: stroke; stroke: var(--color-background); stroke-width: 3px; stroke-linejoin: round; }
+.trail-step { cursor: pointer; outline: none; }
+.trail-step-box { fill: var(--color-surface); stroke: var(--color-border); stroke-width: 1.5; }
+.trail-step.tone-success .trail-step-box { stroke: var(--color-success); }
+.trail-step.tone-danger .trail-step-box { stroke: var(--color-danger); stroke-width: 2; }
+.trail-step.tone-running .trail-step-box { stroke: var(--color-info); stroke-dasharray: 4 2; }
+.trail-step.is-redacted .trail-step-box { stroke: var(--color-text-muted); stroke-dasharray: 3 3; }
+.trail-step.is-focus .trail-step-box { fill: var(--color-primary-soft); stroke: var(--color-primary); stroke-width: 2.5; }
+.trail-step.is-selected .trail-step-box { stroke-width: 3; }
+.trail-step:focus-visible .trail-step-box { stroke: var(--color-primary); stroke-width: 3.5; }
+.trail-step:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.trail-step-title { fill: var(--color-text); font-size: 12px; font-weight: 600; }
+.trail-step-detail { fill: var(--color-text-secondary); font-size: 11px; }
+.trail-hatch-bg { fill: var(--color-surface-alt); }
+.trail-hatch-line { stroke: var(--color-text-muted); stroke-width: 2; opacity: 0.45; }
+
+.trail-tone-icon { stroke: currentColor; fill: currentColor; }
+.trail-tone-icon path { fill: none; }
+.trail-tone-icon.tone-success { color: var(--color-success); }
+.trail-tone-icon.tone-danger { color: var(--color-danger); }
+.trail-tone-icon.tone-running { color: var(--color-info); }
+.trail-tone-icon.tone-neutral, .trail-tone-icon.tone-none { color: var(--color-text-muted); }
+.trail-tone-icon.tone-running circle { fill: none; }
+.trail-tone-svg { display: inline-block; vertical-align: -1px; }
+.trail-state { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.trail-state.tone-danger { color: var(--color-danger); }
+
+.trail-graph { height: min(70vh, 640px); min-height: 360px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); }
+.trail-graph .react-flow__node:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: var(--radius-md); }
+.trail-graph .react-flow__edge-path { stroke: var(--color-text-secondary); }
+.trail-graph .react-flow__edge-text { fill: var(--color-text-secondary); font-size: 10px; }
+.trail-graph .react-flow__edge-textbg { fill: var(--color-background); }
+.trail-graph .react-flow__controls button { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); }
+.trail-graph .react-flow__minimap { background: var(--color-surface); }
+.trail-card { width: 168px; padding: 6px 8px; border: 1.5px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: 12px; cursor: pointer; }
+.trail-card.tone-success { border-color: var(--color-success); }
+.trail-card.tone-danger { border-color: var(--color-danger); border-width: 2px; }
+.trail-card.tone-running { border-color: var(--color-info); border-style: dashed; }
+.trail-card.is-focus { background: var(--color-primary-soft); border-color: var(--color-primary); border-width: 2.5px; }
+.trail-card.is-selected { box-shadow: 0 0 0 2px var(--color-primary); }
+.trail-card.is-redacted { border-style: dashed; border-color: var(--color-text-muted); background: repeating-linear-gradient(45deg, var(--color-surface-alt) 0 6px, color-mix(in srgb, var(--color-text-muted) 22%, var(--color-surface-alt)) 6px 8px); }
+.trail-card-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trail-card-who { color: var(--color-text-secondary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trail-card-detail { display: flex; align-items: center; gap: 4px; color: var(--color-text-secondary); font-size: 11px; }
+
+.trail-list .data-table tr.is-selected td { background: var(--color-primary-soft); }
+.trail-list .data-table tr.trail-row-focus td:first-child { box-shadow: inset 3px 0 0 var(--color-primary); }
+[dir='rtl'] .trail-list .data-table tr.trail-row-focus td:first-child { box-shadow: inset -3px 0 0 var(--color-primary); }
+.trail-list-redacted { font-style: italic; color: var(--color-text-muted); }
+
+.trail-drawer { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--spacing-sm) var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); min-width: 0; max-height: 80vh; overflow: auto; position: sticky; top: calc(var(--header-height) + var(--spacing-sm)); }
+.trail-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.trail-drawer-title { font-size: var(--font-size-lg); margin: 0; overflow-wrap: anywhere; }
+.trail-drawer-title:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.trail-drawer-fields { display: grid; grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr); gap: 4px var(--spacing-sm); margin: 0; font-size: var(--font-size-sm); }
+.trail-drawer-field { display: contents; }
+.trail-drawer-field dt { color: var(--color-text-secondary); }
+.trail-drawer-field dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.trail-drawer-redacted p { margin: 0 0 var(--spacing-sm); }
+.trail-drawer-texts { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.trail-drawer-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.trail-agent-text-note { margin: 0; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.trail-agent-text { margin: 0; border: 1px dashed var(--color-warning); border-inline-start: 4px solid var(--color-warning); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-warning) 6%, var(--color-surface)); }
+.trail-agent-text-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px var(--spacing-sm); padding: 4px var(--spacing-sm); border-bottom: 1px dashed color-mix(in srgb, var(--color-warning) 50%, transparent); font-size: var(--font-size-xs); }
+.trail-agent-text-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.trail-agent-text-provenance { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.trail-agent-text-body { margin: 0; padding: var(--spacing-sm); white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--font-size-sm); max-height: 320px; overflow: auto; }
+
+.trail-open-link { white-space: nowrap; font-size: var(--font-size-sm); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .trail-step-box, .trail-card { transition: stroke-width 120ms ease, box-shadow 120ms ease; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trail-step-box, .trail-card, .trail-graph .react-flow__viewport { transition: none !important; animation: none !important; }
+}

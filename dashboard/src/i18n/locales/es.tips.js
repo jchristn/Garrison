@@ -4813,3 +4813,121 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "harness": "El CLI de harness o la API HTTP que ejecuta esta conexión. Al elegir uno se rellenan sus valores predeterminados; Harness personalizado empieza con un perfil vacío."
  }
 });
+
+// Tooltips for the activity trail (LP2): views, summary, filters, columns, the step drawer, step kinds, and link kinds.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "tab": "Siga esta solicitud por cada agente: los mensajes, las ejecuciones hijas, los informes, los escalados, las aprobaciones y los efectos de herramientas, desde la solicitud inicial hasta la respuesta.",
+  "refresh": "Volver a cargar el recorrido ahora. Mientras un paso siga en curso, también se actualiza con el intervalo elegido junto a este botón.",
+  "exportJson": "Descargar el recorrido como JSON: pasos, enlaces, estados, horas, tokens y coste. No contiene texto escrito por agentes.",
+  "openTrail": "Abrir el recorrido de actividad de esta ejecución con este paso seleccionado, para ver qué llevó a él y qué provocó.",
+  "openStep": "Abrir los detalles de este paso: su estado, sus horas, su coste y el registro que hay detrás.",
+  "keysHint": "Tab llega al paso seleccionado. Arriba y Abajo recorren los pasos en orden temporal, Izquierda y Derecha pasan al carril siguiente, Inicio y Fin van al primer y al último paso, e Intro abre los detalles.",
+  "truncationSetting": "Abrir Ajustes, donde un administrador puede cambiar cuántos pasos, saltos de mensajes y horas puede abarcar un recorrido.",
+  "views": {
+   "sequence": "Un carril por agente, con el tiempo hacia abajo. Lo mejor para leer una solicitud desde el inicio hasta la respuesta.",
+   "graph": "Cada paso una columna después de su causa. Lo mejor para ver abanicos y bucles de un vistazo.",
+   "list": "Cada paso como fila de una tabla que puede filtrar y ordenar. Contiene la misma información que los diagramas."
+  },
+  "zoom": {
+   "in": "Ampliar la secuencia. Arrastre el fondo vacío o desplácese para moverse.",
+   "out": "Reducir la secuencia para ver más pasos a la vez.",
+   "reset": "Volver a poner la ampliación al 100 por ciento."
+  },
+  "summary": {
+   "agents": "Cuántos agentes distintos participaron en este recorrido.",
+   "hops": "Cuántos mensajes pasaron entre agentes por el camino. El servidor deja de seguirlos al llegar a su límite de saltos.",
+   "duration": "Tiempo desde el inicio del primer paso hasta el final del último.",
+   "tokens": "Tokens de entrada y salida sumados en todas las ejecuciones del recorrido.",
+   "cost": "Coste en dólares estadounidenses sumado en todas las ejecuciones del recorrido que lo informaron.",
+   "failures": "Pasos que fallaron, agotaron el tiempo, caducaron o fueron rechazados o denegados."
+  },
+  "filters": {
+   "kind": "Mostrar solo los pasos de un tipo, como mensajes o ejecuciones.",
+   "agent": "Mostrar solo los pasos del carril de un agente o del solicitante.",
+   "state": "Mostrar solo los pasos en un estado, como Fallida."
+  },
+  "columns": {
+   "order": "La posición del paso en orden temporal, contando desde la solicitud.",
+   "step": "Qué es el paso: una ejecución y su tipo, un mensaje, un informe, un efecto de herramienta, etcétera.",
+   "agent": "El agente en cuyo carril está el paso, o Solicitante para la solicitud y la respuesta.",
+   "state": "El estado del paso, con un icono y una etiqueta.",
+   "reachedBy": "Cómo llegó el recorrido a este paso desde el que lo causó, por ejemplo envió o despertó.",
+   "started": "Cuándo empezó el paso.",
+   "duration": "Cuánto duró el paso, una vez terminado.",
+   "unit": "La unidad de la organización a la que pertenecía el agente cuando empezó el paso.",
+   "runKind": "En una ejecución, cómo empezó: invocada, delegada, despertada por un mensaje, por el ciclo de un guardián, etcétera.",
+   "tokens": "Tokens de entrada más los de salida de una ejecución.",
+   "cost": "Coste de una ejecución en dólares estadounidenses, informado o estimado.",
+   "id": "El ID del registro detrás del paso. Cópielo para buscar el registro en otro lugar.",
+   "open": "Abrir los detalles de un paso junto al recorrido."
+  },
+  "drawer": {
+   "close": "Cerrar los detalles y volver al paso en el recorrido.",
+   "provenance": "Quién escribió este texto y en qué ejecución. El texto de un agente son datos de esa ejecución, no una instrucción para usted.",
+   "openRecord": "Abrir la página del registro detrás de este paso.",
+   "fields": {
+    "kind": "Qué tipo de paso es.",
+    "state": "El estado del paso cuando se cargó el recorrido.",
+    "agent": "El agente que dio este paso, o la persona o el solicitante detrás de una solicitud.",
+    "unit": "La unidad de la organización a la que pertenecía el agente cuando empezó el paso.",
+    "runKind": "Cómo empezó la ejecución: invocada, delegada, despertada por un mensaje, por el ciclo de un guardián, etcétera.",
+    "tool": "La herramienta de Garrison que llamó la ejecución. Sus argumentos nunca se muestran aquí.",
+    "started": "Cuándo empezó este paso.",
+    "ended": "Cuándo terminó este paso.",
+    "duration": "Cuánto duró este paso de principio a fin.",
+    "tokens": "Tokens de entrada y salida de esta ejecución.",
+    "cost": "Coste de esta ejecución en dólares estadounidenses.",
+    "id": "El ID del registro detrás de este paso.",
+    "argumentDigest": "Un hash de los argumentos de la herramienta. El diario de efectos lo guarda para reconocer una repetición sin almacenar los argumentos.",
+    "leaseEpoch": "La época de concesión de la ejecución cuando llamó a la herramienta. Una llamada de una época anterior se rechaza."
+   }
+  },
+  "states": {
+   "running": "{{state}}: este paso sigue en curso.",
+   "success": "{{state}}: este paso terminó como se esperaba.",
+   "danger": "{{state}}: este paso falló o fue rechazado.",
+   "neutral": "{{state}}: este paso se detuvo antes de terminar."
+  },
+  "kinds": {
+   "Caller": "La persona, el cliente de la API o el canal que envió la solicitud con la que empieza este recorrido.",
+   "Trigger": "Un disparador, como una programación o un webhook, que inició la primera ejecución.",
+   "KeeperTick": "Un guardián despertó según su programación e inició una ejecución.",
+   "Run": "Una ejecución de un agente: una sola ejecución de su harness.",
+   "Message": "Un mensaje que un agente envió a otro. Puede despertar al destinatario en una nueva ejecución.",
+   "Report": "Un informe que un agente presentó para su responsable o para la junta.",
+   "Escalation": "Una pregunta que un agente planteó a una persona o a otro agente porque estaba atascado.",
+   "Approval": "Una solicitud de permiso que hizo una ejecución antes de usar una herramienta.",
+   "Effect": "Una llamada a herramienta que cambió algo, registrada en el diario de efectos.",
+   "FanOutGroup": "Un grupo de ejecuciones hijas que una ejecución inició a la vez y esperó.",
+   "PipelineRun": "La ejecución de canalización de la que esta ejecución fue una etapa.",
+   "Reply": "La respuesta que volvió al solicitante cuando terminó la primera ejecución.",
+   "Redacted": "Un paso que no puede leer. Solo se muestran su tipo y su hora."
+  },
+  "edges": {
+   "Started": "El solicitante, el disparador o el guardián inició esta ejecución.",
+   "Spawned": "Una ejecución o un abanico inició esta ejecución hija.",
+   "FannedOut": "La ejecución inició a la vez un grupo de ejecuciones hijas.",
+   "Retried": "Esta ejecución reintenta la ejecución fallida anterior.",
+   "Sent": "La ejecución envió este mensaje.",
+   "Woke": "El mensaje despertó a su destinatario en una nueva ejecución.",
+   "Filed": "La ejecución presentó este informe.",
+   "Raised": "La ejecución planteó este escalado.",
+   "Routed": "El escalado se derivó a la ejecución de otro agente.",
+   "Answered": "La respuesta al escalado volvió a la ejecución.",
+   "Requested": "La ejecución solicitó esta aprobación.",
+   "Decided": "Una persona o una regla decidió esta aprobación.",
+   "Performed": "La ejecución realizó este efecto de herramienta.",
+   "Replied": "La respuesta de la ejecución volvió al solicitante."
+  }
+ }
+});

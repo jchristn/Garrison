@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
@@ -123,11 +124,14 @@ function ThreadMessage({ m, t, lng, picked, canReply, replyDenied, onReply }) {
           ))}
         </ul>
       )}
-      {canReply && (
+      {(canReply || m.senderRunId || m.deliveredRunId) && (
         <div className="message-card-actions">
-          <button type="button" className="button-secondary button-sm" aria-disabled={replyDenied ? 'true' : undefined} onClick={() => !replyDenied && onReply(m)} data-testid="thread-reply" {...tip(replyDenied || t('tips.views.messageThread.reply'))}>
-            {t('views.messageThread.reply')}
-          </button>
+          <OpenTrailLink runId={m.senderRunId || m.deliveredRunId} step={m.id} testId="thread-open-trail" />
+          {canReply && (
+            <button type="button" className="button-secondary button-sm" aria-disabled={replyDenied ? 'true' : undefined} onClick={() => !replyDenied && onReply(m)} data-testid="thread-reply" {...tip(replyDenied || t('tips.views.messageThread.reply'))}>
+              {t('views.messageThread.reply')}
+            </button>
+          )}
         </div>
       )}
     </li>

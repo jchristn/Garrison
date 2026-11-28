@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import OpenTrailLink from '../components/trail/OpenTrailLink';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CodeBlock from '../components/CodeBlock';
@@ -186,7 +187,9 @@ export default function ApprovalDetailView({ recordId }) {
             '-'
           )}
         </Detail>
-        <Detail name="runId" t={t}>{runLink(a.runId, 'approval-run-link')}</Detail>
+        <Detail name="runId" t={t}>
+          {runLink(a.runId, 'approval-run-link')} <OpenTrailLink runId={a.runId} step={a.id} testId="approval-open-trail" />
+        </Detail>
         <Detail name="rootRunId" t={t}>{runLink(a.rootRunId, 'approval-root-run-link')}</Detail>
         <Detail name="deploymentId" t={t}>
           {a.deploymentId ? (
