@@ -110,6 +110,7 @@ const (
 	RunTrailEdgePerformed = "Performed"
 	RunTrailEdgeReplied   = "Replied"
 	RunTrailEdgeDelivered = "Delivered"
+	RunTrailEdgeShadowed  = "Shadowed"
 )
 
 // Activity trail truncation values. None means the trail is complete.

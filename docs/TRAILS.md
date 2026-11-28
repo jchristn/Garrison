@@ -14,19 +14,19 @@ The SDKs wrap the route as `GetRunTrailAsync` (C#), `get_run_trail` (Python), `g
 
 Garrison keeps no table of hops. Each record already carries the fields that link it to its cause: a child run names its parent, a retry names the run it retries, a message names the run that sent it and the run it woke, a report names the run that filed it. The server stitches those links together on each request. Nothing extra is written when a run starts, so a trail costs nothing until someone asks for one, and an old run's trail is as complete as its records still are.
 
-A trail is a list of **nodes** and a list of **edges**. A node is one step: the caller, a trigger, a keeper tick, a pipeline run, a run, a message, a report, an escalation, an approval, a fan-out group, an effect journal entry, or the reply. An edge links two steps from cause to effect and says how: `Started`, `Spawned`, `FannedOut`, `Retried`, `Sent`, `Woke`, `Delivered`, `Filed`, `Raised`, `Routed`, `Answered`, `Requested`, `Decided`, `Performed`, or `Replied`. Every node also has a `lane`. Steps on the caller's side share the `caller` lane, and everything an agent did sits in that agent's lane, which is how the dashboard draws one column per agent.
+A trail is a list of **nodes** and a list of **edges**. A node is one step: the caller, a trigger, a keeper tick, a pipeline run, a run, a message, a report, an escalation, an approval, a fan-out group, an effect journal entry, or the reply. An edge links two steps from cause to effect and says how: `Started`, `Spawned`, `FannedOut`, `Retried`, `Shadowed`, `Sent`, `Woke`, `Delivered`, `Filed`, `Raised`, `Routed`, `Answered`, `Requested`, `Decided`, `Performed`, or `Replied`. Every node also has a `lane`. Steps on the caller's side share the `caller` lane, and everything an agent did sits in that agent's lane, which is how the dashboard draws one column per agent.
 
 Run nodes carry what you need to judge a step at a glance: the agent and its unit, the deployment, the status, start and end times, duration, tokens, cost, and the run kind, so a `Shadow` or `Eval` run is easy to spot. Effect nodes carry the tool name of a state-changing Garrison tool call. Message, report, escalation, and approval nodes carry their status and time.
 
 The Caller node also says how the request came in, in `entrySurface`: `Rest`, `Mcp`, `A2a`, or `App`. The same field is on every run that starts a leg of the work (a run with no parent that is not a retry), so a run woken by a message says `Message`, a trigger's run says `Trigger`, and a keeper tick's run says `Keeper`. Escalations routed to an agent, eval cases, and shadow copies have their own values, and a pipeline stage is `Internal` because the pipeline run is its origin. Child runs and retries leave the field out and follow their parent. The dashboard calls the same REST API as any client, with the same credentials, so nothing tells its requests apart: they are recorded as `Rest`, and `Dashboard` is reserved. The playground is `Rest` for the same reason. Runs created before schema version 62 have no entry surface.
 
-The walk starts at the focus run, goes back to the origin, then goes forward breadth first through every child run, fan-out group, retry, message and the run it woke, report, escalation, approval, and effect. A record is shown once even when two paths reach it, so a pair of agents that keep writing to each other shows each message once and stops at the hop cap instead of looping.
+The walk starts at the focus run, goes back to the origin, then goes forward breadth first through every child run, fan-out group, retry, shadow copy, message and the run it woke, report, escalation, approval, and effect. A record is shown once even when two paths reach it, so a pair of agents that keep writing to each other shows each message once and stops at the hop cap instead of looping.
 
 ## Where a trail starts
 
 The origin is found by walking back from the focus run. At each run the server asks, in this order:
 
-1. Does the run have a parent or is it a retry? Then step back to that run.
+1. Does the run have a parent, is it a retry, or is it a shadow copy of a live run? Then step back to that run.
 2. Is it a pipeline stage? The pipeline run is the origin, and every top-level stage run hangs off it.
 3. Did a keeper tick start it? The tick is the origin.
 4. Did a trigger fire it? The trigger is the origin.
@@ -111,7 +111,7 @@ The table below lists every way a run starts, the fields that tie the run to its
 | Retry | `RunService.RetryAsync` | `RetryOfRunId`, `Kind` `Retry`, `Attempt` | Walks back through `RetryOfRunId` | As for the original run |
 | Pipeline stage | `PipelineService` | `PipelineRunId`, `PipelinePosition`, `PipelineExecution`; `Kind` `Pipeline` | PipelineRun | The pipeline run's own status |
 | Eval case | `EvalRunner` | `EvalRunId`, `Kind` `Eval`; the case's `SourceRunId` when it came from a real run | Caller (the person or scheduler that started the eval run) | Not applicable |
-| Shadow copy | `ShadowTrialService` | `ShadowTrialId`, `Kind` `Shadow`; the caller is the person who started the trial | Caller | Not applicable |
+| Shadow copy | `ShadowTrialService` | `ShadowTrialId`, `ShadowOfRunId` (the live run it copies, since LP1.13), `Kind` `Shadow`; the caller is the person who started the trial | Walks back through `ShadowOfRunId` to the live run's origin | Not applicable |
 | Canary step | `CanaryService` | none on the run: a canary changes deployment weights, and a run that lands on the candidate is an ordinary invoke with that `DeploymentId` | As for the start path that sent it | As for that path |
 
 Records that hang off a run, rather than start one:
@@ -130,6 +130,6 @@ These links did not exist as structured fields when LP1.1 checked the code. LP1.
 
 - **The reply leg is never recorded on its own.** No path stores "the answer went back to the caller" as a record. The trail draws a `Reply` node from the root run's terminal state when the origin is a person or API caller who started the run directly. For A2A that means the trail ends at the run's terminal state whether or not the client ever fetched the result.
 - **Non-blocking escalation answers.** The answer reaches the raising agent through its next keeper tick (`DeliveredTickId`), which is a different trail. The trail shows the escalation as answered but has no edge into that later tick.
-- **Shadow copies** do not record the live run they copy, except inside their idempotency key as text. A shadow run's trail starts at the person who started the trial.
+- **Shadow copies** recorded the live run they copy only inside their idempotency key as text. They now carry `shadowOfRunId` (LP1.13, migration 63), and the trail draws a `Shadowed` edge from the live run to each copy, so a copy's trail starts where the live run's did.
 - **Which surface a request came in on** was used for metrics but not stored. It is now the run's `entrySurface` (LP1.12, migration 62), shown on the Caller node.
 - **Unit names** come from the organization revision that is live now, not the one in force when each step ran, because the chain of command reads only live revisions.

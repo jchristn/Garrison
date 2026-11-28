@@ -458,6 +458,11 @@ namespace Garrison.Core.Database.Ado
             v62.BuildVersion62();
             migrations.Add(new SchemaMigration(62, "Run entry surface", v62._Statements, v62._Columns));
 
+            // LP1.13: the live run a shadow copy copies (LP-014), so the trail can link the two.
+            SchemaBuilder v63 = new SchemaBuilder(catalog, dialect);
+            v63.BuildVersion63();
+            migrations.Add(new SchemaMigration(63, "Shadow run source", v63._Statements, v63._Columns));
+
             return migrations;
         }
 
@@ -527,6 +532,13 @@ namespace Garrison.Core.Database.Ado
         {
             SqlDialect d = _Dialect;
             Column("organizations", "budgetfreezemarginpercent", d.TypeInt);
+        }
+
+        private void BuildVersion63()
+        {
+            SqlDialect d = _Dialect;
+            Column("runs", "shadowofrunid", d.TypeId);
+            PartialIndex("runs", "shadowof", false, "shadowofrunid IS NOT NULL", "tenantid", "shadowofrunid");
         }
 
         private void BuildVersion62()

@@ -1068,7 +1068,7 @@ TRIGGER_TYPES = ("Cron", "Webhook")
 # Run["kind"] values. Playground runs try an agent's draft revision on an ephemeral deployment in the reserved "draft"
 # environment (PLAYGROUND_ENVIRONMENT); see Agents.playground_invoke and StudioDrafts.playground_invoke.
 # Eval runs start one Eval run per case, and shadow trials start Shadow runs that cannot act; Run["evalRunId"] and
-# Run["shadowTrialId"] name the eval run or the trial.
+# Run["shadowTrialId"] name the eval run or the trial, and a Shadow run's Run["shadowOfRunId"] names the live run it copies.
 # Run["entrySurface"] and RunTrailNode["entrySurface"]: how a run came in. The dashboard calls the REST API, so its runs
 # are "Rest"; "Dashboard" is reserved. Runs created before the server recorded it have no value.
 ENTRY_SURFACES = ("Rest", "Mcp", "A2a", "App", "Dashboard", "Trigger", "Keeper", "Message", "Escalation", "Eval", "Shadow", "Internal")
@@ -1127,7 +1127,7 @@ ORG_REVISION_STATES = ("Draft", "Published", "Superseded")
 BUDGET_PERIODS = ("Day", "Month")
 # Activity trails (Runs.get_run_trail).
 RUN_TRAIL_NODE_KINDS = ("Caller", "Trigger", "KeeperTick", "Run", "Message", "Report", "Escalation", "Approval", "Effect", "FanOutGroup", "PipelineRun", "Reply", "Redacted")
-RUN_TRAIL_EDGE_KINDS = ("Started", "Spawned", "FannedOut", "Retried", "Sent", "Woke", "Filed", "Raised", "Routed", "Answered", "Requested", "Decided", "Performed", "Replied", "Delivered")
+RUN_TRAIL_EDGE_KINDS = ("Started", "Spawned", "FannedOut", "Retried", "Sent", "Woke", "Filed", "Raised", "Routed", "Answered", "Requested", "Decided", "Performed", "Replied", "Delivered", "Shadowed")
 RUN_TRAIL_TRUNCATIONS = ("None", "NodeCap", "HopCap", "SpanCap")
 # Organization validation (Organizations.validate_organization).
 ORGANIZATION_VALIDATION_SEVERITIES = ("Error", "Warning")

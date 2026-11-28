@@ -485,6 +485,7 @@ namespace Garrison.Server.Runtime
             create.CallerName = trial.CreatedByName;
             create.IdempotencyKey = key;
             create.ShadowTrialId = trial.Id;
+            create.ShadowOfRunId = source.Id;
             create.Surface = "shadow";
             if (withParameters)
             {

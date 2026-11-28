@@ -385,6 +385,11 @@ namespace Garrison.Sdk.Models
         public EntrySurfaceEnum? EntrySurface { get; set; } = null;
 
         /// <summary>
+        /// The live run this shadow copy copies (Kind Shadow), or null.
+        /// </summary>
+        public string? ShadowOfRunId { get; set; } = null;
+
+        /// <summary>
         /// Blocking escalation the run is waiting on (AA2), or null.
         /// </summary>
         public string? EscalationId { get; set; } = null;

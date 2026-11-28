@@ -241,7 +241,8 @@ namespace Garrison.Server.Runtime
                 if (!visited.Add(current.Id)) break;
 
                 Run? parent = await LinkedRunAsync(tenantId, current.ParentRunId, probe, token).ConfigureAwait(false)
-                    ?? await LinkedRunAsync(tenantId, current.RetryOfRunId, probe, token).ConfigureAwait(false);
+                    ?? await LinkedRunAsync(tenantId, current.RetryOfRunId, probe, token).ConfigureAwait(false)
+                    ?? await LinkedRunAsync(tenantId, current.ShadowOfRunId, probe, token).ConfigureAwait(false);
                 if (parent != null)
                 {
                     current = parent;
@@ -335,6 +336,7 @@ namespace Garrison.Server.Runtime
             List<FanOutGroup> groups = await _Database.FanOuts.ListByParentsAsync(tenantId, ids, limit, token).ConfigureAwait(false);
             List<Run> children = await _Database.Runs.ListByParentsAsync(tenantId, ids, limit, token).ConfigureAwait(false);
             List<Run> retries = await _Database.Runs.ListRetriesOfAsync(tenantId, ids, limit, token).ConfigureAwait(false);
+            List<Run> shadows = await _Database.Runs.ListShadowsOfAsync(tenantId, ids, limit, token).ConfigureAwait(false);
             List<EffectOperation> effects = includeEffects ? await _Database.EffectOperations.ListByRunsAsync(tenantId, ids, limit, token).ConfigureAwait(false) : new List<EffectOperation>();
             List<AgentMessage> sent = await _Database.AgentMessages.ListBySenderRunsAsync(tenantId, ids, limit, token).ConfigureAwait(false);
             List<Report> reports = await _Database.Reports.ListByRunsAsync(tenantId, ids, limit, token).ConfigureAwait(false);
@@ -370,6 +372,16 @@ namespace Garrison.Server.Runtime
                 if (!walk.Add(RunNode(retry, focusId), retry.Id == focusId)) continue;
                 walk.Link(retry.RetryOfRunId, retry.Id, RunTrailEdgeKindEnum.Retried, Start(retry));
                 if (isNew) next.Add(retry);
+            }
+
+            foreach (Run shadow in shadows)
+            {
+                walk.Runs[shadow.Id] = shadow;
+                walk.SetDepth(shadow.Id, walk.DepthOf(shadow.ShadowOfRunId));
+                bool isNew = !walk.Has(shadow.Id);
+                if (!walk.Add(RunNode(shadow, focusId), shadow.Id == focusId)) continue;
+                walk.Link(shadow.ShadowOfRunId, shadow.Id, RunTrailEdgeKindEnum.Shadowed, Start(shadow));
+                if (isNew) next.Add(shadow);
             }
 
             foreach (EffectOperation effect in effects)
@@ -636,7 +648,7 @@ namespace Garrison.Server.Runtime
             node.IsFocus = run.Id == focusId;
             node.Lane = run.AgentId;
             // A run that starts a leg of the work says how it came in (LP-013); children and retries follow their parent.
-            if (String.IsNullOrEmpty(run.ParentRunId) && String.IsNullOrEmpty(run.RetryOfRunId)) node.EntrySurface = run.EntrySurface;
+            if (String.IsNullOrEmpty(run.ParentRunId) && String.IsNullOrEmpty(run.RetryOfRunId) && String.IsNullOrEmpty(run.ShadowOfRunId)) node.EntrySurface = run.EntrySurface;
             return node;
         }
 

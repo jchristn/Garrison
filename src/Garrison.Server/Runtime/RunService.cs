@@ -236,6 +236,7 @@ namespace Garrison.Server.Runtime
             run.EvalRunId = create.EvalRunId;
             run.ShadowTrialId = create.ShadowTrialId;
             run.EntrySurface = EntrySurfaces.FromSurface(create.Surface);
+            run.ShadowOfRunId = create.ShadowOfRunId;
             run.MaxAttempts = deployment.MaxAttempts;
             run.Attempt = 1;
 

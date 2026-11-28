@@ -159,6 +159,11 @@ namespace Garrison.Server.Runtime
         public string? ShadowTrialId { get; set; } = null;
 
         /// <summary>
+        /// The live run a shadow copy copies (LP-014), or null.
+        /// </summary>
+        public string? ShadowOfRunId { get; set; } = null;
+
+        /// <summary>
         /// The deployment named by <see cref="DeploymentId"/>, already read by the caller, or null (the default) to read
         /// it. The keeper scheduler reads a deployment once per sweep and passes it to every tick it starts on it. It is
         /// used only when its identifier, tenant, and agent match the request; it is checked like a deployment read here

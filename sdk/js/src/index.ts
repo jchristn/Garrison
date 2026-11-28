@@ -1406,8 +1406,8 @@ export const ENTRY_SURFACES: readonly EntrySurface[] = ["Rest", "Mcp", "A2a", "A
 export type RunTrailNodeKind = "Caller" | "Trigger" | "KeeperTick" | "Run" | "Message" | "Report" | "Escalation" | "Approval" | "Effect" | "FanOutGroup" | "PipelineRun" | "Reply" | "Redacted";
 export const RUN_TRAIL_NODE_KINDS: readonly RunTrailNodeKind[] = ["Caller", "Trigger", "KeeperTick", "Run", "Message", "Report", "Escalation", "Approval", "Effect", "FanOutGroup", "PipelineRun", "Reply", "Redacted"] as const;
 /** How two steps of an activity trail are linked, from cause to effect. */
-export type RunTrailEdgeKind = "Started" | "Spawned" | "FannedOut" | "Retried" | "Sent" | "Woke" | "Filed" | "Raised" | "Routed" | "Answered" | "Requested" | "Decided" | "Performed" | "Replied" | "Delivered";
-export const RUN_TRAIL_EDGE_KINDS: readonly RunTrailEdgeKind[] = ["Started", "Spawned", "FannedOut", "Retried", "Sent", "Woke", "Filed", "Raised", "Routed", "Answered", "Requested", "Decided", "Performed", "Replied", "Delivered"] as const;
+export type RunTrailEdgeKind = "Started" | "Spawned" | "FannedOut" | "Retried" | "Sent" | "Woke" | "Filed" | "Raised" | "Routed" | "Answered" | "Requested" | "Decided" | "Performed" | "Replied" | "Delivered" | "Shadowed";
+export const RUN_TRAIL_EDGE_KINDS: readonly RunTrailEdgeKind[] = ["Started", "Spawned", "FannedOut", "Retried", "Sent", "Woke", "Filed", "Raised", "Routed", "Answered", "Requested", "Decided", "Performed", "Replied", "Delivered", "Shadowed"] as const;
 /** Why a trail stopped short; None when it is complete. */
 export type RunTrailTruncation = "None" | "NodeCap" | "HopCap" | "SpanCap";
 export const RUN_TRAIL_TRUNCATIONS: readonly RunTrailTruncation[] = ["None", "NodeCap", "HopCap", "SpanCap"] as const;
@@ -1551,6 +1551,8 @@ export interface Run extends Json {
   evalRunId?: string | null;
   /** The shadow trial this run belongs to (kind Shadow), or null. */
   shadowTrialId?: string | null;
+  /** The live run a shadow copy copies (kind Shadow), or null. */
+  shadowOfRunId?: string | null;
   /** How the run came in, or null for runs created before the server recorded it. */
   entrySurface?: EntrySurface | null;
   /** Structured output of the run as a JSON value (any JSON type), or null when there is none. */

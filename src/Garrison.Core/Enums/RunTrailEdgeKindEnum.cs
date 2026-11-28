@@ -79,6 +79,11 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A message reached a run that was already running (it read its inbox) instead of waking a new run.
         /// </summary>
-        Delivered
+        Delivered,
+
+        /// <summary>
+        /// A live run to a shadow copy of it that a shadow trial ran on the candidate deployment (LP-014).
+        /// </summary>
+        Shadowed
     }
 }

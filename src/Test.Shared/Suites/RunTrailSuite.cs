@@ -64,6 +64,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "routes", "GET /runs/{id}/trail answers 404 for a missing or cross-tenant run, 400 for a bad includeEffects, 403 to a run token, and is in the scope map (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp", "garrison_get_run_trail is listed for a person and returns the trail as structured content; it is absent and refused for a run token (" + provider + ")", ct => McpAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "entry-surface", "Runs record how they came in: REST invoke Rest, MCP start Mcp, a manual trigger fire Trigger, and a person's urgent message Message; the trail's Caller node and leg-starting Run nodes carry it (" + provider + ")", ct => EntrySurfaceAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "shadow-link", "A shadow copy hangs off its live run with a Shadowed edge, from either end, with the live run's origin; ListShadowsOfAsync reads it only in its tenant (" + provider + ")", ct => ShadowLinkAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "org-validate", "POST /organizations/{id}/validate lists warnings and errors with codes and unit identifiers, writes nothing, and answers 404 across tenants (" + provider + ")", ct => OrgValidateAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Activity trail (" + provider + ")", cases));
             }
@@ -195,6 +196,46 @@ namespace Test.Shared.Suites
                 Assert.True(withChild.Nodes.Single(n => n.Id == child.Id).EntrySurface == null && Run(withChild, rest.Id).EntrySurface == EntrySurfaceEnum.Rest, "A child run node leaves the surface out");
                 Run reread = Assert.NotNull(await db.Runs.ReadAsync(host.TenantId, child.Id, token).ConfigureAwait(false), "The child run");
                 Assert.Equal(EntrySurfaceEnum.Mcp, reread.EntrySurface, "The column round-trips");
+            }
+        }
+
+        private static async Task ShadowLinkAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                DatabaseDriverBase db = host.Server.Context.Database;
+                Agent agent = await OrganizationSuite.AgentAsync(host, "trail-shadow", token).ConfigureAwait(false);
+                Run live = OrganizationSuite.RunOf(host, agent);
+                live.CallerType = PrincipalTypeEnum.User;
+                live.CallerId = "usr_shadow";
+                live.CallerName = "shadow@example.com";
+                live.Status = RunStatusEnum.Succeeded;
+                live.CompletedUtc = DateTime.UtcNow;
+                live.EntrySurface = EntrySurfaceEnum.Rest;
+                await db.Runs.CreateAsync(live, token).ConfigureAwait(false);
+                Run shadow = OrganizationSuite.RunOf(host, agent);
+                shadow.Kind = RunKindEnum.Shadow;
+                shadow.ShadowTrialId = "shd_trail";
+                shadow.ShadowOfRunId = live.Id;
+                shadow.CallerType = PrincipalTypeEnum.User;
+                shadow.CallerId = "usr_trial_owner";
+                shadow.Status = RunStatusEnum.Succeeded;
+                shadow.CompletedUtc = DateTime.UtcNow;
+                shadow.EntrySurface = EntrySurfaceEnum.Shadow;
+                await db.Runs.CreateAsync(shadow, token).ConfigureAwait(false);
+
+                Assert.Equal(live.Id, Assert.NotNull(await db.Runs.ReadAsync(host.TenantId, shadow.Id, token).ConfigureAwait(false), "The shadow run").ShadowOfRunId, "ShadowOfRunId round-trips");
+                Assert.Equal(shadow.Id, (await db.Runs.ListShadowsOfAsync(host.TenantId, new List<string> { live.Id, "run_none" }, 10, token).ConfigureAwait(false)).Single().Id, "Shadows of a run");
+                Assert.True(!(await db.Runs.ListShadowsOfAsync("ten_other", new List<string> { live.Id }, 10, token).ConfigureAwait(false)).Any(), "Another tenant reads none");
+
+                RunTrailService service = host.Server.Context.Get<RunTrailService>();
+                RunTrail fromLive = await service.BuildAsync(OrganizationSuite.Admin(host), host.TenantId, live.Id, null, token).ConfigureAwait(false);
+                Assert.True(Has(fromLive, live.Id, shadow.Id, RunTrailEdgeKindEnum.Shadowed), "A Shadowed edge from the live run: " + Serializer.Serialize(fromLive.Edges));
+                Assert.True(Run(fromLive, shadow.Id).RunKind == RunKindEnum.Shadow && Run(fromLive, shadow.Id).EntrySurface == null && Run(fromLive, live.Id).EntrySurface == EntrySurfaceEnum.Rest, "The copy follows its live run and leaves the surface out");
+                RunTrail fromShadow = await service.BuildAsync(OrganizationSuite.Admin(host), host.TenantId, shadow.Id, null, token).ConfigureAwait(false);
+                Assert.True(fromShadow.OriginId == "usr_shadow" && fromShadow.FocusRunId == shadow.Id && Has(fromShadow, live.Id, shadow.Id, RunTrailEdgeKindEnum.Shadowed), "From the copy, the trail starts at the live run's caller: " + Serializer.Serialize(fromShadow));
+                Assert.True(fromShadow.Nodes.Count(n => n.Id == shadow.Id) == 1 && Run(fromShadow, shadow.Id).IsFocus, "The copy is shown once, as the focus");
+                Assert.Equal("Shadowed", Serializer.Deserialize<Dictionary<string, object?>>(Serializer.Serialize(fromShadow.Edges.Single(e => e.Kind == RunTrailEdgeKindEnum.Shadowed)))!["kind"]?.ToString(), "The edge kind serializes as a string");
             }
         }
 

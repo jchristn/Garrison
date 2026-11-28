@@ -455,6 +455,12 @@ namespace Garrison.Core.Models
         public EntrySurfaceEnum? EntrySurface { get; set; } = null;
 
         /// <summary>
+        /// The live run this run is a shadow copy of (LP-014), or null. Set only on runs of kind Shadow, by the shadow trial
+        /// that copied it.
+        /// </summary>
+        public string? ShadowOfRunId { get; set; } = null;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.

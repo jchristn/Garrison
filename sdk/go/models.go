@@ -723,6 +723,8 @@ type Run struct {
 	// EntrySurface is how the run came in (one of the EntrySurface* constants); nil for runs created before the server
 	// recorded it.
 	EntrySurface *string `json:"entrySurface,omitempty"`
+	// ShadowOfRunID is the live run a shadow copy copies (Kind Shadow); nil otherwise.
+	ShadowOfRunID *string `json:"shadowOfRunId,omitempty"`
 }
 
 // Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness

@@ -557,6 +557,17 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Run>> ListRetriesOfAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Shadow copies of any of a set of live runs (by ShadowOfRunId), oldest first, for the activity trail (LP1.13).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>
+        /// <param name="ids">Identifiers of the live runs; empty and duplicate values are ignored.</param>
+        /// <param name="limit">Most rows, clamped to 1 through 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs without requirements or parameters.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        Task<List<Run>> ListShadowsOfAsync(string tenantId, List<string> ids, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Stage runs of a set of pipeline runs (by PipelineRunId), oldest first, for the activity trail (LP1.4).
         /// </summary>
         /// <param name="tenantId">Tenant identifier; every row read belongs to it.</param>

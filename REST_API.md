@@ -2975,6 +2975,7 @@ A run that a person invoked directly, with no child runs or messages:
 | `Spawned` | A parent run, or a fan-out group, to a child run |
 | `FannedOut` | A run to the fan-out group it started |
 | `Retried` | A run to its retry |
+| `Shadowed` | A live run to a shadow copy of it that a shadow trial ran on the candidate deployment |
 | `Sent` | A run, or a person, to a message it sent |
 | `Woke` | A message to the run it woke |
 | `Delivered` | A message to a run that was already running and read it from its inbox |
@@ -6966,6 +6967,7 @@ One invocation of one deployment.
 | `kind` | `RunKindEnum` | Run kind. |
 | `evalRunId` | `string?` | The eval run this run belongs to: a case run or a judge run (kind `Eval`). See [Evaluations](#evaluations). |
 | `shadowTrialId` | `string?` | The shadow trial this run is a copy for (kind `Shadow`). |
+| `shadowOfRunId` | `string?` | The live run this shadow copy copies (kind `Shadow`). |
 | `entrySurface` | `EntrySurfaceEnum?` | How the run came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`. Set at creation; null for runs created before schema version 62. The dashboard's runs are `Rest`; `Dashboard` is reserved. See [docs/TRAILS.md](docs/TRAILS.md). |
 | `status` | `RunStatusEnum` | Status. |
 | `outcome` | `RunOutcomeEnum` | Outcome code. |

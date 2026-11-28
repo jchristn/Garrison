@@ -317,6 +317,8 @@ namespace Test.Shared.Suites
                     Assert.True(shadow.Kind == RunKindEnum.Shadow && shadow.InputText == sourceRun.InputText && shadow.Priority == -100, "A Shadow run with the source's input at the lowest priority: " + Serializer.Serialize(shadow));
                     Assert.True(shadow.ParentRunId == null && shadow.ConversationId == null && shadow.TriggerId == null && shadow.PipelineRunId == null && shadow.MandateId == null && shadow.FanOutGroupId == null, "It answers no caller, conversation, trigger, pipeline, mandate, or fan-out");
                     Assert.Equal(sourceRun.Id, ShadowSampling.SourceRunId(shadow), "It names its source run");
+                    Assert.Equal(sourceRun.Id, shadow.ShadowOfRunId, "It records its source run as ShadowOfRunId (LP-014)");
+                    Assert.Equal(EntrySurfaceEnum.Shadow, shadow.EntrySurface, "Its entry surface is Shadow");
                 }
                 Assert.True(sameShadow.DeploymentId == same.Id && divergeShadow.DeploymentId == diverge.Id && failShadow.DeploymentId == fail.Id, "Each shadow run went to its trial's candidate");
 
