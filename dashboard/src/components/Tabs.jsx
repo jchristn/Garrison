@@ -102,6 +102,7 @@ function TabStrip({ tabs, activeKey, onSelect, label, idPrefix, className = '' }
             onClick={() => onSelect(tab.id)}
             {...tip(tab.tip || tab.title)}
             data-tab-key={tab.id}
+            data-tour={tab.tour || undefined}
           >
             {tab.label}
           </button>

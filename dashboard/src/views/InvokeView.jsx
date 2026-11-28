@@ -425,7 +425,7 @@ export default function InvokeView() {
 
   return (
     <div>
-      <PageHeader title={t('views.invoke.title')} subtitle={t('views.invoke.subtitle')} />
+      <PageHeader title={t('views.invoke.title')} subtitle={t('views.invoke.subtitle')} hubKey="invoke" />
       <Explainer topic="invoke" />
       {loadError && <ErrorBanner message={errorMessage(t, loadError)} />}
       {!loadError && agents.length === 0 ? (
@@ -442,7 +442,7 @@ export default function InvokeView() {
         </div>
       ) : (
         <div className="invoke-layout">
-          <section className="panel invoke-form" aria-label={t('views.invoke.request')}>
+          <section className="panel invoke-form" aria-label={t('views.invoke.request')} data-tour="invoke-form">
             <div className="field">
               <label htmlFor="invoke-agent" {...tip(t('tips.views.invoke.agent'))}>{t('views.invoke.agent')}</label>
               <select id="invoke-agent" {...tip(t('tips.views.invoke.agent'))} value={agentId} onChange={(e) => { setAgentId(e.target.value); setDeploymentId(''); setParams({}); setConversationId(''); }}>

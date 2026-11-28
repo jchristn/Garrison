@@ -9,6 +9,7 @@ import { tip } from '../../components/Tooltip';
 import { findHub, pageBySlug, pathFor, TAB_PARAM } from '../../config/navConfig';
 import { allowed } from '../../utils/principal';
 import { PAGE_VIEWS } from './hubPanels';
+import HubTourButton from '../../components/tours/HubTourButton';
 
 const EMBEDDED = { embedded: true };
 
@@ -37,6 +38,7 @@ export default function HubView({ hubKey, apiClient }) {
             id: page.slug,
             label: t(`nav.items.${page.id}.label`),
             tip: t(`tips.nav.tabs.${page.id}`),
+            tour: `tab-${page.slug}`,
             render: () => (
               <HubProvider value={EMBEDDED}>
                 <View key={page.id} apiClient={apiClient} />
@@ -66,6 +68,7 @@ export default function HubView({ hubKey, apiClient }) {
           <h1 className="page-header-title">{title}</h1>
           <div className="page-header-subtitle">{t(`nav.hubs.${hub.key}.tip`)}</div>
         </div>
+        <HubTourButton hubKey={hub.key} tab={active?.id || null} />
         {['configuration', 'operations'].includes(hub.key) && <Link className="button button-secondary" to={pathFor('manifests')} {...tip(t('tips.runtime.importExport'))}>{t('runtime.importExport')}</Link>}
       </header>
       {tabs.length > 0 ? <UrlTabs tabs={tabs} label={title} /> : <EmptyState title={t('common.states.forbiddenTitle')} body={t('common.states.forbiddenBody')} />}

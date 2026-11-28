@@ -467,7 +467,7 @@ function Board({ organizationId }) {
       <Explainer topic="board" />
 
       <div className="board-grid">
-        <section className="panel board-panel board-wide" aria-labelledby="board-chart-title" data-testid="board-chart">
+        <section className="panel board-panel board-wide" aria-labelledby="board-chart-title" data-testid="board-chart" data-tour="board-chart">
           <PanelHead id="board-chart-title" title={t('board.chart.title')} tipText={t('tips.board.chart.title')} />
           {units.length === 0 ? (
             <Empty text={t('board.chart.empty')} testId="board-chart-empty" />
@@ -525,7 +525,7 @@ function Board({ organizationId }) {
           )}
         </section>
 
-        <section className="panel board-panel" aria-labelledby="board-attention-title" data-testid="board-attention">
+        <section className="panel board-panel" aria-labelledby="board-attention-title" data-testid="board-attention" data-tour="board-attention">
           <PanelHead id="board-attention-title" title={t('board.attention.title')} tipText={t('tips.board.attention.title')} count={attention} />
           {attention === 0 ? (
             <Empty text={t('board.attention.empty')} testId="board-attention-empty" />

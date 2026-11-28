@@ -33,7 +33,7 @@ export default function OrgPeoplePalette({ choices = [], placed = {}, units = []
   };
 
   return (
-    <section className="org-palette" aria-labelledby={`${idPrefix}-title`} data-testid="org-palette">
+    <section className="org-palette" aria-labelledby={`${idPrefix}-title`} data-testid="org-palette" data-tour="org-palette">
       <div className="org-palette-head">
         <h4 id={`${idPrefix}-title`} className="section-title" {...tip(t('tips.orgDesigner.palette.title'))}>
           {t('components.orgDesigner.palette.title')}

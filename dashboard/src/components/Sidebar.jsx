@@ -70,6 +70,7 @@ export default function Sidebar({ onNavigateMobile }) {
                     }}
                     {...tip(t(`tips.nav.hubs.${hub.key}`))}
                     data-nav={hub.key}
+                    data-tour={`nav-${hub.key}`}
                   >
                     {Icon && <Icon size={18} />}
                     <span>{label}</span>
@@ -102,7 +103,7 @@ export default function Sidebar({ onNavigateMobile }) {
           );
         })}
       </nav>
-      <div className="sidebar-footer">
+      <div className="sidebar-footer" data-tour="sidebar-help">
         <button type="button" className="sidebar-utility" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>
           <Icons.WandIcon size={16} />
           <span>{t('nav.setup')}</span>

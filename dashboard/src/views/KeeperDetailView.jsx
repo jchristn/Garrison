@@ -452,7 +452,7 @@ export default function KeeperDetailView({ recordId }) {
                 </ul>
               </div>
             )}
-            <div className="detail-grid keeper-revision-numbers">
+            <div className="detail-grid keeper-revision-numbers" data-tour="keeper-limits">
               <Detail label={t('resources.keepers.fields.wakeMode')} tip={t('tips.resources.keepers.wakeMode')}>
                 <span {...tip(enumTip(t, 'wakeMode', rev.wakeMode))}>{enumLabel(t, 'wakeMode', rev.wakeMode)}</span>
               </Detail>

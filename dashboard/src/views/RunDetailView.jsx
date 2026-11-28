@@ -270,6 +270,7 @@ export default function RunDetailView({ recordId }) {
   return (
     <div>
       <PageHeader
+        tour="run-header"
         title={t('views.runDetail.titleWithAgent', { agent: run.agentName })}
         subtitle={
           <span className="inline-meta">
@@ -510,7 +511,7 @@ export default function RunDetailView({ recordId }) {
           { id: 'stderr', label: t('views.runDetail.stderr'), tip: t('tips.views.runDetail.tabs.stderr') },
           { id: 'children', label: t('views.runDetail.children', { count: children.length }), tip: t('tips.views.runDetail.tabs.children') },
           { id: 'approvals', label: t('views.runDetail.approvals', { count: approvals.length }), tip: t('tips.views.runDetail.tabs.approvals') },
-          { id: 'trail', label: t('trail.tab'), tip: t('tips.trail.tab') }
+          { id: 'trail', label: t('trail.tab'), tip: t('tips.trail.tab'), tour: 'run-tab-trail' }
         ]}
       />
 

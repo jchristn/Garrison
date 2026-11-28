@@ -33,7 +33,7 @@ const asList = (r) => (Array.isArray(r) ? r : r?.items || []);
  * configurations of the existing agent, keeper, and change rule forms ({ agents, keepers, changeRules }); the page
  * passes them in so this chunk does not import the views.
  */
-export default function OrgDesigner({ organization, options = {}, spend = [], permissions = null, blocked = '', forms = {}, onReload }) {
+export default function OrgDesigner({ organization, options = {}, spend = [], permissions = null, blocked = '', forms = {}, onReload, initialUnit = '' }) {
   const { t, i18n } = useTranslation();
   const lng = i18n.language;
   const { apiClient, principal } = useAuth();
@@ -230,6 +230,7 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
           onNewAgent={agentDenied || blocked ? null : openNewAgent}
           agents={agents}
           say={setAnnouncement}
+          initialUnit={initialUnit}
         />
       </div>
       {modal?.kind === 'keeper' && forms.keepers && (

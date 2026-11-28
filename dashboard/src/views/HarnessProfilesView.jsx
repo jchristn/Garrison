@@ -16,6 +16,8 @@ async function profilePage(client, tenant, params) {
 
 const connections = {
   ...harnessProfilesConfig,
+  // LP4.7: the Connections hub's "?" button starts the Run an agent tour.
+  hubKey: 'connections',
   steps: undefined,
   explainer: false,
   labels: { title: 'runtime.title', subtitle: 'runtime.sharedHint', add: 'runtime.add', create: 'runtime.create', edit: 'runtime.edit', view: 'runtime.view', emptyTitle: 'runtime.emptyTitle', emptyBody: 'runtime.configureFirst' },

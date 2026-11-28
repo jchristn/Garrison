@@ -21,7 +21,7 @@ export default function OrgDesignPanel({ unit, extraTabs = [], structure = null,
       </>
     );
   }
-  const tabs = [{ id: 'people', label: t('components.orgDesigner.tabs.people'), tip: t('tips.orgDesigner.tabs.people') }, ...extraTabs.map(({ id, label, tip }) => ({ id, label, tip }))];
+  const tabs = [{ id: 'people', label: t('components.orgDesigner.tabs.people'), tip: t('tips.orgDesigner.tabs.people'), tour: 'org-unit-people' }, ...extraTabs.map(({ id, label, tip }) => ({ id, label, tip, tour: `org-unit-${id}` }))];
   const active = tabs.some((x) => x.id === tab) ? tab : 'people';
   return (
     <div className="org-design-panel" data-testid="org-design-panel" data-panel-tab={active}>

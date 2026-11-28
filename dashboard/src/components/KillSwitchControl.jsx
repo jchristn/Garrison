@@ -64,7 +64,7 @@ export default function KillSwitchControl({ compact = false }) {
   };
 
   return (
-    <div className={`kill-switch ${on ? 'kill-switch-on' : ''} ${compact ? 'kill-switch-compact' : 'panel'}`} data-testid="kill-switch" data-enabled={on ? 'true' : 'false'}>
+    <div className={`kill-switch ${on ? 'kill-switch-on' : ''} ${compact ? 'kill-switch-compact' : 'panel'}`} data-testid="kill-switch" data-tour="kill-switch" data-enabled={on ? 'true' : 'false'}>
       <div className="kill-switch-head">
         <span className="kill-switch-title" {...tip(t('tips.freezes.killSwitch.title'))}>
           {t('freezes.killSwitch.title')}

@@ -55,9 +55,10 @@ function reducedMotion() {
  *   `panelProps`, plus `perform(method, fields)` for changes that should join the undo history); `onNewAgent(unit)`
  *   adds New agent to the palette;
  * - `readOnly`: no editing at all (the Chart tab's overlays), with selection kept so a unit can be inspected;
- * - a minimap above MINIMAP_ABOVE_UNITS units, and Fit to screen without animation under prefers-reduced-motion.
+ * - a minimap above MINIMAP_ABOVE_UNITS units, and Fit to screen without animation under prefers-reduced-motion;
+ * - `initialUnit`: a unit name to select once it is on the canvas (the Design tab's `?unit=`, used by the tours).
  */
-export default function OrgCanvas({ draft, graph, source = null, scopeId = '', blocked = '', readOnly = false, palette = false, decorations = null, renderPanel = null, onNewAgent = null, agents = [], runOperation, say }) {
+export default function OrgCanvas({ draft, graph, source = null, scopeId = '', blocked = '', readOnly = false, palette = false, decorations = null, renderPanel = null, onNewAgent = null, agents = [], runOperation, say, initialUnit = '' }) {
   const { t } = useTranslation();
   const { fitView } = useReactFlow();
   const scope = scopeId || draft?.id || 'org';
@@ -176,6 +177,13 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
   };
 
   const byName = useMemo(() => new Map(flow.units.map((u) => [u.name, u])), [flow]);
+  // LP4.5: select the unit a link asked for, once, when it first appears.
+  const initialDone = useRef('');
+  useEffect(() => {
+    if (!initialUnit || initialDone.current === initialUnit || !byName.has(initialUnit)) return;
+    initialDone.current = initialUnit;
+    setSelection({ type: 'unit', id: initialUnit });
+  }, [initialUnit, byName]);
   const selectedId = selection?.type === 'unit' ? selection.id : null;
   const problemCounts = useMemo(() => {
     const counts = {};
@@ -482,7 +490,7 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
   const panelKey = selectedUnit ? `unit-${selectedUnit.name}` : selectedPeer ? `peer-${selectedPeer.id}` : `org-${organization}`;
 
   return (
-    <div className="studio-org-canvas" data-testid="studio-org-canvas" onKeyDown={onHistoryKey}>
+    <div className="studio-org-canvas" data-testid="studio-org-canvas" data-tour="org-canvas" onKeyDown={onHistoryKey}>
       <div className="studio-canvas-toolbar" data-testid="studio-org-toolbar">
         <div className="studio-canvas-tools" role="group" aria-label={t('components.studio.canvas.org.toolbar.label')}>
           {organizations.length > 1 && (

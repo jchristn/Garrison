@@ -451,8 +451,9 @@ export default function ResourceView({ config }) {
   );
 
   return (
-    <div>
+    <div data-tour={`resource-${config.id}`}>
       <PageHeader
+        hubKey={config.hubKey}
         title={recordLabel('title')}
         subtitle={recordLabel('subtitle')}
         actions={

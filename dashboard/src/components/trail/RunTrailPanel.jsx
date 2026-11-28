@@ -134,7 +134,7 @@ export default function RunTrailPanel({ runId }) {
     <div className="trail-panel" data-testid="trail-panel">
       <div className="trail-toolbar">
         {!narrow && (
-          <div className="range-group segmented" role="group" aria-label={t('trail.views.label')} data-testid="trail-views">
+          <div className="range-group segmented" role="group" aria-label={t('trail.views.label')} data-testid="trail-views" data-tour="trail-views">
             {TRAIL_VIEWS.map((v) => (
               <button key={v} type="button" aria-pressed={view === v} className={`range-btn ${view === v ? 'active' : ''}`} onClick={() => setView(v)} data-testid={`trail-view-${v}`} {...tip(t(`tips.trail.views.${v}`))}>
                 {t(`trail.views.${v}`)}
@@ -142,7 +142,7 @@ export default function RunTrailPanel({ runId }) {
             ))}
           </div>
         )}
-        <div className="trail-toolbar-end">
+        <div className="trail-toolbar-end" data-tour="trail-actions">
           <AutoRefreshSelect value={autoRefresh} onChange={setAutoRefresh} />
           <button type="button" className="button-secondary button-sm" onClick={reload} disabled={loading} data-testid="trail-refresh" {...tip(t('tips.trail.refresh'))}>
             <RefreshIcon /> {t('trail.refresh')}
@@ -153,7 +153,7 @@ export default function RunTrailPanel({ runId }) {
         </div>
       </div>
 
-      <dl className="trail-summary" data-testid="trail-summary">
+      <dl className="trail-summary" data-testid="trail-summary" data-tour="trail-summary">
         <SummaryItem label={t('trail.summary.agents')} tipText={t('tips.trail.summary.agents')} value={formatNumber(summary.agents, {}, lng)} testId="trail-summary-agents" />
         <SummaryItem label={t('trail.summary.hops')} tipText={t('tips.trail.summary.hops')} value={formatNumber(summary.hops, {}, lng)} testId="trail-summary-hops" />
         <SummaryItem label={t('trail.summary.duration')} tipText={t('tips.trail.summary.duration')} value={formatMs(summary.durationMs, lng, na)} testId="trail-summary-duration" />
@@ -188,7 +188,7 @@ export default function RunTrailPanel({ runId }) {
       )}
 
       <div className={`trail-body ${openNode ? 'has-drawer' : ''}`}>
-        <div className="trail-views">
+        <div className="trail-views" data-tour="trail-steps">
           {shownView === 'sequence' && <TrailSequence trail={trail} selectedId={selectedId} onSelect={setSelectedId} onOpen={open} />}
           {shownView === 'graph' && (
             <Suspense fallback={<LoadingState />}>

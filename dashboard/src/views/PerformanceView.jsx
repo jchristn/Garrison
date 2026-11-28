@@ -300,7 +300,7 @@ function Performance({ organizationId }) {
           {units.length === 0 ? <p className="text-muted board-empty">{t('performance.units.empty')}</p> : <UnitPerformanceChart units={units} t={t} lng={lng} />}
         </section>
 
-        <section className="panel board-panel board-wide" aria-labelledby="performance-units-title" data-testid="performance-units">
+        <section className="panel board-panel board-wide" aria-labelledby="performance-units-title" data-testid="performance-units" data-tour="performance-units">
           <PanelHead id="performance-units-title" title={t('performance.units.title')} tipText={t('tips.performance.units.title')} />
           {units.length === 0 ? (
             <p className="text-muted board-empty" data-testid="performance-units-empty">

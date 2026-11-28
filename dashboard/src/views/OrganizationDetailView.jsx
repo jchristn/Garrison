@@ -398,7 +398,7 @@ export default function OrganizationDetailView({ recordId }) {
   };
 
   const actionButton = (key, labelText, tipText, onClick, { className = 'button-secondary', denied = '', icon = null } = {}) => (
-    <button type="button" className={className} aria-disabled={denied || busy ? 'true' : undefined} onClick={() => !denied && !busy && onClick()} data-testid={`org-${key}`} {...tip(denied || tipText)}>
+    <button type="button" className={className} aria-disabled={denied || busy ? 'true' : undefined} onClick={() => !denied && !busy && onClick()} data-testid={`org-${key}`} data-tour={key === 'publish' ? 'org-publish' : undefined} {...tip(denied || tipText)}>
       {icon}
       {icon ? ' ' : ''}
       {labelText}
@@ -623,7 +623,7 @@ export default function OrganizationDetailView({ recordId }) {
           )}
           {wide ? (
             <Suspense fallback={<LoadingState />}>
-              <OrgDesigner organization={org} options={options} spend={spend} permissions={permissions} blocked={editBlocked} forms={DESIGNER_FORMS} onReload={reloadAll} />
+              <OrgDesigner organization={org} options={options} spend={spend} permissions={permissions} blocked={editBlocked} forms={DESIGNER_FORMS} onReload={reloadAll} initialUnit={searchParams.get('unit') || ''} />
             </Suspense>
           ) : (
             <>
