@@ -103,7 +103,7 @@ const tips = {
       runs: '搜尋、篩選同檢查個別執行。打開一個就可以睇佢嘅對話記錄、結果同遙測數據，或者取消同重試。',
       queue: '等緊節點、已被租用或者而家執行緊嘅執行，按代理程式同 Harness 分組。',
       agents: '呼叫方透過 REST、MCP 或 A2A 調用嘅具名代理程式。代理程式係身份；佢嘅部署決定佢點樣執行。',
-      deployments: '每個代理程式點樣執行：Harness 設定檔、模型、提示、MCP 伺服器、機密、工作區、排程放置、限制同流量權重。',
+      deployments: '每個代理程式點樣執行：連線、模型、提示、MCP 伺服器、機密、工作區、排程放置、限制同流量權重。',
       harnessProfiles: '以無介面模式啟動 CLI Harness 嘅配方：執行檔、參數、環境變數、檔案同輸出解析。',
       promptTemplates: 'Garrison 傳畀 Harness 嘅每個提示同產生嘅設定檔，有版本控制同即時預覽。',
       mcpServers: '代理程式可以用嘅工具伺服器。喺度登記，然後綁定到部署。',
@@ -397,7 +397,7 @@ const tips = {
       NotCredentialed: 'Harness 冇可用嘅憑證。將一個機密綁定到部署。',
       McpPreflightFailed: '工作節點喺啟動前檢查嗰陣，連唔到一個必需嘅 MCP 伺服器或工具。',
       NodeLost: '工作節點持有呢個執行期間停止咗發送心跳。',
-      OutputLimitExceeded: '個執行產生咗太多輸出：回答超過咗部署嘅最大助理字元數（一種執行防護），或者 Harness 寫出嘅內容多過 Harness 設定檔容許嘅量。到而家為止嘅輸出會保留。',
+      OutputLimitExceeded: '個執行產生咗太多輸出：回答超過咗部署嘅最大助理字元數（一種執行防護），或者 Harness 寫出嘅內容多過 連線容許嘅量。到而家為止嘅輸出會保留。',
       SchemaValidationFailed: '結果唔符合代理程式嘅輸出 JSON Schema：修復過一次之後，或者 Harness 冇辦法恢復工作階段嗰陣即刻失敗。',
       TimedOut: '執行到咗期限。',
       Cancelled: '執行應要求被取消咗。',
@@ -436,7 +436,7 @@ const tips = {
       Codex: 'OpenAI Codex CLI，用 exec 運行，輸出 JSONL。',
       Mux: 'Mux CLI，輸出 JSONL；可以用本機同託管嘅模型端點。',
       GeminiCli: 'Google Gemini CLI，輸出 stream-JSON。',
-      Generic: '任何其他指令行代理程式，完全由 Harness 設定檔描述。'
+      Generic: '任何其他指令行代理程式，完全由 連線描述。'
     },
     agentKind: {
       Hosted: '託管：Garrison 自己透過工作節點上嘅部署運行呢個代理程式。',
@@ -474,7 +474,7 @@ const tips = {
       Fragment: '可重用嘅片段，其他範本用 {{> name}} 引入。',
       ToolDescription: '將代理程式描述成 MCP 工具或者 A2A 技能嘅文字。',
       ConfigFile: '產生出嚟嘅設定檔內容，例如 MCP 設定。',
-      Other: 'Harness 設定檔渲染嘅任何其他文字。'
+      Other: '連線渲染嘅任何其他文字。'
     },
     mcpTransport: {
       Http: 'Garrison 同 Harness 透過 URL 用可串流 HTTP 連接伺服器。',
@@ -525,8 +525,8 @@ const tips = {
       AffinityWaitExpired: '保存對話嘅節點保持就緒，但冇在 Runtime.ConversationAffinityWaitMs 內領取呢一輪，因此由另一個節點領取。',
       WorkspaceLost: '節點領取了呢一輪，但對話嘅工作區和主目錄已不在該節點上。',
       SessionMissing: '存在先前嘅輪次，但冇一輪回報可恢復嘅 Harness 工作階段，例如佢哋都在早期失敗了。',
-      HarnessChanged: '自記錄工作階段以來，部署嘅 Harness 設定檔已變更，新嘅設定檔冇辦法恢復該工作階段。',
-      ResumeUnsupported: '部署嘅 Harness 設定檔唔支援恢復工作階段，因此後續每一輪都從紀錄開始。',
+      HarnessChanged: '自記錄工作階段以來，部署嘅 連線已變更，新嘅連線冇辦法恢復該工作階段。',
+      ResumeUnsupported: '部署嘅 連線唔支援恢復工作階段，因此後續每一輪都從紀錄開始。',
       ExecutorWithoutState: '呢一輪以 Kubernetes Job 執行，每次都從空嘅主目錄開始，因此後續每一輪都從紀錄開始。'
     }
   },
@@ -818,10 +818,10 @@ const tips = {
         description: '講明點解要有呢條規則，等日後負責維護佢嘅人都睇得明。'
       },
       approvalTest: '用部署已儲存嘅規則試一個工具呼叫，睇下佢會俾允許、拒絕，定係交畀人決定。',
-      add: '建立部署：代理程式實際嘅運行方式，包括 Harness 設定檔、模型、提示同資源。',
+      add: '建立部署：代理程式實際嘅運行方式，包括 連線、模型、提示同資源。',
       name: '部署名稱，喺租用戶入面唯一，例如 reviewer-claude。',
       agentId: '呢個部署運行嘅代理程式。調用嗰個代理程式時可能會揀中呢個部署。',
-      harnessProfileId: '啟動 CLI 嘅 Harness 設定檔，例如 builtin/claude-code。',
+      harnessProfileId: '啟動 CLI 嘅 連線，例如 builtin/claude-code。',
       model: '傳畀 Harness 嘅模型名稱，例如 sonnet 或 gpt-5。範本可以用 deployment.model 讀取。',
       weight: '喺代理程式啟用中嘅部署之間嘅流量權重。權重 300 嘅部署收到嘅呼叫係權重 100 嘅三倍。',
       configVersion: '每次修改都會遞增。每個執行都會記錄佢係由邊個版本編譯出嚟。',
@@ -850,7 +850,7 @@ const tips = {
       },
       workspaceTemplateId: '每個執行嘅工作目錄點樣準備。留空即係一個全新嘅空白目錄。',
       artifactStoreId: '執行完成之後，佢哋產生嘅檔案上載去邊度。',
-      argumentOverrides: '只對呢個部署修改 Harness 設定檔嘅參數：加喺後面、加喺前面、取代或者移除。',
+      argumentOverrides: '只對呢個部署修改 連線嘅參數：加喺後面、加喺前面、取代或者移除。',
       argumentOverridesItems: {
         operation: '要做咩：加喺後面、加喺前面、取代相符嘅參數，或者移除佢。',
         match: '要取代或者移除嘅現有參數。',
@@ -878,12 +878,12 @@ const tips = {
         value: '節點必須有嘅標籤數值。'
       },
       maxConcurrentRuns: '呢個部署喺所有節點上最多可以同時有幾多個執行。0 即係冇上限。',
-      timeoutSeconds: '執行截止時間（秒）。留空就用 Harness 設定檔嘅預設值。叢集設定 Runtime.MaxRunSeconds 會限制每個執行，包括每次執行嘅時間限制。',
+      timeoutSeconds: '執行截止時間（秒）。留空就用 連線嘅預設值。叢集設定 Runtime.MaxRunSeconds 會限制每個執行，包括每次執行嘅時間限制。',
       maxAttempts: '一個執行總共最多可以試幾多次。介乎 1 至 10。',
       steps: {
         approvals: 'Harness 可以做邊啲工具呼叫、唔可以做邊啲，同埋邊啲要等人處理。',
         basics: '名稱、代理程式同流量權重。',
-        harness: 'Harness 設定檔、模型、限制同參數。',
+        harness: '連線、模型、限制同參數。',
         prompts: '每個提示角色由邊個範本填入。',
         resources: 'MCP 伺服器、機密、工作區同成品存放區。',
         overrides: '每個部署對參數、環境變數同檔案嘅修改，同埋呼叫方可以覆寫啲乜。',
@@ -1179,7 +1179,7 @@ const tips = {
       openRun: '打開呢個執行嘅對話記錄同遙測數據。',
       columns: {
         name: '部署名稱。呼叫方可以明確指名佢，略過按權重揀選。',
-        harness: '為呢個部署啟動 CLI 嘅 Harness 設定檔。',
+        harness: '為呢個部署啟動 CLI 嘅 連線。',
         model: '呢個部署要求 Harness 用嘅模型。',
         weight: '部署上設定嘅原始流量權重。',
         traffic: '呢個部署收到嘅調用份額：佢嘅權重除以所有啟用中權重嘅總和。',
@@ -1546,18 +1546,18 @@ const explainers = {
     agent: { title: '代理程式', body: '名稱、描述、公開方式、委派、輸出結構描述', tip: '可以定址嘅身份。呼叫方用名稱調用佢；佢講明代理程式係乜同點樣公開，而唔係點樣運行。' },
     deploymentA: { title: '部署 A，權重 300', body: 'Claude Code，sonnet', tip: '代理程式嘅其中一種運行方式。權重 300 對 100，冇指名部署嘅調用有 75% 會去佢度。' },
     deploymentB: { title: '部署 B，權重 100', body: 'Mux，本機模型', tip: '同一個代理程式嘅另一種運行方式。呼叫方亦可以明確指名佢，略過按權重揀選。' },
-    binds: { title: '每個部署都會綁定', body: 'Harness 設定檔、提示、MCP 伺服器、機密、工作區、節點池、限制', tip: '將請求變成實際程序嘅所有嘢：用邊個 CLI、邊啲提示、邊啲工具同憑證，同埋可以喺邊度運行。' },
+    binds: { title: '每個部署都會綁定', body: '連線、提示、MCP 伺服器、機密、工作區、節點池、限制', tip: '將請求變成實際程序嘅所有嘢：用邊個 CLI、邊啲提示、邊啲工具同憑證，同埋可以喺邊度運行。' },
     run: { title: '執行', body: '一個部署嘅一次執行', tip: '每次調用都會建立一個執行，由揀中嘅部署編譯，再喺工作節點上執行。' }
   },
   agents: {
     title: '代理程式同部署',
     p1: '代理程式係呼叫方用嘅身份。佢有名稱、描述、公開方式（A2A 卡、MCP 工具）、可唔可以呼叫其他代理程式，同埋佢嘅答案必須符合嘅輸出結構描述。代理程式本身唔會運行任何嘢。',
-    p2: '部署係代理程式點樣運行：用邊個 Harness 設定檔同模型、邊啲提示範本、邊啲 MCP 伺服器同機密（用別名）、咩工作區、邊個節點池，同埋套用咩限制同每次執行參數。一個代理程式可以有幾個部署，每個都有流量權重。',
+    p2: '部署係代理程式點樣運行：用邊個 連線同模型、邊啲提示範本、邊啲 MCP 伺服器同機密（用別名）、咩工作區、邊個節點池，同埋套用咩限制同每次執行參數。一個代理程式可以有幾個部署，每個都有流量權重。',
     p3: '有人調用代理程式嗰陣，除非呼叫方指名咗某個部署，否則 Garrison 會按權重隨機揀佢其中一個啟用中嘅部署。咁樣你就可以將 Claude Code 同 Mux 版本並排運行，或者逐步將流量轉去新模型。'
   },
   deployments: {
     title: '部署係乜',
-    p1: '部署將代理程式變成可以運行嘅嘢。佢只屬於一個代理程式，並且綁定一個 Harness 設定檔（啟動邊個 CLI）、一個模型、每個角色嘅提示範本、用別名綁定嘅 MCP 伺服器同機密、可選嘅工作區同成品存放區、喺節點池或標籤上嘅排程放置，同埋逾時同並行數等限制。',
+    p1: '部署將代理程式變成可以運行嘅嘢。佢只屬於一個代理程式，並且綁定一個 連線（啟動邊個 CLI）、一個模型、每個角色嘅提示範本、用別名綁定嘅 MCP 伺服器同機密、可選嘅工作區同成品存放區、喺節點池或標籤上嘅排程放置，同埋逾時同並行數等限制。',
     p2: '有幾個啟用中部署嘅代理程式會按權重分配流量：權重 300 同 100，即係每四個呼叫有三個去第一個。停用咗嘅部署唔會收到按權重分配嘅流量，但仍然可以明確指名，咁就好方便喺畀權重之前先測試新配置。',
     p3: '喺部署上用「編譯預覽」，就可以睇到一個執行會收到嘅確實指令行、檔案同環境變數，而唔使真係開始執行。'
   },
@@ -1566,10 +1566,10 @@ const explainers = {
     p1: '呢個代理程式靠佢嘅名稱嚟存取。下面嘅部署就係佢實際可以運行嘅方式。每個啟用中部署收到嘅流量份額，等於佢嘅權重除以所有啟用中部署嘅總權重；指名部署嘅呼叫方會略過按權重揀選。'
   },
   harnessProfiles: {
-    title: 'Harness 設定檔同部署',
-    p1: 'Harness 設定檔係一個指令行代理程式嘅啟動配方：執行檔、參數範本、環境變數、要寫入嘅檔案、提示同系統提示點樣傳遞、佢讀邊種 MCP 設定格式，同埋佢嘅輸出點樣解析成事件。',
+    title: '連線同部署',
+    p1: '連線（文件入面叫 Harness 設定檔）係一個指令行代理程式嘅啟動配方：執行檔、參數範本、環境變數、要寫入嘅檔案、提示同系統提示點樣傳遞、佢讀邊種 MCP 設定格式，同埋佢嘅輸出點樣解析成事件。',
     p2: '設定檔係共用嘅基本組件。部署揀一個設定檔，再加上具體細節：模型、提示、機密，同埋只適用於佢嘅參數或環境變數覆寫。好多部署可以用同一個設定檔，所以修正設定檔就會套用到晒全部。',
-    p3: '內置設定檔係唯讀嘅。要修改就先複製一份。'
+    p3: '內置連線係唯讀嘅。要修改就先複製一份。'
   },
   promptTemplates: {
     title: '提示範本同部署點樣用佢哋',
@@ -1599,7 +1599,7 @@ const explainers = {
   },
   manifests: {
     title: '清單同佢哋建立嘅記錄',
-    p1: '清單係以 YAML 或 JSON 文件寫成嘅租用戶配置：機密（預設唔包數值）、提示範本、Harness 設定檔、MCP 伺服器、工作區範本、代理程式同部署。文件之間用名稱互相引用，所以同一份清單喺任何租用戶都用得。',
+    p1: '清單係以 YAML 或 JSON 文件寫成嘅租用戶配置：機密（預設唔包數值）、提示範本、連線、MCP 伺服器、工作區範本、代理程式同部署。文件之間用名稱互相引用，所以同一份清單喺任何租用戶都用得。',
     p2: '套用清單會建立或者更新普通記錄，即係你喺其他分頁睇到嗰啲。套用兩次唔會改到任何嘢。試行會顯示會有咩改變但唔寫入，而「匯出」會產生一份可以重建呢個租用戶嘅清單。'
   },
   nodes: {
@@ -2182,8 +2182,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "kinds": "匯出剔咗嘅類型嘅所有資源。",
     "kind": "匯出呢個租戶入面所有 {{kind}}。",
     "resources": "要匯出嘅特定資源，寫做 類型/名稱，例如 Agent/triage 或者 Pipeline/release。",
-    "followReferences": "連埋揀咗嘅內容所依賴嘅資源都匯出：部署、harness 設定檔、提示範本、工作區、MCP 伺服器、觸發器同通知端點。密鑰只會列做前提條件，永遠唔會匯出。",
-    "includeBuiltIn": "加入套件參照嘅內建提示範本同 harness 設定檔。套用嗰陣唔會改佢哋，只會檢查佢哋存唔存在。"
+    "followReferences": "連埋揀咗嘅內容所依賴嘅資源都匯出：部署、harness 連線、提示範本、工作區、MCP 伺服器、觸發器同通知端點。密鑰只會列做前提條件，永遠唔會匯出。",
+    "includeBuiltIn": "加入套件參照嘅內建提示範本同 harness 連線。套用嗰陣唔會改佢哋，只會檢查佢哋存唔存在。"
    }
   }
  }
@@ -2317,7 +2317,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
  "enums": {
   "agentAssetKind": {
    "SystemPrompt": "代理程式嘅系統提示，由提示範本提供。佢冇上載檔案。",
-   "Skill": "執行器載入嘅技能資料夾，放喺執行器設定檔指定嘅技能位置。",
+   "Skill": "執行器載入嘅技能資料夾，放喺執行器連線指定嘅技能位置。",
    "ReferenceFile": "代理程式喺執行期間可以讀嘅檔案，放喺執行嘅工作區。",
    "DocumentTemplate": "文件範本，例如 .docx 或者 .dotx 檔案，由代理程式喺執行期間填寫。"
   },
@@ -2489,7 +2489,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "capabilityKind": {
    "Agent": "另一個 Garrison 代理程式，按佢最新發佈嘅修訂描述。負責統籌嘅代理程式可以將工作委派畀佢。",
    "McpTool": "喺呢個租用戶註冊咗嘅 MCP 伺服器嘅一個工具，按嗰個伺服器嘅工具清單描述。",
-   "HarnessBuiltIn": "Harness 喺佢嘅工作節點主機上面行得到嘅程式，例如 pandoc 或者 LibreOffice，係 Harness 設定檔上面嘅工具探測搵到嘅。"
+   "HarnessBuiltIn": "Harness 喺佢嘅工作節點主機上面行得到嘅程式，例如 pandoc 或者 LibreOffice，係 連線上面嘅工具探測搵到嘅。"
   },
   "capabilityOrigin": {
    "Derived": "Garrison 會令呢個項目同佢嘅來源保持一致。喺度改唔到亦刪唔到，請改返個來源。",
@@ -2510,7 +2510,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "kind": "代理程式、MCP 工具或者 Harness 內置工具。手動項目可以用任何類型。",
    "origin": "衍生項目跟住來源變，喺度改唔到；手動項目係人寫嘅。",
    "summary": "講清楚呢個能力做乜同幾時用，代理程式會睇呢段文字。最多 4000 個字元。",
-   "source": "項目嘅來源：代理程式、MCP 伺服器同工具，或者 Harness 設定檔同執行需要嘅節點標籤。",
+   "source": "項目嘅來源：代理程式、MCP 伺服器同工具，或者 連線同執行需要嘅節點標籤。",
    "hints": "由最近完成嘅執行計出嚟嘅執行時長中位數、第 90 百分位數同平均成本；完成嘅執行太少就顯示「未知」。",
    "tags": "用嚟篩選目錄嘅標籤。代理程式都可以按標籤篩選。",
    "lastRefreshedUtc": "Garrison 上次由來源重新整理衍生項目嘅時間。手動項目呢欄係空嘅。",
@@ -2546,7 +2546,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "sourceAgent": "打開代理程式 {{name}}。呢個項目係按佢最新發佈嘅修訂描述嘅。",
   "sourceMcpServer": "喺「MCP 伺服器」分頁打開 MCP 伺服器 {{name}}。佢嘅工具清單就係呢個項目嘅來源。",
   "sourceTool": "個工具喺 MCP 伺服器上面嘅名：{{tool}}。",
-  "sourceProfile": "打開 Harness 設定檔 {{name}}。佢嘅工具探測就係呢個項目嘅來源。",
+  "sourceProfile": "打開 連線 {{name}}。佢嘅工具探測就係呢個項目嘅來源。",
   "nodeLabel": "用到呢個能力嘅執行只會去報咗節點標籤 {{label}} 嘅工作節點。",
   "noSource": "一個冇指明任何代理程式或者 MCP 伺服器嘅手動項目。所有讀得到目錄嘅執行都睇到佢。",
   "hintsUnknown": "提示統計期入面完成嘅執行太少，講唔到啲乜，所以唔會顯示任何數值。咁樣絕對唔代表係零。",
@@ -2554,19 +2554,19 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "hintsKnown_other": "由過去 {{days}} 日完成嘅 {{count}} 次執行統計出嚟。",
   "refreshWarning": "Garrison 由來源重新整理唔到呢個項目，所以喺下次重新整理成功之前，項目會保留最後一次正常嘅內容。",
   "lockedBanner": "點解喺度改唔到亦刪唔到呢個項目，同埋應該去邊度改。",
-  "lockedShared": "所有租用戶共用：呢個項目嚟自內置 Harness 設定檔上面嘅工具探測，所以改唔到亦刪唔到。想改探測嘅話，請複製嗰個設定檔。",
+  "lockedShared": "所有租用戶共用：呢個項目嚟自內置 連線上面嘅工具探測，所以改唔到亦刪唔到。想改探測嘅話，請複製嗰個連線。",
   "locked": {
    "Agent": "由代理程式最新發佈嘅修訂衍生出嚟，所以喺度改唔到亦刪唔到。要改佢就發佈一個新修訂；停用代理程式就會移除佢。",
    "McpTool": "由 MCP 伺服器嘅工具清單衍生出嚟，所以喺度改唔到亦刪唔到。請改伺服器或者佢嘅工具，然後重新整理。",
-   "HarnessBuiltIn": "由 Harness 設定檔上面嘅工具探測衍生出嚟，所以喺度改唔到亦刪唔到。請改返設定檔嘅工具探測。"
+   "HarnessBuiltIn": "由 連線上面嘅工具探測衍生出嚟，所以喺度改唔到亦刪唔到。請改返連線嘅工具探測。"
   },
-  "shared": "所有租用戶都睇到呢個項目。佢嚟自內置 Harness 設定檔上面嘅工具探測。",
+  "shared": "所有租用戶都睇到呢個項目。佢嚟自內置 連線上面嘅工具探測。",
   "hintsTitle": "呢個代理程式最近完成嘅執行嘅時長同成本。MCP 工具同內置工具冇提示。",
   "requirementsTitle": "工作節點接一個代理程式用到呢個能力嘅執行之前，一定要報返嘅節點標籤。",
   "fields": {
    "kind": "代理程式、MCP 工具或者 Harness 內置工具。",
    "origin": "衍生項目跟住來源變；手動項目係人寫嘅。",
-   "source": "呢個項目嚟自嘅代理程式、MCP 伺服器同工具，或者 Harness 設定檔。",
+   "source": "呢個項目嚟自嘅代理程式、MCP 伺服器同工具，或者 連線。",
    "lastRefreshedUtc": "Garrison 上次由來源重新整理呢個項目嘅時間。手動項目呢欄係空嘅。",
    "tags": "用嚟篩選目錄嘅標籤。",
    "id": "目錄項目嘅識別碼，用 cap_ 開頭。",
@@ -2910,7 +2910,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "architect": {
    "name": "呢個租用戶入面新架構師部署嘅名稱，例如 architect。",
    "harnessProfileId": "架構師行喺邊個 Harness 上面，例如 Claude Code。需要有工作節點行得到佢。",
-   "model": "Harness 幫架構師用嘅模型。留空就用 Harness 設定檔嘅預設值。",
+   "model": "Harness 幫架構師用嘅模型。留空就用 連線嘅預設值。",
    "promptId": "架構師用嘅 System 提示。內置嘅排先，佢哋嘅複本排後。",
    "preview": "用範例值轉譯咗嘅所揀提示，同架構師收到嘅一樣。",
    "cloneLink": "喺提示範本畫面打開呢個提示，你可以喺嗰度複製佢再改複本。",
@@ -2920,7 +2920,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "chat": {
    "title": "同代理程式架構師關於呢份草稿嘅對話。佢改草稿，你批核套用。",
    "architect": "要傾偈嘅架構師部署。揀第個就會開始新對話。",
-   "newArchitect": "建立架構師部署：Harness 設定檔、模型同架構師提示。",
+   "newArchitect": "建立架構師部署：連線、模型同架構師提示。",
    "openConversation": "喺獨立頁面打開呢段對話，每一輪都係一次執行。",
    "newConversation": "喺呢個瀏覽器忘記呢段對話，下一條訊息就開始新對話。",
    "you": "你喺呢一輪傳咗畀架構師嘅內容。",
@@ -3136,7 +3136,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "bring": "將 {{name}} 嘅即時文件複製入草稿，做一個新項目。",
     "approvals": "呢個部署嘅執行做工具呼叫嗰陣要唔要等人批核，同埋會先決定結果嘅規則。",
     "fields": {
-     "model": "Harness 用嘅模型，例如 sonnet。留空就用 Harness 設定檔嘅預設值。",
+     "model": "Harness 用嘅模型，例如 sonnet。留空就用 連線嘅預設值。",
      "effort": "Harness 傳落去嘅推理投入程度，例如 high。留空就由 Harness 決定。",
      "timeoutSeconds": "執行可以行幾耐先會被停止，以秒計。",
      "maxTurns": "執行停止之前最多可以用幾多個模型回合。",
@@ -3256,17 +3256,17 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "nav": {
   "tabs": {
-   "architects": "喺任何工作室草稿都可以重用嘅代理架構師：建立、編輯同刪除佢哋，仲可以為每一個揀 Harness 設定檔、模型同提示。"
+   "architects": "喺任何工作室草稿都可以重用嘅代理架構師：建立、編輯同刪除佢哋，仲可以為每一個揀 連線、模型同提示。"
   }
  },
  "resources": {
   "architects": {
    "add": "建立代理架構師：agent-architect 嘅部署，只會編輯你嘅工作室草稿，永遠唔會套用佢哋。",
-   "harnessProfileId": "架構師運行用嘅 Harness 設定檔，決定佢用邊個代理 CLI（Claude Code、Codex 等等）。",
-   "model": "架構師向 Harness 要求嘅模型。留空就用 Harness 設定檔嘅預設模型。",
+   "harnessProfileId": "架構師運行用嘅 連線，決定佢用邊個代理 CLI（Claude Code、Codex 等等）。",
+   "model": "架構師向 Harness 要求嘅模型。留空就用 連線嘅預設模型。",
    "architectPromptTemplateId": "話俾架構師知點樣做嘢嘅 System 範本。內建提示排喺最前；想改就先複製一個。",
    "architectPromptVersion": "將架構師固定喺佢提示嘅某個版本。留空就跟目前版本，儲存咗嘅編輯會喺佢下一輪開始生效。",
-   "defaultModel": "冇設定模型，所以架構師用 Harness 設定檔嘅預設模型。",
+   "defaultModel": "冇設定模型，所以架構師用 連線嘅預設模型。",
    "defaultBadge": "呢個架構師用緊內建嘅預設提示 builtin/agent-architect。",
    "activeBadge": "啟用：草稿可以同呢個架構師開始新對話。",
    "inactiveBadge": "停用：喺你重新啟用之前，架構師唔會接新嘅輪次，草稿亦唔會提供佢。",
@@ -3491,9 +3491,9 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "allDrafts": "睇晒所有工作室草稿，包括唔係喺精靈度開始嘅。"
    },
    "access": {
-    "needProfile": "請先揀一個 harness 設定檔。",
+    "needProfile": "請先揀一個 harness 連線。",
     "needCredential": "請先揀或者加入憑證。",
-    "harness": "代理程式同架構師運行用嘅 harness 設定檔。",
+    "harness": "代理程式同架構師運行用嘅 harness 連線。",
     "model": "要用嘅模型。留空就用 harness 嘅預設。",
     "useSecret": "用密鑰 {{name}} 登入。",
     "addSecret": "喺度儲存新憑證，連埋攞個值嘅步驟。",
@@ -3690,7 +3690,7 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
 })(explainers, {
  "memory": {
   "title": "記憶",
-  "p1": "代理程式會喺記憶入面留低跨執行嘅筆記。每項都屬於一個範圍：某個代理程式嘅私人記憶，或者佢所屬應用程式嘅共用記憶。執行透過 garrison_memory 工具讀寫，而且淨係可以喺佢嘅代理程式用得嘅範圍入面操作。",
+  "p1": "代理程式喺記憶入面保留跨執行嘅筆記。每個條目都屬於一個範圍：某個代理程式嘅私人記憶，或者佢所屬嘅應用程式、組織單位或者成個組織嘅共享記憶。執行透過 garrison_memory 工具讀寫，而且只可以喺佢個代理程式用得嘅範圍入面操作。",
   "p2": "每項都會記錄邊個寫、由邊次執行寫、幾時寫同埋版本。註明咗讀到嘅版本嘅寫入或者刪除，如果中間有人寫過就會被拒絕，所以代理程式同人唔會互相覆寫。",
   "p3": "文字係代理程式或者人儲存嘅資料。佢喺呢度用純文字顯示，傳俾代理程式嗰陣都只係資料，永遠唔係指令。唔應該記住嘅項目就刪咗佢；之後搵佢嘅代理程式會乜都搵唔到。"
  }
@@ -4373,7 +4373,7 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
 })(explainers, {
  "changeRules": {
   "title": "變更規則",
-  "p1": "主管係負責一個組織單位、而且佢嘅部署有主管管理權限嘅代理程式。佢可以為佢下面嘅單位提出變更，但永遠唔可以改佢自己、佢上面嘅任何嘢、密鑰、預算或者呢啲規則。",
+  "p1": "主管係負責某個組織單位、而且佢嘅部署有主管管理權限嘅代理程式。佢可以對下面嘅單位提出變更，但永遠唔可以涉及自己、上面嘅嘢、機密或者呢啲規則，亦永遠唔可以加預算。",
   "p2": "變更規則會預先批准例行變更。規則會寫明佢涵蓋邊個單位嘅下層、容許邊啲變更類別，仲有可選嘅限制，例如每個提案最多兩個變更，或者叫醒間隔最少一分鐘。如果提案入面每個變更都有規則涵蓋，就會即刻套用；其他嘅會喺組織嘅「提案」分頁等真人處理。",
   "p3": "每個已套用嘅提案都會記錄做組織嘅一個修訂，所以你可以還原。只有真人先可以寫規則。"
  }
@@ -5377,5 +5377,30 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
    "confirmWord": "確認刪除呢個代理要輸入嘅字。",
    "delete": "刪除呢個代理同佢嘅部署同修訂紀錄。要輸入 刪除 確認；如果有觸發器、管線、應用程式或者通知端點用緊佢，就刪唔到。"
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): explainer fold and unfold, stage reviews on Approvals, and the Connections target column.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "explainer": {
+  "fold": "將 {{topic}} 嘅說明摺埋得返標題，等下面嘅清單由高啲開始。撳標題就會再打開。",
+  "unfold": "打開 {{topic}} 嘅說明：呢頁管理咩，同埋佢同 Garrison 其他部分有咩關係。"
+ },
+ "views": {
+  "approvals": {
+   "reviewsWaiting": "打開「階段審查」分頁，喺度批准或者拒絕等緊人處理嘅管線階段。側邊欄嘅標記都會計埋佢哋。"
+  }
+ },
+ "runtime": {
+  "target": "連線將工作送去邊度：供應商 API 嘅基礎 URL、Mux 連線嘅端點名稱，或者 CLI Harness 嘅執行檔。"
  }
 });

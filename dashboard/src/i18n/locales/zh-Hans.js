@@ -214,7 +214,7 @@ const zhHans = {
       Audit: '审计日志',
       RequestHistory: '请求历史',
       Settings: '设置',
-      HarnessProfile: 'Harness 配置文件',
+      HarnessProfile: '连接',
       PromptTemplate: '提示词模板',
       Agent: '智能体',
       Deployment: '部署',
@@ -339,7 +339,7 @@ const zhHans = {
       AffinityWaitExpired: '亲和等待已超时',
       WorkspaceLost: '工作区已丢失',
       SessionMissing: '没有可恢复的会话',
-      HarnessChanged: 'Harness 配置文件已更改',
+      HarnessChanged: '连接已更改',
       ResumeUnsupported: '不支持恢复',
       ExecutorWithoutState: '执行器不保留状态'
     }
@@ -384,7 +384,7 @@ const zhHans = {
       nodePools: { label: '节点池', tip: '将节点分组并专供特定租户使用' },
       agents: { label: '智能体', tip: '通过 REST、MCP 和 A2A 公开的智能体' },
       deployments: { label: '部署', tip: '将智能体绑定到 Harness、提示词和资源' },
-      harnessProfiles: { label: 'Harness 配置文件', tip: '每个 Harness 如何以无头模式运行' },
+      harnessProfiles: { label: '连接', tip: '每个 Harness 如何以无头模式运行' },
       promptTemplates: { label: '提示词模板', tip: 'Garrison 发送的每条提示词，均有版本管理' },
       mcpServers: { label: 'MCP 服务器', tip: '智能体可用的工具' },
       secrets: { label: '机密', tip: 'Harness 和集成所用的凭据' },
@@ -742,7 +742,7 @@ const zhHans = {
       fields: { credentialId: '访问密钥', roleId: '角色', resourceScope: '范围', resourceId: '资源 ID', inheritsToChildren: '应用于租户内的资源', active: '启用' }
     },
     harnessProfiles: {
-      ...rp('Harness 配置文件', '精确描述 Harness 如何以无头模式运行：可执行文件、参数、环境变量、文件和输出解析。', '添加 Harness 配置文件', '创建 Harness 配置文件', '编辑 Harness 配置文件', 'Harness 配置文件详情', '删除 Harness 配置文件', '暂无 Harness 配置文件', '克隆内置配置文件，以自定义 Harness 的启动方式。'),
+      ...rp('连接', '精确描述 Harness 如何以无头模式运行：可执行文件、参数、环境变量、文件和输出解析。', '添加 连接', '创建 连接', '编辑 连接', '连接详情', '删除 连接', '暂无 连接', '克隆内置配置文件，以自定义 Harness 的启动方式。'),
       steps: { basics: '基本信息', invocation: '调用方式', output: '输出', limits: '限制' },
       columns: { name: '名称', harnessType: 'Harness', executable: '可执行文件', outputParser: '解析器', isBuiltIn: '来源', id: 'ID', createdUtc: '创建时间' },
       fields: {
@@ -899,9 +899,9 @@ const zhHans = {
       approvalsOn_other: '已开启，{{count}} 条规则',
       approvalsOff: '已关闭',
       promptRoles: { Repair: '结构化输出修复', DelegatedTask: '委派运行的任务包装', Task: '任务包装', System: '系统提示词', ConversationFallback: '对话回退（记录）' },
-      ...rp('部署', '将智能体绑定到 Harness 配置文件、提示词、机密、MCP 服务器、调度放置和限制。', '添加部署', '创建部署', '编辑部署', '部署详情', '删除部署', '暂无部署', '创建部署，使智能体可以运行。'),
+      ...rp('部署', '将智能体绑定到 连接、提示词、机密、MCP 服务器、调度放置和限制。', '添加部署', '创建部署', '编辑部署', '部署详情', '删除部署', '暂无部署', '创建部署，使智能体可以运行。'),
       steps: { approvals: '审批', basics: '基本信息', harness: 'Harness', prompts: '提示词', resources: '资源', overrides: '覆盖', placement: '调度放置和限制' },
-      columns: { approvalsEnabled: '审批', name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', executor: '执行器', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
+      columns: { approvalsEnabled: '审批', name: '名称', agentId: '智能体', harnessProfileId: '连接', model: '模型', executor: '执行器', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
       fields: {
         approvalsEnabled: '工具调用前询问（审批）',
         approvalDefaultAction: '没有规则匹配时',
@@ -918,7 +918,7 @@ const zhHans = {
         description: '描述',
         weight: '流量权重',
         active: '启用',
-        harnessProfileId: 'Harness 配置文件',
+        harnessProfileId: '连接',
         model: '模型',
         fallbackModel: '备用模型',
         effort: '推理强度',
@@ -971,10 +971,10 @@ const zhHans = {
         approvalDefaultAction: '“询问人员”会在审批收件箱中等待，直到有人决定或超时。',
         approvalTimeoutSeconds: '10 到 3,600 秒。留空则使用 300。',
         approvalRules: '拒绝优先于询问，询问优先于允许。示例：Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
-        secretsKinds: 'Harness 配置文件 {{profile}} 需要任意一个类型为 {{kinds}} 的机密。可用任意别名绑定。',
-        secretsAliases: 'Harness 配置文件 {{profile}} 读取以这些别名绑定的机密：{{aliases}}。',
-        secretsNone: 'Harness 配置文件 {{profile}} 不读取任何机密，因此无需绑定机密。',
-        promptBindings: '将提示词角色（System、Task、DelegatedTask，以及 Harness 配置文件使用的任何角色）映射到模板。版本留空则始终使用最新版本。',
+        secretsKinds: '连接 {{profile}} 需要任意一个类型为 {{kinds}} 的机密。可用任意别名绑定。',
+        secretsAliases: '连接 {{profile}} 读取以这些别名绑定的机密：{{aliases}}。',
+        secretsNone: '连接 {{profile}} 不读取任何机密，因此无需绑定机密。',
+        promptBindings: '将提示词角色（System、Task、DelegatedTask，以及 连接使用的任何角色）映射到模板。版本留空则始终使用最新版本。',
         resourceBindings: '别名会成为模板变量，例如 {{secret.anthropic}}。',
         weight: '未显式指定部署的请求会按权重分配到各个启用的部署。',
         maxConcurrentRuns: '0 表示不限制。',
@@ -1157,7 +1157,7 @@ const zhHans = {
       subtitle: '你的智能体和工作节点当前的状态。',
       lastLoaded: '更新于 {{time}}',
       partial: '部分面板未能加载，显示的数据不完整。',
-      getStartedTitle: '此租户中还没有智能体',
+      getStartedTitle: '还没有你自己的智能体',
       getStartedBody: '设置向导会添加凭据、应用示例智能体并运行测试。',
       runSetup: '运行设置向导',
       kpis: {
@@ -1883,7 +1883,7 @@ const zhHans = {
       topbar: { title: '上下文', body: '服务器、租户、你的身份、健康状况和实时状态始终显示在这里。' },
       kpis: { title: '概览', body: '每张卡片汇总一种资源。点击卡片即可打开经过筛选的列表。' },
       invoke: { title: '调用', body: '以交互方式试用任意智能体，并实时查看其对话记录。' },
-      configure: { title: '配置', body: 'Harness 配置文件、提示词模板、MCP 服务器和机密精确控制运行的内容。智能体和部署有自己的中心。' },
+      configure: { title: '配置', body: '连接、提示词模板、MCP 服务器和机密精确控制运行的内容。智能体和部署有自己的中心。' },
       observe: { title: '监控', body: '请求历史、审计和 API 浏览器可帮助你验证和调试。' }
     }
   },
@@ -3101,13 +3101,13 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   "serverText": {
    "capabilityDerivedEdit": "能力 {{name}} 派生自其来源并随来源变化。请改为修改来源。",
    "capabilityDerivedDelete": "能力 {{name}} 派生自其来源，会随来源一起消失，因此不能直接删除。",
-   "capabilityShared": "能力 {{name}} 由所有租户共享，来自内置的 Harness 配置文件，因此无法更改。",
+   "capabilityShared": "能力 {{name}} 由所有租户共享，来自内置的 连接，因此无法更改。",
    "capabilityNameConflict": "已存在名为 {{name}} 的手动能力。",
    "capabilitySecretsDenied": "你无权使用 MCP 服务器 {{server}} 发送的机密，因此未列出其工具。",
    "capabilityNoStdioWorker": "没有已开启 stdio MCP 诊断（GARRISON_WORKER_MCP_TESTS_ENABLED）的就绪工作节点，因此无法列出该 stdio 服务器的工具。",
    "capabilityRefreshFailed": "{{when}} 刷新失败：{{error}}",
    "capabilityMissingTools": "缺少必需的工具：{{tools}}。",
-   "capabilityProbeShadowed": "工作节点会将 {{name}} 按 {{probe}} 进行探测，该探测由另一个 Harness 配置文件先行定义。此配置文件中的定义不会被探测。"
+   "capabilityProbeShadowed": "工作节点会将 {{name}} 按 {{probe}} 进行探测，该探测由另一个 连接先行定义。此连接中的定义不会被探测。"
   }
  },
  "components": {
@@ -3188,7 +3188,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
     "requirementCount": "最多使用 {{max}} 个节点标签要求。",
     "requirement": "每个要求都需要一个 1 到 {{max}} 个字符的节点标签键。",
     "toolNeedsServer": "请选择该工具所属的 MCP 服务器。",
-    "probeCount": "一个 Harness 配置文件最多有 {{max}} 个工具探测。",
+    "probeCount": "一个 连接最多有 {{max}} 个工具探测。",
     "probeName": "工具名称为 1 到 63 个小写字母、数字、点和连字符，并以字母或数字开头。",
     "probeDuplicate": "此配置文件中已有另一个名为 {{name}} 的探测。",
     "probeExecutable": "可执行文件只能是在 PATH 中能找到的纯文件名（字母、数字、点、下划线、加号和连字符），不能包含文件夹。",
@@ -3221,7 +3221,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    "view": "能力详情",
    "deleteTitle": "删除能力",
    "emptyTitle": "还没有能力",
-   "emptyBody": "发布一个智能体修订、注册一个 MCP 服务器，或为 Harness 配置文件添加工具探测，然后刷新。你也可以添加手动条目。",
+   "emptyBody": "发布一个智能体修订、注册一个 MCP 服务器，或为 连接添加工具探测，然后刷新。你也可以添加手动条目。",
    "columns": {
     "name": "名称",
     "kind": "类型",
@@ -3761,10 +3761,10 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
     "title": "新建架构师",
     "intro": "智能体架构师在你的草稿中设计智能体和应用。请为它提供一个部署：Harness 配置文件、模型以及它使用的提示词。它只编辑你的草稿，从不应用草稿。",
     "name": "部署名称",
-    "harnessProfile": "Harness 配置文件",
-    "chooseProfile": "选择 Harness 配置文件",
+    "harnessProfile": "连接",
+    "chooseProfile": "选择 连接",
     "model": "模型",
-    "modelHint": "留空则使用 Harness 配置文件的默认模型。",
+    "modelHint": "留空则使用 连接的默认模型。",
     "prompt": "架构师提示词",
     "defaultPrompt": "{{name}}（默认）",
     "preview": "提示词预览",
@@ -4150,7 +4150,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
      "none": "草稿中没有 {{name}} 的部署。请从下方引入一个实时部署，或让架构师创建一个。",
      "deployment": "环境和部署",
      "option": "{{environment}}：{{name}}",
-     "scope": "编辑只会更改 {{environment}} 中的 {{name}}（Harness 配置文件 {{profile}}）。其他环境保留各自的值。",
+     "scope": "编辑只会更改 {{environment}} 中的 {{name}}（连接 {{profile}}）。其他环境保留各自的值。",
      "fields": {
       "model": "模型",
       "effort": "推理强度",
@@ -4163,7 +4163,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
       "approvalDefaultAction": "没有规则匹配时"
      },
      "hints": {
-      "timeoutSeconds": "整数秒，1 或以上。留空则使用 Harness 配置文件的限制。",
+      "timeoutSeconds": "整数秒，1 或以上。留空则使用 连接的限制。",
       "maxTurns": "整数，1 或以上。留空表示由 Harness 决定。",
       "maxBudgetUsd": "0 或以上，例如 2.50。留空表示没有预算限制。"
      },
@@ -4248,7 +4248,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
  },
  "views": {
   "home": {
-   "getStartedBody": "设置向导会添加凭据，为智能体架构师指定 Harness 和模型，应用一个示例智能体并运行测试。也可以打开智能体工作室，描述你想要的应用。",
+   "getStartedBody": "运行设置向导，添加一个示例智能体并在几分钟内试用。智能体向导则不同：你描述想要什么，智能体架构师为你起草智能体。“学习”页面介绍各部分如何配合。",
    "openStudio": "打开智能体工作室"
   },
   "studio": {
@@ -4341,17 +4341,17 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
  "resources": {
   "architects": {
    "title": "架构师",
-   "subtitle": "此租户中的代理架构师。每个都是 agent-architect 的一个部署，拥有自己的 Harness 配置文件、模型和提示词，任意工作室草稿都可以使用。",
+   "subtitle": "此租户中的代理架构师。每个都是 agent-architect 的一个部署，拥有自己的 连接、模型和提示词，任意工作室草稿都可以使用。",
    "add": "添加架构师",
    "create": "创建架构师",
    "edit": "编辑架构师",
    "view": "架构师详情",
    "deleteTitle": "删除架构师",
    "emptyTitle": "暂无架构师",
-   "emptyBody": "创建一个架构师，在代理工作室中与你一起设计代理和应用。选择它运行所用的 Harness 配置文件和模型，以及它使用的提示词。",
+   "emptyBody": "创建一个架构师，在代理工作室中与你一起设计代理和应用。选择它运行所用的 连接和模型，以及它使用的提示词。",
    "columns": {
     "name": "名称",
-    "harnessProfileId": "Harness 配置文件",
+    "harnessProfileId": "连接",
     "model": "模型",
     "architectPromptTemplateId": "架构师提示词",
     "active": "状态",
@@ -4363,14 +4363,14 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    "fields": {
     "name": "名称",
     "description": "描述",
-    "harnessProfileId": "Harness 配置文件",
+    "harnessProfileId": "连接",
     "model": "模型",
     "architectPromptTemplateId": "架构师提示词",
     "architectPromptVersion": "固定的提示词版本",
     "active": "启用"
    },
    "hints": {
-    "model": "留空则使用 Harness 配置文件的默认模型。",
+    "model": "留空则使用 连接的默认模型。",
     "architectPromptVersion": "留空则始终使用提示词的当前版本。"
    },
    "actions": {
@@ -4504,7 +4504,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
  "components": {
   "studio": {
    "architect": {
-    "intro": "代理架构师在你的草稿中设计代理和应用。请为它指定 Harness 配置文件、用于登录的机密、模型以及它使用的提示词。它只编辑你的草稿，从不应用它们。"
+    "intro": "代理架构师在你的草稿中设计代理和应用。请为它指定 连接、用于登录的机密、模型以及它使用的提示词。它只编辑你的草稿，从不应用它们。"
    }
   }
  }
@@ -4522,7 +4522,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
   }
 })(zhHans, {
  "wizard": {
-  "studioBody": "代理架构师会在代理工作室中与你一起设计代理和应用。请选择它运行所用的 Harness 配置文件和模型、它登录所用的凭据（如果上一步保存的机密适合该 Harness，会自动选中），以及指导它的架构师提示词。它的部署只能编辑你的工作室草稿。你可以跳过此步骤，稍后在 智能体 > 架构师 中创建架构师。"
+  "studioBody": "代理架构师会在代理工作室中与你一起设计代理和应用。请选择它运行所用的 连接和模型、它登录所用的凭据（如果上一步保存的机密适合该 Harness，会自动选中），以及指导它的架构师提示词。它的部署只能编辑你的工作室草稿。你可以跳过此步骤，稍后在 智能体 > 架构师 中创建架构师。"
  }
 });
 
@@ -4573,7 +4573,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    "GenericEnv": {
     "s1": "粘贴任意单个值：Harness 或工具从环境变量读取的令牌、密码或 URL。",
     "s2": "用别名把该机密绑定到部署，然后添加一个使用它的环境覆盖，例如：",
-    "s3": "该变量必须在 Harness 配置文件的凭据允许列表中，否则部署会被拒绝。"
+    "s3": "该变量必须在 连接的凭据允许列表中，否则部署会被拒绝。"
    },
    "GenericFile": {
     "s1": "粘贴完整文件，包括换行：服务账户 JSON、证书或配置文件。",
@@ -4762,7 +4762,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
    "access": {
     "title": "模型访问",
     "intro": "选择运行智能体的 harness，以及它登录所用的凭据。智能体架构师与你一起设计时也使用同一个 harness 和凭据。",
-    "harness": "Harness 配置文件",
+    "harness": "连接",
     "harnessHint": "运行智能体的 CLI，例如 Claude Code 或 Codex。",
     "model": "模型",
     "modelHint": "可选。留空则使用 harness 的默认模型。",
@@ -4781,7 +4781,7 @@ zhHans.tips.enums.auditEventType.QueueFull = "集群、租户或代理的队列�
     "contents": "草稿内容",
     "empty": "还没有内容。架构师设计出智能体后会添加到这里。",
     "agents": "智能体",
-    "firstMessage": "我想构建这个：{{goal}}\n\n智能体将在 harness 配置文件 {{profile}} 上运行，使用凭据密钥 {{secret}}。请先问我任何你需要了解的内容，然后在这个草稿中设计智能体。",
+    "firstMessage": "我想构建这个：{{goal}}\n\n智能体将在 harness 连接 {{profile}} 上运行，使用凭据密钥 {{secret}}。请先问我任何你需要了解的内容，然后在这个草稿中设计智能体。",
     "chatTitle": "与 {{architect}} 聊天",
     "next": "继续检查"
    },
@@ -5156,7 +5156,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   "tickOutcome": {
    "Quiet": "平静",
    "Acted": "已处理",
-   "Attention": "需要关注",
+   "Attention": "关注",
    "Escalated": "已上报",
    "Failed": "失败",
    "Skipped": "已跳过",
@@ -5527,7 +5527,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
     "columns": {
      "started": "巡检开始的时间。悬停可查看确切时间。",
      "source": "这次巡检是由什么唤醒守护者的。",
-     "outcome": "这次巡检的报告：平静、已处理、需要关注、已上报或失败。",
+     "outcome": "巡检报告的结果：平静、已处理、关注、已上报或失败。",
      "run": "执行这次巡检的运行。",
      "interval": "到下次唤醒的等待时间，取这次巡检结束时设定的值。",
      "cost": "这次巡检的运行花费，依据模型价格表计算。",
@@ -5765,7 +5765,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
  },
  "tips": {
   "nav": {
-   "escalationsBadge_other": "有 {{count}} 条上报等待答复。打开“自主运行”，再打开“上报”。",
+   "escalationsBadge_other": "{{count}} 个上报正在等待回答。点击数字可打开上报。",
    "tabs": {
     "escalations": "上报：智能体向某人、某个角色或另一个智能体提出的问题，待答复的排在前面，可以答复或取消。"
    }
@@ -5966,7 +5966,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   "liftKeeperMessage": "要解除 {{target}} 的冻结吗？守护者会重新启用，下一次唤醒会分散在一个短时间窗口内。",
   "bannerOwn": "已冻结：在解除冻结之前，新的运行都会被拒绝。",
   "bannerTarget": "{{target}} 已被冻结：它的新运行会被拒绝。",
-  "bannerKillSwitch": "自主运行的紧急停止开关已打开：此租户中不会开始任何守护者巡检。",
+  "bannerKillSwitch": "自主运行紧急停止开关已打开：此租户中守护者不会唤醒，消息也不会唤醒智能体。",
   "bannerBy": "由 {{who}} 于 {{when}} 冻结。",
   "bannerReason": "原因：{{reason}}",
   "openTarget": "打开",
@@ -6002,14 +6002,14 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    "off": "关",
    "turnOn": "打开",
    "turnOff": "关闭",
-   "help": "紧急停止开关打开期间，不会开始任何守护者巡检，守护者的运行也会被拒绝。由人员和 API 凭据发起的调用照常工作。",
+   "help": "紧急停止开关打开期间，守护者不会唤醒，消息也不会唤醒智能体，守护者的运行会被拒绝。由人员和 API 凭据发起的调用照常工作。",
    "changedBy": "由 {{who}} 于 {{when}} 打开。",
    "onTitle": "要打开紧急停止开关吗？",
-   "onMessage": "在关闭开关之前，此租户中的所有守护者都不再唤醒，守护者的运行也会被拒绝。已在进行的巡检会完成。",
+   "onMessage": "在关闭开关之前，此租户中的每个守护者都停止唤醒，消息也不会唤醒智能体，守护者的运行会被拒绝。已在进行的巡检会完成。",
    "offTitle": "要关闭紧急停止开关吗？",
    "offMessage": "守护者会重新开始唤醒，下一次唤醒会分散在一个短时间窗口内。",
    "toasts": {
-    "on": "紧急停止开关已打开。不会开始任何守护者巡检。",
+    "on": "紧急停止开关已打开。守护者不会唤醒，消息也不会唤醒智能体。",
     "off": "紧急停止开关已关闭。守护者会重新唤醒。"
    }
   }
@@ -6075,7 +6075,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
     "App": "一个应用：其聊天中的新对话和新消息会被拒绝。",
     "OrgUnit": "一个组织单元。组织功能推出之前不可用。",
     "Organization": "整个组织。组织功能推出之前不可用。",
-    "TenantAutonomy": "紧急停止开关：整个租户中不会开始任何守护者巡检。"
+    "TenantAutonomy": "紧急停止开关：整个租户中守护者不会唤醒，消息也不会唤醒智能体。"
    }
   },
   "freezes": {
@@ -6103,7 +6103,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    },
    "killSwitch": {
     "title": "一个能停止此租户中所有守护者的开关。普通调用照常工作。",
-    "on": "开：不会开始任何守护者巡检，守护者的运行会被拒绝。",
+    "on": "打开：守护者不会唤醒，消息不会唤醒智能体，守护者的运行会被拒绝。",
     "off": "关：守护者按计划唤醒。",
     "turnOn": "停止此租户中的所有守护者。需要先确认。",
     "turnOff": "让守护者重新唤醒。需要先确认。"
@@ -6139,9 +6139,9 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
  "explainers": {
   "freezes": {
    "title": "冻结",
-   "p1": "冻结是一种制动。生效期间，Garrison 会以 409 Frozen 拒绝被冻结的智能体、部署、守护者或应用的新运行，范围内的守护者也不再唤醒。已在进行的运行会完成，除非冻结同时取消了它们。",
-   "p2": "可以在智能体、部署、守护者或应用的页面上冻结，也可以在这里使用“选择对象并冻结”。解除冻结后，运行会重新被接受；被冻结的守护者会重新启用，下一次唤醒会分散在一个短时间窗口内。",
-   "p3": "设置和主页上的自主运行紧急停止开关会一次性停止租户中所有守护者的巡检。它在这里显示为类型为“紧急停止开关”的冻结。"
+   "p1": "冻结是一种制动。生效期间，Garrison 会以 409 Frozen 拒绝被冻结的智能体、部署、守护者、应用、单元或组织的新运行，范围内的守护者也不再唤醒。已在进行的运行会完成，除非冻结同时取消了它们。",
+   "p2": "可以在智能体、部署、守护者或应用的页面上冻结，也可以在这里使用“选择对象并冻结”。单元和整个组织在其看板上冻结。解除冻结后，运行会重新被接受；被冻结的守护者会重新启用，下一次唤醒会分散在一个短时间窗口内。",
+   "p3": "设置和主页上的自主运行紧急停止开关会一次性停止租户中所有守护者唤醒和消息唤醒，而普通调用照常工作。它在这里显示为类型为“紧急停止开关”的冻结。"
   }
  }
 });
@@ -9207,8 +9207,8 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   "diagrams": {
    "runtime": {
     "title": "运行时",
-    "summary": "租户里有智能体，以及运行这些智能体的部署。部署把智能体与 Harness 配置文件、模型、提示词和节点池绑定在一起。每个请求都会变成一次运行，该节点池里的工作节点领取这次运行并启动 Harness。工作节点从不访问数据库：它需要的一切都随租约一起送达。",
-    "desc": "租户包含访问密钥、智能体、Harness 配置文件、部署和运行。节点池和工作节点组成各租户共享的机群。",
+    "summary": "租户里有智能体，以及运行这些智能体的部署。部署把智能体与 连接、模型、提示词和节点池绑定在一起。每个请求都会变成一次运行，该节点池里的工作节点领取这次运行并启动 Harness。工作节点从不访问数据库：它需要的一切都随租约一起送达。",
+    "desc": "租户包含访问密钥、智能体、连接、部署和运行。节点池和工作节点组成各租户共享的机群。",
     "groups": {
      "tenant": "租户",
      "fleet": "共享机群"
@@ -9223,12 +9223,12 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
       "body": "调用方通过 REST、MCP 或 A2A 调用的对象。它保存不可变的修订。"
      },
      "harnessProfile": {
-      "title": "Harness 配置文件",
+      "title": "连接",
       "body": "说明某个 Harness CLI 或 API 如何无界面运行。仪表板里称为连接。"
      },
      "deployment": {
       "title": "部署",
-      "body": "把智能体与 Harness 配置文件、模型、提示词和节点池绑定。"
+      "body": "把智能体与 连接、模型、提示词和节点池绑定。"
      },
      "nodePool": {
       "title": "节点池",
@@ -9354,8 +9354,8 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    },
    "teams": {
     "title": "团队",
-    "summary": "智能体之间通过邮箱互相写信。消息是信件，不是电话：发送方继续做自己的事，接收方在下一次运行时读到它，紧急消息则会立即读到。每次发送都先经过防循环检查，被拒绝的消息连同原因一起保存，方便你看清谁想联系谁。",
-    "desc": "消息通过防循环检查进入接收方的邮箱，或者被保存为已拒绝。普通邮件等待接收方的下一次运行，紧急邮件会唤醒接收方。",
+    "summary": "智能体通过各自的收件箱互相写信。消息是邮件，不是电话：发送方继续工作，接收方在下一次运行时阅读，紧急消息则会立即阅读。每次发送都会先经过循环防护，被拒绝的消息连同原因一起保留，方便你看到谁试图联系谁。",
+    "desc": "消息通过循环防护后进入接收方的收件箱，或被保存为已拒绝。普通邮件等待接收方的下一次运行，紧急邮件会唤醒它。",
     "boxes": {
      "sender": {
       "title": "发送方",
@@ -9366,7 +9366,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
       "body": "依次为：收件人已冻结、无线路、跳数上限、会话上限、线路速率。"
      },
      "mailbox": {
-      "title": "邮箱",
+      "title": "收件箱",
       "body": "接收方排队中的消息，最早的在前。"
      },
      "normal": {
@@ -9443,7 +9443,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    },
    "selfRevision": {
     "title": "自我修订",
-    "summary": "主管是可以对下级单元提出变更的单元负责人。它写一份普通的工作室草稿，ExecutiveDraftValidator 用任何东西都无法解除的硬性限制来检查它：不能涉及自己，不能涉及子树之上或之外的东西，不能碰机密，不能提高预算，也不能改管理权限。人写的变更规则完全覆盖的草稿会立即应用，其余的都要等人决定。每次应用都会发布一个组织修订并保存一份撤销草稿，所以一次回滚就能撤销它。",
+    "summary": "主管是可以对下级单元提出变更的单元负责人。它写一份普通的工作室草稿，一项固定检查用任何东西都无法解除的硬性限制来检查它：不能涉及自己，不能涉及子树之上或之外的东西，不能碰机密，不能提高预算，也不能改管理权限。人写的变更规则完全覆盖的草稿会立即应用，其余的都要等人决定。每次应用都会发布一个组织修订并保存一份撤销草稿，所以一次回滚就能撤销它。",
     "desc": "主管写一份草稿。硬性限制拒绝它，或把它交给变更规则，而评估关卡可以把它拦下。被覆盖的草稿会应用，其余的等待一个能看到影子试验和金丝雀发布结果的人。每次应用都发布一个带撤销草稿的组织修订，回滚可以恢复它。",
     "boxes": {
      "executive": {
@@ -9573,11 +9573,11 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    },
    "deployment": {
     "term": "部署",
-    "def": "与 Harness 配置文件、模型、提示词和节点池绑定的智能体。一个智能体可以有多个部署，按权重选择。"
+    "def": "与 连接、模型、提示词和节点池绑定的智能体。一个智能体可以有多个部署，按权重选择。"
    },
    "harnessProfile": {
-    "term": "Harness 配置文件",
-    "def": "说明 Harness CLI 或提供商 API 如何无界面运行：参数、提示词传递方式和输出解析器。仪表板把它们列在连接下。"
+    "term": "连接（Harness 配置文件）",
+    "def": "说明 Harness CLI 或提供商 API 如何无界面运行：参数、提示词传递方式和输出解析器。文档和 API 称之为 Harness 配置文件，仪表板称之为连接，并把它们列在连接下。"
    },
    "nodePool": {
     "term": "节点池",
@@ -9773,7 +9773,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   },
   "sample": {
    "title": "加载示例？",
-   "body": "{{tour}}需要{{need}}，而这个租户还没有。你可以通过应用清单加载{{example}}，也可以不加载继续，并跳过没有内容可显示的步骤。",
+   "body": "{{tour}} 需要{{need}}，而此租户还没有。你可以加载{{example}}，也可以不加载继续，跳过没有内容可显示的步骤。",
    "contents_one": "加载会应用 {{count}} 个资源：",
    "contents_other": "加载会应用 {{count}} 个资源：",
    "checking": "正在检查应用会改变什么...",
@@ -9790,8 +9790,8 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
     "organizations": "一个组织"
    },
    "examples": {
-    "gerbil": "gerbil 示例",
-    "siteReliability": "站点可靠性示例"
+    "gerbil": "gerbil 示例（一个智能体及其守护者）",
+    "siteReliability": "站点可靠性示例（由五个智能体组成的组织，每个都有守护者）"
    }
   },
   "homeCard": {
@@ -9819,7 +9819,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
     },
     "kpis": {
      "title": "一目了然",
-     "body": "当前的情况：智能体、部署、今天正在进行或失败的运行，以及可以接收工作的工作节点。点击卡片可打开对应的列表。"
+     "body": "当前情况：智能体、部署、正在进行的运行、最近 24 小时内成功或失败的运行，以及可以工作的工作节点。点击卡片可打开其背后的列表。"
     },
     "invoke": {
      "title": "调用",
@@ -9827,7 +9827,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
     },
     "autonomy": {
      "title": "自己工作的智能体",
-     "body": "给智能体一项长期任务，它不用别人吩咐就会工作。守护者按计划唤醒它，在两次唤醒之间，它可以给其他智能体发消息、提交报告、记住学到的东西，并把问题上报给你。冻结可以立即停止这一切。"
+     "body": "给智能体一项长期任务，它不用别人吩咐就会工作。守护者按计划唤醒它，在两次唤醒之间，它可以给其他智能体发消息、提交报告、记住学到的东西，并把问题上报给你。紧急停止开关可以一次停止这一切。“自主运行的智能体”导览会逐一介绍。"
     },
     "organizations": {
      "title": "组织",
@@ -9952,7 +9952,7 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
     },
     "attention": {
      "title": "待处理",
-     "body": "现在需要人来处理的事：未处理的上报、不健康的报告和达到预算上限的单元。先处理这个列表。"
+     "body": "现在需要人处理的事项：未结的上报、健康状态为降级或异常的报告，以及达到预算上限的单元。先处理这个列表。"
     },
     "performance": {
      "title": "绩效",
@@ -10458,5 +10458,95 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
    "SecurityAdmin": "管理用户、访问密钥、角色、权限、分配、会话和审计。",
    "TenantAdmin": "租户内所有资源的全部权限。"
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): the Agents on their own tour (LP4.11), plain names in the example offer and the setup
+// wizard, Invoke without a runnable agent, stage reviews on Approvals, and keeper interval labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "learn": {
+  "tours": {
+   "agentsOnTheirOwn": "自主运行的智能体"
+  }
+ },
+ "tours": {
+  "agentsOnTheirOwn": {
+   "summary": "守护者、它何时唤醒、每次巡检做了什么，以及它留下的消息、记忆和上报。",
+   "steps": {
+    "keepers": {
+     "title": "守护者",
+     "body": "守护者给智能体一项长期任务，例如让队列保持很短，并按计划唤醒它来照看。“添加守护者”用于选择智能体、运行巡检的部署和目标。点击某个守护者可打开它的页面。"
+    },
+    "schedule": {
+     "title": "何时唤醒",
+     "body": "选择“安静时退避”时，守护者从最短间隔开始，每次平静的巡检后等待更久，直到最长间隔。报告关注、上报或失败的巡检会让它回到最短间隔。“固定间隔”始终等待最短间隔。支出上限也在这里。"
+    },
+    "ticks": {
+     "title": "巡检",
+     "body": "每次唤醒就是一次巡检，每次巡检都是一次普通的运行。每一行显示它为何唤醒、结果（例如平静、已处理、关注或已上报）、花费，以及守护者留给下一次巡检的摘要。打开运行或其轨迹即可看到它具体做了什么。"
+    },
+    "revisions": {
+     "title": "修订",
+     "body": "修订包含这项任务：目标、何为健康、守护者可以自行做什么，以及何时该询问。发布新修订会使其成为当前修订，并立即唤醒守护者。已发布的修订永不更改，所以这个列表就是完整的历史，“对比”可显示每个修订改了什么。"
+    },
+    "messages": {
+     "title": "消息",
+     "body": "智能体在这里互相写信，用“发送消息”你也可以给某个智能体写信。消息在接收方的收件箱中等待它的下一次运行，紧急时会立即唤醒它。回复会组成会话串；打开一条消息即可阅读整个会话串。被循环防护拒绝的消息也会连同原因留在列表中。"
+    },
+    "memory": {
+     "title": "记忆",
+     "body": "智能体在运行之间保存的内容，按范围显示：单个智能体、应用、单元或整个组织。每个条目都显示谁写的、来自哪次运行。守护者每次巡检都会收到自己标记为 recall 的条目。不该被记住的条目可以删除。"
+    },
+    "escalations": {
+     "title": "上报",
+     "body": "当守护者遇到其任务范围之外的决定时，会在这里提问并结束巡检。你回答后，回答会带着你的答复唤醒守护者一次。侧边栏“自主运行”旁的数字是未结的数量。"
+    }
+   }
+  },
+  "sample": {
+   "kinds": {
+    "Agent": "智能体",
+    "Deployment": "部署",
+    "HarnessProfile": "连接",
+    "Mandate": "守护者",
+    "Organization": "组织",
+    "PromptTemplate": "提示词模板"
+   }
+  }
+ },
+ "wizard": {
+  "appliedTitle": "示例清单创建了以下内容："
+ },
+ "views": {
+  "home": {
+   "kpis": {
+    "architectOnly": "只有内置的智能体架构师"
+   }
+  },
+  "invoke": {
+   "chooseAgent": "选择智能体",
+   "noRunnable": "此租户中还没有可以运行的智能体：没有一个拥有权重大于零的活动部署。运行设置向导可添加一个无需凭据即可工作的示例智能体。"
+  },
+  "approvals": {
+   "reviewsWaiting_one": "有 {{count}} 个流水线阶段评审在“阶段评审”标签页中等待。",
+   "reviewsWaiting_other": "有 {{count}} 个流水线阶段评审在“阶段评审”标签页中等待。",
+   "openReviews": "打开阶段评审"
+  },
+  "keeperDetail": {
+   "minInterval": "最短间隔",
+   "maxInterval": "最长间隔"
+  }
+ },
+ "runtime": {
+  "target": "端点或可执行文件"
  }
 });

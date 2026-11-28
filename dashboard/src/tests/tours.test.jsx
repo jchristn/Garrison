@@ -133,7 +133,7 @@ const populated = () => ({
 });
 
 describe('tour definitions (LP-009, LP4.7)', () => {
-  it('defines the six tours the Learn page offers, each with three to seven steps', () => {
+  it('defines the seven tours the Learn page offers, each with three to seven steps', () => {
     expect(TOURS.map((x) => x.id)).toEqual(TOUR_IDS);
     for (const x of TOURS) {
       expect(x.steps.length).toBeGreaterThanOrEqual(3);
@@ -172,6 +172,9 @@ describe('tour definitions (LP-009, LP4.7)', () => {
     expect(hubTourFor('organizations')).toBe('build-a-team');
     expect(hubTourFor('organizations', 'board')).toBe('watch-an-organization');
     expect(hubTourFor('autonomy', 'freezes')).toBe('keep-it-safe');
+    // LP4.11 (UXP1-S009): every other Autonomy tab starts the tour that covers it.
+    for (const tab of ['keepers', 'messages', 'reports', 'memory', 'escalations']) expect(hubTourFor('autonomy', tab)).toBe('agents-on-their-own');
+    expect(hubTourFor('autonomy')).toBe('agents-on-their-own');
     expect(hubTourFor('fleet')).toBeNull();
   });
 
@@ -416,6 +419,10 @@ describe('sample data (LP4.6)', () => {
     await waitFor(() => apiClient.applyManifest.mock.calls.length === 1);
     expect(apiClient.applyManifest.mock.calls[0][2]).toBe(true);
     await waitFor(() => q('[data-sample-item="Agent/gerbil"]').textContent.includes('Created'));
+    // UXP1-S028: items carry the dashboard's names, not manifest kinds, and the body names no API.
+    expect(q('[data-sample-item="Mandate/gerbil-keeper"]').textContent).toBe('Keeper gerbil-keeper');
+    expect(q('[data-sample-item="HarnessProfile/autonomy-script"]').textContent).toBe('Connection autonomy-script');
+    expect(q('[data-testid="tour-sample"]').textContent).not.toContain('manifest apply');
     await click(q('[data-testid="tour-sample-load"]'));
     await waitFor(() => q('[data-tour-step="killSwitch"]'));
     expect(apiClient.applyManifest.mock.calls[1][2]).toBe(false);

@@ -103,7 +103,7 @@ const tips = {
       runs: 'Einzelne Läufe suchen, filtern und prüfen. Öffnen Sie einen Lauf, um Protokoll, Ergebnis und Telemetrie zu lesen, oder brechen Sie ihn ab und wiederholen Sie ihn.',
       queue: 'Läufe, die gerade auf einen Knoten warten, zugewiesen sind oder laufen, gruppiert nach Agent und Harness.',
       agents: 'Benannte Agenten, die Aufrufende über REST, MCP oder A2A ansprechen. Der Agent ist die Identität; seine Bereitstellungen bestimmen, wie er läuft.',
-      deployments: 'Wie jeder Agent läuft: Harness-Profil, Modell, Prompts, MCP-Server, Geheimnisse, Arbeitsbereich, Platzierung, Grenzen und Verkehrsgewichtung.',
+      deployments: 'Wie jeder Agent läuft: Verbindung, Modell, Prompts, MCP-Server, Geheimnisse, Arbeitsbereich, Platzierung, Grenzen und Verkehrsgewichtung.',
       harnessProfiles: 'Rezepte, um eine CLI-Harness ohne Oberfläche zu starten: Programm, Argumente, Umgebung, Dateien und Ausgabeauswertung.',
       promptTemplates: 'Jeder Prompt und jede erzeugte Konfigurationsdatei, die Garrison an eine Harness sendet, versioniert und mit Live-Vorschau.',
       mcpServers: 'Werkzeugserver, die Agenten nutzen können. Registrieren Sie sie hier und binden Sie sie dann an Bereitstellungen.',
@@ -397,7 +397,7 @@ const tips = {
       NotCredentialed: 'Die Harness hatte keine verwendbaren Zugangsdaten. Binden Sie ein Geheimnis an die Bereitstellung.',
       McpPreflightFailed: 'Ein erforderlicher MCP-Server oder ein erforderliches Werkzeug war bei der Prüfung des Workers vor dem Start nicht erreichbar.',
       NodeLost: 'Der Worker-Knoten hat keine Heartbeats mehr gesendet, während er den Lauf hielt.',
-      OutputLimitExceeded: 'Der Lauf hat zu viel Ausgabe erzeugt: Seine Antwort hat die maximalen Assistentenzeichen der Bereitstellung überschritten (ein Laufwächter), oder der Harness hat mehr geschrieben, als das Harness-Profil erlaubt. Die bisherige Ausgabe bleibt erhalten.',
+      OutputLimitExceeded: 'Der Lauf hat zu viel Ausgabe erzeugt: Seine Antwort hat die maximalen Assistentenzeichen der Bereitstellung überschritten (ein Laufwächter), oder der Harness hat mehr geschrieben, als die Verbindung erlaubt. Die bisherige Ausgabe bleibt erhalten.',
       SchemaValidationFailed: 'Das Ergebnis entsprach nicht dem JSON-Schema der Ausgabe des Agenten: nach einem Reparaturversuch oder sofort, wenn die Harness ihre Sitzung nicht fortsetzen kann.',
       TimedOut: 'Der Lauf hat seine Frist erreicht.',
       Cancelled: 'Der Lauf wurde auf Anforderung abgebrochen.',
@@ -436,7 +436,7 @@ const tips = {
       Codex: 'OpenAI Codex CLI, mit exec und JSONL-Ausgabe ausgeführt.',
       Mux: 'Mux CLI mit JSONL-Ausgabe; funktioniert mit lokalen und gehosteten Modellendpunkten.',
       GeminiCli: 'Google Gemini CLI mit Stream-JSON-Ausgabe.',
-      Generic: 'Jeder andere Kommandozeilen-Agent, vollständig durch das Harness-Profil beschrieben.'
+      Generic: 'Jeder andere Kommandozeilen-Agent, vollständig durch die Verbindung beschrieben.'
     },
     agentKind: {
       Hosted: 'Gehostet: Garrison führt diesen Agenten selbst über seine Bereitstellungen auf Worker-Knoten aus.',
@@ -474,7 +474,7 @@ const tips = {
       Fragment: 'Ein wiederverwendbarer Baustein, den andere Vorlagen mit {{> name}} einbinden.',
       ToolDescription: 'Text, der einen Agenten als MCP-Werkzeug oder A2A-Fähigkeit beschreibt.',
       ConfigFile: 'Der Inhalt einer erzeugten Konfigurationsdatei, etwa einer MCP-Konfiguration.',
-      Other: 'Jeder andere Text, den ein Harness-Profil rendert.'
+      Other: 'Jeder andere Text, den eine Verbindung rendert.'
     },
     mcpTransport: {
       Http: 'Garrison und die Harness erreichen den Server über streambares HTTP unter einer URL.',
@@ -525,8 +525,8 @@ const tips = {
       AffinityWaitExpired: 'Der Knoten mit der Konversation blieb bereit, hat die Runde aber nicht innerhalb von Runtime.ConversationAffinityWaitMs übernommen, daher hat ein anderer Knoten sie genommen.',
       WorkspaceLost: 'Der Knoten hat die Runde übernommen, aber Arbeitsbereich und Home-Verzeichnis der Konversation fehlten dort.',
       SessionMissing: 'Es gibt frühere Runden, aber keine hat eine Harness-Sitzung zum Fortsetzen gemeldet, zum Beispiel weil alle früh fehlschlugen.',
-      HarnessChanged: 'Das Harness-Profil der Bereitstellung hat sich seit dem Aufzeichnen der Sitzung geändert, daher kann das neue Profil sie nicht fortsetzen.',
-      ResumeUnsupported: 'Das Harness-Profil der Bereitstellung unterstützt das Fortsetzen einer Sitzung nicht, daher beginnt jede spätere Runde mit dem Verlauf.',
+      HarnessChanged: 'Die Verbindung der Bereitstellung hat sich seit dem Aufzeichnen der Sitzung geändert, daher kann die neue Verbindung sie nicht fortsetzen.',
+      ResumeUnsupported: 'Die Verbindung der Bereitstellung unterstützt das Fortsetzen einer Sitzung nicht, daher beginnt jede spätere Runde mit dem Verlauf.',
       ExecutorWithoutState: 'Die Runde läuft als Kubernetes Job, der jedes Mal mit leerem Home-Verzeichnis startet, daher beginnt jede spätere Runde mit dem Verlauf.'
     }
   },
@@ -818,10 +818,10 @@ const tips = {
         description: 'Warum diese Regel existiert, für die Personen, die sie pflegen.'
       },
       approvalTest: 'Einen Werkzeugaufruf gegen die gespeicherten Regeln der Bereitstellung testen und sehen, ob er erlaubt, verweigert oder an eine Person geschickt würde.',
-      add: 'Eine Bereitstellung erstellen: die konkrete Art, wie ein Agent läuft, mit Harness-Profil, Modell, Prompts und Ressourcen.',
+      add: 'Eine Bereitstellung erstellen: die konkrete Art, wie ein Agent läuft, mit Verbindung, Modell, Prompts und Ressourcen.',
       name: 'Name der Bereitstellung, eindeutig im Mandanten, zum Beispiel reviewer-claude.',
       agentId: 'Der Agent, den diese Bereitstellung ausführt. Ein Aufruf dieses Agenten kann diese Bereitstellung wählen.',
-      harnessProfileId: 'Das Harness-Profil, das die CLI startet, zum Beispiel builtin/claude-code.',
+      harnessProfileId: 'Die Verbindung, die die CLI startet, zum Beispiel builtin/claude-code.',
       model: 'Modellname, der an die Harness übergeben wird, zum Beispiel sonnet oder gpt-5. In Vorlagen als deployment.model verfügbar.',
       weight: 'Verkehrsgewichtung unter den aktiven Bereitstellungen des Agenten. Eine Bereitstellung mit Gewichtung 300 erhält dreimal so viele Aufrufe wie eine mit 100.',
       configVersion: 'Erhöht sich bei jeder Änderung. Jeder Lauf hält fest, aus welcher Version er kompiliert wurde.',
@@ -850,7 +850,7 @@ const tips = {
       },
       workspaceTemplateId: 'Wie das Arbeitsverzeichnis jedes Laufs vorbereitet wird. Leer bedeutet ein frisches, leeres Verzeichnis.',
       artifactStoreId: 'Wohin von Läufen erzeugte Dateien nach ihrem Ende hochgeladen werden.',
-      argumentOverrides: 'Änderungen an den Argumenten des Harness-Profils nur für diese Bereitstellung: anhängen, voranstellen, ersetzen oder entfernen.',
+      argumentOverrides: 'Änderungen an den Argumenten der Verbindung nur für diese Bereitstellung: anhängen, voranstellen, ersetzen oder entfernen.',
       argumentOverridesItems: {
         operation: 'Was getan werden soll: anhängen, voranstellen, ein passendes Argument ersetzen oder es entfernen.',
         match: 'Das vorhandene Argument, das ersetzt oder entfernt werden soll.',
@@ -878,12 +878,12 @@ const tips = {
         value: 'Label-Wert, den der Knoten haben muss.'
       },
       maxConcurrentRuns: 'Höchstzahl gleichzeitiger Läufe dieser Bereitstellung über alle Knoten. 0 bedeutet unbegrenzt.',
-      timeoutSeconds: 'Frist des Laufs in Sekunden. Leer verwendet den Standard des Harness-Profils. Die Clustereinstellung Runtime.MaxRunSeconds begrenzt jeden Lauf, auch Zeitlimits pro Lauf.',
+      timeoutSeconds: 'Frist des Laufs in Sekunden. Leer verwendet den Standard der Verbindung. Die Clustereinstellung Runtime.MaxRunSeconds begrenzt jeden Lauf, auch Zeitlimits pro Lauf.',
       maxAttempts: 'Wie oft ein Lauf insgesamt versucht werden darf. Zwischen 1 und 10.',
       steps: {
         approvals: 'Welche Werkzeugaufrufe die Harness ausführen darf, welche nicht und welche auf eine Person warten.',
         basics: 'Name, Agent und Verkehrsgewichtung.',
-        harness: 'Harness-Profil, Modell, Grenzen und Parameter.',
+        harness: 'Verbindung, Modell, Grenzen und Parameter.',
         prompts: 'Welche Vorlage jede Prompt-Rolle füllt.',
         resources: 'MCP-Server, Geheimnisse, Arbeitsbereich und Artefaktspeicher.',
         overrides: 'Änderungen pro Bereitstellung an Argumenten, Umgebung und Dateien sowie das, was Aufrufende überschreiben dürfen.',
@@ -1179,7 +1179,7 @@ const tips = {
       openRun: 'Protokoll und Telemetrie dieses Laufs öffnen.',
       columns: {
         name: 'Name der Bereitstellung. Aufrufende können sie explizit benennen, um die gewichtete Auswahl zu umgehen.',
-        harness: 'Das Harness-Profil, das die CLI für diese Bereitstellung startet.',
+        harness: 'Die Verbindung, die die CLI für diese Bereitstellung startet.',
         model: 'Das Modell, das diese Bereitstellung von der Harness anfordert.',
         weight: 'Die in der Bereitstellung gesetzte Verkehrsgewichtung.',
         traffic: 'Anteil der Aufrufe, den diese Bereitstellung erhält: ihre Gewichtung geteilt durch die Summe der aktiven Gewichtungen.',
@@ -1546,18 +1546,18 @@ const explainers = {
     agent: { title: 'Agent', body: 'Name, Beschreibung, Bereitstellung nach außen, Delegation, Ausgabeschema', tip: 'Die adressierbare Identität. Aufrufende rufen sie über den Namen auf; sie beschreibt, was der Agent ist und wie er angeboten wird, nicht wie er läuft.' },
     deploymentA: { title: 'Bereitstellung A, Gewichtung 300', body: 'Claude Code, sonnet', tip: 'Eine Art, den Agenten auszuführen. Mit Gewichtung 300 gegenüber 100 erhält sie 75 % der Aufrufe, die keine Bereitstellung benennen.' },
     deploymentB: { title: 'Bereitstellung B, Gewichtung 100', body: 'Mux, lokales Modell', tip: 'Eine weitere Art, denselben Agenten auszuführen. Aufrufende können sie auch explizit benennen, um die gewichtete Auswahl zu umgehen.' },
-    binds: { title: 'Jede Bereitstellung bindet', body: 'Harness-Profil, Prompts, MCP-Server, Geheimnisse, Arbeitsbereich, Knotenpool, Grenzen', tip: 'Alles, was aus einer Anfrage einen konkreten Prozess macht: welche CLI, welche Prompts, welche Werkzeuge und Zugangsdaten und wo er laufen darf.' },
+    binds: { title: 'Jede Bereitstellung bindet', body: 'Verbindung, Prompts, MCP-Server, Geheimnisse, Arbeitsbereich, Knotenpool, Grenzen', tip: 'Alles, was aus einer Anfrage einen konkreten Prozess macht: welche CLI, welche Prompts, welche Werkzeuge und Zugangsdaten und wo er laufen darf.' },
     run: { title: 'Lauf', body: 'Eine Ausführung einer Bereitstellung', tip: 'Jeder Aufruf erzeugt einen Lauf, kompiliert aus der gewählten Bereitstellung und ausgeführt auf einem Worker-Knoten.' }
   },
   agents: {
     title: 'Agenten und Bereitstellungen',
     p1: 'Ein Agent ist die Identität, die Aufrufende verwenden. Er hat einen Namen, eine Beschreibung, eine Art der Bereitstellung nach außen (A2A-Karte, MCP-Werkzeug), eine Angabe, ob er andere Agenten aufrufen darf, und das Ausgabeschema, dem seine Antworten entsprechen müssen. Für sich allein führt ein Agent nichts aus.',
-    p2: 'Eine Bereitstellung legt fest, wie der Agent läuft: welches Harness-Profil und Modell, welche Prompt-Vorlagen, welche MCP-Server und Geheimnisse (über Aliase), welcher Arbeitsbereich, welcher Knotenpool und welche Grenzen und Parameter pro Lauf gelten. Ein Agent kann mehrere Bereitstellungen haben, jede mit einer Verkehrsgewichtung.',
+    p2: 'Eine Bereitstellung legt fest, wie der Agent läuft: welche Verbindung und welches Modell, welche Prompt-Vorlagen, welche MCP-Server und Geheimnisse (über Aliase), welcher Arbeitsbereich, welcher Knotenpool und welche Grenzen und Parameter pro Lauf gelten. Ein Agent kann mehrere Bereitstellungen haben, jede mit einer Verkehrsgewichtung.',
     p3: 'Wenn jemand den Agenten aufruft, wählt Garrison zufällig nach Gewichtung eine seiner aktiven Bereitstellungen, sofern der Aufrufer keine bestimmte Bereitstellung benannt hat. So betreiben Sie eine Claude-Code- und eine Mux-Variante nebeneinander oder verlagern Verkehr schrittweise auf ein neues Modell.'
   },
   deployments: {
     title: 'Was eine Bereitstellung ist',
-    p1: 'Eine Bereitstellung macht aus einem Agenten etwas Ausführbares. Sie gehört zu genau einem Agenten und bindet ein Harness-Profil (welche CLI gestartet wird), ein Modell, Prompt-Vorlagen für jede Rolle, MCP-Server und Geheimnisse unter Aliasen, optional einen Arbeitsbereich und einen Artefaktspeicher, die Platzierung auf Knotenpools oder Labels sowie Grenzen wie Zeitlimit und Parallelität.',
+    p1: 'Eine Bereitstellung macht aus einem Agenten etwas Ausführbares. Sie gehört zu genau einem Agenten und bindet eine Verbindung (welche CLI gestartet wird), ein Modell, Prompt-Vorlagen für jede Rolle, MCP-Server und Geheimnisse unter Aliasen, optional einen Arbeitsbereich und einen Artefaktspeicher, die Platzierung auf Knotenpools oder Labels sowie Grenzen wie Zeitlimit und Parallelität.',
     p2: 'Ein Agent mit mehreren aktiven Bereitstellungen verteilt seinen Verkehr nach Gewichtung: Gewichtungen von 300 und 100 schicken drei von vier Aufrufen an die erste. Inaktive Bereitstellungen erhalten keinen gewichteten Verkehr, können aber weiterhin explizit benannt werden. Das ist praktisch, um eine neue Konfiguration zu testen, bevor sie Gewichtung erhält.',
     p3: 'Verwenden Sie die Kompilierungsvorschau einer Bereitstellung, um genau die Befehlszeile, Dateien und Umgebung zu sehen, die ein Lauf erhalten würde, ohne einen zu starten.'
   },
@@ -1566,10 +1566,10 @@ const explainers = {
     p1: 'Dieser Agent wird über seinen Namen erreicht. Die Bereitstellungen unten sind die konkreten Arten, wie er laufen kann. Jede aktive Bereitstellung erhält einen Verkehrsanteil, der ihrer Gewichtung geteilt durch die Gesamtgewichtung der aktiven Bereitstellungen entspricht; Aufrufende, die eine Bereitstellung benennen, überspringen die gewichtete Auswahl.'
   },
   harnessProfiles: {
-    title: 'Harness-Profile und Bereitstellungen',
-    p1: 'Ein Harness-Profil ist ein Startrezept für einen Kommandozeilen-Agenten: das Programm, die Argumentvorlagen, Umgebungsvariablen, zu schreibende Dateien, wie Prompt und System-Prompt übergeben werden, welches MCP-Konfigurationsformat gelesen wird und wie die Ausgabe in Ereignisse umgewandelt wird.',
+    title: 'Verbindungen und Bereitstellungen',
+    p1: 'Eine Verbindung (in der Dokumentation Harness-Profil genannt) ist ein Startrezept für einen Kommandozeilen-Agenten: das Programm, die Argumentvorlagen, Umgebungsvariablen, zu schreibende Dateien, wie Prompt und System-Prompt übergeben werden, welches MCP-Konfigurationsformat gelesen wird und wie die Ausgabe in Ereignisse umgewandelt wird.',
     p2: 'Profile sind gemeinsam genutzte Bausteine. Eine Bereitstellung wählt ein Profil und ergänzt dann die Einzelheiten: Modell, Prompts, Geheimnisse und Überschreibungen von Argumenten oder Umgebung, die nur für sie gelten. Viele Bereitstellungen können dasselbe Profil verwenden, eine Korrektur am Profil erreicht also alle.',
-    p3: 'Integrierte Profile sind schreibgeschützt. Klonen Sie eines, um es zu ändern.'
+    p3: 'Integrierte Verbindungen sind schreibgeschützt. Klonen Sie eine, um sie zu ändern.'
   },
   promptTemplates: {
     title: 'Prompt-Vorlagen und wie Bereitstellungen sie verwenden',
@@ -1599,7 +1599,7 @@ const explainers = {
   },
   manifests: {
     title: 'Manifeste und die Datensätze, die sie erstellen',
-    p1: 'Ein Manifest ist die Konfiguration des Mandanten, geschrieben als YAML- oder JSON-Dokumente: Geheimnisse (standardmäßig ohne Werte), Prompt-Vorlagen, Harness-Profile, MCP-Server, Arbeitsbereichsvorlagen, Agenten und Bereitstellungen. Dokumente verweisen über Namen aufeinander, ein Manifest funktioniert also in jedem Mandanten.',
+    p1: 'Ein Manifest ist die Konfiguration des Mandanten, geschrieben als YAML- oder JSON-Dokumente: Geheimnisse (standardmäßig ohne Werte), Prompt-Vorlagen, Verbindungen, MCP-Server, Arbeitsbereichsvorlagen, Agenten und Bereitstellungen. Dokumente verweisen über Namen aufeinander, ein Manifest funktioniert also in jedem Mandanten.',
     p2: 'Das Anwenden eines Manifests erstellt oder aktualisiert gewöhnliche Datensätze, dieselben, die Sie auf den anderen Registerkarten sehen. Zweimaliges Anwenden ändert nichts. Ein Probelauf zeigt, was sich ändern würde, ohne zu schreiben, und Exportieren erzeugt ein Manifest, das diesen Mandanten nachbildet.'
   },
   nodes: {
@@ -2182,8 +2182,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "kinds": "Jede Ressource der markierten Arten exportieren.",
     "kind": "Jede Ressource der Art {{kind}} in diesem Mandanten exportieren.",
     "resources": "Einzelne zu exportierende Ressourcen im Format Kind/Name, zum Beispiel Agent/triage oder Pipeline/release.",
-    "followReferences": "Auch exportieren, wovon die Auswahl abhängt: Bereitstellungen, Harness-Profile, Prompt-Vorlagen, Arbeitsbereiche, MCP-Server, Auslöser und Benachrichtigungsendpunkte. Geheimnisse werden als Voraussetzung aufgeführt, nie exportiert.",
-    "includeBuiltIn": "Die integrierten Prompt-Vorlagen und Harness-Profile hinzufügen, auf die das Paket verweist. Beim Anwenden bleiben sie unverändert; es wird nur geprüft, dass sie existieren."
+    "followReferences": "Auch exportieren, wovon die Auswahl abhängt: Bereitstellungen, Verbindungen, Prompt-Vorlagen, Arbeitsbereiche, MCP-Server, Auslöser und Benachrichtigungsendpunkte. Geheimnisse werden als Voraussetzung aufgeführt, nie exportiert.",
+    "includeBuiltIn": "Die integrierten Prompt-Vorlagen und Verbindungen hinzufügen, auf die das Paket verweist. Beim Anwenden bleiben sie unverändert; es wird nur geprüft, dass sie existieren."
    }
   }
  }
@@ -2317,7 +2317,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
  "enums": {
   "agentAssetKind": {
    "SystemPrompt": "Der Systemprompt des Agents, geliefert von einer Prompt-Vorlage. Er hat keine hochgeladenen Dateien.",
-   "Skill": "Ein Fähigkeitsordner, den der Harness lädt, abgelegt dort, wo das Harness-Profil Fähigkeiten erwartet.",
+   "Skill": "Ein Fähigkeitsordner, den der Harness lädt, abgelegt dort, wo die Verbindung Fähigkeiten erwartet.",
    "ReferenceFile": "Eine Datei, die der Agent während einer Ausführung lesen kann, abgelegt im Arbeitsbereich der Ausführung.",
    "DocumentTemplate": "Eine Dokumentvorlage, etwa eine .docx- oder .dotx-Datei, die der Agent während einer Ausführung ausfüllt."
   },
@@ -2489,7 +2489,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "capabilityKind": {
    "Agent": "Ein anderer Garrison-Agent, beschrieben anhand seiner neuesten veröffentlichten Revision. Ein orchestrierender Agent kann an ihn delegieren.",
    "McpTool": "Ein Tool eines in diesem Mandanten registrierten MCP-Servers, beschrieben anhand der Tool-Liste des Servers.",
-   "HarnessBuiltIn": "Ein Programm, das die Harness auf ihrem Worker-Host ausführen kann, etwa pandoc oder LibreOffice. Gefunden wird es über eine Tool-Prüfung in einem Harness-Profil."
+   "HarnessBuiltIn": "Ein Programm, das die Harness auf ihrem Worker-Host ausführen kann, etwa pandoc oder LibreOffice. Gefunden wird es über eine Tool-Prüfung in einer Verbindung."
   },
   "capabilityOrigin": {
    "Derived": "Garrison hält diesen Eintrag mit seiner Quelle synchron. Er kann hier weder bearbeitet noch gelöscht werden; ändern Sie stattdessen die Quelle.",
@@ -2510,7 +2510,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "kind": "Agent, MCP-Tool oder integriertes Harness-Tool. Manuelle Einträge dürfen jede Art verwenden.",
    "origin": "Abgeleitete Einträge folgen ihrer Quelle und können hier nicht geändert werden; manuelle Einträge stammen von Personen.",
    "summary": "Was die Fähigkeit tut und wann man sie nutzt, so wie Agents es lesen. Bis zu 4000 Zeichen.",
-   "source": "Woher der Eintrag stammt: vom Agent, vom MCP-Server und Tool oder vom Harness-Profil samt dem Knotenlabel, das ein Lauf benötigt.",
+   "source": "Woher der Eintrag stammt: vom Agent, vom MCP-Server und Tool oder von der Verbindung samt dem Knotenlabel, das ein Lauf benötigt.",
    "hints": "Median und 90. Perzentil der Laufdauer sowie mittlere Kosten aus kürzlich abgeschlossenen Läufen, oder Unbekannt, wenn zu wenige Läufe abgeschlossen sind.",
    "tags": "Schlagwörter zum Filtern des Katalogs. Auch Agents können nach Schlagwort filtern.",
    "lastRefreshedUtc": "Wann Garrison einen abgeleiteten Eintrag zuletzt aus seiner Quelle aktualisiert hat. Bei manuellen Einträgen leer.",
@@ -2546,7 +2546,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "sourceAgent": "Agent {{name}} öffnen, den dieser Eintrag anhand seiner neuesten veröffentlichten Revision beschreibt.",
   "sourceMcpServer": "MCP-Server {{name}} im Tab MCP-Server öffnen. Seine Tool-Liste ist die Quelle dieses Eintrags.",
   "sourceTool": "Der Name des Tools auf dem MCP-Server: {{tool}}.",
-  "sourceProfile": "Harness-Profil {{name}} öffnen, dessen Tool-Prüfung die Quelle dieses Eintrags ist.",
+  "sourceProfile": "Verbindung {{name}} öffnen, deren Tool-Prüfung die Quelle dieses Eintrags ist.",
   "nodeLabel": "Ein Lauf mit dieser Fähigkeit geht nur an einen Worker, der das Knotenlabel {{label}} meldet.",
   "noSource": "Ein manueller Eintrag, der keinen Agent und keinen MCP-Server nennt. Jeder Lauf, der den Katalog lesen darf, sieht ihn.",
   "hintsUnknown": "Im Hinweiszeitfenster sind zu wenige Läufe abgeschlossen, um etwas auszusagen, daher werden keine Werte angezeigt. Das bedeutet nie null.",
@@ -2554,19 +2554,19 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "hintsKnown_other": "Ausgewertet aus {{count}} abgeschlossenen Läufen der letzten {{days}} Tage.",
   "refreshWarning": "Garrison konnte diesen Eintrag nicht aus seiner Quelle aktualisieren, daher behält er seinen letzten gültigen Inhalt, bis die nächste Aktualisierung gelingt.",
   "lockedBanner": "Warum dieser Eintrag hier nicht bearbeitet oder gelöscht werden kann und wo Sie ihn stattdessen ändern.",
-  "lockedShared": "Gilt für alle Mandanten: Dieser Eintrag stammt aus einer Tool-Prüfung in einem integrierten Harness-Profil und kann daher weder bearbeitet noch gelöscht werden. Klonen Sie das Profil, um seine Prüfungen zu ändern.",
+  "lockedShared": "Gilt für alle Mandanten: Dieser Eintrag stammt aus einer Tool-Prüfung in einer integrierten Verbindung und kann daher weder bearbeitet noch gelöscht werden. Klonen Sie die Verbindung, um ihre Prüfungen zu ändern.",
   "locked": {
    "Agent": "Abgeleitet von der neuesten veröffentlichten Revision des Agents, daher hier weder bearbeitbar noch löschbar. Veröffentlichen Sie eine neue Revision, um ihn zu ändern; wird der Agent deaktiviert, verschwindet der Eintrag.",
    "McpTool": "Abgeleitet von der Tool-Liste des MCP-Servers, daher hier weder bearbeitbar noch löschbar. Ändern Sie den Server oder seine Tools und aktualisieren Sie dann.",
-   "HarnessBuiltIn": "Abgeleitet von einer Tool-Prüfung in einem Harness-Profil, daher hier weder bearbeitbar noch löschbar. Ändern Sie stattdessen die Tool-Prüfungen des Profils."
+   "HarnessBuiltIn": "Abgeleitet von einer Tool-Prüfung in einer Verbindung, daher hier weder bearbeitbar noch löschbar. Ändern Sie stattdessen die Tool-Prüfungen der Verbindung."
   },
-  "shared": "Alle Mandanten sehen diesen Eintrag. Er stammt aus einer Tool-Prüfung in einem integrierten Harness-Profil.",
+  "shared": "Alle Mandanten sehen diesen Eintrag. Er stammt aus einer Tool-Prüfung in einer integrierten Verbindung.",
   "hintsTitle": "Dauer und Kosten der kürzlich abgeschlossenen Läufe dieses Agents. MCP-Tools und integrierte Tools haben keine Hinweise.",
   "requirementsTitle": "Knotenlabels, die ein Worker melden muss, bevor er einen Lauf übernimmt, dessen Agent diese Fähigkeit nutzt.",
   "fields": {
    "kind": "Agent, MCP-Tool oder integriertes Harness-Tool.",
    "origin": "Abgeleitete Einträge folgen ihrer Quelle; manuelle Einträge stammen von Personen.",
-   "source": "Der Agent, der MCP-Server samt Tool oder das Harness-Profil, aus dem dieser Eintrag stammt.",
+   "source": "Der Agent, der MCP-Server samt Tool oder die Verbindung, aus der dieser Eintrag stammt.",
    "lastRefreshedUtc": "Wann Garrison diesen Eintrag zuletzt aus seiner Quelle aktualisiert hat. Bei manuellen Einträgen leer.",
    "tags": "Schlagwörter zum Filtern des Katalogs.",
    "id": "Kennung des Katalogeintrags, beginnend mit cap_.",
@@ -2910,7 +2910,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "architect": {
    "name": "Name der neuen Architekten-Bereitstellung in diesem Mandanten, zum Beispiel architect.",
    "harnessProfileId": "Der Harness, auf dem der Architekt läuft, zum Beispiel Claude Code. Er braucht einen Worker, der ihn ausführen kann.",
-   "model": "Das Modell, das der Harness für den Architekten verwendet. Leer verwendet den Standard des Harness-Profils.",
+   "model": "Das Modell, das der Harness für den Architekten verwendet. Leer verwendet den Standard der Verbindung.",
    "promptId": "Der System-Prompt, mit dem der Architekt arbeitet. Integrierte kommen zuerst, ihre Klone danach.",
    "preview": "Der gewählte Prompt, mit Beispielwerten gerendert, so wie der Architekt ihn erhalten würde.",
    "cloneLink": "Diesen Prompt im Bereich Prompt-Vorlagen öffnen, wo Sie ihn klonen und den Klon bearbeiten können.",
@@ -2920,7 +2920,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "chat": {
    "title": "Eine Konversation mit dem Agenten-Architekten über diesen Entwurf. Er bearbeitet den Entwurf; Sie geben das Anwenden frei.",
    "architect": "Die Architekten-Bereitstellung, mit der Sie sprechen. Die Wahl einer anderen beginnt eine neue Konversation.",
-   "newArchitect": "Eine Architekten-Bereitstellung erstellen: Harness-Profil, Modell und Architekten-Prompt.",
+   "newArchitect": "Eine Architekten-Bereitstellung erstellen: Verbindung, Modell und Architekten-Prompt.",
    "openConversation": "Diese Konversation auf einer eigenen Seite öffnen, mit jeder Runde als Lauf.",
    "newConversation": "Diese Konversation in diesem Browser vergessen und mit der nächsten Nachricht eine neue beginnen.",
    "you": "Was Sie in dieser Runde an den Architekten gesendet haben.",
@@ -3136,7 +3136,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "bring": "Das Live-Dokument von {{name}} als neues Element in den Entwurf kopieren.",
     "approvals": "Ob Werkzeugaufrufe der Läufe dieser Bereitstellung auf eine Person warten, und die Regeln, die zuerst entscheiden.",
     "fields": {
-     "model": "Das Modell, das der Harness verwendet, zum Beispiel sonnet. Leer verwendet den Standard des Harness-Profils.",
+     "model": "Das Modell, das der Harness verwendet, zum Beispiel sonnet. Leer verwendet den Standard der Verbindung.",
      "effort": "Der Denkaufwand, den der Harness weitergibt, zum Beispiel high. Leer überlässt es dem Harness.",
      "timeoutSeconds": "Wie lange ein Lauf dauern darf, bevor er gestoppt wird, in Sekunden.",
      "maxTurns": "Wie viele Modellrunden ein Lauf haben darf, bevor er stoppt.",
@@ -3256,17 +3256,17 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "nav": {
   "tabs": {
-   "architects": "Agenten-Architekten, die Sie in jedem Studio-Entwurf wiederverwenden können: erstellen, bearbeiten und löschen Sie sie, und wählen Sie Harness-Profil, Modell und Prompt für jeden."
+   "architects": "Agenten-Architekten, die Sie in jedem Studio-Entwurf wiederverwenden können: erstellen, bearbeiten und löschen Sie sie, und wählen Sie Verbindung, Modell und Prompt für jeden."
   }
  },
  "resources": {
   "architects": {
    "add": "Einen Agenten-Architekten erstellen: eine Bereitstellung von agent-architect, die nur Ihre Studio-Entwürfe bearbeitet und sie nie anwendet.",
-   "harnessProfileId": "Das Harness-Profil, auf dem der Architekt läuft. Es bestimmt die Agenten-CLI, die er verwendet (Claude Code, Codex usw.).",
-   "model": "Das Modell, das der Architekt beim Harness anfordert. Leer verwendet das Standardmodell des Harness-Profils.",
+   "harnessProfileId": "Die Verbindung, auf der der Architekt läuft. Sie bestimmt die Agenten-CLI, die er verwendet (Claude Code, Codex usw.).",
+   "model": "Das Modell, das der Architekt beim Harness anfordert. Leer verwendet das Standardmodell der Verbindung.",
    "architectPromptTemplateId": "Die System-Vorlage, die dem Architekten sagt, wie er arbeitet. Die integrierten Prompts stehen zuerst; klonen Sie einen, um ihn zu ändern.",
    "architectPromptVersion": "Den Architekten auf eine Version seines Prompts festlegen. Leer folgt der aktuellen Version, sodass eine gespeicherte Änderung ab seinem nächsten Zug gilt.",
-   "defaultModel": "Es ist kein Modell gesetzt, daher verwendet der Architekt das Standardmodell des Harness-Profils.",
+   "defaultModel": "Es ist kein Modell gesetzt, daher verwendet der Architekt das Standardmodell der Verbindung.",
    "defaultBadge": "Dieser Architekt verwendet den integrierten Standard-Prompt builtin/agent-architect.",
    "activeBadge": "Aktiv: Entwürfe können neue Unterhaltungen mit diesem Architekten beginnen.",
    "inactiveBadge": "Inaktiv: Der Architekt nimmt keine neuen Züge an, und Entwürfe bieten ihn nicht an, bis Sie ihn wieder aktivieren.",
@@ -3491,9 +3491,9 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "allDrafts": "Alle Studio-Entwürfe anzeigen, auch solche, die Sie nicht im Assistenten begonnen haben."
    },
    "access": {
-    "needProfile": "Wählen Sie zuerst ein Harness-Profil.",
+    "needProfile": "Wählen Sie zuerst eine Verbindung.",
     "needCredential": "Wählen oder fügen Sie zuerst Zugangsdaten hinzu.",
-    "harness": "Das Harness-Profil, auf dem die Agenten und der Architekt laufen.",
+    "harness": "Die Verbindung, auf der die Agenten und der Architekt laufen.",
     "model": "Das zu verwendende Modell. Leer lassen für den Standard des Harness.",
     "useSecret": "Mit dem Geheimnis {{name}} anmelden.",
     "addSecret": "Hier neue Zugangsdaten speichern, mit den Schritten zum Erhalt des Werts.",
@@ -3690,7 +3690,7 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
 })(explainers, {
  "memory": {
   "title": "Gedächtnis",
-  "p1": "Agenten behalten Notizen zwischen Ausführungen im Gedächtnis. Jeder Eintrag liegt in einem Bereich: im privaten Gedächtnis eines Agenten oder im gemeinsamen Gedächtnis einer Anwendung, zu der der Agent gehört. Ausführungen lesen und schreiben über die garrison_memory-Werkzeuge und nur in den Bereichen, die ihr Agent nutzen darf.",
+  "p1": "Agenten behalten Notizen zwischen Ausführungen im Gedächtnis. Jeder Eintrag liegt in einem Bereich: im privaten Gedächtnis eines Agenten oder im gemeinsamen Gedächtnis einer Anwendung, einer Organisationseinheit oder einer ganzen Organisation, zu der der Agent gehört. Ausführungen lesen und schreiben über die garrison_memory-Werkzeuge und nur in den Bereichen, die ihr Agent nutzen darf.",
   "p2": "Jeder Eintrag hält fest, wer ihn geschrieben hat, aus welcher Ausführung, wann und in welcher Version. Ein Schreiben oder Löschen, das die gelesene Version nennt, wird abgelehnt, wenn jemand dazwischen geschrieben hat; so überschreiben sich Agenten und Personen nicht gegenseitig.",
   "p3": "Der Text sind Daten, die ein Agent oder eine Person gespeichert hat. Er erscheint hier als reiner Text und erreicht Agenten als Daten, nie als Anweisungen. Löschen Sie einen Eintrag, der nicht behalten werden soll; Agenten, die danach suchen, finden dann nichts mehr."
  }
@@ -4373,7 +4373,7 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
 })(explainers, {
  "changeRules": {
   "title": "Änderungsregeln",
-  "p1": "Ein leitender Agent ist ein Agent, der eine Organisationseinheit leitet und dessen Bereitstellung Leitungszugriff hat. Er kann Änderungen an den Einheiten unter ihm vorschlagen, nie an sich selbst, an allem darüber, an Geheimnissen, an Budgets oder an diesen Regeln.",
+  "p1": "Ein leitender Agent ist ein Agent, der eine Organisationseinheit leitet und dessen Bereitstellung Leitungszugriff hat. Er kann Änderungen an den Einheiten unter ihm vorschlagen, nie an sich selbst, an allem darüber, an Geheimnissen oder an diesen Regeln, und er kann nie ein Budget erhöhen.",
   "p2": "Eine Änderungsregel gibt Routineänderungen im Voraus frei. Sie nennt die Einheit, deren Teilbaum sie abdeckt, die Änderungsklassen, die sie erlaubt, und optionale Grenzen, etwa höchstens zwei Änderungen pro Vorschlag oder ein Aufwachintervall von mindestens einer Minute. Wenn Regeln jede Änderung in einem Vorschlag abdecken, wird er sofort angewendet; alles andere wartet im Tab Vorschläge der Organisation auf einen Menschen.",
   "p3": "Jeder angewendete Vorschlag wird als Revision der Organisation erfasst, sodass Sie ihn zurücksetzen können. Nur Menschen schreiben Regeln."
  }
@@ -5382,5 +5382,30 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "trustLevel": {
    "Trusted": "Eingaben kommen nur von vertrauenswürdigen Aufrufern. Läufe dürfen die Prozessausführung nutzen, die nicht von anderen Läufen oder dem Worker isoliert ist."
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): explainer fold and unfold, stage reviews on Approvals, and the Connections target column.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "explainer": {
+  "fold": "Die Erklärung zu {{topic}} auf ihre Titelzeile einklappen, damit die Liste darunter weiter oben beginnt. Ein Klick auf den Titel öffnet sie wieder.",
+  "unfold": "Die Erklärung zu {{topic}} öffnen: was diese Seite verwaltet und wie sie mit dem Rest von Garrison zusammenhängt."
+ },
+ "views": {
+  "approvals": {
+   "reviewsWaiting": "Die Registerkarte Stufenprüfungen öffnen, auf der Pipeline-Stufen, die auf eine Person warten, freigegeben oder abgelehnt werden. Das Abzeichen in der Seitenleiste zählt sie mit."
+  }
+ },
+ "runtime": {
+  "target": "Wohin die Verbindung die Arbeit schickt: die Basis-URL einer Anbieter-API, der Endpunktname einer Mux-Verbindung oder das Programm eines CLI-Harness."
  }
 });

@@ -60,8 +60,9 @@ function tokenize(text) {
       tokens[tokens.length - 1].text += ch;
     } else {
       word += ch;
-      // Allow a break after a slash, a hyphen, or a middle dot inside a long token.
-      if (ch === '/' || ch === '·' || (ch === '-' && word.length > 2)) push();
+      // Allow a break after a slash, a hyphen, a middle dot, or an underscore (tool names such as
+      // garrison_keeper_complete_tick, UXP1-V023) inside a long token.
+      if (ch === '/' || ch === '·' || ch === '_' || (ch === '-' && word.length > 2)) push();
     }
   }
   push();
@@ -72,7 +73,8 @@ function splitLong(word, maxWidth, size, options) {
   // A single word wider than the line (a long German compound) is broken into pieces that end with a hyphen.
   const pieces = [];
   let current = '';
-  const latin = !CJK.test(word);
+  // An identifier in monospace is never hyphenated: a hyphen would read as part of the name.
+  const latin = !CJK.test(word) && !options.mono;
   for (const ch of word) {
     const next = current + ch;
     const reserve = latin ? textWidth('-', size, options) : 0;

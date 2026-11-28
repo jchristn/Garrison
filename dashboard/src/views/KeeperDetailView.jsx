@@ -456,8 +456,8 @@ export default function KeeperDetailView({ recordId }) {
               <Detail label={t('resources.keepers.fields.wakeMode')} tip={t('tips.resources.keepers.wakeMode')}>
                 <span {...tip(enumTip(t, 'wakeMode', rev.wakeMode))}>{enumLabel(t, 'wakeMode', rev.wakeMode)}</span>
               </Detail>
-              <Detail label={t('resources.keepers.fields.minIntervalSeconds')} tip={t('tips.resources.keepers.minIntervalSeconds')}>{formatInterval(t, rev.minIntervalSeconds)}</Detail>
-              {rev.wakeMode !== 'Fixed' && <Detail label={t('resources.keepers.fields.maxIntervalSeconds')} tip={t('tips.resources.keepers.maxIntervalSeconds')}>{formatInterval(t, rev.maxIntervalSeconds)}</Detail>}
+              <Detail label={t('views.keeperDetail.minInterval')} tip={t('tips.resources.keepers.minIntervalSeconds')}>{formatInterval(t, rev.minIntervalSeconds)}</Detail>
+              {rev.wakeMode !== 'Fixed' && <Detail label={t('views.keeperDetail.maxInterval')} tip={t('tips.resources.keepers.maxIntervalSeconds')}>{formatInterval(t, rev.maxIntervalSeconds)}</Detail>}
               {rev.wakeMode !== 'Fixed' && <Detail label={t('resources.keepers.fields.backoffFactor')} tip={t('tips.resources.keepers.backoffFactor')}>{formatNumber(rev.backoffFactor ?? 2, { maximumFractionDigits: 2 }, lng)}</Detail>}
               <Detail label={t('resources.keepers.fields.jitterPercent')} tip={t('tips.resources.keepers.jitterPercent')}>{rev.jitterPercent === null || rev.jitterPercent === undefined ? t('views.keeperDetail.clusterDefault') : `${formatNumber(rev.jitterPercent, {}, lng)}%`}</Detail>
               <Detail label={t('resources.keepers.fields.budgetPerTickUsd')} tip={t('tips.resources.keepers.budgetPerTickUsd')}>{rev.budgetPerTickUsd == null ? t('views.keeperDetail.noLimit') : usd(rev.budgetPerTickUsd)}</Detail>
@@ -468,7 +468,7 @@ export default function KeeperDetailView({ recordId }) {
         )}
       </section>
 
-      <section className="panel" aria-label={t('views.keeperDetail.ticks')} data-testid="keeper-ticks">
+      <section className="panel" aria-label={t('views.keeperDetail.ticks')} data-testid="keeper-ticks" data-tour="keeper-ticks">
         <div className="flex gap-sm items-center keeper-section-head">
           <h3 className="section-title" {...tip(t('tips.views.keeperDetail.ticks'))}>
             {t('views.keeperDetail.ticks')}
@@ -570,7 +570,7 @@ export default function KeeperDetailView({ recordId }) {
         )}
       </section>
 
-      <section className="panel" aria-label={t('views.keeperDetail.revisions')} data-testid="keeper-revisions">
+      <section className="panel" aria-label={t('views.keeperDetail.revisions')} data-testid="keeper-revisions" data-tour="keeper-revisions">
         <h3 className="section-title" {...tip(t('tips.views.keeperDetail.revisions'))}>
           {t('views.keeperDetail.revisions')}
         </h3>

@@ -31,7 +31,7 @@ function tour(id, sample, steps) {
   return { id, sample, steps: steps.map(([stepId, route, target]) => step(id, stepId, route, target)) };
 }
 
-/** The six tours in the order the Learn page and the tour list show them. */
+/** The seven tours in the order the Learn page and the tour list show them. */
 export const TOURS = [
   tour('first-look', null, [
     ['sidebar', '/dashboard/home', 'sidebar'],
@@ -62,8 +62,9 @@ export const TOURS = [
   tour('build-a-team', { needs: 'organizations', example: 'siteReliability' }, [
     ['canvas', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-canvas'],
     ['palette', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-palette'],
-    ['keepers', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-unit-keepers'],
-    ['budget', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-unit-budget'],
+    // UXP1-S026: panel= opens the unit's Keepers and Budget tabs, so each step shows the tab it describes.
+    ['keepers', '/dashboard/organizations/{organization}?tab=design&unit={unit}&panel=keepers', 'org-unit-keepers'],
+    ['budget', '/dashboard/organizations/{organization}?tab=design&unit={unit}&panel=budget', 'org-unit-budget'],
     ['publish', '/dashboard/organizations/{organization}?tab=design&unit={unit}', 'org-publish']
   ]),
   tour('keep-it-safe', { needs: 'keepers', example: 'gerbil' }, [
@@ -72,6 +73,16 @@ export const TOURS = [
     ['spendCaps', '/dashboard/keepers/{keeper}', 'keeper-limits'],
     ['changeRules', '/dashboard/organizations?tab=change-rules', 'resource-changeRules'],
     ['approvals', '/dashboard/approvals', 'resource-approvals']
+  ]),
+  // LP4.11 (UXP1-S009): what a keeper is and what it leaves behind, on the Autonomy hub and one keeper's page.
+  tour('agents-on-their-own', { needs: 'keepers', example: 'gerbil' }, [
+    ['keepers', '/dashboard/autonomy?tab=keepers', 'resource-keepers'],
+    ['schedule', '/dashboard/keepers/{keeper}', 'keeper-limits'],
+    ['ticks', '/dashboard/keepers/{keeper}', 'keeper-ticks'],
+    ['revisions', '/dashboard/keepers/{keeper}', 'keeper-revisions'],
+    ['messages', '/dashboard/autonomy?tab=messages', 'resource-messages'],
+    ['memory', '/dashboard/autonomy?tab=memory', 'resource-memory'],
+    ['escalations', '/dashboard/autonomy?tab=escalations', 'resource-escalations']
   ]),
   tour('watch-an-organization', { needs: 'organizations', example: 'siteReliability' }, [
     ['board', '/dashboard/board/{organization}', 'board-chart'],
@@ -93,7 +104,7 @@ export const HUB_TOURS = {
   connections: { tour: 'run-an-agent' },
   runs: { tour: 'follow-a-request' },
   organizations: { tour: 'build-a-team', tabs: { board: 'watch-an-organization', performance: 'watch-an-organization', 'change-rules': 'keep-it-safe' } },
-  autonomy: { tour: 'watch-an-organization', tabs: { freezes: 'keep-it-safe', keepers: 'keep-it-safe' } },
+  autonomy: { tour: 'agents-on-their-own', tabs: { freezes: 'keep-it-safe' } },
   approvals: { tour: 'keep-it-safe' }
 };
 

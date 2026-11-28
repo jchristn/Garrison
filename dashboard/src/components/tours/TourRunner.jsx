@@ -134,7 +134,12 @@ export default function TourRunner({ timeoutMs = TOUR_TARGET_TIMEOUT_MS }) {
         skip('tours.ui.skippedMissing');
         return;
       }
-      if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+      // UXP1-V039: center the target, so one near the bottom edge does not end up half out of view under the card. A
+      // target taller than most of the window (a whole list) starts at the top instead, so its heading shows.
+      if (typeof el.scrollIntoView === 'function') {
+        const tall = (el.getBoundingClientRect?.().height || 0) > (window.innerHeight || 0) * 0.7;
+        el.scrollIntoView({ block: tall ? 'start' : 'center', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+      }
       setTarget(el);
       setRect(el.getBoundingClientRect());
       setPhase('showing');

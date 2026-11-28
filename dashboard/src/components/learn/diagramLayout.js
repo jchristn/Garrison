@@ -46,7 +46,8 @@ function range(def, key, fallback) {
  * Lay out a diagram.
  * @param {object} def The definition: { id, columns, rows?, layout?, boxes, groups?, arrows? }.
  * @param {object} texts Resolved strings: { boxes: { [id]: { title, body } }, groups: { [id]: string }, arrows: { [id]: string } }.
- * @param {{ dir?: 'ltr' | 'rtl' }} [options] Direction; 'rtl' mirrors the result.
+ * @param {{ dir?: 'ltr' | 'rtl', showCode?: boolean }} [options] Direction ('rtl' mirrors the result), and whether
+ * boxes draw their code name (default true; the dashboard leaves it out, UXP1-S023, and the docs export keeps it).
  * @returns {object} { width, height, dir, boxes, groups, arrows } with absolute coordinates.
  */
 export function layoutDiagram(def, texts, options = {}) {
@@ -129,7 +130,7 @@ export function layoutDiagram(def, texts, options = {}) {
     const text = boxText(box);
     const titleLines = wrapText(text.title, inner, m.titleSize, { bold: true });
     const bodyLines = text.body ? wrapText(text.body, w - m.padX * 2, m.bodySize) : [];
-    const codeLines = box.code ? wrapText(box.code, w - m.padX * 2, m.codeSize, { mono: true }) : [];
+    const codeLines = box.code && options.showCode !== false ? wrapText(box.code, w - m.padX * 2, m.codeSize, { mono: true }) : [];
     let h = m.padY * 2 + titleLines.length * m.titleLine;
     if (bodyLines.length) h += m.blockGap + bodyLines.length * m.bodyLine;
     if (codeLines.length) h += m.blockGap + codeLines.length * m.codeLine;

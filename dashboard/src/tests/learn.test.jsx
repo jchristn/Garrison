@@ -13,6 +13,7 @@ import { EXPLAINER_SECTIONS, GLOSSARY, LEARN_SECTIONS, TOUR_IDS, learnPathForTop
 import LearnView from '../views/LearnView';
 import Explainer from '../components/Explainer';
 import { HUBS, PAGES, findPage, pathFor } from '../config/navConfig';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { PAGE_VIEWS } from '../views/hubs/hubPanels';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -150,9 +151,9 @@ describe('the text alternative', () => {
     expect(el.querySelector('svg')).not.toBeNull();
   });
 
-  it('starts as a list below 768 pixels', () => {
+  it('starts as a list below 900 pixels (UXP1-V023)', () => {
     const original = window.matchMedia;
-    window.matchMedia = (q) => ({ matches: q.includes('max-width: 767px'), media: q, addEventListener() {}, removeEventListener() {} });
+    window.matchMedia = (q) => ({ matches: q.includes('max-width: 899px'), media: q, addEventListener() {}, removeEventListener() {} });
     try {
       const el = mount(<Diagram id="teams" />);
       expect(el.querySelector('[data-testid="learn-list-teams"]')).not.toBeNull();
@@ -208,5 +209,66 @@ describe('Explainer links', () => {
     expect(link.getAttribute('href')).toBe('/dashboard/learn#learn-autonomy');
     expect(el.querySelector('[data-testid="explainer-diagram-secrets"]')).toBeNull();
     for (const section of Object.values(EXPLAINER_SECTIONS)) expect(LEARN_SECTIONS.some((s) => s.id === section)).toBe(true);
+  });
+});
+
+describe('UX pass 1 fixes (LP5.5)', () => {
+  it('offers the Agents on their own tour in the autonomy section (UXP1-S009)', () => {
+    expect(LEARN_SECTIONS.find((s) => s.id === 'autonomy').tour).toBe('agents-on-their-own');
+    const el = mount(<LearnView startTour={() => {}} />);
+    expect(el.querySelector('[data-testid="learn-section-autonomy"] [data-tour-id]').getAttribute('data-tour-id')).toBe('agents-on-their-own');
+  });
+
+  it('links proposal boxes to organizations and the refused run to freezes (UXP1-S014)', () => {
+    const box = (d, id) => findDiagram(d).boxes.find((b) => b.id === id);
+    expect(box('selfRevision', 'person').page).toBe('organizations');
+    expect(box('selfRevision', 'apply').page).toBe('organizations');
+    expect(box('brakes', 'refused').page).toBe('freezes');
+  });
+
+  it('draws no class or tool names in the dashboard, but keeps them for the docs export (UXP1-S023)', () => {
+    const el = mount(<Diagram id="request" list={false} />);
+    expect(el.querySelector('svg').textContent).not.toContain('RunService');
+    expect(el.querySelector('svg').textContent).not.toContain('ExecutionSpec');
+    const def = findDiagram('request');
+    const texts = diagramTexts(def, i18n.t);
+    expect(layoutDiagram(def, texts, { showCode: false }).boxes.every((b) => b.codeLines.length === 0)).toBe(true);
+    expect(layoutDiagram(def, texts).boxes.find((b) => b.id === 'admission').codeLines.join('')).toBe('RunService');
+  });
+
+  it('breaks identifiers after an underscore and never hyphenates them (UXP1-V023)', () => {
+    const lines = wrapText('garrison_keeper_complete_tick', 90, 10.5, { mono: true });
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines) expect(line.endsWith('-')).toBe(false);
+    expect(lines.join('')).toBe('garrison_keeper_complete_tick');
+  });
+
+  it('opens an explainer on its first view and folds it to the title after that (UXP1-V022)', () => {
+    let el = mount(<Explainer topic="keepers" />);
+    expect(el.querySelector('[data-testid="explainer-keepers"]').getAttribute('data-open')).toBe('true');
+    expect(el.querySelector('[data-testid="explainer-diagram-keepers"]')).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+    el = mount(<Explainer topic="keepers" />);
+    const section = el.querySelector('[data-testid="explainer-keepers"]');
+    expect(section.getAttribute('data-open')).toBe('false');
+    expect(el.querySelector('[data-testid="explainer-diagram-keepers"]')).toBeNull();
+    const fold = el.querySelector('[data-testid="explainer-fold-keepers"]');
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    act(() => fold.click());
+    expect(section.getAttribute('data-open')).toBe('true');
+  });
+
+  it('names connections one way and explains harness profile once in the glossary (UXP1-S005)', () => {
+    expect(i18n.t('resources.deployments.columns.harnessProfileId')).toBe('Connection');
+    expect(i18n.t('learn.glossary.harnessProfile.term')).toBe('Connection (harness profile)');
+    expect(i18n.t('explainers.harnessProfiles.title')).toBe('Connections and deployments');
+  });
+
+  it('names an agent in a select by display name and name (UXP1-S021)', () => {
+    expect(agentSelectLabel({ id: 'agt_1', name: 'research-flaky', displayName: 'Vendor Checker' })).toBe('Vendor Checker (research-flaky)');
+    expect(agentSelectLabel({ id: 'agt_2', name: 'echo-agent', displayName: 'echo-agent' })).toBe('echo-agent');
+    expect(agentSelectLabel({ id: 'agt_3', name: 'gerbil' })).toBe('gerbil');
+    expect(agentSelectLabel({ id: 'agt_4' })).toBe('agt_4');
   });
 });

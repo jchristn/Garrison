@@ -237,7 +237,7 @@ const en = {
       Audit: 'Audit log',
       RequestHistory: 'Request history',
       Settings: 'Settings',
-      HarnessProfile: 'Harness profile',
+      HarnessProfile: 'Connection',
       PromptTemplate: 'Prompt template',
       Agent: 'Agent',
       Deployment: 'Deployment',
@@ -362,7 +362,7 @@ const en = {
       AffinityWaitExpired: 'Affinity wait expired',
       WorkspaceLost: 'Workspace lost',
       SessionMissing: 'No session to resume',
-      HarnessChanged: 'Harness profile changed',
+      HarnessChanged: 'Connection changed',
       ResumeUnsupported: 'Resume not supported',
       ExecutorWithoutState: 'Executor keeps no state'
     }
@@ -768,7 +768,7 @@ const en = {
       fields: { credentialId: 'Credential', roleId: 'Role', resourceScope: 'Scope', resourceId: 'Resource ID', inheritsToChildren: 'Applies to resources in the tenant', active: 'Active' }
     },
     harnessProfiles: {
-      ...resourcePage('Harness Profiles', 'harness profile', 'Describe exactly how a harness runs headless: executable, arguments, environment, files, and output parsing.', 'Clone a built-in profile to customize how a harness is launched.'),
+      ...resourcePage('Connections', 'connection', 'Describe exactly how a harness runs headless: executable, arguments, environment, files, and output parsing.', 'Clone a built-in profile to customize how a harness is launched.'),
       steps: { basics: 'Basics', invocation: 'Invocation', output: 'Output', limits: 'Limits' },
       columns: { name: 'Name', harnessType: 'Harness', executable: 'Executable', outputParser: 'Parser', isBuiltIn: 'Origin', id: 'ID', createdUtc: 'Created' },
       fields: {
@@ -925,9 +925,9 @@ const en = {
       approvalsOn_other: 'On, {{count}} rules',
       approvalsOff: 'Off',
       promptRoles: { Repair: 'Structured output repair', DelegatedTask: 'Task wrapper for delegated runs', Task: 'Task wrapper', System: 'System prompt', ConversationFallback: 'Conversation fallback (transcript)' },
-      ...resourcePage('Deployments', 'deployment', 'Bind an agent to a harness profile, prompts, secrets, MCP servers, placement, and limits.', 'Create a deployment to make an agent runnable.'),
+      ...resourcePage('Deployments', 'deployment', 'Bind an agent to a connection, prompts, secrets, MCP servers, placement, and limits.', 'Create a deployment to make an agent runnable.'),
       steps: { approvals: 'Approvals', basics: 'Basics', harness: 'Harness', prompts: 'Prompts', resources: 'Resources', overrides: 'Overrides', placement: 'Placement and limits' },
-      columns: { approvalsEnabled: 'Approvals', name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', executor: 'Executor', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
+      columns: { approvalsEnabled: 'Approvals', name: 'Name', agentId: 'Agent', harnessProfileId: 'Connection', model: 'Model', executor: 'Executor', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
       fields: {
         approvalsEnabled: 'Ask before tool calls (approvals)',
         approvalDefaultAction: 'When no rule matches',
@@ -944,7 +944,7 @@ const en = {
         description: 'Description',
         weight: 'Traffic weight',
         active: 'Active',
-        harnessProfileId: 'Harness profile',
+        harnessProfileId: 'Connection',
         model: 'Model',
         fallbackModel: 'Fallback model',
         effort: 'Effort',
@@ -997,10 +997,10 @@ const en = {
         approvalDefaultAction: 'Ask a person waits in the Approvals inbox until someone decides or the timeout passes.',
         approvalTimeoutSeconds: 'From 10 to 3,600 seconds. Empty uses 300.',
         approvalRules: 'Deny beats Ask, and Ask beats Allow. Examples: Bash(npm test), Bash(npm run *), Edit(src/**), WebFetch(domain:example.com), mcp__github__*.',
-        secretsKinds: 'The harness profile {{profile}} needs any secret of kind {{kinds}}. Bind one under any alias.',
-        secretsAliases: 'The harness profile {{profile}} reads secrets bound with these aliases: {{aliases}}.',
-        secretsNone: 'The harness profile {{profile}} does not read any secret, so no secret binding is needed.',
-        promptBindings: 'Map prompt roles (System, Task, DelegatedTask, and any role the harness profile uses) to templates. Leave the version empty to follow the latest.',
+        secretsKinds: 'The connection {{profile}} needs any secret of kind {{kinds}}. Bind one under any alias.',
+        secretsAliases: 'The connection {{profile}} reads secrets bound with these aliases: {{aliases}}.',
+        secretsNone: 'The connection {{profile}} does not read any secret, so no secret binding is needed.',
+        promptBindings: 'Map prompt roles (System, Task, DelegatedTask, and any role the connection uses) to templates. Leave the version empty to follow the latest.',
         resourceBindings: 'Aliases become template variables, for example {{secret.anthropic}}.',
         weight: 'Requests without an explicit deployment are split across active deployments by weight.',
         maxConcurrentRuns: '0 means unlimited.',
@@ -1184,7 +1184,7 @@ const en = {
       subtitle: 'What your agents and worker nodes are doing right now.',
       lastLoaded: 'Updated {{time}}',
       partial: 'Some panels could not load. The values shown are partial.',
-      getStartedTitle: 'No agents in this tenant yet',
+      getStartedTitle: 'No agents of your own yet',
       getStartedBody: 'The setup wizard adds a credential, applies a sample agent, and runs a test.',
       runSetup: 'Run setup',
       kpis: {
@@ -1910,7 +1910,7 @@ const en = {
       topbar: { title: 'Context', body: 'The server, tenant, your identity, health, and live status are always visible here.' },
       kpis: { title: 'At a glance', body: 'Each card summarizes a resource. Click a card to open the filtered list.' },
       invoke: { title: 'Invoke', body: 'Try any agent interactively and watch its transcript stream.' },
-      configure: { title: 'Configuration', body: 'Harness profiles, prompt templates, MCP servers, and secrets control exactly what runs. Agents and deployments have their own hub.' },
+      configure: { title: 'Configuration', body: 'Connections, prompt templates, MCP servers, and secrets control exactly what runs. Agents and deployments have their own hub.' },
       observe: { title: 'Monitoring', body: 'Request history, audit, and the API Explorer help you verify and debug.' }
     }
   },
@@ -3128,13 +3128,13 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   "serverText": {
    "capabilityDerivedEdit": "Capability {{name}} is derived from its source and follows it. Change the source instead.",
    "capabilityDerivedDelete": "Capability {{name}} is derived from its source and goes away with it, so it cannot be deleted directly.",
-   "capabilityShared": "Capability {{name}} is shared by every tenant and comes from a built-in harness profile, so it cannot be changed.",
+   "capabilityShared": "Capability {{name}} is shared by every tenant and comes from a built-in connection, so it cannot be changed.",
    "capabilityNameConflict": "A manual capability named {{name}} already exists.",
    "capabilitySecretsDenied": "You may not use the secrets that MCP server {{server}} sends, so its tools were not listed.",
    "capabilityNoStdioWorker": "No Ready worker has stdio MCP diagnostics turned on (GARRISON_WORKER_MCP_TESTS_ENABLED), so the stdio server's tools could not be listed.",
    "capabilityRefreshFailed": "Refresh failed at {{when}}: {{error}}",
    "capabilityMissingTools": "Required tools are missing: {{tools}}.",
-   "capabilityProbeShadowed": "Workers probe {{name}} as {{probe}}, which another harness profile defined first. This profile's definition is not probed."
+   "capabilityProbeShadowed": "Workers probe {{name}} as {{probe}}, which another connection defined first. This connection's definition is not probed."
   }
  },
  "components": {
@@ -3215,7 +3215,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
     "requirementCount": "Use at most {{max}} node label requirements.",
     "requirement": "Every requirement needs a node label key of 1 to {{max}} characters.",
     "toolNeedsServer": "Choose the MCP server the tool belongs to.",
-    "probeCount": "A harness profile has at most {{max}} tool probes.",
+    "probeCount": "A connection has at most {{max}} tool probes.",
     "probeName": "The tool name is 1 to 63 lowercase letters, digits, dots, and hyphens, starting with a letter or digit.",
     "probeDuplicate": "Another probe in this profile is named {{name}}.",
     "probeExecutable": "The executable is a bare file name found on the PATH (letters, digits, dots, underscores, plus signs, and hyphens), with no folder.",
@@ -3248,7 +3248,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "view": "Capability details",
    "deleteTitle": "Delete capability",
    "emptyTitle": "No capabilities yet",
-   "emptyBody": "Publish an agent revision, register an MCP server, or add a tool probe to a harness profile, then refresh. You can also add a manual entry.",
+   "emptyBody": "Publish an agent revision, register an MCP server, or add a tool probe to a connection, then refresh. You can also add a manual entry.",
    "columns": {
     "name": "Name",
     "kind": "Kind",
@@ -3788,10 +3788,10 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
     "title": "New architect",
     "intro": "The agent architect designs agents and apps in your drafts. Give it a deployment: a harness profile, a model, and the prompt it works with. It edits only your drafts and never applies them.",
     "name": "Deployment name",
-    "harnessProfile": "Harness profile",
-    "chooseProfile": "Choose a harness profile",
+    "harnessProfile": "Connection",
+    "chooseProfile": "Choose a connection",
     "model": "Model",
-    "modelHint": "Leave empty to use the harness profile's default model.",
+    "modelHint": "Leave empty to use the connection's default model.",
     "prompt": "Architect prompt",
     "defaultPrompt": "{{name}} (default)",
     "preview": "Prompt preview",
@@ -4177,7 +4177,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
      "none": "The draft holds no deployment of {{name}}. Bring a live one in below, or ask the architect for one.",
      "deployment": "Environment and deployment",
      "option": "{{environment}}: {{name}}",
-     "scope": "Edits change only {{name}} in {{environment}} (harness profile {{profile}}). Other environments keep their own values.",
+     "scope": "Edits change only {{name}} in {{environment}} (connection {{profile}}). Other environments keep their own values.",
      "fields": {
       "model": "Model",
       "effort": "Effort",
@@ -4190,7 +4190,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
       "approvalDefaultAction": "When no rule matches"
      },
      "hints": {
-      "timeoutSeconds": "Whole seconds, 1 or more. Empty uses the harness profile's limit.",
+      "timeoutSeconds": "Whole seconds, 1 or more. Empty uses the connection's limit.",
       "maxTurns": "Whole number, 1 or more. Empty means the harness decides.",
       "maxBudgetUsd": "0 or more, for example 2.50. Empty means no budget."
      },
@@ -4275,7 +4275,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
  },
  "views": {
   "home": {
-   "getStartedBody": "The setup wizard adds a credential, gives the agent architect a harness and model, applies a sample agent, and runs a test. Or open Agent Studio and describe the app you want.",
+   "getStartedBody": "Run setup to add a sample agent and try it in a few minutes. The agent wizard is different: you describe what you want, and the agent architect drafts the agents for you. Learn shows how the parts fit.",
    "openStudio": "Open Agent Studio"
   },
   "studio": {
@@ -4368,17 +4368,17 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
  "resources": {
   "architects": {
    "title": "Architects",
-   "subtitle": "The agent architects in this tenant. Each one is a deployment of agent-architect with its own harness profile, model, and prompt, and any studio draft can use it.",
+   "subtitle": "The agent architects in this tenant. Each one is a deployment of agent-architect with its own connection, model, and prompt, and any studio draft can use it.",
    "add": "Add architect",
    "create": "Create architect",
    "edit": "Edit architect",
    "view": "Architect details",
    "deleteTitle": "Delete architect",
    "emptyTitle": "No architects yet",
-   "emptyBody": "Create an architect to design agents and apps with you in Agent Studio. Pick the harness profile and model it runs on, and the prompt it works with.",
+   "emptyBody": "Create an architect to design agents and apps with you in Agent Studio. Pick the connection and model it runs on, and the prompt it works with.",
    "columns": {
     "name": "Name",
-    "harnessProfileId": "Harness profile",
+    "harnessProfileId": "Connection",
     "model": "Model",
     "architectPromptTemplateId": "Architect prompt",
     "active": "Status",
@@ -4390,14 +4390,14 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "fields": {
     "name": "Name",
     "description": "Description",
-    "harnessProfileId": "Harness profile",
+    "harnessProfileId": "Connection",
     "model": "Model",
     "architectPromptTemplateId": "Architect prompt",
     "architectPromptVersion": "Pinned prompt version",
     "active": "Active"
    },
    "hints": {
-    "model": "Leave empty to use the harness profile's default model.",
+    "model": "Leave empty to use the connection's default model.",
     "architectPromptVersion": "Leave empty to always use the prompt's current version."
    },
    "actions": {
@@ -4531,7 +4531,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
  "components": {
   "studio": {
    "architect": {
-    "intro": "The agent architect designs agents and apps in your drafts. Give it a harness profile, the secret it signs in with, a model, and the prompt it works with. It edits only your drafts and never applies them."
+    "intro": "The agent architect designs agents and apps in your drafts. Give it a connection, the secret it signs in with, a model, and the prompt it works with. It edits only your drafts and never applies them."
    }
   }
  }
@@ -4549,7 +4549,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
   }
 })(en, {
  "wizard": {
-  "studioBody": "The agent architect designs agents and apps with you in Agent Studio. Choose the harness profile and model it runs on, the credential it signs in with (the secret you saved in the previous step is chosen for you when it fits the harness), and the architect prompt that guides it. Its deployment may only edit your studio drafts. You can skip this step and create an architect later on Agents > Architects."
+  "studioBody": "The agent architect designs agents and apps with you in Agent Studio. Choose the connection and model it runs on, the credential it signs in with (the secret you saved in the previous step is chosen for you when it fits the harness), and the architect prompt that guides it. Its deployment may only edit your studio drafts. You can skip this step and create an architect later on Agents > Architects."
  }
 });
 
@@ -4600,7 +4600,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "GenericEnv": {
     "s1": "Paste any single value: a token, password, or URL that a harness or tool reads from an environment variable.",
     "s2": "Bind the secret to a deployment under an alias, then add an environment override that uses it, for example:",
-    "s3": "The variable must be in the harness profile's credential allowlist, or the deployment is refused."
+    "s3": "The variable must be in the connection's credential allowlist, or the deployment is refused."
    },
    "GenericFile": {
     "s1": "Paste the whole file, line breaks included: a service account JSON, a certificate, or a configuration file.",
@@ -4789,7 +4789,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
    "access": {
     "title": "Model access",
     "intro": "Choose the harness your agents run on and the credential it signs in with. The agent architect uses the same harness and credential while it designs with you.",
-    "harness": "Harness profile",
+    "harness": "Connection",
     "harnessHint": "The CLI that runs the agents, for example Claude Code or Codex.",
     "model": "Model",
     "modelHint": "Optional. Leave it empty to use the harness's default model.",
@@ -4808,7 +4808,7 @@ en.tips.enums.auditEventType.QueueFull = "Run admission was rejected because a c
     "contents": "In the draft",
     "empty": "Nothing yet. The architect adds agents here as it designs them.",
     "agents": "Agents",
-    "firstMessage": "I want to build this: {{goal}}\n\nThe agents will run on the {{profile}} harness profile with the credential secret {{secret}}. Ask me anything you need to know, then design the agents in this draft.",
+    "firstMessage": "I want to build this: {{goal}}\n\nThe agents will run on the {{profile}} connection with the credential secret {{secret}}. Ask me anything you need to know, then design the agents in this draft.",
     "chatTitle": "Chat with {{architect}}",
     "next": "Continue to review"
    },
@@ -5178,7 +5178,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   "tickOutcome": {
    "Quiet": "Quiet",
    "Acted": "Acted",
-   "Attention": "Needs attention",
+   "Attention": "Attention",
    "Escalated": "Escalated",
    "Failed": "Failed",
    "Skipped": "Skipped",
@@ -5554,7 +5554,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     "columns": {
      "started": "When the tick started. Hover for the exact time.",
      "source": "What woke the keeper for this tick.",
-     "outcome": "What the tick reported: quiet, acted, needs attention, escalated, or failed.",
+     "outcome": "What the tick reported: Quiet, Acted, Attention, Escalated, or Failed.",
      "run": "The run that carried out the tick.",
      "interval": "The wait until the next wake, as set when this tick finished.",
      "cost": "What the tick's run cost, from the model price list.",
@@ -5795,8 +5795,8 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
  },
  "tips": {
   "nav": {
-   "escalationsBadge_one": "{{count}} escalation is waiting for an answer. Open Autonomy, then Escalations.",
-   "escalationsBadge_other": "{{count}} escalations are waiting for an answer. Open Autonomy, then Escalations.",
+   "escalationsBadge_one": "{{count}} escalation is waiting for an answer. Click the number to open Escalations.",
+   "escalationsBadge_other": "{{count}} escalations are waiting for an answer. Click the number to open Escalations.",
    "tabs": {
     "escalations": "Escalations: questions agents asked a person, a role, or another agent, open ones first, with Answer and Cancel."
    }
@@ -5997,7 +5997,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   "liftKeeperMessage": "Lift the freeze on {{target}}? The keeper becomes active again and its next wake is spread over a short window.",
   "bannerOwn": "Frozen: new runs are refused until the freeze is lifted.",
   "bannerTarget": "{{target}} is frozen: its new runs are refused.",
-  "bannerKillSwitch": "The autonomy kill switch is on: no keeper ticks start in this tenant.",
+  "bannerKillSwitch": "The autonomy kill switch is on: no keeper wakes and no message wakes an agent in this tenant.",
   "bannerBy": "Frozen by {{who}} {{when}}.",
   "bannerReason": "Reason: {{reason}}",
   "openTarget": "Open it",
@@ -6034,14 +6034,14 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    "off": "Off",
    "turnOn": "Turn on",
    "turnOff": "Turn off",
-   "help": "While the kill switch is on, no keeper ticks start and keeper runs are refused. Invocations by people and API credentials keep working.",
+   "help": "While the kill switch is on, no keeper wakes and no message wakes an agent, and keeper runs are refused. Invocations by people and API credentials keep working.",
    "changedBy": "Turned on by {{who}} {{when}}.",
    "onTitle": "Turn on the kill switch?",
-   "onMessage": "Every keeper in this tenant stops waking, and keeper runs are refused, until the switch is turned off. Ticks already running finish.",
+   "onMessage": "Every keeper in this tenant stops waking, no message wakes an agent, and keeper runs are refused, until the switch is turned off. Ticks already running finish.",
    "offTitle": "Turn off the kill switch?",
    "offMessage": "Keepers start waking again, with their next wakes spread over a short window.",
    "toasts": {
-    "on": "The kill switch is on. No keeper ticks start.",
+    "on": "The kill switch is on. No keeper wakes and no message wakes an agent.",
     "off": "The kill switch is off. Keepers wake again."
    }
   }
@@ -6108,7 +6108,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     "App": "One app: new conversations and turns in its chat are refused.",
     "OrgUnit": "An organization unit. Not available until organizations arrive.",
     "Organization": "A whole organization. Not available until organizations arrive.",
-    "TenantAutonomy": "The kill switch: no keeper ticks start anywhere in the tenant."
+    "TenantAutonomy": "The kill switch: no keeper wakes and no message wakes an agent anywhere in the tenant."
    }
   },
   "freezes": {
@@ -6136,7 +6136,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    },
    "killSwitch": {
     "title": "One switch that stops every keeper in this tenant. Ordinary invocations keep working.",
-    "on": "On: no keeper ticks start and keeper runs are refused.",
+    "on": "On: no keeper wakes, no message wakes an agent, and keeper runs are refused.",
     "off": "Off: keepers wake on their schedules.",
     "turnOn": "Stop every keeper in this tenant. You confirm first.",
     "turnOff": "Let keepers wake again. You confirm first."
@@ -6172,9 +6172,9 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
  "explainers": {
   "freezes": {
    "title": "Freezes",
-   "p1": "A freeze is a brake. While it is active, Garrison refuses new runs of the frozen agent, deployment, keeper, or app with 409 Frozen, and keepers in scope stop waking. Runs already active finish unless the freeze also cancels them.",
-   "p2": "Freeze from an agent, deployment, keeper, or app page, or here with Freeze something. Lifting a freeze accepts runs again; a frozen keeper becomes active with its next wake spread over a short window.",
-   "p3": "The autonomy kill switch, on Settings and the Home page, stops every keeper tick in the tenant at once. It shows here as a Kill switch freeze."
+   "p1": "A freeze is a brake. While it is active, Garrison refuses new runs of the frozen agent, deployment, keeper, app, unit, or organization with 409 Frozen, and keepers in scope stop waking. Runs already active finish unless the freeze also cancels them.",
+   "p2": "Freeze from an agent, deployment, keeper, or app page, or here with Freeze something. Units and whole organizations are frozen from their board. Lifting a freeze accepts runs again; a frozen keeper becomes active with its next wake spread over a short window.",
+   "p3": "The autonomy kill switch, on Settings and the Home page, stops every keeper wake and every message wake in the tenant at once, while ordinary invocations keep working. It shows here as a Kill switch freeze."
   }
  }
 });
@@ -9247,8 +9247,8 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   "diagrams": {
    "runtime": {
     "title": "The runtime",
-    "summary": "A tenant holds agents and the deployments that run them. A deployment ties an agent to a harness profile, a model, its prompts, and a node pool. Each request becomes a run, and a worker node in that pool pulls the run and starts the harness. Workers never touch the database: everything they need comes with the lease.",
-    "desc": "A tenant holds credentials, agents, harness profiles, deployments, and runs. Node pools and worker nodes form a fleet that tenants share.",
+    "summary": "A tenant holds agents and the deployments that run them. A deployment ties an agent to a connection, a model, its prompts, and a node pool. Each request becomes a run, and a worker node in that pool pulls the run and starts the harness. Workers never touch the database: everything they need comes with the lease.",
+    "desc": "A tenant holds credentials, agents, connections, deployments, and runs. Node pools and worker nodes form a fleet that tenants share.",
     "groups": {
      "tenant": "Tenant",
      "fleet": "Shared fleet"
@@ -9263,12 +9263,12 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
       "body": "What callers invoke over REST, MCP, or A2A. It keeps immutable revisions."
      },
      "harnessProfile": {
-      "title": "Harness profile",
+      "title": "Connection",
       "body": "How one harness CLI or API runs headless. The dashboard calls it a connection."
      },
      "deployment": {
       "title": "Deployment",
-      "body": "Binds an agent to a harness profile, a model, prompts, and a node pool."
+      "body": "Binds an agent to a connection, a model, prompts, and a node pool."
      },
      "nodePool": {
       "title": "Node pool",
@@ -9394,8 +9394,8 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    },
    "teams": {
     "title": "Teams",
-    "summary": "Agents write to each other through mailboxes. A message is mail, not a phone call: the sender carries on, and the recipient reads it on its next run, or right away when the message is urgent. Every send passes the loop guards first, and a refused message is kept with its reason, so you can see who tried to reach whom.",
-    "desc": "A message passes the loop guards into the recipient's mailbox, or is stored as Rejected. Normal mail waits for the recipient's next run, and urgent mail wakes it.",
+    "summary": "Agents write to each other through their inboxes. A message is mail, not a phone call: the sender carries on, and the recipient reads it on its next run, or right away when the message is urgent. Every send passes the loop guards first, and a refused message is kept with its reason, so you can see who tried to reach whom.",
+    "desc": "A message passes the loop guards into the recipient's inbox, or is stored as Rejected. Normal mail waits for the recipient's next run, and urgent mail wakes it.",
     "boxes": {
      "sender": {
       "title": "Sender",
@@ -9406,7 +9406,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
       "body": "In order: recipient frozen, no line, hop limit, thread budget, line rate."
      },
      "mailbox": {
-      "title": "Mailbox",
+      "title": "Inbox",
       "body": "The recipient's queued messages, oldest first."
      },
      "normal": {
@@ -9483,7 +9483,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    },
    "selfRevision": {
     "title": "Self-revision",
-    "summary": "An executive is a unit lead that may propose changes to the units below it. It writes an ordinary studio draft, and ExecutiveDraftValidator holds the draft to hard limits that nothing can lift: nothing about itself, nothing above or outside its subtree, no secrets, no budget raises, and no management access. A draft that people's change rules fully cover applies at once. Anything else waits for a person. Every apply publishes one organization revision and saves a revert draft, so one rollback undoes it.",
+    "summary": "An executive is a unit lead that may propose changes to the units below it. It writes an ordinary studio draft, and a fixed check holds the draft to hard limits that nothing can lift: nothing about itself, nothing above or outside its subtree, no secrets, no budget raises, and no management access. A draft that people's change rules fully cover applies at once. Anything else waits for a person. Every apply publishes one organization revision and saves a revert draft, so one rollback undoes it.",
     "desc": "An executive writes a draft. Hard limits refuse it or pass it to the change rules, which an eval gate can hold back. A covered draft applies, anything else waits for a person who sees shadow and canary evidence. Each apply publishes an organization revision with a revert draft, and a rollback restores it.",
     "boxes": {
      "executive": {
@@ -9613,11 +9613,11 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    },
    "deployment": {
     "term": "Deployment",
-    "def": "An agent bound to a harness profile, model, prompts, and node pool. An agent can have several, picked by weight."
+    "def": "An agent bound to a connection, model, prompts, and node pool. An agent can have several, picked by weight."
    },
    "harnessProfile": {
-    "term": "Harness profile",
-    "def": "How a harness CLI or provider API runs headless: its arguments, prompt delivery, and output parser. The dashboard lists them under Connections."
+    "term": "Connection (harness profile)",
+    "def": "How a harness CLI or provider API runs headless: its arguments, prompt delivery, and output parser. The docs and the API call it a harness profile; the dashboard calls it a connection and lists them under Connections."
    },
    "nodePool": {
     "term": "Node pool",
@@ -9793,7 +9793,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   },
   "sample": {
    "title": "Load an example?",
-   "body": "{{tour}} needs {{need}}, and this tenant has none yet. You can load {{example}} through the manifest apply, or carry on without it and skip the steps that have nothing to show.",
+   "body": "{{tour}} needs {{need}}, and this tenant has none yet. You can load {{example}}, or carry on without it and skip the steps that have nothing to show.",
    "contents_one": "Loading it applies {{count}} resource:",
    "contents_other": "Loading it applies {{count}} resources:",
    "checking": "Checking what the apply would change...",
@@ -9810,8 +9810,8 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     "organizations": "an organization"
    },
    "examples": {
-    "gerbil": "the gerbil example",
-    "siteReliability": "the site reliability example"
+    "gerbil": "the gerbil example (one agent and its keeper)",
+    "siteReliability": "the site reliability example (an organization of five agents, each with a keeper)"
    }
   },
   "homeCard": {
@@ -9839,7 +9839,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     },
     "kpis": {
      "title": "At a glance",
-     "body": "What is going on right now: agents, deployments, runs that are active or failed today, and the worker nodes ready for work. Click a card to open the list behind it."
+     "body": "What is going on right now: agents, deployments, runs active now and runs that succeeded or failed in the last 24 hours, and the worker nodes ready for work. Click a card to open the list behind it."
     },
     "invoke": {
      "title": "Invoke",
@@ -9847,7 +9847,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     },
     "autonomy": {
      "title": "Agents that work on their own",
-     "body": "Give an agent a standing job and it works without being asked. A keeper wakes it on a schedule, and between wakes it can message other agents, file reports, remember what it learned, and escalate a question to you. A freeze stops any of it at once."
+     "body": "Give an agent a standing job and it works without being asked. A keeper wakes it on a schedule, and between wakes it can message other agents, file reports, remember what it learned, and escalate a question to you. The kill switch stops all of it at once. The Agents on their own tour shows each part."
     },
     "organizations": {
      "title": "Organizations",
@@ -9972,7 +9972,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     },
     "attention": {
      "title": "Needs attention",
-     "body": "What needs a person now: open escalations, unhealthy reports, and units that hit a budget cap. Work through this list first."
+     "body": "What needs a person now: open escalations, reports that say Degraded or Unhealthy, and units that hit a budget cap. Work through this list first."
     },
     "performance": {
      "title": "Performance",
@@ -10478,5 +10478,95 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    "SecurityAdmin": "Administers users, credentials, roles, permissions, assignments, sessions, and audit.",
    "TenantAdmin": "All permissions on all resources within the tenant."
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): the Agents on their own tour (LP4.11), plain names in the example offer and the setup
+// wizard, Invoke without a runnable agent, stage reviews on Approvals, and keeper interval labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "learn": {
+  "tours": {
+   "agentsOnTheirOwn": "Agents on their own"
+  }
+ },
+ "tours": {
+  "agentsOnTheirOwn": {
+   "summary": "A keeper, when it wakes, what each tick did, and the messages, memory, and escalations it leaves behind.",
+   "steps": {
+    "keepers": {
+     "title": "Keepers",
+     "body": "A keeper gives an agent a standing job, such as keeping a queue short, and wakes it on a schedule to look after it. Add keeper picks the agent, the deployment its ticks run on, and the objective. Click a keeper to open its page."
+    },
+    "schedule": {
+     "title": "When it wakes",
+     "body": "With Back off when quiet, the keeper starts at the minimum interval and waits longer after each quiet tick, up to the maximum. A tick that reports Attention, escalates, or fails brings it back to the minimum. Fixed interval always waits the minimum. The spend caps are here too."
+    },
+    "ticks": {
+     "title": "Ticks",
+     "body": "Each wake is a tick, and each tick is an ordinary run. A row shows why it woke, its outcome, such as Quiet, Acted, Attention, or Escalated, what it cost, and the summary the keeper left for its next tick. Open the run or its trail to see exactly what it did."
+    },
+    "revisions": {
+     "title": "Revisions",
+     "body": "A revision holds the job: the objective, what healthy means, what the keeper may do alone, and when to ask. Publishing a new one makes it current and wakes the keeper now. Published revisions never change, so this list is the full history, and Compare shows what each one changed."
+    },
+    "messages": {
+     "title": "Messages",
+     "body": "Agents write to each other here, and Send message lets you write to one. A message waits in the recipient's inbox for its next run, or wakes it at once when urgent. Replies form a thread; open a message to read the whole thread. Messages the loop guards refused stay listed with the reason."
+    },
+    "memory": {
+     "title": "Memory",
+     "body": "What agents saved between runs, by scope: one agent, an app, a unit, or a whole organization. Each entry shows who wrote it and from which run. A keeper gets its entries tagged recall with every tick. Delete an entry that should not be remembered."
+    },
+    "escalations": {
+     "title": "Escalations",
+     "body": "When a keeper reaches a decision its mandate does not cover, it asks here and ends its tick. Answer it, and the answer wakes the keeper once with your reply. The number on Autonomy in the sidebar counts the open ones."
+    }
+   }
+  },
+  "sample": {
+   "kinds": {
+    "Agent": "Agent",
+    "Deployment": "Deployment",
+    "HarnessProfile": "Connection",
+    "Mandate": "Keeper",
+    "Organization": "Organization",
+    "PromptTemplate": "Prompt template"
+   }
+  }
+ },
+ "wizard": {
+  "appliedTitle": "The sample manifest made these:"
+ },
+ "views": {
+  "home": {
+   "kpis": {
+    "architectOnly": "Only the built-in agent architect"
+   }
+  },
+  "invoke": {
+   "chooseAgent": "Choose an agent",
+   "noRunnable": "No agent in this tenant can run yet: none has an active deployment with a weight above zero. Run setup to add a sample agent that works without credentials."
+  },
+  "approvals": {
+   "reviewsWaiting_one": "{{count}} pipeline stage review is waiting on the Stage reviews tab.",
+   "reviewsWaiting_other": "{{count}} pipeline stage reviews are waiting on the Stage reviews tab.",
+   "openReviews": "Open stage reviews"
+  },
+  "keeperDetail": {
+   "minInterval": "Minimum interval",
+   "maxInterval": "Maximum interval"
+  }
+ },
+ "runtime": {
+  "target": "Endpoint or executable"
  }
 });

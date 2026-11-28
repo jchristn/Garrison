@@ -103,7 +103,7 @@ const tips = {
       runs: 'Search, filter, and inspect individual runs. Open one to read its transcript, result, and telemetry, or cancel and retry it.',
       queue: 'Runs that are waiting for a node, leased, or running right now, grouped by agent and harness.',
       agents: 'Named agents that callers invoke over REST, MCP, or A2A. An agent is the identity; its deployments decide how it runs.',
-      deployments: 'How each agent runs: harness profile, model, prompts, MCP servers, secrets, workspace, placement, limits, and traffic weight.',
+      deployments: 'How each agent runs: connection, model, prompts, MCP servers, secrets, workspace, placement, limits, and traffic weight.',
       harnessProfiles: 'Recipes for launching a CLI harness headless: executable, arguments, environment, files, and output parsing.',
       promptTemplates: 'Every prompt and generated config file Garrison sends to a harness, versioned with a live preview.',
       mcpServers: 'Tool servers agents can use. Register them here, then bind them to deployments.',
@@ -397,7 +397,7 @@ const tips = {
       NotCredentialed: 'The harness had no usable credentials. Bind a secret to the deployment.',
       McpPreflightFailed: 'A required MCP server or tool was unreachable when the worker checked before launch.',
       NodeLost: 'The worker node stopped heartbeating while it held the run.',
-      OutputLimitExceeded: 'The run produced too much output: its answer passed the deployment\'s maximum assistant characters (a run guard), or the harness wrote more than the harness profile allows. The output so far is kept.',
+      OutputLimitExceeded: 'The run produced too much output: its answer passed the deployment\'s maximum assistant characters (a run guard), or the harness wrote more than the connection allows. The output so far is kept.',
       SchemaValidationFailed: 'The result did not match the agent\'s output JSON Schema: after one repair attempt, or at once when the harness cannot resume its session.',
       TimedOut: 'The run reached its deadline.',
       Cancelled: 'The run was cancelled on request.',
@@ -436,7 +436,7 @@ const tips = {
       Codex: 'OpenAI Codex CLI, run with exec and JSONL output.',
       Mux: 'Mux CLI with JSONL output; works with local and hosted model endpoints.',
       GeminiCli: 'Google Gemini CLI with stream-JSON output.',
-      Generic: 'Any other command-line agent, described entirely by the harness profile.'
+      Generic: 'Any other command-line agent, described entirely by the connection.'
     },
     agentKind: {
       Hosted: 'Hosted: Garrison runs this agent itself through its deployments on worker nodes.',
@@ -474,7 +474,7 @@ const tips = {
       Fragment: 'A reusable piece included by other templates with {{> name}}.',
       ToolDescription: 'Text that describes an agent as an MCP tool or A2A skill.',
       ConfigFile: 'The content of a generated configuration file, such as an MCP config.',
-      Other: 'Any other text a harness profile renders.'
+      Other: 'Any other text a connection renders.'
     },
     mcpTransport: {
       Http: 'Garrison and the harness reach the server over streamable HTTP at a URL.',
@@ -525,8 +525,8 @@ const tips = {
       AffinityWaitExpired: 'The node holding the conversation stayed ready but did not claim the turn within Runtime.ConversationAffinityWaitMs, so another node took it.',
       WorkspaceLost: 'The node claimed the turn, but the conversation\'s workspace and home directories were gone there.',
       SessionMissing: 'Earlier turns exist, but none reported a harness session to resume, for example because they all failed early.',
-      HarnessChanged: 'The deployment\'s harness profile changed since the session was recorded, so the new profile cannot resume it.',
-      ResumeUnsupported: 'The deployment\'s harness profile does not support resuming a session, so every later turn starts from the transcript.',
+      HarnessChanged: 'The deployment\'s connection changed since the session was recorded, so the new connection cannot resume it.',
+      ResumeUnsupported: 'The deployment\'s connection does not support resuming a session, so every later turn starts from the transcript.',
       ExecutorWithoutState: 'The turn runs as a Kubernetes Job, which starts with an empty home directory every time, so every later turn starts from the transcript.'
     }
   },
@@ -818,10 +818,10 @@ const tips = {
         description: 'Why this rule exists, for the people who maintain it.'
       },
       approvalTest: 'Try a tool call against the deployment\'s saved rules and see whether it would be allowed, denied, or sent to a person.',
-      add: 'Create a deployment: the concrete way an agent runs, with a harness profile, model, prompts, and resources.',
+      add: 'Create a deployment: the concrete way an agent runs, with a connection, model, prompts, and resources.',
       name: 'Deployment name, unique in the tenant, for example reviewer-claude.',
       agentId: 'The agent this deployment runs. Invoking that agent may pick this deployment.',
-      harnessProfileId: 'The harness profile that launches the CLI, for example builtin/claude-code.',
+      harnessProfileId: 'The connection that launches the CLI, for example builtin/claude-code.',
       model: 'Model name passed to the harness, for example sonnet or gpt-5. Available to templates as deployment.model.',
       weight: 'Traffic weight among the agent\'s active deployments. A deployment with weight 300 gets three times the calls of one with 100.',
       configVersion: 'Increases on every change. Each run records the version it was compiled from.',
@@ -850,7 +850,7 @@ const tips = {
       },
       workspaceTemplateId: 'How each run\'s working directory is prepared. Empty means a fresh empty directory.',
       artifactStoreId: 'Where files produced by runs are uploaded after they finish.',
-      argumentOverrides: 'Changes to the harness profile\'s arguments for this deployment only: append, prepend, replace, or remove.',
+      argumentOverrides: 'Changes to the connection\'s arguments for this deployment only: append, prepend, replace, or remove.',
       argumentOverridesItems: {
         operation: 'What to do: append, prepend, replace a matching argument, or remove it.',
         match: 'The existing argument to replace or remove.',
@@ -878,12 +878,12 @@ const tips = {
         value: 'Label value the node must have.'
       },
       maxConcurrentRuns: 'Most runs of this deployment at once across all nodes. 0 means no limit.',
-      timeoutSeconds: 'Run deadline in seconds. Empty uses the harness profile default. The cluster setting Runtime.MaxRunSeconds caps every run, including per-run time limits.',
+      timeoutSeconds: 'Run deadline in seconds. Empty uses the connection default. The cluster setting Runtime.MaxRunSeconds caps every run, including per-run time limits.',
       maxAttempts: 'How many times a run may be attempted in total. Between 1 and 10.',
       steps: {
         approvals: 'Which tool calls the harness may make, which it may not, and which wait for a person.',
         basics: 'Name, agent, and traffic weight.',
-        harness: 'Harness profile, model, limits, and parameters.',
+        harness: 'Connection, model, limits, and parameters.',
         prompts: 'Which template fills each prompt role.',
         resources: 'MCP servers, secrets, workspace, and artifact store.',
         overrides: 'Per-deployment changes to arguments, environment, and files, and what callers may override.',
@@ -1179,7 +1179,7 @@ const tips = {
       openRun: 'Open this run\'s transcript and telemetry.',
       columns: {
         name: 'Deployment name. Callers can name it explicitly to bypass the weighted choice.',
-        harness: 'The harness profile that launches the CLI for this deployment.',
+        harness: 'The connection that launches the CLI for this deployment.',
         model: 'The model this deployment asks the harness to use.',
         weight: 'The raw traffic weight set on the deployment.',
         traffic: 'Share of invocations this deployment receives: its weight divided by the sum of active weights.',
@@ -1546,18 +1546,18 @@ const explainers = {
     agent: { title: 'Agent', body: 'Name, description, exposure, delegation, output schema', tip: 'The addressable identity. Callers invoke it by name; it says what the agent is and how it is exposed, not how it runs.' },
     deploymentA: { title: 'Deployment A, weight 300', body: 'Claude Code, sonnet', tip: 'One way to run the agent. With weight 300 against 100 it gets 75% of invocations that do not name a deployment.' },
     deploymentB: { title: 'Deployment B, weight 100', body: 'Mux, local model', tip: 'Another way to run the same agent. Callers can also name it explicitly to bypass the weighted choice.' },
-    binds: { title: 'Each deployment binds', body: 'Harness profile, prompts, MCP servers, secrets, workspace, node pool, limits', tip: 'Everything that turns a request into a concrete process: which CLI, which prompts, which tools and credentials, and where it may run.' },
+    binds: { title: 'Each deployment binds', body: 'Connection, prompts, MCP servers, secrets, workspace, node pool, limits', tip: 'Everything that turns a request into a concrete process: which CLI, which prompts, which tools and credentials, and where it may run.' },
     run: { title: 'Run', body: 'One execution of one deployment', tip: 'Each invocation creates one run, compiled from the chosen deployment and executed on a worker node.' }
   },
   agents: {
     title: 'Agents and deployments',
     p1: 'An agent is the identity callers use. It has a name, a description, how it is exposed (A2A card, MCP tool), whether it may call other agents, and the output schema its answers must match. On its own an agent does not run anything.',
-    p2: 'A deployment is how the agent runs: which harness profile and model, which prompt templates, which MCP servers and secrets (by alias), what workspace, which node pool, and what limits and per-run parameters apply. An agent can have several deployments, each with a traffic weight.',
+    p2: 'A deployment is how the agent runs: which connection and model, which prompt templates, which MCP servers and secrets (by alias), what workspace, which node pool, and what limits and per-run parameters apply. An agent can have several deployments, each with a traffic weight.',
     p3: 'When someone invokes the agent, Garrison picks one of its active deployments at random by weight, unless the caller named a specific deployment. That is how you run a Claude Code and a Mux variant side by side, or move traffic to a new model gradually.'
   },
   deployments: {
     title: 'What a deployment is',
-    p1: 'A deployment turns an agent into something runnable. It belongs to exactly one agent and binds a harness profile (which CLI to launch), a model, prompt templates for each role, MCP servers and secrets under aliases, an optional workspace and artifact store, placement on node pools or labels, and limits such as timeout and concurrency.',
+    p1: 'A deployment turns an agent into something runnable. It belongs to exactly one agent and binds a connection (which CLI to launch), a model, prompt templates for each role, MCP servers and secrets under aliases, an optional workspace and artifact store, placement on node pools or labels, and limits such as timeout and concurrency.',
     p2: 'An agent with several active deployments splits its traffic by weight: weights 300 and 100 send three out of four calls to the first. Inactive deployments get no weighted traffic but can still be named explicitly, which is handy for testing a new configuration before giving it weight.',
     p3: 'Use Compile preview on a deployment to see the exact command line, files, and environment a run would receive, without starting one.'
   },
@@ -1566,10 +1566,10 @@ const explainers = {
     p1: 'This agent is reached by its name. The deployments below are the concrete ways it can run. Each active deployment receives a share of traffic equal to its weight divided by the total weight of the active deployments; callers that name a deployment skip the weighted choice.'
   },
   harnessProfiles: {
-    title: 'Harness profiles and deployments',
-    p1: 'A harness profile is a launch recipe for one command-line agent: the executable, the argument templates, environment variables, files to write, how the prompt and system prompt are delivered, which MCP config format it reads, and how its output is parsed into events.',
+    title: 'Connections and deployments',
+    p1: 'A connection (the docs call it a harness profile) is a launch recipe for one command-line agent: the executable, the argument templates, environment variables, files to write, how the prompt and system prompt are delivered, which MCP config format it reads, and how its output is parsed into events.',
     p2: 'Profiles are shared building blocks. A deployment picks one profile and then adds the specifics: the model, prompts, secrets, and any argument or environment overrides that apply only to it. Many deployments can use the same profile, so a fix to the profile reaches all of them.',
-    p3: 'Built-in profiles are read-only. Clone one to change it.'
+    p3: 'Built-in connections are read-only. Clone one to change it.'
   },
   promptTemplates: {
     title: 'Prompt templates and how deployments use them',
@@ -1599,7 +1599,7 @@ const explainers = {
   },
   manifests: {
     title: 'Manifests and the records they create',
-    p1: 'A manifest is the tenant\'s configuration written as YAML or JSON documents: secrets (without values by default), prompt templates, harness profiles, MCP servers, workspace templates, agents, and deployments. Documents refer to each other by name, so one manifest works in any tenant.',
+    p1: 'A manifest is the tenant\'s configuration written as YAML or JSON documents: secrets (without values by default), prompt templates, connections (kind HarnessProfile), MCP servers, workspace templates, agents, and deployments. Documents refer to each other by name, so one manifest works in any tenant.',
     p2: 'Applying a manifest creates or updates ordinary records, the same ones you see on the other tabs. Applying it twice changes nothing. A dry run shows what would change without writing, and Export produces a manifest that recreates this tenant.'
   },
   nodes: {
@@ -2182,8 +2182,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "kinds": "Export every resource of the checked kinds.",
     "kind": "Export every {{kind}} in this tenant.",
     "resources": "Specific resources to export, written as Kind/name, for example Agent/triage or Pipeline/release.",
-    "followReferences": "Also export what the selection depends on: deployments, harness profiles, prompt templates, workspaces, MCP servers, triggers, and notification endpoints. Secrets are listed as requirements, never exported.",
-    "includeBuiltIn": "Add the built-in prompt templates and harness profiles the bundle references. Applying leaves built-ins unchanged and only checks that they exist."
+    "followReferences": "Also export what the selection depends on: deployments, connections, prompt templates, workspaces, MCP servers, triggers, and notification endpoints. Secrets are listed as requirements, never exported.",
+    "includeBuiltIn": "Add the built-in prompt templates and connections the bundle references. Applying leaves built-ins unchanged and only checks that they exist."
    }
   }
  }
@@ -2317,7 +2317,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
  "enums": {
   "agentAssetKind": {
    "SystemPrompt": "The agent's system prompt, supplied by a prompt template. It has no uploaded files.",
-   "Skill": "A skill folder the harness loads, placed where the harness profile puts skills.",
+   "Skill": "A skill folder the harness loads, placed where the connection puts skills.",
    "ReferenceFile": "A file the agent can read during a run, placed in the run's workspace.",
    "DocumentTemplate": "A document template, such as a .docx or .dotx file, the agent fills in during a run."
   },
@@ -2489,7 +2489,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "capabilityKind": {
    "Agent": "Another Garrison agent, described from its latest published revision. An orchestrating agent can delegate to it.",
    "McpTool": "A tool of an MCP server registered in this tenant, described from the server's tool list.",
-   "HarnessBuiltIn": "A program the harness can run on its worker host, such as pandoc or LibreOffice, found by a tool probe on a harness profile."
+   "HarnessBuiltIn": "A program the harness can run on its worker host, such as pandoc or LibreOffice, found by a tool probe on a connection."
   },
   "capabilityOrigin": {
    "Derived": "Garrison keeps this entry in step with its source. It cannot be edited or deleted here; change the source instead.",
@@ -2510,7 +2510,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "kind": "Agent, MCP tool, or harness built-in. Manual entries may use any kind.",
    "origin": "Derived entries follow their source and cannot be changed here; manual entries were written by people.",
    "summary": "What the capability does and when to use it, as agents read it. Up to 4000 characters.",
-   "source": "Where the entry comes from: the agent, the MCP server and tool, or the harness profile and the node label a run needs.",
+   "source": "Where the entry comes from: the agent, the MCP server and tool, or the connection and the node label a run needs.",
    "hints": "Median and 90th percentile run duration and mean cost from recent finished runs, or Unknown when too few runs finished.",
    "tags": "Labels for filtering the catalog. Agents can filter by tag too.",
    "lastRefreshedUtc": "When Garrison last refreshed a derived entry from its source. Empty for manual entries.",
@@ -2546,7 +2546,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "sourceAgent": "Open agent {{name}}, which this entry describes from its latest published revision.",
   "sourceMcpServer": "Open MCP server {{name}} in the MCP Servers tab. Its tool list is the source of this entry.",
   "sourceTool": "The name of the tool on the MCP server: {{tool}}.",
-  "sourceProfile": "Open harness profile {{name}}, whose tool probe is the source of this entry.",
+  "sourceProfile": "Open connection {{name}}, whose tool probe is the source of this entry.",
   "nodeLabel": "A run that uses this capability goes only to a worker that reports the node label {{label}}.",
   "noSource": "A manual entry that names no agent or MCP server. Every run that can read the catalog sees it.",
   "hintsUnknown": "Too few runs finished in the hint window to say anything, so no values are shown. This never means zero.",
@@ -2554,19 +2554,19 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "hintsKnown_other": "Summarized from {{count}} finished runs over the last {{days}} days.",
   "refreshWarning": "Garrison could not refresh this entry from its source, so the entry keeps its last good content until the next refresh succeeds.",
   "lockedBanner": "Why this entry cannot be edited or deleted here, and where to change it instead.",
-  "lockedShared": "Shared by every tenant: this entry comes from a tool probe on a built-in harness profile, so it cannot be edited or deleted. Clone the profile to change its probes.",
+  "lockedShared": "Shared by every tenant: this entry comes from a tool probe on a built-in connection, so it cannot be edited or deleted. Clone the connection to change its probes.",
   "locked": {
    "Agent": "Derived from the agent's latest published revision, so it cannot be edited or deleted here. Publish a new revision to change it; deactivating the agent removes it.",
    "McpTool": "Derived from the MCP server's tool list, so it cannot be edited or deleted here. Change the server or its tools, then refresh.",
-   "HarnessBuiltIn": "Derived from a tool probe on a harness profile, so it cannot be edited or deleted here. Change the profile's tool probes instead."
+   "HarnessBuiltIn": "Derived from a tool probe on a connection, so it cannot be edited or deleted here. Change the connection's tool probes instead."
   },
-  "shared": "Every tenant sees this entry. It comes from a tool probe on a built-in harness profile.",
+  "shared": "Every tenant sees this entry. It comes from a tool probe on a built-in connection.",
   "hintsTitle": "Duration and cost of recent finished runs of this agent. MCP tools and built-ins have no hints.",
   "requirementsTitle": "Node labels a worker must report before it takes a run whose agent uses this capability.",
   "fields": {
    "kind": "Agent, MCP tool, or harness built-in.",
    "origin": "Derived entries follow their source; manual entries were written by people.",
-   "source": "The agent, MCP server and tool, or harness profile this entry comes from.",
+   "source": "The agent, MCP server and tool, or connection this entry comes from.",
    "lastRefreshedUtc": "When Garrison last refreshed this entry from its source. Empty for manual entries.",
    "tags": "Labels for filtering the catalog.",
    "id": "Identifier of the catalog entry, starting with cap_.",
@@ -2910,7 +2910,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "architect": {
    "name": "Name of the new architect deployment in this tenant, for example architect.",
    "harnessProfileId": "The harness the architect runs on, for example Claude Code. It needs a worker that can run it.",
-   "model": "The model the harness uses for the architect. Empty uses the harness profile's default.",
+   "model": "The model the harness uses for the architect. Empty uses the connection's default.",
    "promptId": "The System prompt the architect works with. Built-ins come first; clones of them follow.",
    "preview": "The chosen prompt rendered with sample values, as the architect would receive it.",
    "cloneLink": "Open this prompt on the Prompt Templates screen, where you can clone it and edit the clone.",
@@ -2920,7 +2920,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "chat": {
    "title": "A conversation with the agent architect about this draft. It edits the draft; you approve applying it.",
    "architect": "The architect deployment to talk to. Choosing another one starts a new conversation.",
-   "newArchitect": "Create an architect deployment: harness profile, model, and architect prompt.",
+   "newArchitect": "Create an architect deployment: connection, model, and architect prompt.",
    "openConversation": "Open this conversation on its own page, with every turn as a run.",
    "newConversation": "Forget this conversation in this browser and start a new one with the next message.",
    "you": "What you sent to the architect in this turn.",
@@ -3136,7 +3136,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "bring": "Copy {{name}}'s live document into the draft as a new item.",
     "approvals": "Whether tool calls of this deployment's runs wait for a person, and the rules that decide first.",
     "fields": {
-     "model": "The model the harness uses, for example sonnet. Empty uses the harness profile's default.",
+     "model": "The model the harness uses, for example sonnet. Empty uses the connection's default.",
      "effort": "Reasoning effort the harness passes on, for example high. Empty leaves it to the harness.",
      "timeoutSeconds": "How long a run may take before it is stopped, in seconds.",
      "maxTurns": "How many model turns a run may take before it stops.",
@@ -3256,17 +3256,17 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "nav": {
   "tabs": {
-   "architects": "Agent architects you can reuse in any studio draft: create, edit, and delete them, and choose the harness profile, model, and prompt each one works with."
+   "architects": "Agent architects you can reuse in any studio draft: create, edit, and delete them, and choose the connection, model, and prompt each one works with."
   }
  },
  "resources": {
   "architects": {
    "add": "Create an agent architect: a deployment of agent-architect that edits only your studio drafts and never applies them.",
-   "harnessProfileId": "The harness profile the architect runs on, which decides the agent CLI it uses (Claude Code, Codex, and so on).",
-   "model": "The model the architect asks the harness for. Empty uses the harness profile's default model.",
+   "harnessProfileId": "The connection the architect runs on, which decides the agent CLI it uses (Claude Code, Codex, and so on).",
+   "model": "The model the architect asks the harness for. Empty uses the connection's default model.",
    "architectPromptTemplateId": "The System template that tells the architect how to work. The built-in prompts come first; clone one to change it.",
    "architectPromptVersion": "Pin the architect to one version of its prompt. Empty follows the current version, so a saved edit applies on its next turn.",
-   "defaultModel": "No model is set, so the architect uses the harness profile's default model.",
+   "defaultModel": "No model is set, so the architect uses the connection's default model.",
    "defaultBadge": "This architect uses the built-in default prompt, builtin/agent-architect.",
    "activeBadge": "Active: drafts can start new conversations with this architect.",
    "inactiveBadge": "Inactive: the architect takes no new turns and drafts do not offer it until you turn it back on.",
@@ -3491,9 +3491,9 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
      "allDrafts": "See every studio draft, including ones you did not start in the wizard."
    },
    "access": {
-    "needProfile": "Choose a harness profile first.",
+    "needProfile": "Choose a connection first.",
     "needCredential": "Choose or add a credential first.",
-    "harness": "The harness profile the agents and the architect run on.",
+    "harness": "The connection the agents and the architect run on.",
     "model": "The model to use. Leave it empty for the harness default.",
     "useSecret": "Sign in with the secret {{name}}.",
     "addSecret": "Save a new credential here, with the steps for getting its value.",
@@ -3690,7 +3690,7 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
 })(explainers, {
  "memory": {
   "title": "Memory",
-  "p1": "Agents keep notes between runs in memory. Each entry lives in a scope: an agent's private memory, or the shared memory of an app the agent belongs to. Runs read and write through the garrison_memory tools, and only in the scopes their agent may use.",
+  "p1": "Agents keep notes between runs in memory. Each entry lives in a scope: an agent's private memory, or the shared memory of an app, an organization unit, or a whole organization the agent belongs to. Runs read and write through the garrison_memory tools, and only in the scopes their agent may use.",
   "p2": "Every entry records who wrote it, from which run, when, and its version. A write or delete that names the version it read is refused when someone wrote in between, so agents and people do not overwrite each other.",
   "p3": "The text is data an agent or a person saved. It is shown here as plain text and reaches agents as data, never as instructions. Delete an entry that should not be remembered; agents that look for it then find nothing."
  }
@@ -4373,7 +4373,7 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
 })(explainers, {
  "changeRules": {
   "title": "Change rules",
-  "p1": "An executive is an agent that leads an organization unit and whose deployment has executive management access. It can propose changes to the units below it, never to itself, to anything above it, to secrets, to budgets, or to these rules.",
+  "p1": "An executive is an agent that leads an organization unit and whose deployment has executive management access. It can propose changes to the units below it, never to itself, to anything above it, to secrets, or to these rules, and it can never raise a budget.",
   "p2": "A change rule pre-approves routine changes. It names the unit whose subtree it covers, the classes of change it allows, and optional limits, such as at most two changes per proposal or a wake interval of at least a minute. When rules cover every change in a proposal, it applies at once; anything else waits for a person on the Proposals tab of the organization.",
   "p3": "Every applied proposal is recorded as a revision of the organization, so you can roll it back. Only people write rules."
  }
@@ -5376,5 +5376,30 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "agentDetail": {
    "confirmWord": "The word to type to confirm deleting this agent."
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): explainer fold and unfold, stage reviews on Approvals, and the Connections target column.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "explainer": {
+  "fold": "Fold the explanation of {{topic}} to its title line, so the list below starts higher. Click the title to open it again.",
+  "unfold": "Open the explanation of {{topic}}: what this page manages and how it relates to the rest of Garrison."
+ },
+ "views": {
+  "approvals": {
+   "reviewsWaiting": "Open the Stage reviews tab, where pipeline stages that wait for a person are approved or rejected. The sidebar badge counts these too."
+  }
+ },
+ "runtime": {
+  "target": "Where the connection sends work: the base URL of a provider API, the endpoint name of a Mux connection, or the executable of a CLI harness."
  }
 });

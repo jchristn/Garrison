@@ -145,8 +145,9 @@ export const DIAGRAMS = [
       { id: 'refused', col: 2, row: 2, tone: 'stop', page: 'organizations', doc: 'EXECUTIVES.md#hard-limits' },
       { id: 'eval', col: 0, row: 3, page: 'evalRuns', doc: 'EXECUTIVES.md#eval-gates', code: 'garrison_run_eval' },
       { id: 'rules', col: 1, row: 3, tone: 'check', page: 'changeRules', doc: 'EXECUTIVES.md#change-rules', code: 'ChangeClassifier · ChangeRuleMatcher' },
-      { id: 'person', col: 2, row: 3, tone: 'actor', page: 'approvals', doc: 'EXECUTIVES.md#request-apply' },
-      { id: 'apply', col: 1, row: 4, tone: 'core', page: 'approvals', doc: 'EXECUTIVES.md#request-apply', code: 'DraftApply' },
+      // UXP1-S014: proposals wait on an organization's Proposals tab, not under Approvals.
+      { id: 'person', col: 2, row: 3, tone: 'actor', page: 'organizations', doc: 'EXECUTIVES.md#request-apply' },
+      { id: 'apply', col: 1, row: 4, tone: 'core', page: 'organizations', doc: 'EXECUTIVES.md#request-apply', code: 'DraftApply' },
       { id: 'evidence', col: 2, row: 4, page: 'shadowTrials', doc: 'EVALS.md#shadow-trials' },
       { id: 'rollback', col: 0, row: 5, tone: 'stop', page: 'organizations', doc: 'EXECUTIVES.md#revisions-revert-drafts-and-rollback' },
       { id: 'revision', col: 1, row: 5, page: 'organizations', doc: 'ORGANIZATIONS.md#revisions-publish-and-rollback' },
@@ -176,7 +177,8 @@ export const DIAGRAMS = [
       { id: 'spendCap', col: 2, row: 0, tone: 'stop', page: 'keepers', doc: 'BRAKES.md#spend-caps' },
       { id: 'unitBudget', col: 3, row: 0, tone: 'stop', page: 'organizations', doc: 'BRAKES.md#unit-budgets', code: 'OrgBudgetGuard' },
       { id: 'checks', col: 0, row: 1, span: 4, tone: 'check', page: 'freezes', doc: 'ARCHITECTURE.md#brakes', code: 'RunService · KeeperScheduler · FreezeService' },
-      { id: 'refused', col: 0, row: 2, span: 2, page: 'runs', doc: 'BRAKES.md#freezes' },
+      // A refused run is never created, so it links to the brakes that refuse it rather than to Runs.
+      { id: 'refused', col: 0, row: 2, span: 2, page: 'freezes', doc: 'BRAKES.md#freezes' },
       { id: 'skipped', col: 2, row: 2, span: 2, page: 'keepers', doc: 'KEEPERS.md#lifecycle' },
       { id: 'cancelAll', col: 0, row: 3, span: 2, page: 'organizations', doc: 'BRAKES.md#cancel-everything-in-a-unit', code: 'OrgBrakeService' },
       { id: 'autoFreeze', col: 2, row: 3, span: 2, page: 'freezes', doc: 'BRAKES.md#automatic-freeze-on-a-budget-breach', code: 'OrgBudgetGuard' }

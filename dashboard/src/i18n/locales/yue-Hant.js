@@ -214,7 +214,7 @@ const yueHant = {
       Audit: '審計記錄',
       RequestHistory: '請求記錄',
       Settings: '設定',
-      HarnessProfile: 'Harness 設定檔',
+      HarnessProfile: '連線',
       PromptTemplate: '提示範本',
       Agent: '代理程式',
       Deployment: '部署',
@@ -339,7 +339,7 @@ const yueHant = {
       AffinityWaitExpired: '親和等待已逾時',
       WorkspaceLost: '工作區已遺失',
       SessionMissing: '冇可恢復嘅工作階段',
-      HarnessChanged: 'Harness 設定檔已變更',
+      HarnessChanged: '連線已變更',
       ResumeUnsupported: '唔支援恢復',
       ExecutorWithoutState: '執行器唔保留狀態'
     }
@@ -384,7 +384,7 @@ const yueHant = {
       nodePools: { label: '節點池', tip: '將節點分組，並專門分配畀租用戶' },
       agents: { label: '代理程式', tip: '經 REST、MCP 同 A2A 公開嘅代理程式' },
       deployments: { label: '部署', tip: '將代理程式綁定到 Harness、提示同資源' },
-      harnessProfiles: { label: 'Harness 設定檔', tip: '每個 Harness 點樣以無介面模式運行' },
+      harnessProfiles: { label: '連線', tip: '每個 Harness 點樣以無介面模式運行' },
       promptTemplates: { label: '提示範本', tip: 'Garrison 送出嘅每個提示，有版本控制' },
       mcpServers: { label: 'MCP 伺服器', tip: '代理程式用得到嘅工具' },
       secrets: { label: '機密', tip: 'Harness 同整合用嘅憑證' },
@@ -742,7 +742,7 @@ const yueHant = {
       fields: { credentialId: '存取金鑰', roleId: '角色', resourceScope: '範圍', resourceId: '資源 ID', inheritsToChildren: '套用到租用戶入面嘅資源', active: '啟用' }
     },
     harnessProfiles: {
-      ...rp('Harness 設定檔', '準確描述 Harness 點樣以無介面模式運行：執行檔、參數、環境、檔案同輸出解析。', '新增 Harness 設定檔', '建立 Harness 設定檔', '編輯 Harness 設定檔', 'Harness 設定檔詳情', '刪除 Harness 設定檔', '仲未有 Harness 設定檔', '複製一個內置設定檔，就可以自訂 Harness 點樣啟動。'),
+      ...rp('連線', '準確描述 Harness 點樣以無介面模式運行：執行檔、參數、環境、檔案同輸出解析。', '新增 連線', '建立 連線', '編輯 連線', '連線詳情', '刪除 連線', '仲未有 連線', '複製一個內置設定檔，就可以自訂 Harness 點樣啟動。'),
       steps: { basics: '基本', invocation: '調用方式', output: '輸出', limits: '限制' },
       columns: { name: '名稱', harnessType: 'Harness', executable: '執行檔', outputParser: '解析器', isBuiltIn: '來源', id: 'ID', createdUtc: '建立時間' },
       fields: {
@@ -898,9 +898,9 @@ const yueHant = {
       approvalsOn_other: '開咗，{{count}} 條規則',
       approvalsOff: '關閉',
       promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行嘅任務包裝', Task: '任務包裝', System: '系統提示', ConversationFallback: '對話回退（紀錄）' },
-      ...rp('部署', '將代理程式綁定到 Harness 設定檔、提示、機密、MCP 伺服器、排程放置同限制。', '新增部署', '建立部署', '編輯部署', '部署詳情', '刪除部署', '仲未有部署', '建立一個部署，等代理程式可以執行。'),
+      ...rp('部署', '將代理程式綁定到 連線、提示、機密、MCP 伺服器、排程放置同限制。', '新增部署', '建立部署', '編輯部署', '部署詳情', '刪除部署', '仲未有部署', '建立一個部署，等代理程式可以執行。'),
       steps: { approvals: '批核', basics: '基本', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置同限制' },
-      columns: { approvalsEnabled: '批核', name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
+      columns: { approvalsEnabled: '批核', name: '名稱', agentId: '代理程式', harnessProfileId: '連線', model: '模型', executor: '執行器', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
       fields: {
         approvalsEnabled: '工具呼叫前先問（批核）',
         approvalDefaultAction: '冇規則符合嘅時候',
@@ -917,7 +917,7 @@ const yueHant = {
         description: '描述',
         weight: '流量權重',
         active: '啟用',
-        harnessProfileId: 'Harness 設定檔',
+        harnessProfileId: '連線',
         model: '模型',
         fallbackModel: '後備模型',
         effort: '投入程度',
@@ -970,10 +970,10 @@ const yueHant = {
         approvalDefaultAction: '「問人」會喺批核收件匣度等，直至有人決定或者過咗逾時時間。',
         approvalTimeoutSeconds: '由 10 至 3,600 秒。留空就用 300。',
         approvalRules: '「拒絕」凌駕「問人」，「問人」凌駕「允許」。例子：Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
-        secretsKinds: 'Harness 設定檔 {{profile}} 需要任何一個類型係 {{kinds}} 嘅機密。用咩別名綁定都得。',
-        secretsAliases: 'Harness 設定檔 {{profile}} 會讀用呢啲別名綁定嘅機密：{{aliases}}。',
-        secretsNone: 'Harness 設定檔 {{profile}} 唔會讀任何機密，所以唔使綁定機密。',
-        promptBindings: '將提示角色（System、Task、DelegatedTask，同 Harness 設定檔用到嘅任何角色）對應到範本。版本留空就會跟最新版本。',
+        secretsKinds: '連線 {{profile}} 需要任何一個類型係 {{kinds}} 嘅機密。用咩別名綁定都得。',
+        secretsAliases: '連線 {{profile}} 會讀用呢啲別名綁定嘅機密：{{aliases}}。',
+        secretsNone: '連線 {{profile}} 唔會讀任何機密，所以唔使綁定機密。',
+        promptBindings: '將提示角色（System、Task、DelegatedTask，同 連線用到嘅任何角色）對應到範本。版本留空就會跟最新版本。',
         resourceBindings: '別名會變成範本變數，例如 {{secret.anthropic}}。',
         weight: '冇指明部署嘅請求，會按權重分配畀啟用中嘅部署。',
         maxConcurrentRuns: '0 即係冇上限。',
@@ -1156,7 +1156,7 @@ const yueHant = {
       subtitle: '你啲代理程式同工作節點而家做緊乜。',
       lastLoaded: '{{time}} 更新',
       partial: '有啲面板載入唔到，顯示嘅數值唔齊全。',
-      getStartedTitle: '呢個租用戶仲未有代理程式',
+      getStartedTitle: '仲未有你自己嘅代理程式',
       getStartedBody: '設定精靈會幫你加一個憑證、套用一個範例代理程式，再行一次測試。',
       runSetup: '開始設定',
       kpis: {
@@ -1882,7 +1882,7 @@ const yueHant = {
       topbar: { title: '環境資訊', body: '伺服器、租用戶、你嘅身份、健康狀況同即時狀態，一直都會喺度顯示。' },
       kpis: { title: '一覽', body: '每張卡都概述一種資源。撳一張卡就會打開篩選咗嘅清單。' },
       invoke: { title: '調用', body: '互動咁試用任何代理程式，睇住佢嘅對話記錄串流出嚟。' },
-      configure: { title: '配置', body: 'Harness 設定檔、提示範本、MCP 伺服器同機密，準確決定執行嘅內容。代理程式同部署有自己嘅中心。' },
+      configure: { title: '配置', body: '連線、提示範本、MCP 伺服器同機密，準確決定執行嘅內容。代理程式同部署有自己嘅中心。' },
       observe: { title: '監察', body: '請求記錄、審計同 API 探索器幫你驗證同除錯。' }
     }
   },
@@ -3100,13 +3100,13 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   "serverText": {
    "capabilityDerivedEdit": "能力 {{name}} 係由佢嘅來源衍生出嚟，會跟住來源變。請改返個來源。",
    "capabilityDerivedDelete": "能力 {{name}} 係由佢嘅來源衍生出嚟，來源冇咗佢就會一齊冇咗，所以唔可以直接刪除。",
-   "capabilityShared": "能力 {{name}} 係所有租用戶共用，嚟自內置嘅 Harness 設定檔，所以改唔到。",
+   "capabilityShared": "能力 {{name}} 係所有租用戶共用，嚟自內置嘅 連線，所以改唔到。",
    "capabilityNameConflict": "已經有一個叫 {{name}} 嘅手動能力。",
    "capabilitySecretsDenied": "你冇權用 MCP 伺服器 {{server}} 會傳送嘅機密，所以冇列出佢嘅工具。",
    "capabilityNoStdioWorker": "冇一個就緒嘅工作節點開咗 stdio MCP 診斷（GARRISON_WORKER_MCP_TESTS_ENABLED），所以列唔到 stdio 伺服器嘅工具。",
    "capabilityRefreshFailed": "喺 {{when}} 重新整理失敗：{{error}}",
    "capabilityMissingTools": "缺少必要嘅工具：{{tools}}。",
-   "capabilityProbeShadowed": "工作節點用 {{probe}} 探測 {{name}}，呢個探測係另一個 Harness 設定檔先定義咗。呢個設定檔嘅定義唔會被探測。"
+   "capabilityProbeShadowed": "工作節點用 {{probe}} 探測 {{name}}，呢個探測係另一個 連線先定義咗。呢個連線嘅定義唔會被探測。"
   }
  },
  "components": {
@@ -3187,7 +3187,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "requirementCount": "最多用 {{max}} 項節點標籤要求。",
     "requirement": "每項要求都要有一個 1 至 {{max}} 個字元嘅節點標籤鍵。",
     "toolNeedsServer": "請揀個工具所屬嘅 MCP 伺服器。",
-    "probeCount": "一個 Harness 設定檔最多有 {{max}} 個工具探測。",
+    "probeCount": "一個 連線最多有 {{max}} 個工具探測。",
     "probeName": "工具名稱係 1 至 63 個細階字母、數字、點同連字號，要用字母或者數字開頭。",
     "probeDuplicate": "呢個設定檔已經有另一個探測叫 {{name}}。",
     "probeExecutable": "執行檔要係一個喺 PATH 搵得到嘅純檔案名（字母、數字、點、底線、加號同連字號），唔可以有資料夾。",
@@ -3220,7 +3220,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    "view": "能力詳情",
    "deleteTitle": "刪除能力",
    "emptyTitle": "仲未有能力",
-   "emptyBody": "發佈一個代理程式修訂、註冊一個 MCP 伺服器，或者喺 Harness 設定檔加一個工具探測，然後重新整理。你亦可以自己加手動項目。",
+   "emptyBody": "發佈一個代理程式修訂、註冊一個 MCP 伺服器，或者喺 連線加一個工具探測，然後重新整理。你亦可以自己加手動項目。",
    "columns": {
     "name": "名稱",
     "kind": "類型",
@@ -3760,10 +3760,10 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "title": "新架構師",
     "intro": "代理程式架構師喺你嘅草稿度設計代理程式同應用程式。畀佢一個部署：Harness 設定檔、模型，同埋佢用嘅提示。佢只會改你嘅草稿，永遠唔會套用。",
     "name": "部署名稱",
-    "harnessProfile": "Harness 設定檔",
-    "chooseProfile": "揀 Harness 設定檔",
+    "harnessProfile": "連線",
+    "chooseProfile": "揀 連線",
     "model": "模型",
-    "modelHint": "留空就會用 Harness 設定檔嘅預設模型。",
+    "modelHint": "留空就會用 連線嘅預設模型。",
     "prompt": "架構師提示",
     "defaultPrompt": "{{name}}（預設）",
     "preview": "提示預覽",
@@ -4149,7 +4149,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
      "none": "草稿入面冇 {{name}} 嘅部署。喺下面帶一個即時部署入嚟，或者叫架構師整一個。",
      "deployment": "環境同部署",
      "option": "{{environment}}：{{name}}",
-     "scope": "編輯只會改 {{environment}} 入面嘅 {{name}}（Harness 設定檔 {{profile}}）。其他環境會保留自己嘅值。",
+     "scope": "編輯只會改 {{environment}} 入面嘅 {{name}}（連線 {{profile}}）。其他環境會保留自己嘅值。",
      "fields": {
       "model": "模型",
       "effort": "投入程度",
@@ -4162,7 +4162,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
       "approvalDefaultAction": "冇規則符合嘅時候"
      },
      "hints": {
-      "timeoutSeconds": "整數秒，1 或以上。留空就用 Harness 設定檔嘅限制。",
+      "timeoutSeconds": "整數秒，1 或以上。留空就用 連線嘅限制。",
       "maxTurns": "整數，1 或以上。留空就由 Harness 決定。",
       "maxBudgetUsd": "0 或以上，例如 2.50。留空即係冇預算限制。"
      },
@@ -4247,7 +4247,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
  },
  "views": {
   "home": {
-   "getStartedBody": "設定精靈會加認證、俾代理程式架構師指定 Harness 同模型、套用範例代理程式同埋行一次測試。又或者打開代理程式工作室，講低你想要嘅應用程式。",
+   "getStartedBody": "開始設定，加一個範例代理程式，幾分鐘就試得到。代理程式精靈唔同：你講你想要咩，代理架構師幫你起草代理程式。「學習」頁面講各部分點樣配合。",
    "openStudio": "打開代理程式工作室"
   },
   "studio": {
@@ -4340,17 +4340,17 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
  "resources": {
   "architects": {
    "title": "架構師",
-   "subtitle": "呢個租用戶入面嘅代理架構師。每一個都係 agent-architect 嘅部署，有自己嘅 Harness 設定檔、模型同提示，任何工作室草稿都用得。",
+   "subtitle": "呢個租用戶入面嘅代理架構師。每一個都係 agent-architect 嘅部署，有自己嘅 連線、模型同提示，任何工作室草稿都用得。",
    "add": "新增架構師",
    "create": "建立架構師",
    "edit": "編輯架構師",
    "view": "架構師詳細資料",
    "deleteTitle": "刪除架構師",
    "emptyTitle": "仲未有架構師",
-   "emptyBody": "建立一個架構師，喺代理工作室同你一齊設計代理同應用程式。揀佢運行用嘅 Harness 設定檔同模型，同埋佢用嘅提示。",
+   "emptyBody": "建立一個架構師，喺代理工作室同你一齊設計代理同應用程式。揀佢運行用嘅 連線同模型，同埋佢用嘅提示。",
    "columns": {
     "name": "名稱",
-    "harnessProfileId": "Harness 設定檔",
+    "harnessProfileId": "連線",
     "model": "模型",
     "architectPromptTemplateId": "架構師提示",
     "active": "狀態",
@@ -4362,14 +4362,14 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    "fields": {
     "name": "名稱",
     "description": "描述",
-    "harnessProfileId": "Harness 設定檔",
+    "harnessProfileId": "連線",
     "model": "模型",
     "architectPromptTemplateId": "架構師提示",
     "architectPromptVersion": "固定嘅提示版本",
     "active": "啟用"
    },
    "hints": {
-    "model": "留空就用 Harness 設定檔嘅預設模型。",
+    "model": "留空就用 連線嘅預設模型。",
     "architectPromptVersion": "留空就一直用提示嘅目前版本。"
    },
    "actions": {
@@ -4503,7 +4503,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
  "components": {
   "studio": {
    "architect": {
-    "intro": "代理架構師會喺你嘅草稿入面設計代理同應用程式。請俾佢一個 Harness 設定檔、用嚟登入嘅機密、一個模型，同埋佢用嘅提示。佢只會編輯你嘅草稿，永遠唔會套用佢哋。"
+    "intro": "代理架構師會喺你嘅草稿入面設計代理同應用程式。請俾佢一個 連線、用嚟登入嘅機密、一個模型，同埋佢用嘅提示。佢只會編輯你嘅草稿，永遠唔會套用佢哋。"
    }
   }
  }
@@ -4521,7 +4521,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
   }
 })(yueHant, {
  "wizard": {
-  "studioBody": "代理架構師會喺代理工作室同你一齊設計代理同應用程式。請揀佢運行用嘅 Harness 設定檔同模型、佢登入用嘅憑證（如果上一步儲存嘅機密啱呢個 Harness，會自動揀咗），同埋引導佢嘅架構師提示。佢嘅部署只可以編輯你嘅工作室草稿。你可以跳過呢一步，遲啲喺 代理程式 > 架構師 度建立架構師。"
+  "studioBody": "代理架構師會喺代理工作室同你一齊設計代理同應用程式。請揀佢運行用嘅 連線同模型、佢登入用嘅憑證（如果上一步儲存嘅機密啱呢個 Harness，會自動揀咗），同埋引導佢嘅架構師提示。佢嘅部署只可以編輯你嘅工作室草稿。你可以跳過呢一步，遲啲喺 代理程式 > 架構師 度建立架構師。"
  }
 });
 
@@ -4572,7 +4572,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    "GenericEnv": {
     "s1": "貼任何單一嘅值：Harness 或者工具由環境變數讀取嘅權杖、密碼或者 URL。",
     "s2": "用別名將呢個機密綁定到部署，然後加一個用佢嘅環境覆寫，例如：",
-    "s3": "個變數一定要喺 Harness 設定檔嘅憑證允許清單入面，唔係部署會被拒絕。"
+    "s3": "個變數一定要喺 連線嘅憑證允許清單入面，唔係部署會被拒絕。"
    },
    "GenericFile": {
     "s1": "貼成個檔案，連換行：服務帳戶 JSON、憑證或者設定檔。",
@@ -4761,7 +4761,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
    "access": {
     "title": "模型存取",
     "intro": "揀運行代理程式嘅 harness，同埋佢登入用嘅憑證。代理程式架構師同你一齊設計嗰陣，都會用同一個 harness 同憑證。",
-    "harness": "Harness 設定檔",
+    "harness": "連線",
     "harnessHint": "運行代理程式嘅 CLI，例如 Claude Code 或者 Codex。",
     "model": "模型",
     "modelHint": "可以唔填。留空就用 harness 嘅預設模型。",
@@ -4780,7 +4780,7 @@ yueHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或者代理嘅佇
     "contents": "草稿入面",
     "empty": "仲未有嘢。架構師設計好代理程式就會加喺呢度。",
     "agents": "代理程式",
-    "firstMessage": "我想整呢樣嘢：{{goal}}\n\n啲代理程式會喺 harness 設定檔 {{profile}} 上面運行，用憑證密鑰 {{secret}}。你有咩需要知就問我，然後喺呢份草稿入面設計啲代理程式。",
+    "firstMessage": "我想整呢樣嘢：{{goal}}\n\n啲代理程式會喺 harness 連線 {{profile}} 上面運行，用憑證密鑰 {{secret}}。你有咩需要知就問我，然後喺呢份草稿入面設計啲代理程式。",
     "chatTitle": "同 {{architect}} 傾偈",
     "next": "繼續去檢查"
    },
@@ -5155,7 +5155,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   "tickOutcome": {
    "Quiet": "平靜",
    "Acted": "已處理",
-   "Attention": "需要留意",
+   "Attention": "留意",
    "Escalated": "已上報",
    "Failed": "失敗",
    "Skipped": "已跳過",
@@ -5526,7 +5526,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
     "columns": {
      "started": "巡檢開始嘅時間。將游標停喺上面可以睇到確切時間。",
      "source": "呢次巡檢係由咩叫醒守護者。",
-     "outcome": "呢次巡檢回報咗咩：平靜、已處理、需要留意、已上報或者失敗。",
+     "outcome": "巡檢報告嘅結果：平靜、已處理、留意、已上報或者失敗。",
      "run": "執行呢次巡檢嘅執行。",
      "interval": "距離下次叫醒嘅等待時間，以呢次巡檢完成時設定嘅值為準。",
      "cost": "呢次巡檢嘅執行費用，按模型價目表計算。",
@@ -5764,7 +5764,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
  },
  "tips": {
   "nav": {
-   "escalationsBadge_other": "有 {{count}} 個上報等緊答覆。打開「自主運作」，再打開「上報」。",
+   "escalationsBadge_other": "{{count}} 個上報等緊回答。撳數字就會打開上報。",
    "tabs": {
     "escalations": "上報：代理程式問某個人、某個角色或者另一個代理程式嘅問題，等緊答覆嘅排先，可以答覆或者取消。"
    }
@@ -5965,7 +5965,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   "liftKeeperMessage": "解除 {{target}} 嘅凍結？守護者會重新啟用，下一次醒會分散喺一段短時間入面。",
   "bannerOwn": "已凍結：解除凍結之前，新嘅執行都會被拒絕。",
   "bannerTarget": "{{target}} 已經凍結咗：佢嘅新執行會被拒絕。",
-  "bannerKillSwitch": "自主運作嘅緊急停止掣開咗：呢個租用戶唔會開始任何守護者巡檢。",
+  "bannerKillSwitch": "自主運作緊急停止掣開咗：呢個租用戶入面守護者唔會醒，訊息亦唔會叫醒代理程式。",
   "bannerBy": "由 {{who}} 喺 {{when}} 凍結。",
   "bannerReason": "原因：{{reason}}",
   "openTarget": "打開",
@@ -6001,14 +6001,14 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    "off": "關",
    "turnOn": "開啟",
    "turnOff": "關閉",
-   "help": "緊急停止掣開住嘅時候，唔會開始任何守護者巡檢，守護者嘅執行亦會被拒絕。由人同 API 憑證發起嘅呼叫照常運作。",
+   "help": "緊急停止掣開咗嘅時候，守護者唔會醒，訊息亦唔會叫醒代理程式，守護者嘅執行會被拒絕。由人同 API 憑證發起嘅調用照常運作。",
    "changedBy": "由 {{who}} 喺 {{when}} 開咗。",
    "onTitle": "開啟緊急停止掣？",
-   "onMessage": "關返個掣之前，呢個租用戶所有守護者都唔會再醒，守護者嘅執行亦會被拒絕。進行緊嘅巡檢會做完。",
+   "onMessage": "喺閂咗個掣之前，呢個租用戶入面每個守護者都唔再醒，訊息亦唔會叫醒代理程式，守護者嘅執行會被拒絕。已經喺度跑嘅巡檢會跑完。",
    "offTitle": "關閉緊急停止掣？",
    "offMessage": "守護者會再開始醒，下一次醒會分散喺一段短時間入面。",
    "toasts": {
-    "on": "緊急停止掣開咗。唔會開始任何守護者巡檢。",
+    "on": "緊急停止掣已經開咗。守護者唔會醒，訊息亦唔會叫醒代理程式。",
     "off": "緊急停止掣關咗。守護者會再醒。"
    }
   }
@@ -6074,7 +6074,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
     "App": "一個應用程式：佢個聊天入面嘅新對話同新訊息會被拒絕。",
     "OrgUnit": "一個組織單位。組織功能推出之前用唔到。",
     "Organization": "成個組織。組織功能推出之前用唔到。",
-    "TenantAutonomy": "緊急停止掣：成個租用戶都唔會開始任何守護者巡檢。"
+    "TenantAutonomy": "緊急停止掣：成個租用戶入面守護者唔會醒，訊息亦唔會叫醒代理程式。"
    }
   },
   "freezes": {
@@ -6102,7 +6102,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    },
    "killSwitch": {
     "title": "一個可以停晒呢個租用戶所有守護者嘅掣。一般呼叫照常運作。",
-    "on": "開：唔會開始任何守護者巡檢，守護者嘅執行會被拒絕。",
+    "on": "開：守護者唔會醒，訊息唔會叫醒代理程式，守護者嘅執行會被拒絕。",
     "off": "關：守護者按排程醒。",
     "turnOn": "停晒呢個租用戶所有守護者。要先確認。",
     "turnOff": "等守護者再醒。要先確認。"
@@ -6138,9 +6138,9 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
  "explainers": {
   "freezes": {
    "title": "凍結",
-   "p1": "凍結係一種制動。生效期間，Garrison 會用 409 Frozen 拒絕被凍結嘅代理程式、部署、守護者或者應用程式嘅新執行，範圍內嘅守護者亦唔會再醒。已經進行緊嘅執行會行完，除非凍結同時取消咗佢哋。",
-   "p2": "可以喺代理程式、部署、守護者或者應用程式嘅頁面凍結，或者喺度用「揀對象嚟凍結」。解除凍結之後，執行會再被接受；被凍結嘅守護者會重新啟用，下一次醒會分散喺一段短時間入面。",
-   "p3": "設定同主頁上面嘅自主運作緊急停止掣會一次過停晒租用戶所有守護者嘅巡檢。佢喺度會顯示做類型係「緊急停止掣」嘅凍結。"
+   "p1": "凍結係一種煞車。生效期間，Garrison 會用 409 Frozen 拒絕被凍結嘅代理程式、部署、守護者、應用程式、單位或者組織嘅新執行，範圍入面嘅守護者亦唔會再醒。已經喺度跑嘅執行會跑完，除非凍結連佢哋都取消埋。",
+   "p2": "可以喺代理程式、部署、守護者或者應用程式嘅頁面凍結，亦可以喺呢度用「揀對象再凍結」。單位同成個組織喺佢哋嘅看板度凍結。解除凍結之後，執行會再被接受；被凍結嘅守護者會重新啟用，下一次醒會分散喺一段短時間入面。",
+   "p3": "設定同首頁上面嘅自主運作緊急停止掣會一次過停晒租用戶入面所有守護者醒同訊息叫醒，但普通調用照常運作。佢喺呢度顯示做類型係「緊急停止掣」嘅凍結。"
   }
  }
 });
@@ -9206,8 +9206,8 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   "diagrams": {
    "runtime": {
     "title": "執行環境",
-    "summary": "租用戶入面有代理程式，同埋執行佢哋嘅部署。部署將代理程式同 Harness 設定檔、模型、提示同節點池綁埋一齊。每個請求都會變成一次執行，嗰個節點池嘅工作節點會攞走呢次執行，再啟動 Harness。工作節點從來唔掂資料庫：佢需要嘅嘢全部跟租約一齊送到。",
-    "desc": "租用戶包括存取金鑰、代理程式、Harness 設定檔、部署同執行。節點池同工作節點組成各租用戶共用嘅機群。",
+    "summary": "租用戶入面有代理程式，同埋執行佢哋嘅部署。部署將代理程式同 連線、模型、提示同節點池綁埋一齊。每個請求都會變成一次執行，嗰個節點池嘅工作節點會攞走呢次執行，再啟動 Harness。工作節點從來唔掂資料庫：佢需要嘅嘢全部跟租約一齊送到。",
+    "desc": "租用戶包括存取金鑰、代理程式、連線、部署同執行。節點池同工作節點組成各租用戶共用嘅機群。",
     "groups": {
      "tenant": "租用戶",
      "fleet": "共用機群"
@@ -9222,12 +9222,12 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
       "body": "呼叫方經 REST、MCP 或者 A2A 調用嘅對象。佢會保存唔可以改嘅修訂。"
      },
      "harnessProfile": {
-      "title": "Harness 設定檔",
+      "title": "連線",
       "body": "講明某個 Harness CLI 或者 API 點樣無介面咁執行。儀表板叫佢做連線。"
      },
      "deployment": {
       "title": "部署",
-      "body": "將代理程式同 Harness 設定檔、模型、提示同節點池綁定。"
+      "body": "將代理程式同 連線、模型、提示同節點池綁定。"
      },
      "nodePool": {
       "title": "節點池",
@@ -9353,8 +9353,8 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    },
    "teams": {
     "title": "團隊",
-    "summary": "代理程式之間用信箱互相寫信。訊息係信，唔係電話：寄件者繼續做自己嘢，收件者喺下一次執行先讀到，緊急訊息就即刻讀到。每次傳送都要先過防迴圈檢查，被拒絕嘅訊息會連埋原因保存，等你睇到邊個想搵邊個。",
-    "desc": "訊息過咗防迴圈檢查就入收件者信箱，否則保存做已拒絕。一般郵件等收件者下一次執行，緊急郵件會叫醒收件者。",
+    "summary": "代理程式透過各自嘅收件匣互相寫信。訊息係郵件，唔係電話：傳送方繼續做嘢，接收方喺下一次執行先睇，緊急訊息就即刻睇。每次傳送都會先經過迴圈防護，被拒絕嘅訊息連埋原因一齊保留，等你睇到邊個想搵邊個。",
+    "desc": "訊息通過迴圈防護之後入咗接收方嘅收件匣，或者被儲存做已拒絕。普通郵件等接收方下一次執行，緊急郵件會叫醒佢。",
     "boxes": {
      "sender": {
       "title": "寄件者",
@@ -9365,7 +9365,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
       "body": "順序係：收件者已凍結、無線路、跳數上限、討論串上限、線路速率。"
      },
      "mailbox": {
-      "title": "信箱",
+      "title": "收件匣",
       "body": "收件者排緊隊嘅訊息，最舊嘅喺前面。"
      },
      "normal": {
@@ -9442,7 +9442,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    },
    "selfRevision": {
     "title": "自我修訂",
-    "summary": "主管係可以對下面單位提出改動嘅單位負責人。佢寫一份普通嘅工作室草稿，ExecutiveDraftValidator 會用一啲乜都解除唔到嘅硬性限制檢查佢：唔可以掂自己，唔可以掂子樹上面或者外面嘅嘢，唔可以掂機密，唔可以加預算，亦唔可以改管理權限。人寫嘅變更規則完全涵蓋嘅草稿會即刻套用，其餘嘅都要等人決定。每次套用都會發佈一個組織修訂，再保存一份還原草稿，所以一次還原就撤銷得返。",
+    "summary": "主管係可以對下面單位提出改動嘅單位負責人。佢寫一份普通嘅工作室草稿，一項固定檢查會用一啲乜都解除唔到嘅硬性限制檢查佢：唔可以掂自己，唔可以掂子樹上面或者外面嘅嘢，唔可以掂機密，唔可以加預算，亦唔可以改管理權限。人寫嘅變更規則完全涵蓋嘅草稿會即刻套用，其餘嘅都要等人決定。每次套用都會發佈一個組織修訂，再保存一份還原草稿，所以一次還原就撤銷得返。",
     "desc": "主管寫一份草稿。硬性限制會拒絕佢，或者交畀變更規則，而評估關卡可以攔住佢。被涵蓋嘅草稿會套用，其餘嘅要等一個睇到影子試驗同金絲雀發佈結果嘅人。每次套用都會發佈一個附還原草稿嘅組織修訂，還原可以攞返佢。",
     "boxes": {
      "executive": {
@@ -9572,11 +9572,11 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    },
    "deployment": {
     "term": "部署",
-    "def": "同 Harness 設定檔、模型、提示同節點池綁定嘅代理程式。一個代理程式可以有幾個部署，按權重揀。"
+    "def": "同 連線、模型、提示同節點池綁定嘅代理程式。一個代理程式可以有幾個部署，按權重揀。"
    },
    "harnessProfile": {
-    "term": "Harness 設定檔",
-    "def": "講明 Harness CLI 或者供應商 API 點樣無介面咁執行：參數、提示點樣傳入同輸出解析器。儀表板將佢哋放喺連線下面。"
+    "term": "連線（Harness 設定檔）",
+    "def": "講明 Harness CLI 或者供應商 API 點樣無介面咁執行：參數、提示點樣傳入同輸出解析器。文件同 API 叫佢 Harness 設定檔，儀表板叫佢連線，放喺連線下面。"
    },
    "nodePool": {
     "term": "節點池",
@@ -9772,7 +9772,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   },
   "sample": {
    "title": "載入範例？",
-   "body": "{{tour}}需要{{need}}，但呢個租用戶仲未有。你可以經套用資訊清單載入{{example}}，又或者唔載入照行，跳過冇嘢顯示嘅步驟。",
+   "body": "{{tour}} 需要{{need}}，但呢個租用戶仲未有。你可以載入{{example}}，或者唔載入繼續，跳過冇嘢顯示嘅步驟。",
    "contents_one": "載入會套用 {{count}} 個資源：",
    "contents_other": "載入會套用 {{count}} 個資源：",
    "checking": "睇緊套用會改到啲乜...",
@@ -9789,8 +9789,8 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
     "organizations": "一個組織"
    },
    "examples": {
-    "gerbil": "gerbil 範例",
-    "siteReliability": "網站可靠性範例"
+    "gerbil": "gerbil 範例（一個代理程式同佢嘅守護者）",
+    "siteReliability": "網站可靠性範例（由五個代理程式組成嘅組織，每個都有守護者）"
    }
   },
   "homeCard": {
@@ -9818,7 +9818,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
     },
     "kpis": {
      "title": "一眼睇晒",
-     "body": "而家嘅情況：代理程式、部署、今日進行緊或者失敗咗嘅執行，同埋可以接工作嘅工作節點。撳一張卡就會打開背後嘅清單。"
+     "body": "而家嘅情況：代理程式、部署、正在跑嘅執行、最近 24 個鐘頭成功或者失敗嘅執行，同埋可以做嘢嘅工作節點。撳卡片就會打開後面嘅清單。"
     },
     "invoke": {
      "title": "調用",
@@ -9826,7 +9826,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
     },
     "autonomy": {
      "title": "自己做嘢嘅代理程式",
-     "body": "畀代理程式一份長期工作，佢唔使人叫都會做。守護者按時間表叫醒佢，中間佢可以傳訊息畀其他代理程式、交報告、記住學到嘅嘢，同埋將問題上報畀你。凍結可以即刻停晒所有嘢。"
+     "body": "俾代理程式一份長期任務，佢唔使人叫都會做嘢。守護者按排程叫醒佢，喺兩次醒之間，佢可以傳訊息俾其他代理程式、提交報告、記住學到嘅嘢，同埋將問題上報俾你。緊急停止掣可以一次過停晒。「自主運作嘅代理程式」導覽會逐樣介紹。"
     },
     "organizations": {
      "title": "組織",
@@ -9951,7 +9951,7 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
     },
     "attention": {
      "title": "要處理",
-     "body": "而家需要人處理嘅嘢：未處理嘅上報、唔健康嘅報告同去到預算上限嘅單位。先處理呢張清單。"
+     "body": "而家需要人處理嘅嘢：未處理嘅上報、健康狀態係轉差或者異常嘅報告，同埋到咗預算上限嘅單位。先處理呢個清單。"
     },
     "performance": {
      "title": "績效",
@@ -10457,5 +10457,95 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
    "SecurityAdmin": "管理用戶、存取金鑰、角色、權限、指派、工作階段同審計。",
    "TenantAdmin": "租戶入面所有資源嘅所有權限。"
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): the Agents on their own tour (LP4.11), plain names in the example offer and the setup
+// wizard, Invoke without a runnable agent, stage reviews on Approvals, and keeper interval labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "learn": {
+  "tours": {
+   "agentsOnTheirOwn": "自主運作嘅代理程式"
+  }
+ },
+ "tours": {
+  "agentsOnTheirOwn": {
+   "summary": "守護者、佢幾時醒、每次巡檢做咗咩，同埋佢留低嘅訊息、記憶同上報。",
+   "steps": {
+    "keepers": {
+     "title": "守護者",
+     "body": "守護者俾代理程式一份長期任務，例如令佇列保持好短，再按排程叫醒佢去睇住。「新增守護者」用嚟揀代理程式、跑巡檢嘅部署同目標。撳一個守護者就會打開佢嘅頁面。"
+    },
+    "schedule": {
+     "title": "幾時醒",
+     "body": "揀「靜止時退避」嘅話，守護者由最短間隔開始，每次平靜嘅巡檢之後等耐啲，直到最長間隔。報告留意、上報或者失敗嘅巡檢會令佢返去最短間隔。「固定間隔」永遠等最短間隔。支出上限都喺呢度。"
+    },
+    "ticks": {
+     "title": "巡檢",
+     "body": "每次醒就係一次巡檢，每次巡檢都係一次普通嘅執行。每一行顯示佢點解醒、結果（例如平靜、已處理、留意或者已上報）、使咗幾多，同埋守護者留俾下一次巡檢嘅摘要。打開執行或者佢嘅軌跡就睇到佢實際做咗咩。"
+    },
+    "revisions": {
+     "title": "修訂",
+     "body": "修訂入面係呢份任務：目標、點樣先算健康、守護者可以自己做咩，同埋幾時要問。發布新修訂會令佢變成目前修訂，並即刻叫醒守護者。已發布嘅修訂永遠唔會改，所以呢個清單就係完整歷史，「比較」可以顯示每個修訂改咗咩。"
+    },
+    "messages": {
+     "title": "訊息",
+     "body": "代理程式喺呢度互相寫信，用「傳送訊息」你都可以寫俾某個代理程式。訊息喺接收方嘅收件匣等佢下一次執行，緊急嘅話會即刻叫醒佢。回覆會組成討論串；打開一則訊息就可以睇晒成個討論串。被迴圈防護拒絕嘅訊息都會連埋原因留喺清單入面。"
+    },
+    "memory": {
+     "title": "記憶",
+     "body": "代理程式喺執行之間儲存嘅內容，按範圍顯示：單一代理程式、應用程式、單位或者成個組織。每個條目都顯示邊個寫、嚟自邊次執行。守護者每次巡檢都會收到自己標咗 recall 嘅條目。唔應該記住嘅條目可以刪除。"
+    },
+    "escalations": {
+     "title": "上報",
+     "body": "當守護者遇到任務範圍以外嘅決定，佢會喺呢度問，然後結束巡檢。你答咗之後，個答案會帶住你嘅回覆叫醒守護者一次。側邊欄「自主運作」旁邊嘅數字係未處理嘅數量。"
+    }
+   }
+  },
+  "sample": {
+   "kinds": {
+    "Agent": "代理程式",
+    "Deployment": "部署",
+    "HarnessProfile": "連線",
+    "Mandate": "守護者",
+    "Organization": "組織",
+    "PromptTemplate": "提示範本"
+   }
+  }
+ },
+ "wizard": {
+  "appliedTitle": "範例資訊清單整咗以下內容："
+ },
+ "views": {
+  "home": {
+   "kpis": {
+    "architectOnly": "得內置嘅代理架構師"
+   }
+  },
+  "invoke": {
+   "chooseAgent": "揀代理程式",
+   "noRunnable": "呢個租用戶仲未有可以執行嘅代理程式：冇一個有權重大過零嘅啟用部署。開始設定就可以加一個唔使憑證都用得嘅範例代理程式。"
+  },
+  "approvals": {
+   "reviewsWaiting_one": "有 {{count}} 個管線階段審查喺「階段審查」分頁等緊。",
+   "reviewsWaiting_other": "有 {{count}} 個管線階段審查喺「階段審查」分頁等緊。",
+   "openReviews": "打開階段審查"
+  },
+  "keeperDetail": {
+   "minInterval": "最短間隔",
+   "maxInterval": "最長間隔"
+  }
+ },
+ "runtime": {
+  "target": "端點或者執行檔"
  }
 });

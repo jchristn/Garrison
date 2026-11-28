@@ -10,9 +10,10 @@ import { tourKey } from '../learn/learnSections';
 import { enumLabel } from '../../utils/enums';
 import { errorMessage } from '../../utils/errors';
 import { enumTip } from '../../utils/tips';
-import { TOUR_EXAMPLES, exampleContents } from '../../utils/tours';
+import { TOUR_EXAMPLES, exampleContents, manifestKindLabel } from '../../utils/tours';
 
 const RESULT_TONE = { Created: 'success', Updated: 'info', Unchanged: 'neutral', Failed: 'danger' };
+
 
 /**
  * The sample data offer (LP4.6): the tenant has none of what the tour needs, so this asks whether to load the
@@ -99,7 +100,7 @@ export default function TourSampleModal({ tourId, sample, onLoaded, onContinue, 
             const item = planned(c, i);
             return (
               <li key={`${c.kind}/${c.name}`} data-sample-item={`${c.kind}/${c.name}`}>
-                <code>{`${c.kind}/${c.name}`}</code>
+                <span className="tour-sample-kind">{manifestKindLabel(t, c.kind)}</span> <code>{c.name}</code>
                 {item?.result && (
                   <>
                     {' '}

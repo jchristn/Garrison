@@ -244,7 +244,7 @@ const es = {
       Audit: 'Registro de auditoría',
       RequestHistory: 'Historial de solicitudes',
       Settings: 'Ajustes',
-      HarnessProfile: 'Perfil de harness',
+      HarnessProfile: 'Conexión',
       PromptTemplate: 'Plantilla de prompt',
       Agent: 'Agente',
       Deployment: 'Despliegue',
@@ -369,7 +369,7 @@ const es = {
       AffinityWaitExpired: 'Espera de afinidad agotada',
       WorkspaceLost: 'Espacio de trabajo perdido',
       SessionMissing: 'Sin sesión que reanudar',
-      HarnessChanged: 'Perfil de harness cambiado',
+      HarnessChanged: 'Conexión cambiada',
       ResumeUnsupported: 'Reanudación no admitida',
       ExecutorWithoutState: 'El ejecutor no guarda estado'
     }
@@ -782,7 +782,7 @@ const es = {
       fields: { credentialId: 'Clave de acceso', roleId: 'Rol', resourceScope: 'Ámbito', resourceId: 'ID del recurso', inheritsToChildren: 'Se aplica a los recursos del inquilino', active: 'Activa' }
     },
     harnessProfiles: {
-      ...rp('Perfiles de harness', 'Describe con exactitud cómo se ejecuta un harness sin interfaz: ejecutable, argumentos, entorno, archivos y análisis de la salida.', 'Añadir perfil de harness', 'Crear perfil de harness', 'Editar perfil de harness', 'Detalles del perfil de harness', 'Eliminar perfil de harness', 'Aún no hay perfiles de harness', 'Clona un perfil integrado para personalizar cómo se inicia un harness.'),
+      ...rp('Perfiles de harness', 'Describe con exactitud cómo se ejecuta un harness sin interfaz: ejecutable, argumentos, entorno, archivos y análisis de la salida.', 'Añadir conexión', 'Crear conexión', 'Editar conexión', 'Detalles de la conexión', 'Eliminar conexión', 'Aún no hay conexiones', 'Clona un perfil integrado para personalizar cómo se inicia un harness.'),
       steps: { basics: 'Datos básicos', invocation: 'Invocación', output: 'Salida', limits: 'Límites' },
       columns: { name: 'Nombre', harnessType: 'Harness', executable: 'Ejecutable', outputParser: 'Analizador', isBuiltIn: 'Origen', id: 'ID', createdUtc: 'Creado' },
       fields: {
@@ -942,9 +942,9 @@ const es = {
       approvalsOn_many: 'Activadas, {{count}} reglas',
       approvalsOff: 'Desactivadas',
       promptRoles: { Repair: 'Reparación de salida estructurada', DelegatedTask: 'Envoltorio de tarea para ejecuciones delegadas', Task: 'Envoltorio de tarea', System: 'Prompt del sistema', ConversationFallback: 'Reconstrucción de conversación (transcripción)' },
-      ...rp('Despliegues', 'Vincula un agente a un perfil de harness, prompts, secretos, servidores MCP, ubicación y límites.', 'Añadir despliegue', 'Crear despliegue', 'Editar despliegue', 'Detalles del despliegue', 'Eliminar despliegue', 'Aún no hay despliegues', 'Crea un despliegue para que un agente se pueda ejecutar.'),
+      ...rp('Despliegues', 'Vincula un agente a una conexión, prompts, secretos, servidores MCP, ubicación y límites.', 'Añadir despliegue', 'Crear despliegue', 'Editar despliegue', 'Detalles del despliegue', 'Eliminar despliegue', 'Aún no hay despliegues', 'Crea un despliegue para que un agente se pueda ejecutar.'),
       steps: { approvals: 'Aprobaciones', basics: 'Datos básicos', harness: 'Harness', prompts: 'Prompts', resources: 'Recursos', overrides: 'Sobrescrituras', placement: 'Ubicación y límites' },
-      columns: { approvalsEnabled: 'Aprobaciones', name: 'Nombre', agentId: 'Agente', harnessProfileId: 'Perfil de harness', model: 'Modelo', executor: 'Ejecutor', weight: 'Peso', configVersion: 'Versión de configuración', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
+      columns: { approvalsEnabled: 'Aprobaciones', name: 'Nombre', agentId: 'Agente', harnessProfileId: 'Conexión', model: 'Modelo', executor: 'Ejecutor', weight: 'Peso', configVersion: 'Versión de configuración', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
       fields: {
         approvalsEnabled: 'Preguntar antes de las llamadas a herramientas (aprobaciones)',
         approvalDefaultAction: 'Cuando ninguna regla coincide',
@@ -961,7 +961,7 @@ const es = {
         description: 'Descripción',
         weight: 'Peso del tráfico',
         active: 'Activo',
-        harnessProfileId: 'Perfil de harness',
+        harnessProfileId: 'Conexión',
         model: 'Modelo',
         fallbackModel: 'Modelo de respaldo',
         effort: 'Esfuerzo',
@@ -1014,10 +1014,10 @@ const es = {
         approvalDefaultAction: 'Preguntar a una persona espera en la bandeja de Aprobaciones hasta que alguien decida o pase el tiempo de espera.',
         approvalTimeoutSeconds: 'De 10 a 3.600 segundos. Si lo dejas vacío, se usan 300.',
         approvalRules: 'Denegar prevalece sobre Preguntar, y Preguntar sobre Permitir. Ejemplos: Bash(npm test), Bash(npm run *), Edit(src/**), WebFetch(domain:example.com), mcp__github__*.',
-        secretsKinds: 'El perfil de harness {{profile}} necesita cualquier secreto de tipo {{kinds}}. Vincula uno con cualquier alias.',
-        secretsAliases: 'El perfil de harness {{profile}} lee secretos vinculados con estos alias: {{aliases}}.',
-        secretsNone: 'El perfil de harness {{profile}} no lee ningún secreto, así que no hace falta vincular ninguno.',
-        promptBindings: 'Asocia los roles de prompt (System, Task, DelegatedTask y cualquier rol que use el perfil de harness) a plantillas. Deja la versión vacía para seguir la más reciente.',
+        secretsKinds: 'La conexión {{profile}} necesita cualquier secreto de tipo {{kinds}}. Vincula uno con cualquier alias.',
+        secretsAliases: 'La conexión {{profile}} lee secretos vinculados con estos alias: {{aliases}}.',
+        secretsNone: 'La conexión {{profile}} no lee ningún secreto, así que no hace falta vincular ninguno.',
+        promptBindings: 'Asocia los roles de prompt (System, Task, DelegatedTask y cualquier rol que use la conexión) a plantillas. Deja la versión vacía para seguir la más reciente.',
         resourceBindings: 'Los alias se convierten en variables de plantilla, por ejemplo {{secret.anthropic}}.',
         weight: 'Las solicitudes sin un despliegue explícito se reparten entre los despliegues activos según su peso.',
         maxConcurrentRuns: '0 significa sin límite.',
@@ -1200,7 +1200,7 @@ const es = {
       subtitle: 'Lo que están haciendo ahora mismo tus agentes y nodos de trabajo.',
       lastLoaded: 'Actualizado {{time}}',
       partial: 'Algunos paneles no se pudieron cargar. Los valores mostrados son parciales.',
-      getStartedTitle: 'Aún no hay agentes en este inquilino',
+      getStartedTitle: 'Aún no tienes agentes propios',
       getStartedBody: 'El asistente de configuración añade una credencial, aplica un agente de ejemplo y ejecuta una prueba.',
       runSetup: 'Ejecutar configuración',
       kpis: {
@@ -1933,7 +1933,7 @@ const es = {
       topbar: { title: 'Contexto', body: 'El servidor, el inquilino, tu identidad, el estado y la conexión en vivo siempre están visibles aquí.' },
       kpis: { title: 'De un vistazo', body: 'Cada tarjeta resume un recurso. Haz clic en una tarjeta para abrir la lista filtrada.' },
       invoke: { title: 'Invocar', body: 'Prueba cualquier agente de forma interactiva y observa cómo se transmite su transcripción.' },
-      configure: { title: 'Configuración', body: 'Los perfiles de harness, las plantillas de prompt, los servidores MCP y los secretos controlan exactamente qué se ejecuta. Los agentes y los despliegues tienen su propia sección.' },
+      configure: { title: 'Configuración', body: 'Las conexiones, las plantillas de prompt, los servidores MCP y los secretos controlan exactamente qué se ejecuta. Los agentes y los despliegues tienen su propia sección.' },
       observe: { title: 'Supervisión', body: 'El historial de solicitudes, la auditoría y el Explorador de API te ayudan a verificar y depurar.' }
     }
   },
@@ -3153,13 +3153,13 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   "serverText": {
    "capabilityDerivedEdit": "La capacidad {{name}} se deriva de su origen y lo sigue. Cambia el origen.",
    "capabilityDerivedDelete": "La capacidad {{name}} se deriva de su origen y desaparece con él, así que no se puede eliminar directamente.",
-   "capabilityShared": "La capacidad {{name}} la comparten todos los inquilinos y viene de un perfil de harness integrado, así que no se puede cambiar.",
+   "capabilityShared": "La capacidad {{name}} la comparten todos los inquilinos y viene de una conexión integrada, así que no se puede cambiar.",
    "capabilityNameConflict": "Ya existe una capacidad manual llamada {{name}}.",
    "capabilitySecretsDenied": "No tienes permiso para usar los secretos que envía el servidor MCP {{server}}, así que no se listaron sus herramientas.",
    "capabilityNoStdioWorker": "Ningún nodo de trabajo listo tiene activados los diagnósticos MCP de stdio (GARRISON_WORKER_MCP_TESTS_ENABLED), así que no se pudieron listar las herramientas del servidor stdio.",
    "capabilityRefreshFailed": "La actualización falló el {{when}}: {{error}}",
    "capabilityMissingTools": "Faltan herramientas necesarias: {{tools}}.",
-   "capabilityProbeShadowed": "Los nodos de trabajo sondean {{name}} como {{probe}}, que otro perfil de harness definió antes. La definición de este perfil no se sondea."
+   "capabilityProbeShadowed": "Los nodos de trabajo sondean {{name}} como {{probe}}, que otra conexión definió antes. La definición de esta conexión no se sondea."
   }
  },
  "components": {
@@ -3240,7 +3240,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
     "requirementCount": "Usa como máximo {{max}} requisitos de etiqueta de nodo.",
     "requirement": "Cada requisito necesita una clave de etiqueta de nodo de 1 a {{max}} caracteres.",
     "toolNeedsServer": "Elige el servidor MCP al que pertenece la herramienta.",
-    "probeCount": "Un perfil de harness tiene como máximo {{max}} sondas de herramientas.",
+    "probeCount": "Una conexión tiene como máximo {{max}} sondas de herramientas.",
     "probeName": "El nombre de la herramienta tiene de 1 a 63 letras minúsculas, dígitos, puntos y guiones, y empieza por una letra o un dígito.",
     "probeDuplicate": "Otra sonda de este perfil se llama {{name}}.",
     "probeExecutable": "El ejecutable es un nombre de archivo simple que se encuentra en el PATH (letras, dígitos, puntos, guiones bajos, signos más y guiones), sin carpeta.",
@@ -3273,7 +3273,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "view": "Detalles de la capacidad",
    "deleteTitle": "Eliminar capacidad",
    "emptyTitle": "Todavía no hay capacidades",
-   "emptyBody": "Publica una revisión de agente, registra un servidor MCP o añade una sonda de herramienta a un perfil de harness y luego actualiza. También puedes añadir una entrada manual.",
+   "emptyBody": "Publica una revisión de agente, registra un servidor MCP o añade una sonda de herramienta a una conexión y luego actualiza. También puedes añadir una entrada manual.",
    "columns": {
     "name": "Nombre",
     "kind": "Tipo",
@@ -3813,10 +3813,10 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
     "title": "Nuevo arquitecto",
     "intro": "El arquitecto de agentes diseña agentes y aplicaciones en tus borradores. Dale un despliegue: un perfil de harness, un modelo y el prompt con el que trabaja. Solo edita tus borradores y nunca los aplica.",
     "name": "Nombre del despliegue",
-    "harnessProfile": "Perfil de harness",
-    "chooseProfile": "Elige un perfil de harness",
+    "harnessProfile": "Conexión",
+    "chooseProfile": "Elige una conexión",
     "model": "Modelo",
-    "modelHint": "Déjalo vacío para usar el modelo predeterminado del perfil de harness.",
+    "modelHint": "Déjalo vacío para usar el modelo predeterminado de la conexión.",
     "prompt": "Prompt del arquitecto",
     "defaultPrompt": "{{name}} (predeterminado)",
     "preview": "Vista previa del prompt",
@@ -4202,7 +4202,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
      "none": "El borrador no contiene ningún despliegue de {{name}}. Trae uno activo desde abajo, o pídele uno al arquitecto.",
      "deployment": "Entorno y despliegue",
      "option": "{{environment}}: {{name}}",
-     "scope": "Los cambios solo afectan a {{name}} en {{environment}} (perfil de harness {{profile}}). Los demás entornos conservan sus propios valores.",
+     "scope": "Los cambios solo afectan a {{name}} en {{environment}} (conexión {{profile}}). Los demás entornos conservan sus propios valores.",
      "fields": {
       "model": "Modelo",
       "effort": "Esfuerzo",
@@ -4215,7 +4215,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
       "approvalDefaultAction": "Cuando ninguna regla coincide"
      },
      "hints": {
-      "timeoutSeconds": "Segundos enteros, 1 o más. Vacío usa el límite del perfil de harness.",
+      "timeoutSeconds": "Segundos enteros, 1 o más. Vacío usa el límite de la conexión.",
       "maxTurns": "Número entero, 1 o más. Vacío significa que decide el harness.",
       "maxBudgetUsd": "0 o más, por ejemplo 2.50. Vacío significa sin presupuesto."
      },
@@ -4300,7 +4300,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
  },
  "views": {
   "home": {
-   "getStartedBody": "El asistente de configuración añade una credencial, da al arquitecto de agentes un harness y un modelo, aplica un agente de ejemplo y ejecuta una prueba. O abre el Estudio de agentes y describe la aplicación que quieres.",
+   "getStartedBody": "Ejecuta la configuración para añadir un agente de ejemplo y probarlo en pocos minutos. El asistente de agentes es otra cosa: describes lo que quieres y el arquitecto de agentes te prepara los agentes. Aprender muestra cómo encajan las piezas.",
    "openStudio": "Abrir el Estudio de agentes"
   },
   "studio": {
@@ -4393,17 +4393,17 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
  "resources": {
   "architects": {
    "title": "Arquitectos",
-   "subtitle": "Los arquitectos de agentes de este inquilino. Cada uno es un despliegue de agent-architect con su propio perfil de harness, modelo y prompt, y cualquier borrador del estudio puede usarlo.",
+   "subtitle": "Los arquitectos de agentes de este inquilino. Cada uno es un despliegue de agent-architect con su propia conexión, su modelo y su prompt, y cualquier borrador del estudio puede usarlo.",
    "add": "Añadir arquitecto",
    "create": "Crear arquitecto",
    "edit": "Editar arquitecto",
    "view": "Detalles del arquitecto",
    "deleteTitle": "Eliminar arquitecto",
    "emptyTitle": "Aún no hay arquitectos",
-   "emptyBody": "Crea un arquitecto para diseñar agentes y aplicaciones contigo en Agent Studio. Elige el perfil de harness y el modelo en los que se ejecuta, y el prompt con el que trabaja.",
+   "emptyBody": "Crea un arquitecto para diseñar agentes y aplicaciones contigo en Agent Studio. Elige la conexión y el modelo en los que se ejecuta, y el prompt con el que trabaja.",
    "columns": {
     "name": "Nombre",
-    "harnessProfileId": "Perfil de harness",
+    "harnessProfileId": "Conexión",
     "model": "Modelo",
     "architectPromptTemplateId": "Prompt del arquitecto",
     "active": "Estado",
@@ -4415,14 +4415,14 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "fields": {
     "name": "Nombre",
     "description": "Descripción",
-    "harnessProfileId": "Perfil de harness",
+    "harnessProfileId": "Conexión",
     "model": "Modelo",
     "architectPromptTemplateId": "Prompt del arquitecto",
     "architectPromptVersion": "Versión fijada del prompt",
     "active": "Activo"
    },
    "hints": {
-    "model": "Déjalo vacío para usar el modelo predeterminado del perfil de harness.",
+    "model": "Déjalo vacío para usar el modelo predeterminado de la conexión.",
     "architectPromptVersion": "Déjalo vacío para usar siempre la versión actual del prompt."
    },
    "actions": {
@@ -4556,7 +4556,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
  "components": {
   "studio": {
    "architect": {
-    "intro": "El arquitecto de agentes diseña agentes y aplicaciones en tus borradores. Dale un perfil de harness, el secreto con el que inicia sesión, un modelo y el prompt con el que trabaja. Solo edita tus borradores y nunca los aplica."
+    "intro": "El arquitecto de agentes diseña agentes y aplicaciones en tus borradores. Dale una conexión, el secreto con el que inicia sesión, un modelo y el prompt con el que trabaja. Solo edita tus borradores y nunca los aplica."
    }
   }
  }
@@ -4574,7 +4574,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
   }
 })(es, {
  "wizard": {
-  "studioBody": "El arquitecto de agentes diseña contigo agentes y aplicaciones en Agent Studio. Elige el perfil de harness y el modelo en los que se ejecuta, la credencial con la que inicia sesión (si encaja con el harness, se elige el secreto que guardaste en el paso anterior) y el prompt del arquitecto que lo guía. Su despliegue solo puede editar tus borradores del estudio. Puedes omitir este paso y crear un arquitecto más tarde en Agentes > Arquitectos."
+  "studioBody": "El arquitecto de agentes diseña contigo agentes y aplicaciones en Agent Studio. Elige la conexión y el modelo en los que se ejecuta, la credencial con la que inicia sesión (si encaja con el harness, se elige el secreto que guardaste en el paso anterior) y el prompt del arquitecto que lo guía. Su despliegue solo puede editar tus borradores del estudio. Puedes omitir este paso y crear un arquitecto más tarde en Agentes > Arquitectos."
  }
 });
 
@@ -4625,7 +4625,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "GenericEnv": {
     "s1": "Pega un único valor: un token, una contraseña o una URL que un harness o herramienta lee de una variable de entorno.",
     "s2": "Vincula el secreto a un despliegue con un alias y añade una sobrescritura de entorno que lo use, por ejemplo:",
-    "s3": "La variable debe estar en la lista de credenciales permitidas del perfil de harness, o el despliegue se rechaza."
+    "s3": "La variable debe estar en la lista de credenciales permitidas de la conexión, o el despliegue se rechaza."
    },
    "GenericFile": {
     "s1": "Pega el archivo completo, saltos de línea incluidos: un JSON de cuenta de servicio, un certificado o un archivo de configuración.",
@@ -4814,7 +4814,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
    "access": {
     "title": "Acceso al modelo",
     "intro": "Elija el harness en el que se ejecutan sus agentes y la credencial con la que inicia sesión. El arquitecto de agentes usa el mismo harness y la misma credencial mientras diseña con usted.",
-    "harness": "Perfil de harness",
+    "harness": "Conexión",
     "harnessHint": "La CLI que ejecuta los agentes, por ejemplo Claude Code o Codex.",
     "model": "Modelo",
     "modelHint": "Opcional. Déjelo vacío para usar el modelo predeterminado del harness.",
@@ -4833,7 +4833,7 @@ es.tips.enums.auditEventType.QueueFull = "Se rechazó la admisión porque se alc
     "contents": "En el borrador",
     "empty": "Nada todavía. El arquitecto añade aquí los agentes a medida que los diseña.",
     "agents": "Agentes",
-    "firstMessage": "Quiero crear esto: {{goal}}\n\nLos agentes se ejecutarán en el perfil de harness {{profile}} con el secreto de credencial {{secret}}. Pregúntame lo que necesites saber y después diseña los agentes en este borrador.",
+    "firstMessage": "Quiero crear esto: {{goal}}\n\nLos agentes se ejecutarán en la conexión {{profile}} con el secreto de credencial {{secret}}. Pregúntame lo que necesites saber y después diseña los agentes en este borrador.",
     "chatTitle": "Chat con {{architect}}",
     "next": "Continuar a la revisión"
    },
@@ -5208,7 +5208,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   "tickOutcome": {
    "Quiet": "Tranquilo",
    "Acted": "Actuó",
-   "Attention": "Requiere atención",
+   "Attention": "Atención",
    "Escalated": "Escalado",
    "Failed": "Fallido",
    "Skipped": "Omitido",
@@ -5584,7 +5584,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     "columns": {
      "started": "Cuándo empezó el ciclo. Pasa el cursor para ver la hora exacta.",
      "source": "Qué despertó al guardián para este ciclo.",
-     "outcome": "Lo que informó el ciclo: tranquilo, actuó, requiere atención, escalado o fallido.",
+     "outcome": "Lo que informó el ciclo: Tranquilo, Actuó, Atención, Escalado o Fallido.",
      "run": "La ejecución que llevó a cabo el ciclo.",
      "interval": "La espera hasta el próximo despertar, según se fijó al terminar este ciclo.",
      "cost": "Lo que costó la ejecución del ciclo, según la lista de precios del modelo.",
@@ -5825,8 +5825,8 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
  },
  "tips": {
   "nav": {
-   "escalationsBadge_one": "{{count}} escalado espera respuesta. Abra Autonomía y luego Escalados.",
-   "escalationsBadge_other": "{{count}} escalados esperan respuesta. Abra Autonomía y luego Escalados.",
+   "escalationsBadge_one": "{{count}} escalado espera una respuesta. Haz clic en el número para abrir Escalados.",
+   "escalationsBadge_other": "{{count}} escalados esperan una respuesta. Haz clic en el número para abrir Escalados.",
    "tabs": {
     "escalations": "Escalados: preguntas que los agentes hicieron a una persona, un rol u otro agente, los abiertos primero, con Responder y Cancelar."
    }
@@ -6027,7 +6027,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   "liftKeeperMessage": "¿Levantar la congelación de {{target}}? El guardián vuelve a estar activo y su próximo despertar se reparte en un intervalo breve.",
   "bannerOwn": "Congelado: las ejecuciones nuevas se rechazan hasta que se levante la congelación.",
   "bannerTarget": "{{target}} está congelado: sus ejecuciones nuevas se rechazan.",
-  "bannerKillSwitch": "El interruptor de emergencia de la autonomía está activado: no empieza ningún tick de guardián en este inquilino.",
+  "bannerKillSwitch": "El interruptor de emergencia de la autonomía está activado: en este inquilino ningún guardián despierta y ningún mensaje despierta a un agente.",
   "bannerBy": "Congelado por {{who}} {{when}}.",
   "bannerReason": "Motivo: {{reason}}",
   "openTarget": "Abrir",
@@ -6064,14 +6064,14 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    "off": "Desactivado",
    "turnOn": "Activar",
    "turnOff": "Desactivar",
-   "help": "Mientras el interruptor está activado, no empieza ningún tick de guardián y se rechazan las ejecuciones de guardianes. Las invocaciones de personas y credenciales de API siguen funcionando.",
+   "help": "Mientras el interruptor de emergencia está activado, ningún guardián despierta, ningún mensaje despierta a un agente y las ejecuciones de guardianes se rechazan. Las invocaciones de personas y credenciales de API siguen funcionando.",
    "changedBy": "Activado por {{who}} {{when}}.",
    "onTitle": "¿Activar el interruptor de emergencia?",
-   "onMessage": "Todos los guardianes de este inquilino dejan de despertar y se rechazan sus ejecuciones hasta que se desactive el interruptor. Los ticks en curso terminan.",
+   "onMessage": "Todos los guardianes de este inquilino dejan de despertar, ningún mensaje despierta a un agente y las ejecuciones de guardianes se rechazan hasta que se desactive el interruptor. Los ciclos que ya están en curso terminan.",
    "offTitle": "¿Desactivar el interruptor de emergencia?",
    "offMessage": "Los guardianes vuelven a despertar, con sus próximos despertares repartidos en un intervalo breve.",
    "toasts": {
-    "on": "El interruptor de emergencia está activado. No empieza ningún tick de guardián.",
+    "on": "El interruptor de emergencia está activado. Ningún guardián despierta y ningún mensaje despierta a un agente.",
     "off": "El interruptor de emergencia está desactivado. Los guardianes vuelven a despertar."
    }
   }
@@ -6138,7 +6138,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     "App": "Una aplicación: se rechazan las conversaciones y los turnos nuevos de su chat.",
     "OrgUnit": "Una unidad organizativa. No disponible hasta que lleguen las organizaciones.",
     "Organization": "Una organización completa. No disponible hasta que lleguen las organizaciones.",
-    "TenantAutonomy": "El interruptor de emergencia: no empieza ningún tick de guardián en todo el inquilino."
+    "TenantAutonomy": "El interruptor de emergencia: en todo el inquilino ningún guardián despierta y ningún mensaje despierta a un agente."
    }
   },
   "freezes": {
@@ -6166,7 +6166,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    },
    "killSwitch": {
     "title": "Un interruptor que detiene todos los guardianes de este inquilino. Las invocaciones normales siguen funcionando.",
-    "on": "Activado: no empieza ningún tick de guardián y se rechazan las ejecuciones de guardianes.",
+    "on": "Activado: ningún guardián despierta, ningún mensaje despierta a un agente y las ejecuciones de guardianes se rechazan.",
     "off": "Desactivado: los guardianes despiertan según su programación.",
     "turnOn": "Detener todos los guardianes de este inquilino. Primero confirma.",
     "turnOff": "Dejar que los guardianes vuelvan a despertar. Primero confirma."
@@ -6202,9 +6202,9 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
  "explainers": {
   "freezes": {
    "title": "Congelaciones",
-   "p1": "Una congelación es un freno. Mientras está activa, Garrison rechaza las ejecuciones nuevas del agente, despliegue, guardián o aplicación congelado con 409 Frozen, y los guardianes afectados dejan de despertar. Las ejecuciones ya activas terminan, salvo que la congelación también las cancele.",
-   "p2": "Congele desde la página de un agente, despliegue, guardián o aplicación, o aquí con Congelar algo. Al levantar una congelación se aceptan de nuevo ejecuciones; un guardián congelado vuelve a estar activo y su próximo despertar se reparte en un intervalo breve.",
-   "p3": "El interruptor de emergencia de la autonomía, en Configuración y en la página de inicio, detiene a la vez todos los ticks de guardianes del inquilino. Aquí aparece como una congelación de tipo Interruptor de emergencia."
+   "p1": "Una congelación es un freno. Mientras está activa, Garrison rechaza con 409 Frozen las nuevas ejecuciones del agente, despliegue, guardián, aplicación, unidad u organización congelados, y los guardianes afectados dejan de despertar. Las ejecuciones ya activas terminan, salvo que la congelación también las cancele.",
+   "p2": "Congela desde la página de un agente, despliegue, guardián o aplicación, o aquí con Congelar algo. Las unidades y las organizaciones enteras se congelan desde su tablero. Al levantar una congelación se vuelven a aceptar ejecuciones; un guardián congelado vuelve a estar activo y su próximo despertar se reparte en un intervalo corto.",
+   "p3": "El interruptor de emergencia de la autonomía, en Configuración y en Inicio, detiene a la vez todo despertar de guardianes y todo despertar por mensajes en el inquilino, mientras las invocaciones normales siguen funcionando. Aquí aparece como una congelación de tipo Interruptor de emergencia."
   }
  }
 });
@@ -9277,8 +9277,8 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   "diagrams": {
    "runtime": {
     "title": "El entorno de ejecución",
-    "summary": "Un inquilino contiene agentes y los despliegues que los ejecutan. Un despliegue une un agente con un perfil de harness, un modelo, sus prompts y un grupo de nodos. Cada solicitud se convierte en una ejecución, y un nodo de trabajo de ese grupo la recoge y arranca el harness. Los nodos de trabajo nunca tocan la base de datos: todo lo que necesitan llega con la concesión.",
-    "desc": "Un inquilino contiene claves de acceso, agentes, perfiles de harness, despliegues y ejecuciones. Los grupos de nodos y los nodos de trabajo forman una flota que comparten los inquilinos.",
+    "summary": "Un inquilino contiene agentes y los despliegues que los ejecutan. Un despliegue une un agente con una conexión, un modelo, sus prompts y un grupo de nodos. Cada solicitud se convierte en una ejecución, y un nodo de trabajo de ese grupo la recoge y arranca el harness. Los nodos de trabajo nunca tocan la base de datos: todo lo que necesitan llega con la concesión.",
+    "desc": "Un inquilino contiene claves de acceso, agentes, conexiones, despliegues y ejecuciones. Los grupos de nodos y los nodos de trabajo forman una flota que comparten los inquilinos.",
     "groups": {
      "tenant": "Inquilino",
      "fleet": "Flota compartida"
@@ -9293,12 +9293,12 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
       "body": "Lo que se invoca por REST, MCP o A2A. Guarda revisiones inmutables."
      },
      "harnessProfile": {
-      "title": "Perfil de harness",
+      "title": "Conexión",
       "body": "Cómo se ejecuta sin interfaz una CLI o API de harness. El panel lo llama conexión."
      },
      "deployment": {
       "title": "Despliegue",
-      "body": "Une un agente con un perfil de harness, un modelo, prompts y un grupo de nodos."
+      "body": "Une un agente con una conexión, un modelo, prompts y un grupo de nodos."
      },
      "nodePool": {
       "title": "Grupo de nodos",
@@ -9424,8 +9424,8 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    },
    "teams": {
     "title": "Equipos",
-    "summary": "Los agentes se escriben a través de buzones. Un mensaje es correo, no una llamada: quien lo envía sigue con lo suyo, y quien lo recibe lo lee en su siguiente ejecución, o enseguida si el mensaje es urgente. Cada envío pasa antes por las protecciones contra bucles, y un mensaje rechazado se guarda con su motivo, para que veas quién intentó contactar con quién.",
-    "desc": "Un mensaje pasa las protecciones contra bucles hasta el buzón del destinatario, o se guarda como Rechazado. El correo normal espera a la siguiente ejecución del destinatario, y el urgente lo despierta.",
+    "summary": "Los agentes se escriben a través de sus bandejas de entrada. Un mensaje es correo, no una llamada: el remitente sigue con lo suyo y el destinatario lo lee en su próxima ejecución, o enseguida si es urgente. Cada envío pasa primero por las protecciones contra bucles, y un mensaje rechazado se guarda con su motivo, para que veas quién intentó contactar con quién.",
+    "desc": "Un mensaje pasa las protecciones contra bucles y llega a la bandeja de entrada del destinatario, o se guarda como Rechazado. El correo normal espera a la próxima ejecución del destinatario, y el urgente lo despierta.",
     "boxes": {
      "sender": {
       "title": "Remitente",
@@ -9436,7 +9436,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
       "body": "En orden: destinatario congelado, sin línea, límite de saltos, presupuesto del hilo, ritmo de la línea."
      },
      "mailbox": {
-      "title": "Buzón",
+      "title": "Bandeja de entrada",
       "body": "Los mensajes en cola del destinatario, del más antiguo al más reciente."
      },
      "normal": {
@@ -9513,7 +9513,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    },
    "selfRevision": {
     "title": "Autorrevisión",
-    "summary": "Un directivo es el líder de una unidad que puede proponer cambios en las unidades que tiene debajo. Escribe un borrador normal del estudio, y ExecutiveDraftValidator lo somete a límites estrictos que nada puede levantar: nada sobre sí mismo, nada por encima ni fuera de su subárbol, nada de secretos, ninguna subida de presupuesto y ningún acceso de gestión. Un borrador que las reglas de cambio de las personas cubren por completo se aplica al momento. Todo lo demás espera a una persona. Cada aplicación publica una revisión de la organización y guarda un borrador de reversión, así que una sola reversión la deshace.",
+    "summary": "Un directivo es el líder de una unidad que puede proponer cambios en las unidades que tiene debajo. Escribe un borrador normal del estudio, y una comprobación fija lo somete a límites estrictos que nada puede levantar: nada sobre sí mismo, nada por encima ni fuera de su subárbol, nada de secretos, ninguna subida de presupuesto y ningún acceso de gestión. Un borrador que las reglas de cambio de las personas cubren por completo se aplica al momento. Todo lo demás espera a una persona. Cada aplicación publica una revisión de la organización y guarda un borrador de reversión, así que una sola reversión la deshace.",
     "desc": "Un directivo escribe un borrador. Los límites estrictos lo rechazan o lo pasan a las reglas de cambio, que una barrera de evaluación puede frenar. Un borrador cubierto se aplica, y lo demás espera a una persona que ve las pruebas de las pruebas en sombra y los lanzamientos canario. Cada aplicación publica una revisión de la organización con un borrador de reversión, y una reversión la restaura.",
     "boxes": {
      "executive": {
@@ -9643,11 +9643,11 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    },
    "deployment": {
     "term": "Despliegue",
-    "def": "Un agente unido a un perfil de harness, un modelo, prompts y un grupo de nodos. Un agente puede tener varios, elegidos por peso."
+    "def": "Un agente unido a una conexión, un modelo, prompts y un grupo de nodos. Un agente puede tener varios, elegidos por peso."
    },
    "harnessProfile": {
-    "term": "Perfil de harness",
-    "def": "Cómo se ejecuta sin interfaz una CLI de harness o una API de proveedor: argumentos, entrega del prompt y analizador de salida. El panel los muestra en Conexiones."
+    "term": "Conexión (perfil de harness)",
+    "def": "Cómo se ejecuta sin interfaz una CLI de harness o una API de proveedor: argumentos, entrega del prompt y analizador de salida. La documentación y la API lo llaman perfil de harness; el panel lo llama conexión y las muestra en Conexiones."
    },
    "nodePool": {
     "term": "Grupo de nodos",
@@ -9823,7 +9823,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   },
   "sample": {
    "title": "¿Cargar un ejemplo?",
-   "body": "{{tour}} necesita {{need}} y este inquilino aún no tiene. Puedes cargar {{example}} aplicando su manifiesto, o seguir sin él y saltar los pasos que no tengan nada que mostrar.",
+   "body": "{{tour}} necesita {{need}} y este inquilino aún no tiene. Puedes cargar {{example}}, o seguir sin él y saltar los pasos que no tienen nada que mostrar.",
    "contents_one": "Al cargarlo se aplica {{count}} recurso:",
    "contents_other": "Al cargarlo se aplican {{count}} recursos:",
    "checking": "Comprobando qué cambiaría la aplicación...",
@@ -9840,8 +9840,8 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     "organizations": "una organización"
    },
    "examples": {
-    "gerbil": "el ejemplo gerbil",
-    "siteReliability": "el ejemplo de fiabilidad del sitio"
+    "gerbil": "el ejemplo gerbil (un agente y su guardián)",
+    "siteReliability": "el ejemplo de fiabilidad del sitio (una organización de cinco agentes, cada uno con su guardián)"
    }
   },
   "homeCard": {
@@ -9869,7 +9869,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     },
     "kpis": {
      "title": "De un vistazo",
-     "body": "Lo que pasa ahora mismo: agentes, despliegues, ejecuciones activas o fallidas hoy y los nodos de trabajo listos para recibir trabajo. Haz clic en una tarjeta para abrir la lista que hay detrás."
+     "body": "Lo que pasa ahora mismo: agentes, despliegues, ejecuciones activas ahora y ejecuciones correctas o fallidas en las últimas 24 horas, y los nodos de trabajo listos. Haz clic en una tarjeta para abrir la lista que hay detrás."
     },
     "invoke": {
      "title": "Invocar",
@@ -9877,7 +9877,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     },
     "autonomy": {
      "title": "Agentes que trabajan por su cuenta",
-     "body": "Dale a un agente una tarea permanente y trabajará sin que se lo pidan. Un guardián lo despierta según un horario y, entre una vez y otra, puede escribir a otros agentes, presentar informes, recordar lo que aprendió y escalarte una pregunta. Una congelación lo detiene todo al instante."
+     "body": "Dale a un agente un trabajo permanente y trabajará sin que se lo pidan. Un guardián lo despierta según un horario y, entre despertares, puede escribir a otros agentes, presentar informes, recordar lo que aprendió y escalarte una pregunta. El interruptor de emergencia lo detiene todo a la vez. El recorrido Agentes por su cuenta muestra cada parte."
     },
     "organizations": {
      "title": "Organizaciones",
@@ -10002,7 +10002,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     },
     "attention": {
      "title": "Requiere atención",
-     "body": "Lo que necesita a una persona ahora: escalados abiertos, informes con problemas y unidades en su tope de presupuesto. Revisa esta lista primero."
+     "body": "Lo que necesita a una persona ahora: escalados abiertos, informes que dicen Degradado o En mal estado y unidades que alcanzaron un límite de presupuesto. Revisa esta lista primero."
     },
     "performance": {
      "title": "Rendimiento",
@@ -10508,5 +10508,95 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    "SecurityAdmin": "Administra usuarios, claves de acceso, roles, permisos, asignaciones, sesiones y auditoría.",
    "TenantAdmin": "Todos los permisos sobre todos los recursos del inquilino."
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): the Agents on their own tour (LP4.11), plain names in the example offer and the setup
+// wizard, Invoke without a runnable agent, stage reviews on Approvals, and keeper interval labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "learn": {
+  "tours": {
+   "agentsOnTheirOwn": "Agentes por su cuenta"
+  }
+ },
+ "tours": {
+  "agentsOnTheirOwn": {
+   "summary": "Un guardián, cuándo despierta, qué hizo cada ciclo y los mensajes, la memoria y los escalados que deja.",
+   "steps": {
+    "keepers": {
+     "title": "Guardianes",
+     "body": "Un guardián da a un agente un trabajo permanente, como mantener corta una cola, y lo despierta según un horario para ocuparse de él. Añadir guardián elige el agente, el despliegue en el que corren sus ciclos y el objetivo. Haz clic en un guardián para abrir su página."
+    },
+    "schedule": {
+     "title": "Cuándo despierta",
+     "body": "Con Espaciar en calma, el guardián empieza con el intervalo mínimo y espera más tras cada ciclo tranquilo, hasta el máximo. Un ciclo que informa Atención, escala o falla lo devuelve al mínimo. Intervalo fijo siempre espera el mínimo. Los límites de gasto también están aquí."
+    },
+    "ticks": {
+     "title": "Ciclos",
+     "body": "Cada despertar es un ciclo, y cada ciclo es una ejecución normal. Una fila muestra por qué despertó, su resultado, como Tranquilo, Actuó, Atención o Escalado, cuánto costó y el resumen que el guardián dejó para su próximo ciclo. Abre la ejecución o su recorrido para ver exactamente qué hizo."
+    },
+    "revisions": {
+     "title": "Revisiones",
+     "body": "Una revisión contiene el trabajo: el objetivo, qué significa estar sano, qué puede hacer el guardián por su cuenta y cuándo preguntar. Publicar una nueva la hace actual y despierta al guardián en ese momento. Las revisiones publicadas no cambian nunca, así que esta lista es el historial completo, y Comparar muestra qué cambió cada una."
+    },
+    "messages": {
+     "title": "Mensajes",
+     "body": "Aquí los agentes se escriben entre sí, y con Enviar mensaje puedes escribir tú a uno. Un mensaje espera en la bandeja de entrada del destinatario hasta su próxima ejecución, o lo despierta enseguida si es urgente. Las respuestas forman un hilo; abre un mensaje para leer el hilo entero. Los mensajes que las protecciones contra bucles rechazaron siguen en la lista con su motivo."
+    },
+    "memory": {
+     "title": "Memoria",
+     "body": "Lo que los agentes guardaron entre ejecuciones, por ámbito: un agente, una aplicación, una unidad o una organización entera. Cada entrada muestra quién la escribió y desde qué ejecución. Un guardián recibe en cada ciclo sus entradas etiquetadas recall. Elimina una entrada que no deba recordarse."
+    },
+    "escalations": {
+     "title": "Escalados",
+     "body": "Cuando un guardián llega a una decisión que su mandato no cubre, pregunta aquí y termina su ciclo. Respóndela y la respuesta despierta al guardián una vez con lo que dijiste. El número junto a Autonomía en la barra lateral cuenta los abiertos."
+    }
+   }
+  },
+  "sample": {
+   "kinds": {
+    "Agent": "Agente",
+    "Deployment": "Despliegue",
+    "HarnessProfile": "Conexión",
+    "Mandate": "Guardián",
+    "Organization": "Organización",
+    "PromptTemplate": "Plantilla de prompt"
+   }
+  }
+ },
+ "wizard": {
+  "appliedTitle": "El manifiesto de ejemplo creó esto:"
+ },
+ "views": {
+  "home": {
+   "kpis": {
+    "architectOnly": "Solo el arquitecto de agentes integrado"
+   }
+  },
+  "invoke": {
+   "chooseAgent": "Elige un agente",
+   "noRunnable": "Aún no hay ningún agente que pueda ejecutarse en este inquilino: ninguno tiene un despliegue activo con un peso mayor que cero. Ejecuta la configuración para añadir un agente de ejemplo que funciona sin credenciales."
+  },
+  "approvals": {
+   "reviewsWaiting_one": "{{count}} revisión de etapa de canalización espera en la pestaña Revisiones de etapa.",
+   "reviewsWaiting_other": "{{count}} revisiones de etapa de canalización esperan en la pestaña Revisiones de etapa.",
+   "openReviews": "Abrir revisiones de etapa"
+  },
+  "keeperDetail": {
+   "minInterval": "Intervalo mínimo",
+   "maxInterval": "Intervalo máximo"
+  }
+ },
+ "runtime": {
+  "target": "Endpoint o ejecutable"
  }
 });

@@ -2,7 +2,7 @@
 // which section. Plain data so tests and the export script can import it.
 
 /** Tour ids the tour engine (LP4.5) will define. Labels live in learn.tours.<camelCase id>. */
-export const TOUR_IDS = ['first-look', 'run-an-agent', 'follow-a-request', 'build-a-team', 'keep-it-safe', 'watch-an-organization'];
+export const TOUR_IDS = ['first-look', 'run-an-agent', 'follow-a-request', 'build-a-team', 'keep-it-safe', 'agents-on-their-own', 'watch-an-organization'];
 
 /** The catalog key of a tour's name. */
 export function tourKey(tourId) {
@@ -13,9 +13,10 @@ export function tourKey(tourId) {
 export const LEARN_SECTIONS = [
   { id: 'runtime', diagram: 'runtime', tour: 'run-an-agent' },
   { id: 'request', diagram: 'request', tour: 'follow-a-request' },
-  { id: 'autonomy', diagram: 'autonomy', tour: 'watch-an-organization' },
+  { id: 'autonomy', diagram: 'autonomy', tour: 'agents-on-their-own' },
   { id: 'teams', diagram: 'teams', tour: 'build-a-team' },
-  { id: 'organization', diagram: 'organization', tour: 'build-a-team' },
+  // The organization diagram starts at the board, so it offers Watch an organization; every tour is on this page once.
+  { id: 'organization', diagram: 'organization', tour: 'watch-an-organization' },
   { id: 'selfRevision', diagram: 'selfRevision', tour: 'keep-it-safe' },
   { id: 'brakes', diagram: 'brakes', tour: 'keep-it-safe' }
 ];

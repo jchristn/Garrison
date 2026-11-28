@@ -104,7 +104,7 @@ const tips = {
       runs: 'Cerca, filtra e ispeziona le singole esecuzioni. Aprine una per leggere trascrizione, risultato e telemetria, oppure per annullarla e riprovarla.',
       queue: 'Esecuzioni in attesa di un nodo, assegnate o in esecuzione in questo momento, raggruppate per agente e harness.',
       agents: 'Agenti con nome che i chiamanti invocano tramite REST, MCP o A2A. L\'agente è l\'identità; le sue distribuzioni decidono come viene eseguito.',
-      deployments: 'Come viene eseguito ogni agente: profilo harness, modello, prompt, server MCP, segreti, area di lavoro, posizionamento, limiti e peso del traffico.',
+      deployments: 'Come viene eseguito ogni agente: connessione, modello, prompt, server MCP, segreti, area di lavoro, posizionamento, limiti e peso del traffico.',
       harnessProfiles: 'Ricette per avviare un harness CLI in modalità headless: eseguibile, argomenti, ambiente, file e parsing dell\'output.',
       promptTemplates: 'Ogni prompt e file di configurazione generato che Garrison invia a un harness, con versioni e anteprima in tempo reale.',
       mcpServers: 'Server di strumenti che gli agenti possono usare. Registrali qui, poi associali alle distribuzioni.',
@@ -399,7 +399,7 @@ const tips = {
       NotCredentialed: 'L\'harness non aveva credenziali utilizzabili. Associa un segreto alla distribuzione.',
       McpPreflightFailed: 'Un server MCP o uno strumento richiesto non era raggiungibile durante il controllo del worker prima dell\'avvio.',
       NodeLost: 'Il nodo worker ha smesso di inviare heartbeat mentre deteneva l\'esecuzione.',
-      OutputLimitExceeded: 'L\'esecuzione ha prodotto troppo output: la sua risposta ha superato il massimo di caratteri dell\'assistente della distribuzione (una protezione), oppure l\'harness ha scritto più di quanto consente il profilo harness. L\'output ottenuto viene conservato.',
+      OutputLimitExceeded: 'L\'esecuzione ha prodotto troppo output: la sua risposta ha superato il massimo di caratteri dell\'assistente della distribuzione (una protezione), oppure l\'harness ha scritto più di quanto consente la connessione. L\'output ottenuto viene conservato.',
       SchemaValidationFailed: 'Il risultato non corrispondeva al JSON Schema di output dell\'agente: dopo un tentativo di correzione, o subito se l\'harness non può riprendere la sessione.',
       TimedOut: 'L\'esecuzione ha raggiunto la scadenza.',
       Cancelled: 'L\'esecuzione è stata annullata su richiesta.',
@@ -438,7 +438,7 @@ const tips = {
       Codex: 'CLI Codex di OpenAI, eseguita con exec e output JSONL.',
       Mux: 'CLI Mux con output JSONL; funziona con endpoint di modelli locali e ospitati.',
       GeminiCli: 'Gemini CLI di Google con output stream-JSON.',
-      Generic: 'Qualsiasi altro agente da riga di comando, descritto interamente dal profilo harness.'
+      Generic: 'Qualsiasi altro agente da riga di comando, descritto interamente dalla connessione.'
     },
     agentKind: {
       Hosted: 'Ospitato: Garrison esegue direttamente questo agente tramite le sue distribuzioni sui nodi worker.',
@@ -476,7 +476,7 @@ const tips = {
       Fragment: 'Un frammento riutilizzabile incluso da altri modelli con {{> name}}.',
       ToolDescription: 'Testo che descrive un agente come strumento MCP o competenza A2A.',
       ConfigFile: 'Il contenuto di un file di configurazione generato, come una configurazione MCP.',
-      Other: 'Qualsiasi altro testo renderizzato da un profilo harness.'
+      Other: 'Qualsiasi altro testo renderizzato da una connessione.'
     },
     mcpTransport: {
       Http: 'Garrison e l\'harness raggiungono il server tramite HTTP in streaming a un URL.',
@@ -527,8 +527,8 @@ const tips = {
       AffinityWaitExpired: 'Il nodo che conserva la conversazione è rimasto pronto ma non ha preso il turno entro Runtime.ConversationAffinityWaitMs, quindi l\'ha preso un altro nodo.',
       WorkspaceLost: 'Il nodo ha preso il turno, ma lì non c\'erano più l\'area di lavoro e la cartella home della conversazione.',
       SessionMissing: 'Esistono turni precedenti, ma nessuno ha segnalato una sessione dell\'harness da riprendere, per esempio perché sono falliti tutti presto.',
-      HarnessChanged: 'Il profilo harness della distribuzione è cambiato da quando la sessione è stata registrata, quindi il nuovo profilo non può riprenderla.',
-      ResumeUnsupported: 'Il profilo harness della distribuzione non supporta la ripresa di una sessione, quindi ogni turno successivo parte dalla trascrizione.',
+      HarnessChanged: 'La connessione della distribuzione è cambiata da quando la sessione è stata registrata, quindi la nuova connessione non può riprenderla.',
+      ResumeUnsupported: 'La connessione della distribuzione non supporta la ripresa di una sessione, quindi ogni turno successivo parte dalla trascrizione.',
       ExecutorWithoutState: 'Il turno viene eseguito come Kubernetes Job, che parte ogni volta con una cartella home vuota, quindi ogni turno successivo parte dalla trascrizione.'
     }
   },
@@ -820,10 +820,10 @@ const tips = {
         description: 'Perché esiste questa regola, per le persone che la mantengono.'
       },
       approvalTest: 'Prova una chiamata a strumento con le regole salvate della distribuzione e scopri se verrebbe consentita, negata o inviata a una persona.',
-      add: 'Crea una distribuzione: il modo concreto in cui viene eseguito un agente, con profilo harness, modello, prompt e risorse.',
+      add: 'Crea una distribuzione: il modo concreto in cui viene eseguito un agente, con connessione, modello, prompt e risorse.',
       name: 'Nome della distribuzione, univoco nel tenant, per esempio reviewer-claude.',
       agentId: 'L\'agente eseguito da questa distribuzione. Invocando quell\'agente può essere scelta questa distribuzione.',
-      harnessProfileId: 'Il profilo harness che avvia la CLI, per esempio builtin/claude-code.',
+      harnessProfileId: 'La connessione che avvia la CLI, per esempio builtin/claude-code.',
       model: 'Nome del modello passato all\'harness, per esempio sonnet o gpt-5. Disponibile nei modelli di prompt come deployment.model.',
       weight: 'Peso del traffico tra le distribuzioni attive dell\'agente. Una distribuzione con peso 300 riceve il triplo delle chiamate di una con 100.',
       configVersion: 'Aumenta a ogni modifica. Ogni esecuzione registra la versione da cui è stata compilata.',
@@ -852,7 +852,7 @@ const tips = {
       },
       workspaceTemplateId: 'Come viene preparata la directory di lavoro di ogni esecuzione. Vuoto indica una nuova directory vuota.',
       artifactStoreId: 'Dove vengono caricati i file prodotti dalle esecuzioni dopo la loro fine.',
-      argumentOverrides: 'Modifiche agli argomenti del profilo harness solo per questa distribuzione: aggiungi in coda, aggiungi in testa, sostituisci o rimuovi.',
+      argumentOverrides: 'Modifiche agli argomenti della connessione solo per questa distribuzione: aggiungi in coda, aggiungi in testa, sostituisci o rimuovi.',
       argumentOverridesItems: {
         operation: 'Cosa fare: aggiungere in coda, aggiungere in testa, sostituire un argomento corrispondente o rimuoverlo.',
         match: 'L\'argomento esistente da sostituire o rimuovere.',
@@ -880,12 +880,12 @@ const tips = {
         value: 'Valore dell\'etichetta che il nodo deve avere.'
       },
       maxConcurrentRuns: 'Numero massimo di esecuzioni contemporanee di questa distribuzione su tutti i nodi. 0 significa nessun limite.',
-      timeoutSeconds: 'Scadenza dell\'esecuzione in secondi. Vuoto usa il valore del profilo harness. L\'impostazione del cluster Runtime.MaxRunSeconds limita ogni esecuzione, compresi i limiti per esecuzione.',
+      timeoutSeconds: 'Scadenza dell\'esecuzione in secondi. Vuoto usa il valore della connessione. L\'impostazione del cluster Runtime.MaxRunSeconds limita ogni esecuzione, compresi i limiti per esecuzione.',
       maxAttempts: 'Quante volte in totale si può tentare un\'esecuzione. Tra 1 e 10.',
       steps: {
         approvals: 'Quali chiamate a strumenti l\'harness può effettuare, quali no e quali attendono una persona.',
         basics: 'Nome, agente e peso del traffico.',
-        harness: 'Profilo harness, modello, limiti e parametri.',
+        harness: 'Connessione, modello, limiti e parametri.',
         prompts: 'Quale modello riempie ciascun ruolo di prompt.',
         resources: 'Server MCP, segreti, area di lavoro e archivio di artefatti.',
         overrides: 'Modifiche per distribuzione ad argomenti, ambiente e file, e cosa possono sovrascrivere i chiamanti.',
@@ -1181,7 +1181,7 @@ const tips = {
       openRun: 'Apri trascrizione e telemetria di questa esecuzione.',
       columns: {
         name: 'Nome della distribuzione. I chiamanti possono indicarlo esplicitamente per evitare la scelta ponderata.',
-        harness: 'Il profilo harness che avvia la CLI per questa distribuzione.',
+        harness: 'La connessione che avvia la CLI per questa distribuzione.',
         model: 'Il modello che questa distribuzione chiede all\'harness di usare.',
         weight: 'Il peso del traffico grezzo impostato sulla distribuzione.',
         traffic: 'Quota di invocazioni ricevuta da questa distribuzione: il suo peso diviso per la somma dei pesi attivi.',
@@ -1548,18 +1548,18 @@ const explainers = {
     agent: { title: 'Agente', body: 'Nome, descrizione, esposizione, delega, schema di output', tip: 'L\'identità indirizzabile. I chiamanti la invocano per nome; descrive cos\'è l\'agente e come è esposto, non come viene eseguito.' },
     deploymentA: { title: 'Distribuzione A, peso 300', body: 'Claude Code, sonnet', tip: 'Un modo di eseguire l\'agente. Con peso 300 contro 100 riceve il 75% delle invocazioni che non indicano una distribuzione.' },
     deploymentB: { title: 'Distribuzione B, peso 100', body: 'Mux, modello locale', tip: 'Un altro modo di eseguire lo stesso agente. I chiamanti possono anche indicarla esplicitamente per evitare la scelta ponderata.' },
-    binds: { title: 'Ogni distribuzione associa', body: 'Profilo harness, prompt, server MCP, segreti, area di lavoro, pool di nodi, limiti', tip: 'Tutto ciò che trasforma una richiesta in un processo concreto: quale CLI, quali prompt, quali strumenti e credenziali, e dove può essere eseguita.' },
+    binds: { title: 'Ogni distribuzione associa', body: 'Connessione, prompt, server MCP, segreti, area di lavoro, pool di nodi, limiti', tip: 'Tutto ciò che trasforma una richiesta in un processo concreto: quale CLI, quali prompt, quali strumenti e credenziali, e dove può essere eseguita.' },
     run: { title: 'Esecuzione', body: 'Un\'esecuzione di una distribuzione', tip: 'Ogni invocazione crea un\'esecuzione, compilata dalla distribuzione scelta ed eseguita su un nodo worker.' }
   },
   agents: {
     title: 'Agenti e distribuzioni',
     p1: 'Un agente è l\'identità usata dai chiamanti. Ha un nome, una descrizione, un modo di esposizione (card A2A, strumento MCP), l\'indicazione se può chiamare altri agenti e lo schema di output a cui devono conformarsi le sue risposte. Da solo un agente non esegue nulla.',
-    p2: 'Una distribuzione è il modo in cui viene eseguito l\'agente: quale profilo harness e modello, quali modelli di prompt, quali server MCP e segreti (tramite alias), quale area di lavoro, quale pool di nodi e quali limiti e parametri per esecuzione si applicano. Un agente può avere più distribuzioni, ciascuna con un peso del traffico.',
+    p2: 'Una distribuzione è il modo in cui viene eseguito l\'agente: quale connessione e quale modello, quali modelli di prompt, quali server MCP e segreti (tramite alias), quale area di lavoro, quale pool di nodi e quali limiti e parametri per esecuzione si applicano. Un agente può avere più distribuzioni, ciascuna con un peso del traffico.',
     p3: 'Quando qualcuno invoca l\'agente, Garrison sceglie a caso una delle sue distribuzioni attive in base al peso, a meno che il chiamante non abbia indicato una distribuzione specifica. Così puoi eseguire affiancate una variante Claude Code e una Mux, o spostare gradualmente il traffico su un nuovo modello.'
   },
   deployments: {
     title: 'Cos\'è una distribuzione',
-    p1: 'Una distribuzione rende eseguibile un agente. Appartiene esattamente a un agente e associa un profilo harness (quale CLI avviare), un modello, modelli di prompt per ogni ruolo, server MCP e segreti con alias, un\'area di lavoro e un archivio di artefatti facoltativi, il posizionamento su pool di nodi o etichette e limiti come timeout e concorrenza.',
+    p1: 'Una distribuzione rende eseguibile un agente. Appartiene esattamente a un agente e associa una connessione (quale CLI avviare), un modello, modelli di prompt per ogni ruolo, server MCP e segreti con alias, un\'area di lavoro e un archivio di artefatti facoltativi, il posizionamento su pool di nodi o etichette e limiti come timeout e concorrenza.',
     p2: 'Un agente con più distribuzioni attive divide il traffico in base al peso: pesi 300 e 100 inviano alla prima tre chiamate su quattro. Le distribuzioni inattive non ricevono traffico ponderato ma possono comunque essere indicate esplicitamente, il che è utile per provare una nuova configurazione prima di assegnarle un peso.',
     p3: 'Usa l\'anteprima di compilazione su una distribuzione per vedere esattamente riga di comando, file e ambiente che riceverebbe un\'esecuzione, senza avviarne una.'
   },
@@ -1568,10 +1568,10 @@ const explainers = {
     p1: 'Questo agente si raggiunge con il suo nome. Le distribuzioni qui sotto sono i modi concreti in cui può essere eseguito. Ogni distribuzione attiva riceve una quota di traffico pari al suo peso diviso per il peso totale delle distribuzioni attive; i chiamanti che indicano una distribuzione saltano la scelta ponderata.'
   },
   harnessProfiles: {
-    title: 'Profili harness e distribuzioni',
-    p1: 'Un profilo harness è una ricetta di avvio per un agente da riga di comando: l\'eseguibile, i modelli degli argomenti, le variabili d\'ambiente, i file da scrivere, come vengono consegnati il prompt e il prompt di sistema, quale formato di configurazione MCP legge e come il suo output viene analizzato in eventi.',
+    title: 'Connessioni e distribuzioni',
+    p1: 'Una connessione (la documentazione la chiama profilo harness) è una ricetta di avvio per un agente da riga di comando: l\'eseguibile, i modelli degli argomenti, le variabili d\'ambiente, i file da scrivere, come vengono consegnati il prompt e il prompt di sistema, quale formato di configurazione MCP legge e come il suo output viene analizzato in eventi.',
     p2: 'I profili sono componenti condivisi. Una distribuzione sceglie un profilo e poi aggiunge i dettagli specifici: modello, prompt, segreti ed eventuali sostituzioni di argomenti o ambiente che valgono solo per essa. Molte distribuzioni possono usare lo stesso profilo, quindi una correzione al profilo le raggiunge tutte.',
-    p3: 'I profili predefiniti sono di sola lettura. Clonane uno per modificarlo.'
+    p3: 'Le connessioni predefinite sono di sola lettura. Clonane una per modificarla.'
   },
   promptTemplates: {
     title: 'Modelli di prompt e come li usano le distribuzioni',
@@ -1601,7 +1601,7 @@ const explainers = {
   },
   manifests: {
     title: 'I manifest e i record che creano',
-    p1: 'Un manifest è la configurazione del tenant scritta come documenti YAML o JSON: segreti (senza valori per impostazione predefinita), modelli di prompt, profili harness, server MCP, modelli di area di lavoro, agenti e distribuzioni. I documenti si richiamano tra loro per nome, quindi un manifest funziona in qualsiasi tenant.',
+    p1: 'Un manifest è la configurazione del tenant scritta come documenti YAML o JSON: segreti (senza valori per impostazione predefinita), modelli di prompt, connessioni, server MCP, modelli di area di lavoro, agenti e distribuzioni. I documenti si richiamano tra loro per nome, quindi un manifest funziona in qualsiasi tenant.',
     p2: 'Applicare un manifest crea o aggiorna normali record, gli stessi che vedi nelle altre schede. Applicarlo due volte non cambia nulla. Una simulazione mostra cosa cambierebbe senza scrivere, ed «Esporta» produce un manifest che ricrea questo tenant.'
   },
   nodes: {
@@ -2184,8 +2184,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "kinds": "Esporta tutte le risorse dei tipi selezionati.",
     "kind": "Esporta tutte le risorse {{kind}} di questo tenant.",
     "resources": "Risorse specifiche da esportare, scritte come Tipo/nome, ad esempio Agent/triage o Pipeline/release.",
-    "followReferences": "Esporta anche ciò da cui dipende la selezione: distribuzioni, profili harness, modelli di prompt, aree di lavoro, server MCP, trigger ed endpoint di notifica. I segreti sono elencati come requisiti, mai esportati.",
-    "includeBuiltIn": "Aggiungi i modelli di prompt e i profili harness predefiniti a cui il pacchetto fa riferimento. L'applicazione non li modifica; verifica solo che esistano."
+    "followReferences": "Esporta anche ciò da cui dipende la selezione: distribuzioni, connessioni, modelli di prompt, aree di lavoro, server MCP, trigger ed endpoint di notifica. I segreti sono elencati come requisiti, mai esportati.",
+    "includeBuiltIn": "Aggiungi i modelli di prompt e le connessioni predefiniti a cui il pacchetto fa riferimento. L'applicazione non li modifica; verifica solo che esistano."
    }
   }
  }
@@ -2319,7 +2319,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
  "enums": {
   "agentAssetKind": {
    "SystemPrompt": "Il prompt di sistema dell'agente, fornito da un modello di prompt. Non ha file caricati.",
-   "Skill": "Una cartella di competenze caricata dall'harness, posizionata dove il profilo dell'harness colloca le competenze.",
+   "Skill": "Una cartella di competenze caricata dall'harness, posizionata dove la connessione colloca le competenze.",
    "ReferenceFile": "Un file che l'agente può leggere durante un'esecuzione, posizionato nell'area di lavoro dell'esecuzione.",
    "DocumentTemplate": "Un modello di documento, ad esempio un file .docx o .dotx, che l'agente compila durante un'esecuzione."
   },
@@ -2491,7 +2491,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "capabilityKind": {
    "Agent": "Un altro agente Garrison, descritto in base alla sua ultima revisione pubblicata. Un agente orchestratore può delegargli del lavoro.",
    "McpTool": "Uno strumento di un server MCP registrato in questo tenant, descritto in base all'elenco degli strumenti del server.",
-   "HarnessBuiltIn": "Un programma che l'harness può eseguire sull'host del suo worker, come pandoc o LibreOffice, rilevato da una sonda di strumento su un profilo harness."
+   "HarnessBuiltIn": "Un programma che l'harness può eseguire sull'host del suo worker, come pandoc o LibreOffice, rilevato da una sonda di strumento su una connessione."
   },
   "capabilityOrigin": {
    "Derived": "Garrison mantiene questa voce allineata alla sua origine. Non si può modificare né eliminare qui; modifica invece l'origine.",
@@ -2512,7 +2512,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "kind": "Agente, strumento MCP o strumento integrato dell'harness. Le voci manuali possono usare qualsiasi tipo.",
    "origin": "Le voci derivate seguono la loro origine e non si possono modificare qui; quelle manuali sono scritte da persone.",
    "summary": "Che cosa fa la capacità e quando usarla, così come la leggono gli agenti. Fino a 4000 caratteri.",
-   "source": "Da dove proviene la voce: l'agente, il server MCP e lo strumento, oppure il profilo harness e l'etichetta del nodo richiesta da un'esecuzione.",
+   "source": "Da dove proviene la voce: l'agente, il server MCP e lo strumento, oppure la connessione e l'etichetta del nodo richiesta da un'esecuzione.",
    "hints": "Durata mediana e al 90° percentile e costo medio delle esecuzioni terminate di recente, oppure Sconosciuto quando ne sono terminate troppo poche.",
    "tags": "Etichette per filtrare il catalogo. Anche gli agenti possono filtrare per tag.",
    "lastRefreshedUtc": "Quando Garrison ha aggiornato l'ultima volta una voce derivata dalla sua origine. Vuoto per le voci manuali.",
@@ -2548,7 +2548,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "sourceAgent": "Apri l'agente {{name}}, che questa voce descrive in base alla sua ultima revisione pubblicata.",
   "sourceMcpServer": "Apri il server MCP {{name}} nella scheda Server MCP. Il suo elenco di strumenti è l'origine di questa voce.",
   "sourceTool": "Il nome dello strumento sul server MCP: {{tool}}.",
-  "sourceProfile": "Apri il profilo harness {{name}}, la cui sonda di strumento è l'origine di questa voce.",
+  "sourceProfile": "Apri la connessione {{name}}, la cui sonda di strumento è l'origine di questa voce.",
   "nodeLabel": "Un'esecuzione che usa questa capacità va solo a un worker che segnala l'etichetta del nodo {{label}}.",
   "noSource": "Una voce manuale che non nomina alcun agente né server MCP. La vede ogni esecuzione che può leggere il catalogo.",
   "hintsUnknown": "Nella finestra delle indicazioni sono terminate troppo poche esecuzioni per dire qualcosa, quindi non viene mostrato alcun valore. Non significa mai zero.",
@@ -2556,19 +2556,19 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "hintsKnown_other": "Riepilogo di {{count}} esecuzioni terminate negli ultimi {{days}} giorni.",
   "refreshWarning": "Garrison non è riuscito ad aggiornare questa voce dalla sua origine, quindi la voce mantiene il suo ultimo contenuto valido finché il prossimo aggiornamento non riesce.",
   "lockedBanner": "Perché questa voce non si può modificare né eliminare qui, e dove modificarla invece.",
-  "lockedShared": "Condivisa da tutti i tenant: questa voce proviene da una sonda di strumento su un profilo harness predefinito, quindi non si può modificare né eliminare. Clona il profilo per cambiarne le sonde.",
+  "lockedShared": "Condivisa da tutti i tenant: questa voce proviene da una sonda di strumento su una connessione predefinita, quindi non si può modificare né eliminare. Clona la connessione per cambiarne le sonde.",
   "locked": {
    "Agent": "Derivata dall'ultima revisione pubblicata dell'agente, quindi non si può modificare né eliminare qui. Pubblica una nuova revisione per cambiarla; disattivando l'agente la voce viene rimossa.",
    "McpTool": "Derivata dall'elenco degli strumenti del server MCP, quindi non si può modificare né eliminare qui. Modifica il server o i suoi strumenti, poi aggiorna.",
-   "HarnessBuiltIn": "Derivata da una sonda di strumento su un profilo harness, quindi non si può modificare né eliminare qui. Modifica invece le sonde di strumento del profilo."
+   "HarnessBuiltIn": "Derivata da una sonda di strumento su una connessione, quindi non si può modificare né eliminare qui. Modifica invece le sonde di strumento della connessione."
   },
-  "shared": "Tutti i tenant vedono questa voce. Proviene da una sonda di strumento su un profilo harness predefinito.",
+  "shared": "Tutti i tenant vedono questa voce. Proviene da una sonda di strumento su una connessione predefinita.",
   "hintsTitle": "Durata e costo delle esecuzioni terminate di recente di questo agente. Gli strumenti MCP e gli strumenti integrati non hanno indicazioni.",
   "requirementsTitle": "Etichette del nodo che un worker deve segnalare prima di prendere un'esecuzione il cui agente usa questa capacità.",
   "fields": {
    "kind": "Agente, strumento MCP o strumento integrato dell'harness.",
    "origin": "Le voci derivate seguono la loro origine; quelle manuali sono scritte da persone.",
-   "source": "L'agente, il server MCP e lo strumento, oppure il profilo harness da cui proviene questa voce.",
+   "source": "L'agente, il server MCP e lo strumento, oppure la connessione da cui proviene questa voce.",
    "lastRefreshedUtc": "Quando Garrison ha aggiornato l'ultima volta questa voce dalla sua origine. Vuoto per le voci manuali.",
    "tags": "Etichette per filtrare il catalogo.",
    "id": "Identificativo della voce del catalogo, che inizia con cap_.",
@@ -2912,7 +2912,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "architect": {
    "name": "Nome della nuova distribuzione di architetto in questo tenant, per esempio architect.",
    "harnessProfileId": "L'harness su cui gira l'architetto, per esempio Claude Code. Serve un worker in grado di eseguirlo.",
-   "model": "Il modello che l'harness usa per l'architetto. Se vuoto, si usa il predefinito del profilo harness.",
+   "model": "Il modello che l'harness usa per l'architetto. Se vuoto, si usa il predefinito della connessione.",
    "promptId": "Il prompt System con cui lavora l'architetto. Prima i prompt integrati, poi i loro cloni.",
    "preview": "Il prompt scelto renderizzato con valori di esempio, come lo riceverebbe l'architetto.",
    "cloneLink": "Apri questo prompt nella schermata Modelli di prompt, dove puoi clonarlo e modificare il clone.",
@@ -2922,7 +2922,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "chat": {
    "title": "Una conversazione con l'architetto di agenti su questa bozza. Lui modifica la bozza; tu ne approvi l'applicazione.",
    "architect": "La distribuzione di architetto con cui parlare. Sceglierne un'altra avvia una nuova conversazione.",
-   "newArchitect": "Crea una distribuzione di architetto: profilo harness, modello e prompt dell'architetto.",
+   "newArchitect": "Crea una distribuzione di architetto: connessione, modello e prompt dell'architetto.",
    "openConversation": "Apri questa conversazione in una pagina dedicata, con ogni turno come esecuzione.",
    "newConversation": "Dimentica questa conversazione in questo browser e iniziane una nuova con il prossimo messaggio.",
    "you": "Ciò che hai inviato all'architetto in questo turno.",
@@ -3138,7 +3138,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "bring": "Copia il documento attivo di {{name}} nella bozza come nuovo elemento.",
     "approvals": "Se le chiamate a strumenti delle esecuzioni di questa distribuzione attendono una persona, e le regole che decidono prima.",
     "fields": {
-     "model": "Il modello usato dall'harness, ad esempio sonnet. Se vuoto si usa il modello predefinito del profilo harness.",
+     "model": "Il modello usato dall'harness, ad esempio sonnet. Se vuoto si usa il modello predefinito della connessione.",
      "effort": "Il livello di impegno di ragionamento che l'harness trasmette, ad esempio high. Se vuoto decide l'harness.",
      "timeoutSeconds": "Quanto può durare un'esecuzione prima di essere fermata, in secondi.",
      "maxTurns": "Quanti turni del modello può fare un'esecuzione prima di fermarsi.",
@@ -3258,17 +3258,17 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "nav": {
   "tabs": {
-   "architects": "Architetti di agenti riutilizzabili in qualsiasi bozza dello studio: creali, modificali ed eliminali, e scegli il profilo harness, il modello e il prompt di ciascuno."
+   "architects": "Architetti di agenti riutilizzabili in qualsiasi bozza dello studio: creali, modificali ed eliminali, e scegli la connessione, il modello e il prompt di ciascuno."
   }
  },
  "resources": {
   "architects": {
    "add": "Crea un architetto di agenti: una distribuzione di agent-architect che modifica solo le tue bozze dello studio e non le applica mai.",
-   "harnessProfileId": "Il profilo harness su cui viene eseguito l'architetto, che stabilisce la CLI di agente usata (Claude Code, Codex e così via).",
-   "model": "Il modello che l'architetto chiede all'harness. Vuoto usa il modello predefinito del profilo harness.",
+   "harnessProfileId": "La connessione su cui viene eseguito l'architetto, che stabilisce la CLI di agente usata (Claude Code, Codex e così via).",
+   "model": "Il modello che l'architetto chiede all'harness. Vuoto usa il modello predefinito della connessione.",
    "architectPromptTemplateId": "Il modello System che dice all'architetto come lavorare. I prompt integrati vengono per primi; clonane uno per modificarlo.",
    "architectPromptVersion": "Fissa l'architetto a una versione del suo prompt. Vuoto segue la versione corrente, quindi una modifica salvata vale dal suo turno successivo.",
-   "defaultModel": "Nessun modello impostato, quindi l'architetto usa il modello predefinito del profilo harness.",
+   "defaultModel": "Nessun modello impostato, quindi l'architetto usa il modello predefinito della connessione.",
    "defaultBadge": "Questo architetto usa il prompt predefinito integrato, builtin/agent-architect.",
    "activeBadge": "Attivo: le bozze possono avviare nuove conversazioni con questo architetto.",
    "inactiveBadge": "Inattivo: l'architetto non accetta nuovi turni e le bozze non lo propongono finché non lo riattivi.",
@@ -3493,9 +3493,9 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "allDrafts": "Mostra tutte le bozze dello studio, comprese quelle non avviate nella procedura guidata."
    },
    "access": {
-    "needProfile": "Scegli prima un profilo harness.",
+    "needProfile": "Scegli prima una connessione.",
     "needCredential": "Scegli o aggiungi prima una credenziale.",
-    "harness": "Il profilo harness su cui girano gli agenti e l'architetto.",
+    "harness": "La connessione su cui girano gli agenti e l'architetto.",
     "model": "Il modello da usare. Lascia vuoto per il predefinito dell'harness.",
     "useSecret": "Accedi con il segreto {{name}}.",
     "addSecret": "Salva qui una nuova credenziale, con i passaggi per ottenerne il valore.",
@@ -3692,7 +3692,7 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
 })(explainers, {
  "memory": {
   "title": "Memoria",
-  "p1": "Gli agenti conservano appunti tra un'esecuzione e l'altra nella memoria. Ogni voce vive in un ambito: la memoria privata di un agente o la memoria condivisa di un'applicazione a cui l'agente appartiene. Le esecuzioni leggono e scrivono con gli strumenti garrison_memory, e solo negli ambiti che il loro agente può usare.",
+  "p1": "Gli agenti conservano note tra un'esecuzione e l'altra nella memoria. Ogni voce vive in un ambito: la memoria privata di un agente, oppure la memoria condivisa di un'app, di un'unità organizzativa o di un'intera organizzazione a cui l'agente appartiene. Le esecuzioni leggono e scrivono con gli strumenti garrison_memory, e solo negli ambiti che il loro agente può usare.",
   "p2": "Ogni voce registra chi l'ha scritta, da quale esecuzione, quando e la sua versione. Una scrittura o un'eliminazione che indica la versione letta viene rifiutata se nel frattempo qualcuno ha scritto, così agenti e persone non si sovrascrivono.",
   "p3": "Il testo sono dati salvati da un agente o da una persona. Qui appare come testo semplice e arriva agli agenti come dati, mai come istruzioni. Elimina una voce che non va ricordata; poi gli agenti che la cercano non trovano nulla."
  }
@@ -4375,7 +4375,7 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
 })(explainers, {
  "changeRules": {
   "title": "Regole di modifica",
-  "p1": "Un agente dirigente è un agente che guida un'unità organizzativa e la cui distribuzione ha l'accesso di gestione direttivo. Può proporre modifiche alle unità sotto di sé, mai a sé stesso, a ciò che sta sopra, a segreti, budget o a queste regole.",
+  "p1": "Un dirigente è un agente che guida un'unità organizzativa e la cui distribuzione ha accesso di gestione da dirigente. Può proporre modifiche alle unità sotto di sé, mai a sé stesso, a ciò che sta sopra, ai segreti o a queste regole, e non può mai aumentare un budget.",
   "p2": "Una regola di modifica approva in anticipo le modifiche di routine. Indica l'unità di cui copre il sottoalbero, le classi di modifica che consente e limiti facoltativi, come al massimo due modifiche per proposta o un intervallo di risveglio di almeno un minuto. Quando le regole coprono ogni modifica di una proposta, questa si applica subito; il resto aspetta una persona nella scheda Proposte dell'organizzazione.",
   "p3": "Ogni proposta applicata viene registrata come revisione dell'organizzazione, quindi puoi annullarla. Solo le persone scrivono le regole."
  }
@@ -5379,5 +5379,30 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
    "confirmWord": "La parola da digitare per confermare l'eliminazione di questo agente.",
    "delete": "Elimina questo agente con le sue distribuzioni e la cronologia delle revisioni. Confermi digitando elimina; un trigger, una pipeline, un'applicazione o un endpoint di notifica che lo usa impedisce l'eliminazione."
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): explainer fold and unfold, stage reviews on Approvals, and the Connections target column.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "explainer": {
+  "fold": "Riduci la spiegazione di {{topic}} alla riga del titolo, così l'elenco sotto inizia più in alto. Fai clic sul titolo per riaprirla.",
+  "unfold": "Apri la spiegazione di {{topic}}: cosa gestisce questa pagina e come si collega al resto di Garrison."
+ },
+ "views": {
+  "approvals": {
+   "reviewsWaiting": "Apri la scheda Revisioni di fase, dove si approvano o rifiutano le fasi della pipeline che attendono una persona. Anche il badge della barra laterale le conta."
+  }
+ },
+ "runtime": {
+  "target": "Dove la connessione invia il lavoro: l'URL di base di un'API del provider, il nome dell'endpoint di una connessione Mux o l'eseguibile di un harness CLI."
  }
 });

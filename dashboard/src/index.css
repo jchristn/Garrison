@@ -2690,3 +2690,29 @@ a.sidebar-utility { text-decoration: none; }
 .org-publish-checks-blocked { color: var(--color-danger); font-weight: 600; }
 /* LP5.5 (UXP1-S015): the Design tab's full-form Add unit sits above the canvas. */
 .org-design-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-block-end: var(--spacing-sm); }
+
+/* LP5.5 learning fixes (UX pass 1). Explainers fold to their title line after the first view (UXP1-V022); the small
+   relationship diagram sizes its boxes to their text and turns its arrows down when the boxes stack; Learn diagrams
+   below 900 px scroll at their own size instead of shrinking (UXP1-V023); a sidebar badge is a link to its list
+   (UXP1-S012, S027); the example offer and the setup wizard list resources by their dashboard names. */
+.explainer-fold { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0; border: 0; background: none; color: var(--color-text); font: inherit; font-weight: 600; text-align: start; cursor: pointer; }
+.explainer-fold:hover { color: var(--color-primary); }
+.explainer-fold:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+[dir='rtl'] .explainer-fold svg { transform: scaleX(-1); }
+.explainer.is-folded { padding-block: 0.45rem; }
+.explainer.is-folded .explainer-title { margin-bottom: 0; }
+.relation-stack .relation-node { flex: 0 0 auto; }
+@media (max-width: 767px) {
+  .relation-diagram { flex-direction: column; align-items: stretch; }
+  .relation-diagram .relation-node, .relation-diagram .relation-stack { flex: 0 0 auto; min-width: 0; }
+  .relation-arrow, [dir='rtl'] .relation-arrow { transform: rotate(90deg); }
+}
+@media (max-width: 899px) {
+  .learn-diagram-frame { overflow-x: auto; }
+  .learn-diagram-frame .lg-svg { width: var(--lg-native-width, 100%); max-width: none !important; }
+}
+.sidebar-badge[data-href] { cursor: pointer; }
+.sidebar-badge[data-href]:hover { filter: brightness(1.1); }
+.tour-sample-kind { color: var(--color-text-secondary); }
+.wizard-applied { margin-bottom: var(--spacing-md); }
+.wizard-applied li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }

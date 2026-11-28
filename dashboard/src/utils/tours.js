@@ -13,6 +13,17 @@ export const TOUR_EXAMPLES = {
   siteReliability: { id: 'siteReliability', manifest: SITE_RELIABILITY_MANIFEST, source: 'examples/autonomous/site-reliability-org' }
 };
 
+// UXP1-S028: manifest kinds by the names the dashboard uses (a Mandate is a keeper, a HarnessProfile a connection).
+const DASHBOARD_KINDS = ['Agent', 'Deployment', 'HarnessProfile', 'Mandate', 'Organization', 'PromptTemplate'];
+
+/** The dashboard's name for a manifest kind, for lists of what an apply creates. */
+export function manifestKindLabel(t, kind) {
+  if (DASHBOARD_KINDS.includes(kind)) return t(`tours.sample.kinds.${kind}`);
+  const key = `enums.resourceType.${kind}`;
+  const label = t(key);
+  return label === key ? kind : label;
+}
+
 /** What an example's manifest holds, as [{ kind, name }] in document order. */
 export function exampleContents(exampleId) {
   return templateContents(TOUR_EXAMPLES[exampleId]?.manifest || '');

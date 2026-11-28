@@ -53,6 +53,8 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Normal'
   ],
   fr: [
+    // The Attention tick outcome (UXP1-S020) is the same word in French.
+    'Attention',
     // Evaluations (AA9.15): words French spells the same.
     'Versions', 'Verdict', 'Budget (USD)', 'Budget {{budget}}',
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',

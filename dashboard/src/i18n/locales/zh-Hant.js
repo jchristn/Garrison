@@ -214,7 +214,7 @@ const zhHant = {
       Audit: '稽核記錄',
       RequestHistory: '要求記錄',
       Settings: '設定',
-      HarnessProfile: 'Harness 設定檔',
+      HarnessProfile: '連線',
       PromptTemplate: '提示範本',
       Agent: '代理程式',
       Deployment: '部署',
@@ -339,7 +339,7 @@ const zhHant = {
       AffinityWaitExpired: '親和等待已逾時',
       WorkspaceLost: '工作區已遺失',
       SessionMissing: '沒有可恢復的工作階段',
-      HarnessChanged: 'Harness 設定檔已變更',
+      HarnessChanged: '連線已變更',
       ResumeUnsupported: '不支援恢復',
       ExecutorWithoutState: '執行器不保留狀態'
     }
@@ -384,7 +384,7 @@ const zhHant = {
       nodePools: { label: '節點池', tip: '將節點分組並專供特定租用戶使用' },
       agents: { label: '代理程式', tip: '透過 REST、MCP 與 A2A 公開的代理程式' },
       deployments: { label: '部署', tip: '將代理程式繫結到 Harness、提示與資源' },
-      harnessProfiles: { label: 'Harness 設定檔', tip: '每個 Harness 如何以無介面模式執行' },
+      harnessProfiles: { label: '連線', tip: '每個 Harness 如何以無介面模式執行' },
       promptTemplates: { label: '提示範本', tip: 'Garrison 送出的每個提示，皆有版本控管' },
       mcpServers: { label: 'MCP 伺服器', tip: '代理程式可使用的工具' },
       secrets: { label: '祕密', tip: 'Harness 與整合服務的憑證' },
@@ -742,7 +742,7 @@ const zhHant = {
       fields: { credentialId: '存取金鑰', roleId: '角色', resourceScope: '範圍', resourceId: '資源 ID', inheritsToChildren: '套用至租用戶內的資源', active: '啟用' }
     },
     harnessProfiles: {
-      ...rp('Harness 設定檔', '精確描述 Harness 如何以無介面模式執行：執行檔、引數、環境變數、檔案與輸出剖析。', '新增 Harness 設定檔', '建立 Harness 設定檔', '編輯 Harness 設定檔', 'Harness 設定檔詳細資料', '刪除 Harness 設定檔', '尚無 Harness 設定檔', '複製內建設定檔，以自訂 Harness 的啟動方式。'),
+      ...rp('連線', '精確描述 Harness 如何以無介面模式執行：執行檔、引數、環境變數、檔案與輸出剖析。', '新增 連線', '建立 連線', '編輯 連線', '連線詳細資料', '刪除 連線', '尚無 連線', '複製內建設定檔，以自訂 Harness 的啟動方式。'),
       steps: { basics: '基本資訊', invocation: '呼叫方式', output: '輸出', limits: '限制' },
       columns: { name: '名稱', harnessType: 'Harness', executable: '執行檔', outputParser: '剖析器', isBuiltIn: '來源', id: 'ID', createdUtc: '建立時間' },
       fields: {
@@ -899,9 +899,9 @@ const zhHant = {
       approvalsOn_other: '開啟，{{count}} 條規則',
       approvalsOff: '關閉',
       promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行的任務包裝', Task: '任務包裝', System: '系統提示', ConversationFallback: '對話回退（紀錄）' },
-      ...rp('部署', '將代理程式繫結到 Harness 設定檔、提示、祕密、MCP 伺服器、排程放置與限制。', '新增部署', '建立部署', '編輯部署', '部署詳細資料', '刪除部署', '尚無部署', '建立部署，讓代理程式可以執行。'),
+      ...rp('部署', '將代理程式繫結到 連線、提示、祕密、MCP 伺服器、排程放置與限制。', '新增部署', '建立部署', '編輯部署', '部署詳細資料', '刪除部署', '尚無部署', '建立部署，讓代理程式可以執行。'),
       steps: { approvals: '核准', basics: '基本資訊', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置與限制' },
-      columns: { approvalsEnabled: '核准', name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '設定版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
+      columns: { approvalsEnabled: '核准', name: '名稱', agentId: '代理程式', harnessProfileId: '連線', model: '模型', executor: '執行器', weight: '權重', configVersion: '設定版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
       fields: {
         approvalsEnabled: '工具呼叫前先詢問（核准）',
         approvalDefaultAction: '沒有規則符合時',
@@ -918,7 +918,7 @@ const zhHant = {
         description: '描述',
         weight: '流量權重',
         active: '啟用',
-        harnessProfileId: 'Harness 設定檔',
+        harnessProfileId: '連線',
         model: '模型',
         fallbackModel: '備援模型',
         effort: '投入程度',
@@ -971,10 +971,10 @@ const zhHant = {
         approvalDefaultAction: '「詢問人員」會在核准收件匣中等候，直到有人決定或逾時為止。',
         approvalTimeoutSeconds: '範圍為 10 至 3,600 秒。留空時使用 300。',
         approvalRules: '「拒絕」優先於「詢問」，「詢問」優先於「允許」。範例：Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
-        secretsKinds: 'Harness 設定檔 {{profile}} 需要任一類型為 {{kinds}} 的祕密。可用任何別名繫結。',
-        secretsAliases: 'Harness 設定檔 {{profile}} 會讀取以這些別名繫結的祕密：{{aliases}}。',
-        secretsNone: 'Harness 設定檔 {{profile}} 不讀取任何祕密，因此不需要繫結祕密。',
-        promptBindings: '將提示角色（System、Task、DelegatedTask，以及 Harness 設定檔使用的任何角色）對應到範本。版本留空即可一律使用最新版本。',
+        secretsKinds: '連線 {{profile}} 需要任一類型為 {{kinds}} 的祕密。可用任何別名繫結。',
+        secretsAliases: '連線 {{profile}} 會讀取以這些別名繫結的祕密：{{aliases}}。',
+        secretsNone: '連線 {{profile}} 不讀取任何祕密，因此不需要繫結祕密。',
+        promptBindings: '將提示角色（System、Task、DelegatedTask，以及 連線使用的任何角色）對應到範本。版本留空即可一律使用最新版本。',
         resourceBindings: '別名會成為範本變數，例如 {{secret.anthropic}}。',
         weight: '未明確指定部署的請求，會依權重分配到各個啟用中的部署。',
         maxConcurrentRuns: '0 表示不限制。',
@@ -1157,7 +1157,7 @@ const zhHant = {
       subtitle: '你的代理程式與工作節點目前的動態。',
       lastLoaded: '更新於 {{time}}',
       partial: '部分面板無法載入，顯示的值並不完整。',
-      getStartedTitle: '此租用戶尚無代理程式',
+      getStartedTitle: '尚無你自己的代理程式',
       getStartedBody: '設定精靈會新增憑證、套用範例代理程式並執行測試。',
       runSetup: '執行設定精靈',
       kpis: {
@@ -1883,7 +1883,7 @@ const zhHant = {
       topbar: { title: '環境資訊', body: '伺服器、租用戶、你的身分、健康狀態與即時狀態會一直顯示在這裡。' },
       kpis: { title: '一覽', body: '每張卡片彙總一種資源。按一下卡片即可開啟篩選後的清單。' },
       invoke: { title: '呼叫', body: '以互動方式試用任何代理程式，並觀看其對話紀錄串流。' },
-      configure: { title: '組態', body: 'Harness 設定檔、提示範本、MCP 伺服器與祕密精確控制執行的內容。代理程式與部署有各自的中心。' },
+      configure: { title: '組態', body: '連線、提示範本、MCP 伺服器與祕密精確控制執行的內容。代理程式與部署有各自的中心。' },
       observe: { title: '監控', body: '請求歷程、稽核與 API 探索器可協助你驗證與偵錯。' }
     }
   },
@@ -3101,13 +3101,13 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   "serverText": {
    "capabilityDerivedEdit": "能力 {{name}} 衍生自其來源並隨來源更新。請改為變更來源。",
    "capabilityDerivedDelete": "能力 {{name}} 衍生自其來源，並會隨來源一併移除，因此無法直接刪除。",
-   "capabilityShared": "能力 {{name}} 由所有租用戶共用，且來自內建的 Harness 設定檔，因此無法變更。",
+   "capabilityShared": "能力 {{name}} 由所有租用戶共用，且來自內建的 連線，因此無法變更。",
    "capabilityNameConflict": "已存在名為 {{name}} 的手動能力。",
    "capabilitySecretsDenied": "您無權使用 MCP 伺服器 {{server}} 所傳送的祕密，因此未列出其工具。",
    "capabilityNoStdioWorker": "沒有任何就緒的工作節點開啟 stdio MCP 診斷（GARRISON_WORKER_MCP_TESTS_ENABLED），因此無法列出 stdio 伺服器的工具。",
    "capabilityRefreshFailed": "於 {{when}} 重新整理失敗：{{error}}",
    "capabilityMissingTools": "缺少必要的工具：{{tools}}。",
-   "capabilityProbeShadowed": "工作節點以 {{probe}} 探測 {{name}}，該探測由另一個 Harness 設定檔先行定義。此設定檔的定義不會被探測。"
+   "capabilityProbeShadowed": "工作節點以 {{probe}} 探測 {{name}}，該探測由另一個 連線先行定義。此連線的定義不會被探測。"
   }
  },
  "components": {
@@ -3188,7 +3188,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "requirementCount": "最多使用 {{max}} 項節點標籤需求。",
     "requirement": "每項需求都需要長度 1 至 {{max}} 個字元的節點標籤鍵。",
     "toolNeedsServer": "請選擇此工具所屬的 MCP 伺服器。",
-    "probeCount": "一個 Harness 設定檔最多有 {{max}} 個工具探測。",
+    "probeCount": "一個 連線最多有 {{max}} 個工具探測。",
     "probeName": "工具名稱為 1 至 63 個小寫字母、數字、句點與連字號，並以字母或數字開頭。",
     "probeDuplicate": "此設定檔中已有另一個名為 {{name}} 的探測。",
     "probeExecutable": "執行檔必須是可在 PATH 上找到的單純檔案名稱（字母、數字、句點、底線、加號與連字號），不得包含資料夾。",
@@ -3221,7 +3221,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "view": "能力詳細資料",
    "deleteTitle": "刪除能力",
    "emptyTitle": "尚無能力",
-   "emptyBody": "發佈代理程式修訂、註冊 MCP 伺服器，或在 Harness 設定檔中新增工具探測，然後重新整理。您也可以新增手動項目。",
+   "emptyBody": "發佈代理程式修訂、註冊 MCP 伺服器，或在 連線中新增工具探測，然後重新整理。您也可以新增手動項目。",
    "columns": {
     "name": "名稱",
     "kind": "類型",
@@ -3761,10 +3761,10 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "title": "新增架構師",
     "intro": "代理程式架構師會在你的草稿中設計代理程式和應用程式。請為它提供一個部署：Harness 設定檔、模型以及它使用的提示。它只會編輯你的草稿，從不套用草稿。",
     "name": "部署名稱",
-    "harnessProfile": "Harness 設定檔",
-    "chooseProfile": "選擇 Harness 設定檔",
+    "harnessProfile": "連線",
+    "chooseProfile": "選擇 連線",
     "model": "模型",
-    "modelHint": "留空則使用 Harness 設定檔的預設模型。",
+    "modelHint": "留空則使用 連線的預設模型。",
     "prompt": "架構師提示",
     "defaultPrompt": "{{name}}（預設）",
     "preview": "提示預覽",
@@ -4150,7 +4150,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
      "none": "草稿中沒有 {{name}} 的部署。請從下方帶入一個即時部署，或請架構師建立一個。",
      "deployment": "環境與部署",
      "option": "{{environment}}：{{name}}",
-     "scope": "編輯只會變更 {{environment}} 中的 {{name}}（Harness 設定檔 {{profile}}）。其他環境保留各自的值。",
+     "scope": "編輯只會變更 {{environment}} 中的 {{name}}（連線 {{profile}}）。其他環境保留各自的值。",
      "fields": {
       "model": "模型",
       "effort": "投入程度",
@@ -4163,7 +4163,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
       "approvalDefaultAction": "沒有規則符合時"
      },
      "hints": {
-      "timeoutSeconds": "整數秒數，1 或以上。留空則使用 Harness 設定檔的限制。",
+      "timeoutSeconds": "整數秒數，1 或以上。留空則使用 連線的限制。",
       "maxTurns": "整數，1 或以上。留空則由 Harness 決定。",
       "maxBudgetUsd": "0 或以上，例如 2.50。留空表示沒有預算限制。"
      },
@@ -4248,7 +4248,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
  },
  "views": {
   "home": {
-   "getStartedBody": "設定精靈會新增認證，為代理程式架構師指定 Harness 和模型，套用範例代理程式並執行測試。也可以開啟代理程式工作室，描述你想要的應用程式。",
+   "getStartedBody": "執行設定精靈，新增一個範例代理程式並在幾分鐘內試用。代理程式精靈則不同：你描述想要什麼，代理架構師為你起草代理程式。「學習」頁面介紹各部分如何配合。",
    "openStudio": "開啟代理程式工作室"
   },
   "studio": {
@@ -4341,17 +4341,17 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
  "resources": {
   "architects": {
    "title": "架構師",
-   "subtitle": "此租用戶中的代理架構師。每一個都是 agent-architect 的部署，擁有自己的 Harness 設定檔、模型和提示，任何工作室草稿都可以使用。",
+   "subtitle": "此租用戶中的代理架構師。每一個都是 agent-architect 的部署，擁有自己的 連線、模型和提示，任何工作室草稿都可以使用。",
    "add": "新增架構師",
    "create": "建立架構師",
    "edit": "編輯架構師",
    "view": "架構師詳細資料",
    "deleteTitle": "刪除架構師",
    "emptyTitle": "尚無架構師",
-   "emptyBody": "建立一位架構師，在代理工作室中與你一起設計代理和應用程式。選擇它執行時使用的 Harness 設定檔和模型，以及它使用的提示。",
+   "emptyBody": "建立一位架構師，在代理工作室中與你一起設計代理和應用程式。選擇它執行時使用的 連線和模型，以及它使用的提示。",
    "columns": {
     "name": "名稱",
-    "harnessProfileId": "Harness 設定檔",
+    "harnessProfileId": "連線",
     "model": "模型",
     "architectPromptTemplateId": "架構師提示",
     "active": "狀態",
@@ -4363,14 +4363,14 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "fields": {
     "name": "名稱",
     "description": "描述",
-    "harnessProfileId": "Harness 設定檔",
+    "harnessProfileId": "連線",
     "model": "模型",
     "architectPromptTemplateId": "架構師提示",
     "architectPromptVersion": "固定的提示版本",
     "active": "啟用"
    },
    "hints": {
-    "model": "留空則使用 Harness 設定檔的預設模型。",
+    "model": "留空則使用 連線的預設模型。",
     "architectPromptVersion": "留空則一律使用提示的目前版本。"
    },
    "actions": {
@@ -4504,7 +4504,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
  "components": {
   "studio": {
    "architect": {
-    "intro": "代理架構師會在你的草稿中設計代理和應用程式。請為它指定 Harness 設定檔、用來登入的祕密、模型，以及它使用的提示。它只會編輯你的草稿，從不套用它們。"
+    "intro": "代理架構師會在你的草稿中設計代理和應用程式。請為它指定 連線、用來登入的祕密、模型，以及它使用的提示。它只會編輯你的草稿，從不套用它們。"
    }
   }
  }
@@ -4522,7 +4522,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
   }
 })(zhHant, {
  "wizard": {
-  "studioBody": "代理架構師會在代理工作室中與你一起設計代理和應用程式。請選擇它執行時使用的 Harness 設定檔和模型、它登入時使用的憑證（若上一步儲存的祕密適合該 Harness，會自動選取），以及引導它的架構師提示。它的部署只能編輯你的工作室草稿。你可以略過此步驟，稍後在 代理程式 > 架構師 中建立架構師。"
+  "studioBody": "代理架構師會在代理工作室中與你一起設計代理和應用程式。請選擇它執行時使用的 連線和模型、它登入時使用的憑證（若上一步儲存的祕密適合該 Harness，會自動選取），以及引導它的架構師提示。它的部署只能編輯你的工作室草稿。你可以略過此步驟，稍後在 代理程式 > 架構師 中建立架構師。"
  }
 });
 
@@ -4573,7 +4573,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "GenericEnv": {
     "s1": "貼上任何單一的值：Harness 或工具從環境變數讀取的權杖、密碼或 URL。",
     "s2": "用別名把這個祕密繫結到部署，然後新增一個使用它的環境覆寫，例如：",
-    "s3": "該變數必須在 Harness 設定檔的憑證允許清單中，否則部署會被拒絕。"
+    "s3": "該變數必須在 連線的憑證允許清單中，否則部署會被拒絕。"
    },
    "GenericFile": {
     "s1": "貼上完整檔案，包含換行：服務帳戶 JSON、憑證或設定檔。",
@@ -4762,7 +4762,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
    "access": {
     "title": "模型存取",
     "intro": "選擇執行代理程式的 harness，以及它登入時使用的憑證。代理程式架構師與你一起設計時，也會使用同一個 harness 和憑證。",
-    "harness": "Harness 設定檔",
+    "harness": "連線",
     "harnessHint": "執行代理程式的 CLI，例如 Claude Code 或 Codex。",
     "model": "模型",
     "modelHint": "選填。留空則使用 harness 的預設模型。",
@@ -4781,7 +4781,7 @@ zhHant.tips.enums.auditEventType.QueueFull = "叢集、租戶或代理的佇列�
     "contents": "草稿內容",
     "empty": "目前還沒有內容。架構師設計出代理程式後會新增到這裡。",
     "agents": "代理程式",
-    "firstMessage": "我想建立這個：{{goal}}\n\n代理程式將在 harness 設定檔 {{profile}} 上執行，使用憑證密鑰 {{secret}}。請先問我任何你需要知道的事，然後在這份草稿中設計代理程式。",
+    "firstMessage": "我想建立這個：{{goal}}\n\n代理程式將在 harness 連線 {{profile}} 上執行，使用憑證密鑰 {{secret}}。請先問我任何你需要知道的事，然後在這份草稿中設計代理程式。",
     "chatTitle": "與 {{architect}} 聊天",
     "next": "繼續檢查"
    },
@@ -5156,7 +5156,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   "tickOutcome": {
    "Quiet": "平靜",
    "Acted": "已處理",
-   "Attention": "需要關注",
+   "Attention": "關注",
    "Escalated": "已上報",
    "Failed": "失敗",
    "Skipped": "已略過",
@@ -5527,7 +5527,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
     "columns": {
      "started": "巡檢開始的時間。將游標停留其上可查看確切時間。",
      "source": "這次巡檢是由什麼喚醒守護者的。",
-     "outcome": "這次巡檢的回報：平靜、已處理、需要關注、已上報或失敗。",
+     "outcome": "巡檢回報的結果：平靜、已處理、關注、已上報或失敗。",
      "run": "執行這次巡檢的執行。",
      "interval": "到下次喚醒的等待時間，取這次巡檢結束時設定的值。",
      "cost": "這次巡檢的執行花費，依據模型價目表計算。",
@@ -5765,7 +5765,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
  },
  "tips": {
   "nav": {
-   "escalationsBadge_other": "有 {{count}} 則上報等待回覆。開啟「自主運作」，再開啟「上報」。",
+   "escalationsBadge_other": "{{count}} 個上報正在等待回答。點選數字可開啟上報。",
    "tabs": {
     "escalations": "上報：代理程式向某人、某個角色或另一個代理程式提出的問題，待回覆的排在前面，可以回覆或取消。"
    }
@@ -5966,7 +5966,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   "liftKeeperMessage": "要解除 {{target}} 的凍結嗎？守護者會重新啟用，下一次喚醒會分散在一個短時間範圍內。",
   "bannerOwn": "已凍結：在解除凍結之前，新的執行都會被拒絕。",
   "bannerTarget": "{{target}} 已被凍結：它的新執行會被拒絕。",
-  "bannerKillSwitch": "自主運作的緊急停止開關已開啟：此租用戶中不會開始任何守護者巡檢。",
+  "bannerKillSwitch": "自主運作緊急停止開關已開啟：此租用戶中守護者不會喚醒，訊息也不會喚醒代理程式。",
   "bannerBy": "由 {{who}} 於 {{when}} 凍結。",
   "bannerReason": "原因：{{reason}}",
   "openTarget": "開啟",
@@ -6002,14 +6002,14 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    "off": "關",
    "turnOn": "開啟",
    "turnOff": "關閉",
-   "help": "緊急停止開關開啟期間，不會開始任何守護者巡檢，守護者的執行也會被拒絕。由人員和 API 憑證發起的呼叫照常運作。",
+   "help": "緊急停止開關開啟期間，守護者不會喚醒，訊息也不會喚醒代理程式，守護者的執行會被拒絕。由人員和 API 憑證發起的呼叫照常運作。",
    "changedBy": "由 {{who}} 於 {{when}} 開啟。",
    "onTitle": "要開啟緊急停止開關嗎？",
-   "onMessage": "在關閉開關之前，此租用戶中的所有守護者都不再喚醒，守護者的執行也會被拒絕。已在進行的巡檢會完成。",
+   "onMessage": "在關閉開關之前，此租用戶中的每個守護者都停止喚醒，訊息也不會喚醒代理程式，守護者的執行會被拒絕。已在進行的巡檢會完成。",
    "offTitle": "要關閉緊急停止開關嗎？",
    "offMessage": "守護者會重新開始喚醒，下一次喚醒會分散在一個短時間範圍內。",
    "toasts": {
-    "on": "緊急停止開關已開啟。不會開始任何守護者巡檢。",
+    "on": "緊急停止開關已開啟。守護者不會喚醒，訊息也不會喚醒代理程式。",
     "off": "緊急停止開關已關閉。守護者會重新喚醒。"
    }
   }
@@ -6075,7 +6075,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
     "App": "一個應用程式：其聊天中的新對話和新訊息會被拒絕。",
     "OrgUnit": "一個組織單位。組織功能推出之前無法使用。",
     "Organization": "整個組織。組織功能推出之前無法使用。",
-    "TenantAutonomy": "緊急停止開關：整個租用戶中不會開始任何守護者巡檢。"
+    "TenantAutonomy": "緊急停止開關：整個租用戶中守護者不會喚醒，訊息也不會喚醒代理程式。"
    }
   },
   "freezes": {
@@ -6103,7 +6103,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    },
    "killSwitch": {
     "title": "一個能停止此租用戶中所有守護者的開關。一般呼叫照常運作。",
-    "on": "開：不會開始任何守護者巡檢，守護者的執行會被拒絕。",
+    "on": "開啟：守護者不會喚醒，訊息不會喚醒代理程式，守護者的執行會被拒絕。",
     "off": "關：守護者按排程喚醒。",
     "turnOn": "停止此租用戶中的所有守護者。需要先確認。",
     "turnOff": "讓守護者重新喚醒。需要先確認。"
@@ -6139,9 +6139,9 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
  "explainers": {
   "freezes": {
    "title": "凍結",
-   "p1": "凍結是一種制動。生效期間，Garrison 會以 409 Frozen 拒絕被凍結的代理程式、部署、守護者或應用程式的新執行，範圍內的守護者也不再喚醒。已在進行的執行會完成，除非凍結同時取消了它們。",
-   "p2": "可以在代理程式、部署、守護者或應用程式的頁面上凍結，也可以在這裡使用「選擇對象並凍結」。解除凍結後，執行會重新被接受；被凍結的守護者會重新啟用，下一次喚醒會分散在一個短時間範圍內。",
-   "p3": "設定和首頁上的自主運作緊急停止開關會一次停止租用戶中所有守護者的巡檢。它在這裡顯示為類型為「緊急停止開關」的凍結。"
+   "p1": "凍結是一種煞車。生效期間，Garrison 會以 409 Frozen 拒絕被凍結的代理程式、部署、守護者、應用程式、單位或組織的新執行，範圍內的守護者也不再喚醒。已在進行的執行會完成，除非凍結同時取消了它們。",
+   "p2": "可以在代理程式、部署、守護者或應用程式的頁面上凍結，也可以在這裡使用「選擇對象並凍結」。單位和整個組織在其看板上凍結。解除凍結後，執行會重新被接受；被凍結的守護者會重新啟用，下一次喚醒會分散在一個短時間範圍內。",
+   "p3": "設定和首頁上的自主運作緊急停止開關會一次停止租用戶中所有守護者喚醒和訊息喚醒，而一般呼叫照常運作。它在這裡顯示為類型為「緊急停止開關」的凍結。"
   }
  }
 });
@@ -9207,8 +9207,8 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   "diagrams": {
    "runtime": {
     "title": "執行環境",
-    "summary": "租用戶裡有代理程式，以及執行這些代理程式的部署。部署把代理程式與 Harness 設定檔、模型、提示和節點池綁在一起。每個請求都會變成一次執行，該節點池裡的工作節點領取這次執行並啟動 Harness。工作節點從不存取資料庫：它需要的一切都隨租約一起送達。",
-    "desc": "租用戶包含存取金鑰、代理程式、Harness 設定檔、部署和執行。節點池和工作節點組成各租用戶共用的機群。",
+    "summary": "租用戶裡有代理程式，以及執行這些代理程式的部署。部署把代理程式與 連線、模型、提示和節點池綁在一起。每個請求都會變成一次執行，該節點池裡的工作節點領取這次執行並啟動 Harness。工作節點從不存取資料庫：它需要的一切都隨租約一起送達。",
+    "desc": "租用戶包含存取金鑰、代理程式、連線、部署和執行。節點池和工作節點組成各租用戶共用的機群。",
     "groups": {
      "tenant": "租用戶",
      "fleet": "共用機群"
@@ -9223,12 +9223,12 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
       "body": "呼叫端透過 REST、MCP 或 A2A 呼叫的對象。它保存不可變的修訂。"
      },
      "harnessProfile": {
-      "title": "Harness 設定檔",
+      "title": "連線",
       "body": "說明某個 Harness CLI 或 API 如何無介面執行。儀表板裡稱為連線。"
      },
      "deployment": {
       "title": "部署",
-      "body": "把代理程式與 Harness 設定檔、模型、提示和節點池綁定。"
+      "body": "把代理程式與 連線、模型、提示和節點池綁定。"
      },
      "nodePool": {
       "title": "節點池",
@@ -9354,8 +9354,8 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    },
    "teams": {
     "title": "團隊",
-    "summary": "代理程式之間透過信箱互相寫信。訊息是信件，不是電話：寄件者繼續做自己的事，收件者在下一次執行時讀到它，緊急訊息則會立即讀到。每次傳送都先經過防迴圈檢查，被拒絕的訊息連同原因一起保存，方便你看清誰想聯絡誰。",
-    "desc": "訊息通過防迴圈檢查進入收件者的信箱，或者被保存為已拒絕。一般郵件等待收件者的下一次執行，緊急郵件會喚醒收件者。",
+    "summary": "代理程式透過各自的收件匣互相寫信。訊息是郵件，不是電話：傳送方繼續工作，接收方在下一次執行時閱讀，緊急訊息則會立即閱讀。每次傳送都會先經過迴圈防護，被拒絕的訊息連同原因一起保留，方便你看到誰試圖聯絡誰。",
+    "desc": "訊息通過迴圈防護後進入接收方的收件匣，或被儲存為已拒絕。一般郵件等待接收方的下一次執行，緊急郵件會喚醒它。",
     "boxes": {
      "sender": {
       "title": "寄件者",
@@ -9366,7 +9366,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
       "body": "依序為：收件者已凍結、無線路、跳數上限、討論串上限、線路速率。"
      },
      "mailbox": {
-      "title": "信箱",
+      "title": "收件匣",
       "body": "收件者排隊中的訊息，最早的在前。"
      },
      "normal": {
@@ -9443,7 +9443,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    },
    "selfRevision": {
     "title": "自我修訂",
-    "summary": "主管是可以對下級單位提出變更的單位負責人。它寫一份普通的工作室草稿，ExecutiveDraftValidator 用任何東西都無法解除的硬性限制來檢查它：不能涉及自己，不能涉及子樹之上或之外的東西，不能碰祕密，不能提高預算，也不能改管理權限。人寫的變更規則完全涵蓋的草稿會立即套用，其餘的都要等人決定。每次套用都會發佈一個組織修訂並保存一份還原草稿，所以一次復原就能撤銷它。",
+    "summary": "主管是可以對下級單位提出變更的單位負責人。它寫一份普通的工作室草稿，一項固定檢查用任何東西都無法解除的硬性限制來檢查它：不能涉及自己，不能涉及子樹之上或之外的東西，不能碰祕密，不能提高預算，也不能改管理權限。人寫的變更規則完全涵蓋的草稿會立即套用，其餘的都要等人決定。每次套用都會發佈一個組織修訂並保存一份還原草稿，所以一次復原就能撤銷它。",
     "desc": "主管寫一份草稿。硬性限制拒絕它，或把它交給變更規則，而評估關卡可以把它攔下。被涵蓋的草稿會套用，其餘的等待一個能看到影子試驗和金絲雀發佈結果的人。每次套用都發佈一個附還原草稿的組織修訂，復原可以還原它。",
     "boxes": {
      "executive": {
@@ -9573,11 +9573,11 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    },
    "deployment": {
     "term": "部署",
-    "def": "與 Harness 設定檔、模型、提示和節點池綁定的代理程式。一個代理程式可以有多個部署，依權重選擇。"
+    "def": "與 連線、模型、提示和節點池綁定的代理程式。一個代理程式可以有多個部署，依權重選擇。"
    },
    "harnessProfile": {
-    "term": "Harness 設定檔",
-    "def": "說明 Harness CLI 或供應商 API 如何無介面執行：引數、提示的傳遞方式和輸出剖析器。儀表板把它們列在連線下。"
+    "term": "連線（Harness 設定檔）",
+    "def": "說明 Harness CLI 或供應商 API 如何無介面執行：引數、提示的傳遞方式和輸出剖析器。文件和 API 稱之為 Harness 設定檔，儀表板稱之為連線，並把它們列在連線下。"
    },
    "nodePool": {
     "term": "節點池",
@@ -9773,7 +9773,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   },
   "sample": {
    "title": "載入範例？",
-   "body": "{{tour}}需要{{need}}，而這個租用戶還沒有。你可以透過套用資訊清單載入{{example}}，也可以不載入繼續，並略過沒有內容可顯示的步驟。",
+   "body": "{{tour}} 需要{{need}}，而此租用戶還沒有。你可以載入{{example}}，也可以不載入繼續，略過沒有內容可顯示的步驟。",
    "contents_one": "載入會套用 {{count}} 個資源：",
    "contents_other": "載入會套用 {{count}} 個資源：",
    "checking": "正在檢查套用會改變什麼...",
@@ -9790,8 +9790,8 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
     "organizations": "一個組織"
    },
    "examples": {
-    "gerbil": "gerbil 範例",
-    "siteReliability": "網站可靠性範例"
+    "gerbil": "gerbil 範例（一個代理程式及其守護者）",
+    "siteReliability": "網站可靠性範例（由五個代理程式組成的組織，每個都有守護者）"
    }
   },
   "homeCard": {
@@ -9819,7 +9819,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
     },
     "kpis": {
      "title": "一目了然",
-     "body": "目前的情況：代理程式、部署、今天進行中或失敗的執行，以及可以接收工作的工作節點。點選卡片即可開啟對應的清單。"
+     "body": "目前情況：代理程式、部署、正在進行的執行、最近 24 小時內成功或失敗的執行，以及可以工作的工作節點。點選卡片可開啟其背後的清單。"
     },
     "invoke": {
      "title": "呼叫",
@@ -9827,7 +9827,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
     },
     "autonomy": {
      "title": "自行工作的代理程式",
-     "body": "給代理程式一項長期任務，它不需要別人吩咐就會工作。守護者依照排程喚醒它，在兩次喚醒之間，它可以傳訊息給其他代理程式、提交報告、記住學到的東西，並把問題上報給你。凍結可以立即停止這一切。"
+     "body": "給代理程式一項長期任務，它不用別人吩咐就會工作。守護者按排程喚醒它，在兩次喚醒之間，它可以傳訊息給其他代理程式、提交報告、記住學到的東西，並把問題上報給你。緊急停止開關可以一次停止這一切。「自主運作的代理程式」導覽會逐一介紹。"
     },
     "organizations": {
      "title": "組織",
@@ -9952,7 +9952,7 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
     },
     "attention": {
      "title": "待處理",
-     "body": "現在需要有人處理的事：未處理的上報、不健康的報告和達到預算上限的單位。先處理這份清單。"
+     "body": "現在需要人處理的事項：未結的上報、健康狀態為降級或異常的報告，以及達到預算上限的單位。先處理這個清單。"
     },
     "performance": {
      "title": "績效",
@@ -10458,5 +10458,95 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
    "SecurityAdmin": "管理使用者、存取金鑰、角色、權限、指派、工作階段與稽核。",
    "TenantAdmin": "租戶內所有資源的全部權限。"
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): the Agents on their own tour (LP4.11), plain names in the example offer and the setup
+// wizard, Invoke without a runnable agent, stage reviews on Approvals, and keeper interval labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "learn": {
+  "tours": {
+   "agentsOnTheirOwn": "自主運作的代理程式"
+  }
+ },
+ "tours": {
+  "agentsOnTheirOwn": {
+   "summary": "守護者、它何時喚醒、每次巡檢做了什麼，以及它留下的訊息、記憶和上報。",
+   "steps": {
+    "keepers": {
+     "title": "守護者",
+     "body": "守護者給代理程式一項長期任務，例如讓佇列保持很短，並按排程喚醒它來照看。「新增守護者」用來選擇代理程式、執行巡檢的部署和目標。點選某個守護者可開啟它的頁面。"
+    },
+    "schedule": {
+     "title": "何時喚醒",
+     "body": "選擇「安靜時退避」時，守護者從最短間隔開始，每次平靜的巡檢後等待更久，直到最長間隔。回報關注、上報或失敗的巡檢會讓它回到最短間隔。「固定間隔」始終等待最短間隔。支出上限也在這裡。"
+    },
+    "ticks": {
+     "title": "巡檢",
+     "body": "每次喚醒就是一次巡檢，每次巡檢都是一次一般的執行。每一列顯示它為何喚醒、結果（例如平靜、已處理、關注或已上報）、花費，以及守護者留給下一次巡檢的摘要。開啟執行或其軌跡即可看到它具體做了什麼。"
+    },
+    "revisions": {
+     "title": "修訂",
+     "body": "修訂包含這項任務：目標、何為健康、守護者可以自行做什麼，以及何時該詢問。發布新修訂會使其成為目前修訂，並立即喚醒守護者。已發布的修訂永不變更，所以這個清單就是完整的歷史，「比較」可顯示每個修訂改了什麼。"
+    },
+    "messages": {
+     "title": "訊息",
+     "body": "代理程式在這裡互相寫信，用「傳送訊息」你也可以寫信給某個代理程式。訊息在接收方的收件匣中等待它的下一次執行，緊急時會立即喚醒它。回覆會組成討論串；開啟一則訊息即可閱讀整個討論串。被迴圈防護拒絕的訊息也會連同原因留在清單中。"
+    },
+    "memory": {
+     "title": "記憶",
+     "body": "代理程式在執行之間儲存的內容，按範圍顯示：單一代理程式、應用程式、單位或整個組織。每個條目都顯示誰寫的、來自哪次執行。守護者每次巡檢都會收到自己標記為 recall 的條目。不該被記住的條目可以刪除。"
+    },
+    "escalations": {
+     "title": "上報",
+     "body": "當守護者遇到其任務範圍之外的決定時，會在這裡提問並結束巡檢。你回答後，回答會帶著你的答覆喚醒守護者一次。側邊欄「自主運作」旁的數字是未結的數量。"
+    }
+   }
+  },
+  "sample": {
+   "kinds": {
+    "Agent": "代理程式",
+    "Deployment": "部署",
+    "HarnessProfile": "連線",
+    "Mandate": "守護者",
+    "Organization": "組織",
+    "PromptTemplate": "提示範本"
+   }
+  }
+ },
+ "wizard": {
+  "appliedTitle": "範例資訊清單建立了以下內容："
+ },
+ "views": {
+  "home": {
+   "kpis": {
+    "architectOnly": "只有內建的代理架構師"
+   }
+  },
+  "invoke": {
+   "chooseAgent": "選擇代理程式",
+   "noRunnable": "此租用戶中還沒有可以執行的代理程式：沒有一個擁有權重大於零的啟用部署。執行設定精靈可新增一個無需憑證即可運作的範例代理程式。"
+  },
+  "approvals": {
+   "reviewsWaiting_one": "有 {{count}} 個管線階段審查在「階段審查」分頁中等待。",
+   "reviewsWaiting_other": "有 {{count}} 個管線階段審查在「階段審查」分頁中等待。",
+   "openReviews": "開啟階段審查"
+  },
+  "keeperDetail": {
+   "minInterval": "最短間隔",
+   "maxInterval": "最長間隔"
+  }
+ },
+ "runtime": {
+  "target": "端點或執行檔"
  }
 });

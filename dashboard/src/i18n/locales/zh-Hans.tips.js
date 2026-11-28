@@ -102,7 +102,7 @@ const tips = {
       runs: '搜索、筛选并检查单个运行。打开某个运行可阅读其对话记录、结果和遥测数据，也可以取消或重试。',
       queue: '正在等待节点、已被租用或正在运行的运行，按智能体和 Harness 分组。',
       agents: '调用方通过 REST、MCP 或 A2A 调用的具名智能体。智能体代表身份；它的部署决定它如何运行。',
-      deployments: '每个智能体的运行方式：Harness 配置文件、模型、提示词、MCP 服务器、机密、工作区、调度放置、限制和流量权重。',
+      deployments: '每个智能体的运行方式：连接、模型、提示词、MCP 服务器、机密、工作区、调度放置、限制和流量权重。',
       harnessProfiles: '以无头模式启动 CLI Harness 的配方：可执行文件、参数、环境变量、文件和输出解析。',
       promptTemplates: 'Garrison 发送给 Harness 的所有提示词和生成的配置文件，带版本管理和实时预览。',
       mcpServers: '智能体可以使用的工具服务器。先在这里注册，再绑定到部署。',
@@ -396,7 +396,7 @@ const tips = {
       NotCredentialed: 'Harness 没有可用的凭据。请为部署绑定一个机密。',
       McpPreflightFailed: '工作节点在启动前检查时，某个必需的 MCP 服务器或工具无法访问。',
       NodeLost: '工作节点在持有该运行期间停止了心跳。',
-      OutputLimitExceeded: '运行产生的输出过多：回答超过了部署的最大助手字符数（一种运行防护），或者 Harness 写出的内容超过了 Harness 配置文件允许的量。已保留到目前为止的输出。',
+      OutputLimitExceeded: '运行产生的输出过多：回答超过了部署的最大助手字符数（一种运行防护），或者 Harness 写出的内容超过了 连接允许的量。已保留到目前为止的输出。',
       SchemaValidationFailed: '结果不符合智能体的输出 JSON Schema：经过一次修复尝试后，或在 Harness 无法恢复会话时立即失败。',
       TimedOut: '运行达到了截止时间。',
       Cancelled: '运行已按请求取消。',
@@ -435,7 +435,7 @@ const tips = {
       Codex: 'OpenAI Codex CLI，通过 exec 运行，输出 JSONL。',
       Mux: '输出 JSONL 的 Mux CLI；支持本地和托管的模型端点。',
       GeminiCli: '输出 stream-JSON 的 Google Gemini CLI。',
-      Generic: '任何其他命令行智能体，完全由 Harness 配置文件描述。'
+      Generic: '任何其他命令行智能体，完全由 连接描述。'
     },
     agentKind: {
       Hosted: '托管：Garrison 通过其部署在工作节点上自行运行此智能体。',
@@ -473,7 +473,7 @@ const tips = {
       Fragment: '可复用的片段，其他模板通过 {{> name}} 引入。',
       ToolDescription: '将智能体描述为 MCP 工具或 A2A 技能的文本。',
       ConfigFile: '生成的配置文件的内容，例如 MCP 配置。',
-      Other: 'Harness 配置文件渲染的任何其他文本。'
+      Other: '连接渲染的任何其他文本。'
     },
     mcpTransport: {
       Http: 'Garrison 和 Harness 通过某个 URL 以可流式 HTTP 访问该服务器。',
@@ -524,8 +524,8 @@ const tips = {
       AffinityWaitExpired: '保存对话的节点保持就绪，但没有在 Runtime.ConversationAffinityWaitMs 内领取这一轮，因此由另一个节点领取。',
       WorkspaceLost: '节点领取了这一轮，但对话的工作区和主目录已不在该节点上。',
       SessionMissing: '存在先前的轮次，但没有一轮报告可恢复的 Harness 会话，例如它们都在早期失败了。',
-      HarnessChanged: '自记录会话以来，部署的 Harness 配置文件已更改，新的配置文件无法恢复该会话。',
-      ResumeUnsupported: '部署的 Harness 配置文件不支持恢复会话，因此后续每一轮都从记录开始。',
+      HarnessChanged: '自记录会话以来，部署的 连接已更改，新的连接无法恢复该会话。',
+      ResumeUnsupported: '部署的 连接不支持恢复会话，因此后续每一轮都从记录开始。',
       ExecutorWithoutState: '这一轮以 Kubernetes Job 运行，每次都从空的主目录开始，因此后续每一轮都从记录开始。'
     }
   },
@@ -817,10 +817,10 @@ const tips = {
         description: '说明此规则存在的原因，供日后维护这条规则的人员参考。'
       },
       approvalTest: '用部署已保存的规则试验一个工具调用，查看它会被允许、拒绝还是交给人员处理。',
-      add: '创建一个部署：智能体的具体运行方式，包括 Harness 配置文件、模型、提示词和资源。',
+      add: '创建一个部署：智能体的具体运行方式，包括 连接、模型、提示词和资源。',
       name: '部署名称，在租户内唯一，例如 reviewer-claude。',
       agentId: '此部署运行的智能体。调用该智能体时可能会选中此部署。',
-      harnessProfileId: '启动 CLI 的 Harness 配置文件，例如 builtin/claude-code。',
+      harnessProfileId: '启动 CLI 的 连接，例如 builtin/claude-code。',
       model: '传给 Harness 的模型名称，例如 sonnet 或 gpt-5。模板中可通过 deployment.model 使用。',
       weight: '在该智能体所有已启用部署之间的流量权重。权重为 300 的部署获得的调用数是权重为 100 的部署的三倍。',
       configVersion: '每次更改都会递增。每个运行都会记录其编译所依据的版本。',
@@ -849,7 +849,7 @@ const tips = {
       },
       workspaceTemplateId: '每个运行的工作目录如何准备。留空表示使用全新的空目录。',
       artifactStoreId: '运行结束后，其产生的文件上传到哪里。',
-      argumentOverrides: '仅针对此部署对 Harness 配置文件参数所做的更改：追加、前置、替换或移除。',
+      argumentOverrides: '仅针对此部署对 连接参数所做的更改：追加、前置、替换或移除。',
       argumentOverridesItems: {
         operation: '要执行的操作：追加、前置、替换匹配的参数，或移除它。',
         match: '要替换或移除的现有参数。',
@@ -877,12 +877,12 @@ const tips = {
         value: '节点必须具有的标签值。'
       },
       maxConcurrentRuns: '此部署在所有节点上同时进行的运行数上限。0 表示不限制。',
-      timeoutSeconds: '运行截止时间（秒）。留空则使用 Harness 配置文件的默认值。集群设置 Runtime.MaxRunSeconds 会限制每个运行，包括每次运行的时间限制。',
+      timeoutSeconds: '运行截止时间（秒）。留空则使用 连接的默认值。集群设置 Runtime.MaxRunSeconds 会限制每个运行，包括每次运行的时间限制。',
       maxAttempts: '一个运行总共最多可以尝试多少次。范围为 1 到 10。',
       steps: {
         approvals: 'Harness 可以进行哪些工具调用、不可以进行哪些，以及哪些需要等待人员处理。',
         basics: '名称、智能体和流量权重。',
-        harness: 'Harness 配置文件、模型、限制和参数。',
+        harness: '连接、模型、限制和参数。',
         prompts: '每个提示词角色由哪个模板填充。',
         resources: 'MCP 服务器、机密、工作区和制品存储。',
         overrides: '针对此部署对参数、环境变量和文件所做的更改，以及调用方可以覆盖的内容。',
@@ -1178,7 +1178,7 @@ const tips = {
       openRun: '打开此运行的对话记录和遥测数据。',
       columns: {
         name: '部署名称。调用方可以显式指定它，以绕过按权重的选择。',
-        harness: '为此部署启动 CLI 的 Harness 配置文件。',
+        harness: '为此部署启动 CLI 的 连接。',
         model: '此部署要求 Harness 使用的模型。',
         weight: '在部署上设置的原始流量权重。',
         traffic: '此部署获得的调用份额：其权重除以所有已启用部署的权重之和。',
@@ -1545,18 +1545,18 @@ const explainers = {
     agent: { title: '智能体', body: '名称、描述、公开方式、委派、输出 Schema', tip: '可寻址的身份。调用方按名称调用它；它说明智能体是什么以及如何公开，而不是如何运行。' },
     deploymentA: { title: '部署 A，权重 300', body: 'Claude Code，sonnet', tip: '运行此智能体的一种方式。权重 300 对比 100，它会获得未指定部署的调用中的 75%。' },
     deploymentB: { title: '部署 B，权重 100', body: 'Mux，本地模型', tip: '运行同一智能体的另一种方式。调用方也可以显式指定它，以绕过按权重的选择。' },
-    binds: { title: '每个部署绑定', body: 'Harness 配置文件、提示词、MCP 服务器、机密、工作区、节点池、限制', tip: '将请求转化为具体进程所需的一切：使用哪个 CLI、哪些提示词、哪些工具和凭据，以及可以在哪里运行。' },
+    binds: { title: '每个部署绑定', body: '连接、提示词、MCP 服务器、机密、工作区、节点池、限制', tip: '将请求转化为具体进程所需的一切：使用哪个 CLI、哪些提示词、哪些工具和凭据，以及可以在哪里运行。' },
     run: { title: '运行', body: '某个部署的一次执行', tip: '每次调用都会创建一个运行，它由所选部署编译而成，并在工作节点上执行。' }
   },
   agents: {
     title: '智能体与部署',
     p1: '智能体是调用方所使用的身份。它包含名称、描述、公开方式（A2A 卡片、MCP 工具）、是否可以调用其他智能体，以及其回答必须符合的输出 Schema。智能体本身不会运行任何东西。',
-    p2: '部署是智能体的运行方式：使用哪个 Harness 配置文件和模型、哪些提示词模板、哪些 MCP 服务器和机密（通过别名）、什么工作区、哪个节点池，以及适用哪些限制和按运行参数。一个智能体可以有多个部署，每个部署都有一个流量权重。',
+    p2: '部署是智能体的运行方式：使用哪个 连接和模型、哪些提示词模板、哪些 MCP 服务器和机密（通过别名）、什么工作区、哪个节点池，以及适用哪些限制和按运行参数。一个智能体可以有多个部署，每个部署都有一个流量权重。',
     p3: '有人调用智能体时，除非调用方指定了某个部署，否则 Garrison 会按权重从其已启用的部署中随机选择一个。这样你就可以让 Claude Code 版本和 Mux 版本并行运行，或者逐步把流量迁移到新模型。'
   },
   deployments: {
     title: '什么是部署',
-    p1: '部署让智能体变得可以运行。它只属于一个智能体，并绑定一个 Harness 配置文件（启动哪个 CLI）、一个模型、每个角色的提示词模板、以别名引用的 MCP 服务器和机密、可选的工作区和制品存储、基于节点池或标签的调度放置，以及超时和并发等限制。',
+    p1: '部署让智能体变得可以运行。它只属于一个智能体，并绑定一个 连接（启动哪个 CLI）、一个模型、每个角色的提示词模板、以别名引用的 MCP 服务器和机密、可选的工作区和制品存储、基于节点池或标签的调度放置，以及超时和并发等限制。',
     p2: '拥有多个已启用部署的智能体会按权重分配流量：权重 300 和 100 意味着每四次调用中有三次发往前者。未启用的部署不接收按权重分配的流量，但仍可被显式指定，这便于在为新配置分配权重之前先进行测试。',
     p3: '在部署上使用“编译预览”，即可查看运行将获得的确切命令行、文件和环境变量，而无需启动运行。'
   },
@@ -1565,10 +1565,10 @@ const explainers = {
     p1: '通过名称访问此智能体。下面的部署是它可以运行的具体方式。每个已启用的部署获得的流量份额等于其权重除以所有已启用部署的总权重；指定了部署的调用方会跳过按权重的选择。'
   },
   harnessProfiles: {
-    title: 'Harness 配置文件与部署',
-    p1: 'Harness 配置文件是某个命令行智能体的启动配方：可执行文件、参数模板、环境变量、要写入的文件、提示词和系统提示词的传递方式、它读取的 MCP 配置格式，以及如何将其输出解析为事件。',
+    title: '连接与部署',
+    p1: '连接（文档中称为 Harness 配置文件）是某个命令行智能体的启动配方：可执行文件、参数模板、环境变量、要写入的文件、提示词和系统提示词的传递方式、它读取的 MCP 配置格式，以及如何将其输出解析为事件。',
     p2: '配置文件是共享的构建模块。部署选择一个配置文件，然后添加具体内容：模型、提示词、机密，以及仅适用于它的参数或环境变量覆盖。许多部署可以使用同一个配置文件，因此对配置文件的修复会同时作用于所有这些部署。',
-    p3: '内置配置文件为只读。要修改，请先克隆一份。'
+    p3: '内置连接为只读。要修改，请先克隆一份。'
   },
   promptTemplates: {
     title: '提示词模板及部署如何使用它们',
@@ -1598,7 +1598,7 @@ const explainers = {
   },
   manifests: {
     title: '清单及其创建的记录',
-    p1: '清单是以 YAML 或 JSON 文档编写的租户配置：机密（默认不含值）、提示词模板、Harness 配置文件、MCP 服务器、工作区模板、智能体和部署。文档之间通过名称相互引用，因此同一个清单可以用于任何租户。',
+    p1: '清单是以 YAML 或 JSON 文档编写的租户配置：机密（默认不含值）、提示词模板、连接、MCP 服务器、工作区模板、智能体和部署。文档之间通过名称相互引用，因此同一个清单可以用于任何租户。',
     p2: '应用清单会创建或更新普通记录，也就是你在其他标签页中看到的那些记录。应用两次不会产生任何变化。试运行会显示将要发生的更改而不写入任何内容，“导出”则生成一个可以重建此租户的清单。'
   },
   nodes: {
@@ -2181,8 +2181,8 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "kinds": "导出所勾选类型的全部资源。",
     "kind": "导出此租户中的全部 {{kind}}。",
     "resources": "要导出的具体资源，写作 类型/名称，例如 Agent/triage 或 Pipeline/release。",
-    "followReferences": "同时导出所选内容依赖的资源：部署、harness 配置文件、提示模板、工作区、MCP 服务器、触发器和通知端点。密钥只作为前提条件列出，绝不导出。",
-    "includeBuiltIn": "添加包所引用的内置提示模板和 harness 配置文件。应用时不会更改它们，只检查它们是否存在。"
+    "followReferences": "同时导出所选内容依赖的资源：部署、harness 连接、提示模板、工作区、MCP 服务器、触发器和通知端点。密钥只作为前提条件列出，绝不导出。",
+    "includeBuiltIn": "添加包所引用的内置提示模板和 harness 连接。应用时不会更改它们，只检查它们是否存在。"
    }
   }
  }
@@ -2316,7 +2316,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
  "enums": {
   "agentAssetKind": {
    "SystemPrompt": "代理的系统提示词，由提示词模板提供。没有上传的文件。",
-   "Skill": "Harness 加载的技能文件夹，放在 Harness 配置文件指定的技能位置。",
+   "Skill": "Harness 加载的技能文件夹，放在 连接指定的技能位置。",
    "ReferenceFile": "代理在运行期间可读取的文件，放在运行的工作区中。",
    "DocumentTemplate": "代理在运行期间填写的文档模板，例如 .docx 或 .dotx 文件。"
   },
@@ -2488,7 +2488,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "capabilityKind": {
    "Agent": "另一个 Garrison 智能体，根据其最新发布的修订进行描述。编排型智能体可以把任务委派给它。",
    "McpTool": "在此租户中注册的 MCP 服务器提供的工具，根据服务器的工具列表进行描述。",
-   "HarnessBuiltIn": "Harness 能在其工作节点主机上运行的程序，例如 pandoc 或 LibreOffice，由 Harness 配置文件中的工具探测发现。"
+   "HarnessBuiltIn": "Harness 能在其工作节点主机上运行的程序，例如 pandoc 或 LibreOffice，由 连接中的工具探测发现。"
   },
   "capabilityOrigin": {
    "Derived": "Garrison 会让此条目与其来源保持同步。它不能在此编辑或删除，请改为修改来源。",
@@ -2509,7 +2509,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
    "kind": "智能体、MCP 工具或 Harness 内置工具。手动条目可以使用任意类型。",
    "origin": "派生条目随来源变化，不能在此更改；手动条目由人编写。",
    "summary": "能力的作用以及何时使用它，智能体会读取这段内容。最多 4000 个字符。",
-   "source": "条目的出处：智能体、MCP 服务器和工具，或者 Harness 配置文件以及运行所需的节点标签。",
+   "source": "条目的出处：智能体、MCP 服务器和工具，或者 连接以及运行所需的节点标签。",
    "hints": "根据最近完成的运行得出的时长中位数、第 90 百分位时长和平均成本；完成的运行太少时显示为“未知”。",
    "tags": "用于筛选目录的标签。智能体也可以按标签筛选。",
    "lastRefreshedUtc": "Garrison 上次从来源刷新派生条目的时间。手动条目为空。",
@@ -2545,7 +2545,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "sourceAgent": "打开智能体 {{name}}。此条目根据它最新发布的修订进行描述。",
   "sourceMcpServer": "在“MCP 服务器”标签页中打开 MCP 服务器 {{name}}。它的工具列表是此条目的来源。",
   "sourceTool": "该工具在 MCP 服务器上的名称：{{tool}}。",
-  "sourceProfile": "打开 Harness 配置文件 {{name}}。它的工具探测是此条目的来源。",
+  "sourceProfile": "打开 连接 {{name}}。它的工具探测是此条目的来源。",
   "nodeLabel": "使用此能力的运行只会分配给报告节点标签 {{label}} 的工作节点。",
   "noSource": "未指定智能体或 MCP 服务器的手动条目。所有能读取目录的运行都能看到它。",
   "hintsUnknown": "统计窗口内完成的运行太少，无法得出结论，因此不显示数值。这绝不表示为零。",
@@ -2553,19 +2553,19 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "hintsKnown_other": "根据过去 {{days}} 天内完成的 {{count}} 次运行汇总。",
   "refreshWarning": "Garrison 无法从来源刷新此条目，因此在下次刷新成功之前，条目会保留最后一次正常的内容。",
   "lockedBanner": "说明此条目为什么不能在此编辑或删除，以及应该到哪里去修改。",
-  "lockedShared": "由所有租户共享：此条目来自内置 Harness 配置文件中的工具探测，因此不能编辑或删除。要更改其探测，请克隆该配置文件。",
+  "lockedShared": "由所有租户共享：此条目来自内置 连接中的工具探测，因此不能编辑或删除。要更改其探测，请克隆该连接。",
   "locked": {
    "Agent": "派生自智能体最新发布的修订，因此不能在此编辑或删除。要更改它，请发布新的修订；停用智能体会移除此条目。",
    "McpTool": "派生自 MCP 服务器的工具列表，因此不能在此编辑或删除。请修改服务器或其工具，然后刷新。",
-   "HarnessBuiltIn": "派生自 Harness 配置文件中的工具探测，因此不能在此编辑或删除。请改为修改该配置文件的工具探测。"
+   "HarnessBuiltIn": "派生自 连接中的工具探测，因此不能在此编辑或删除。请改为修改该连接的工具探测。"
   },
-  "shared": "所有租户都能看到此条目。它来自内置 Harness 配置文件中的工具探测。",
+  "shared": "所有租户都能看到此条目。它来自内置 连接中的工具探测。",
   "hintsTitle": "此智能体最近完成的运行的时长和成本。MCP 工具和内置工具没有参考值。",
   "requirementsTitle": "工作节点必须先报告这些节点标签，才能接手其智能体使用此能力的运行。",
   "fields": {
    "kind": "智能体、MCP 工具或 Harness 内置工具。",
    "origin": "派生条目随来源变化；手动条目由人编写。",
-   "source": "此条目所来自的智能体、MCP 服务器和工具，或 Harness 配置文件。",
+   "source": "此条目所来自的智能体、MCP 服务器和工具，或 连接。",
    "lastRefreshedUtc": "Garrison 上次从来源刷新此条目的时间。手动条目为空。",
    "tags": "用于筛选目录的标签。",
    "id": "目录条目的标识符，以 cap_ 开头。",
@@ -2909,7 +2909,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "architect": {
    "name": "此租户中新架构师部署的名称，例如 architect。",
    "harnessProfileId": "架构师运行所用的 Harness，例如 Claude Code。需要有能运行它的工作节点。",
-   "model": "Harness 为架构师使用的模型。留空则使用 Harness 配置文件的默认值。",
+   "model": "Harness 为架构师使用的模型。留空则使用 连接的默认值。",
    "promptId": "架构师使用的 System 提示词。内置提示词排在前面，其克隆排在后面。",
    "preview": "用示例值渲染出的所选提示词，与架构师收到的内容一致。",
    "cloneLink": "在提示词模板页面打开此提示词，你可以在那里克隆它并编辑克隆。",
@@ -2919,7 +2919,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "chat": {
    "title": "与智能体架构师就此草稿进行的对话。它编辑草稿，由你批准应用。",
    "architect": "要与之对话的架构师部署。选择另一个会开始新的对话。",
-   "newArchitect": "创建架构师部署：Harness 配置文件、模型和架构师提示词。",
+   "newArchitect": "创建架构师部署：连接、模型和架构师提示词。",
    "openConversation": "在单独的页面中打开此对话，每一轮都显示为一次运行。",
    "newConversation": "在此浏览器中忘记此对话，并在下一条消息时开始新的对话。",
    "you": "你在这一轮中发送给架构师的内容。",
@@ -3135,7 +3135,7 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "bring": "将 {{name}} 的实时文档作为新项目复制到草稿中。",
     "approvals": "此部署的运行中的工具调用是否等待人工处理，以及优先作出判断的规则。",
     "fields": {
-     "model": "Harness 使用的模型，例如 sonnet。留空则使用 Harness 配置文件的默认值。",
+     "model": "Harness 使用的模型，例如 sonnet。留空则使用 连接的默认值。",
      "effort": "Harness 传递的推理强度，例如 high。留空则由 Harness 决定。",
      "timeoutSeconds": "运行在被停止前可持续的时间，以秒为单位。",
      "maxTurns": "运行在停止前可使用的模型轮次数。",
@@ -3255,17 +3255,17 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
 })(tips, {
  "nav": {
   "tabs": {
-   "architects": "可在任意工作室草稿中复用的代理架构师：创建、编辑和删除它们，并为每个架构师选择 Harness 配置文件、模型和提示词。"
+   "architects": "可在任意工作室草稿中复用的代理架构师：创建、编辑和删除它们，并为每个架构师选择 连接、模型和提示词。"
   }
  },
  "resources": {
   "architects": {
    "add": "创建一个代理架构师：agent-architect 的一个部署，只编辑你的工作室草稿，从不应用它们。",
-   "harnessProfileId": "架构师运行所用的 Harness 配置文件，它决定架构师使用的代理 CLI（Claude Code、Codex 等）。",
-   "model": "架构师向 Harness 请求的模型。留空则使用 Harness 配置文件的默认模型。",
+   "harnessProfileId": "架构师运行所用的 连接，它决定架构师使用的代理 CLI（Claude Code、Codex 等）。",
+   "model": "架构师向 Harness 请求的模型。留空则使用 连接的默认模型。",
    "architectPromptTemplateId": "告诉架构师如何工作的 System 模板。内置提示词排在最前；要修改请先克隆一个。",
    "architectPromptVersion": "将架构师固定到其提示词的某个版本。留空则跟随当前版本，保存的编辑会从其下一轮开始生效。",
-   "defaultModel": "未设置模型，因此架构师使用 Harness 配置文件的默认模型。",
+   "defaultModel": "未设置模型，因此架构师使用 连接的默认模型。",
    "defaultBadge": "此架构师使用内置的默认提示词 builtin/agent-architect。",
    "activeBadge": "启用：草稿可以与此架构师开始新的对话。",
    "inactiveBadge": "停用：在你重新启用之前，架构师不接受新的轮次，草稿中也不会提供它。",
@@ -3490,9 +3490,9 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
     "allDrafts": "查看所有工作室草稿，包括不是在向导中创建的草稿。"
    },
    "access": {
-    "needProfile": "请先选择一个 harness 配置文件。",
+    "needProfile": "请先选择一个 harness 连接。",
     "needCredential": "请先选择或添加凭据。",
-    "harness": "智能体和架构师运行所用的 harness 配置文件。",
+    "harness": "智能体和架构师运行所用的 harness 连接。",
     "model": "要使用的模型。留空则使用 harness 的默认值。",
     "useSecret": "使用密钥 {{name}} 登录。",
     "addSecret": "在这里保存新凭据，并附有获取其值的步骤。",
@@ -3689,7 +3689,7 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
 })(explainers, {
  "memory": {
   "title": "记忆",
-  "p1": "智能体在记忆中保留跨运行的笔记。每个条目都属于一个范围：某个智能体的私有记忆，或该智能体所属应用的共享记忆。运行通过 garrison_memory 工具读写，并且只能在其智能体可用的范围内操作。",
+  "p1": "智能体在记忆中保留跨运行的笔记。每个条目都属于一个范围：某个智能体的私有记忆，或该智能体所属应用、组织单元或整个组织的共享记忆。运行通过 garrison_memory 工具读写，并且只能在其智能体可用的范围内操作。",
   "p2": "每个条目都会记录写入者、来自哪次运行、写入时间及版本。指明所读版本的写入或删除，如果期间有人写入就会被拒绝，因此智能体和人员不会互相覆盖。",
   "p3": "文本是智能体或人员保存的数据。它在这里以纯文本显示，传给智能体时也只作为数据，绝不作为指令。删除不应保留的条目；之后查找它的智能体将什么也找不到。"
  }
@@ -4372,7 +4372,7 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
 })(explainers, {
  "changeRules": {
   "title": "变更规则",
-  "p1": "主管是负责某个组织单元、且其部署拥有主管管理权限的智能体。它可以对其下级单元提出变更，但永远不能涉及自身、其上级、机密、预算或这些规则。",
+  "p1": "主管是负责某个组织单元、且其部署拥有主管管理权限的智能体。它可以对其下级单元提出变更，但永远不能涉及自身、其上级、机密或这些规则，也永远不能提高预算。",
   "p2": "变更规则预先批准例行变更。它指定所涵盖子树的根单元、允许的变更类别以及可选的限制，例如每个提案最多两项变更，或唤醒间隔至少一分钟。当规则涵盖了提案中的每项变更时，提案会立即应用；其他提案会在组织的“提案”标签页中等待人员处理。",
   "p3": "每个已应用的提案都会记录为组织的一个修订版，因此你可以将其回滚。只有人员可以编写规则。"
  }
@@ -5376,5 +5376,30 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
    "confirmWord": "确认删除此代理时需要输入的词。",
    "delete": "删除此代理及其部署和修订历史。需要输入 删除 进行确认；如果有触发器、流水线、应用或通知端点在使用它，则无法删除。"
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): explainer fold and unfold, stage reviews on Approvals, and the Connections target column.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "explainer": {
+  "fold": "把 {{topic}} 的说明折叠到标题行，让下方的列表从更高处开始。点击标题可再次展开。",
+  "unfold": "展开 {{topic}} 的说明：此页面管理什么，以及它与 Garrison 其他部分的关系。"
+ },
+ "views": {
+  "approvals": {
+   "reviewsWaiting": "打开“阶段评审”标签页，在这里批准或拒绝等待人工处理的流水线阶段。侧边栏的标记也会计入它们。"
+  }
+ },
+ "runtime": {
+  "target": "连接把工作发送到哪里：提供商 API 的基础 URL、Mux 连接的端点名称，或 CLI Harness 的可执行文件。"
  }
 });

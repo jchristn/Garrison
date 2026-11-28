@@ -16,8 +16,11 @@ import { findDiagram, LABELLED_ARROWS } from './diagrams';
 /** Where the docs live for links from the dashboard. The export script passes a relative base instead. */
 export const DOCS_BASE = `${GITHUB_URL}/blob/main/docs/`;
 
-/** Width in pixels below which a diagram opens as its list. */
-export const NARROW_WIDTH = 768;
+/**
+ * Width in pixels below which a diagram opens as its list. UXP1-V023: at 768 the diagrams scale down to about 7 px
+ * text, so anything narrower than 900 starts with the list, and a diagram shown there scrolls at its own size.
+ */
+export const NARROW_WIDTH = 900;
 
 /** Resolve every label of a diagram through t(). */
 export function diagramTexts(def, t) {
@@ -176,7 +179,8 @@ function arrowEnd(points, atStart) {
 export function DiagramSvg({ def, dir, links, styleSheet = null, idPrefix }) {
   const { t } = useTranslation();
   const texts = useMemo(() => diagramTexts(def, t), [def, t]);
-  const layout = useMemo(() => layoutDiagram(def, texts, { dir }), [def, texts, dir]);
+  // UXP1-S023: class and tool names are for the docs. The dashboard draws plain words only; the docs export keeps them.
+  const layout = useMemo(() => layoutDiagram(def, texts, { dir, showCode: !!links.standalone }), [def, texts, dir, links.standalone]);
   const titleId = `${idPrefix}-title`;
   const descId = `${idPrefix}-desc`;
   const markerId = `${idPrefix}-head`;
@@ -194,7 +198,7 @@ export function DiagramSvg({ def, dir, links, styleSheet = null, idPrefix }) {
       direction={dir}
       data-dir={dir}
       data-diagram={def.id}
-      style={links.standalone ? undefined : { maxWidth: `${Math.ceil(layout.width)}px` }}
+      style={links.standalone ? undefined : { maxWidth: `${Math.ceil(layout.width)}px`, '--lg-native-width': `${Math.ceil(layout.width)}px` }}
     >
       <title id={titleId}>{texts.title}</title>
       <desc id={descId}>{desc}</desc>
@@ -241,12 +245,6 @@ export function DiagramList({ def, dir, links }) {
           <span className="learn-list-name">{text.title}</span>
         )}
         {text.body && <span className="learn-list-body"> {text.body}</span>}
-        {box.code && (
-          <>
-            {' '}
-            <code>{box.code}</code>
-          </>
-        )}
         {box.doc && (
           <>
             {' '}

@@ -235,7 +235,7 @@ const de = {
       Audit: 'Audit-Protokoll',
       RequestHistory: 'Anfrageverlauf',
       Settings: 'Einstellungen',
-      HarnessProfile: 'Harness-Profil',
+      HarnessProfile: 'Verbindung',
       PromptTemplate: 'Prompt-Vorlage',
       Agent: 'Agent',
       Deployment: 'Bereitstellung',
@@ -360,7 +360,7 @@ const de = {
       AffinityWaitExpired: 'Affinitätswartezeit abgelaufen',
       WorkspaceLost: 'Arbeitsbereich verloren',
       SessionMissing: 'Keine Sitzung zum Fortsetzen',
-      HarnessChanged: 'Harness-Profil geändert',
+      HarnessChanged: 'Verbindung geändert',
       ResumeUnsupported: 'Fortsetzen nicht unterstützt',
       ExecutorWithoutState: 'Executor ohne Zustand'
     }
@@ -765,7 +765,7 @@ const de = {
       fields: { credentialId: 'Schlüssel', roleId: 'Rolle', resourceScope: 'Geltungsbereich', resourceId: 'Ressourcen-ID', inheritsToChildren: 'Gilt für Ressourcen im Mandanten', active: 'Aktiv' }
     },
     harnessProfiles: {
-      ...rp('Harness-Profile', 'Beschreibt genau, wie eine Harness ohne Oberfläche läuft: Programm, Argumente, Umgebung, Dateien und Ausgabeauswertung.', 'Profil hinzufügen', 'Profil erstellen', 'Profil bearbeiten', 'Profildetails', 'Profil löschen', 'Noch keine Harness-Profile', 'Klonen Sie ein integriertes Profil, um den Start einer Harness anzupassen.'),
+      ...rp('Harness-Profile', 'Beschreibt genau, wie eine Harness ohne Oberfläche läuft: Programm, Argumente, Umgebung, Dateien und Ausgabeauswertung.', 'Verbindung hinzufügen', 'Verbindung erstellen', 'Verbindung bearbeiten', 'Verbindungsdetails', 'Verbindung löschen', 'Noch keine Verbindungen', 'Klonen Sie ein integriertes Profil, um den Start einer Harness anzupassen.'),
       steps: { basics: 'Grundlagen', invocation: 'Aufruf', output: 'Ausgabe', limits: 'Grenzen' },
       columns: { name: 'Name', harnessType: 'Harness', executable: 'Programm', outputParser: 'Parser', isBuiltIn: 'Herkunft', id: 'ID', createdUtc: 'Erstellt' },
       fields: {
@@ -921,9 +921,9 @@ const de = {
       approvalsOn_other: 'An, {{count}} Regeln',
       approvalsOff: 'Aus',
       promptRoles: { Repair: 'Reparatur strukturierter Ausgabe', DelegatedTask: 'Aufgabenhülle für delegierte Läufe', Task: 'Aufgabenhülle', System: 'Systemprompt', ConversationFallback: 'Konversations-Neuaufbau (Verlauf)' },
-      ...rp('Bereitstellungen', 'Bindet einen Agenten an Harness-Profil, Prompts, Geheimnisse, MCP-Server, Platzierung und Grenzen.', 'Bereitstellung hinzufügen', 'Bereitstellung erstellen', 'Bereitstellung bearbeiten', 'Bereitstellungsdetails', 'Bereitstellung löschen', 'Noch keine Bereitstellungen', 'Erstellen Sie eine Bereitstellung, um einen Agenten ausführbar zu machen.'),
+      ...rp('Bereitstellungen', 'Bindet einen Agenten an eine Verbindung, Prompts, Geheimnisse, MCP-Server, Platzierung und Grenzen.', 'Bereitstellung hinzufügen', 'Bereitstellung erstellen', 'Bereitstellung bearbeiten', 'Bereitstellungsdetails', 'Bereitstellung löschen', 'Noch keine Bereitstellungen', 'Erstellen Sie eine Bereitstellung, um einen Agenten ausführbar zu machen.'),
       steps: { approvals: 'Freigaben', basics: 'Grundlagen', harness: 'Harness', prompts: 'Prompts', resources: 'Ressourcen', overrides: 'Überschreibungen', placement: 'Platzierung und Grenzen' },
-      columns: { approvalsEnabled: 'Freigaben', name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness-Profil', model: 'Modell', executor: 'Executor', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
+      columns: { approvalsEnabled: 'Freigaben', name: 'Name', agentId: 'Agent', harnessProfileId: 'Verbindung', model: 'Modell', executor: 'Executor', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
       fields: {
         approvalsEnabled: 'Vor Werkzeugaufrufen fragen (Freigaben)',
         approvalDefaultAction: 'Wenn keine Regel zutrifft',
@@ -940,7 +940,7 @@ const de = {
         description: 'Beschreibung',
         weight: 'Verkehrsgewichtung',
         active: 'Aktiv',
-        harnessProfileId: 'Harness-Profil',
+        harnessProfileId: 'Verbindung',
         model: 'Modell',
         fallbackModel: 'Ersatzmodell',
         effort: 'Aufwand',
@@ -993,10 +993,10 @@ const de = {
         approvalDefaultAction: 'Person fragen wartet unter Freigaben, bis jemand entscheidet oder das Zeitlimit abläuft.',
         approvalTimeoutSeconds: 'Von 10 bis 3.600 Sekunden. Leer bedeutet 300.',
         approvalRules: 'Verweigern geht vor Fragen, und Fragen geht vor Erlauben. Beispiele: Bash(npm test), Bash(npm run *), Edit(src/**), WebFetch(domain:example.com), mcp__github__*.',
-        secretsKinds: 'Das Harness-Profil {{profile}} braucht ein beliebiges Geheimnis der Art {{kinds}}. Binden Sie eines unter einem beliebigen Alias.',
-        secretsAliases: 'Das Harness-Profil {{profile}} liest Geheimnisse, die unter diesen Aliasen gebunden sind: {{aliases}}.',
-        secretsNone: 'Das Harness-Profil {{profile}} liest kein Geheimnis, daher ist keine Geheimnisbindung nötig.',
-        promptBindings: 'Ordnen Sie Prompt-Rollen (System, Task, DelegatedTask und weitere vom Profil verwendete Rollen) Vorlagen zu. Ohne Version wird immer die neueste verwendet.',
+        secretsKinds: 'Die Verbindung {{profile}} braucht ein beliebiges Geheimnis der Art {{kinds}}. Binden Sie eines unter einem beliebigen Alias.',
+        secretsAliases: 'Die Verbindung {{profile}} liest Geheimnisse, die unter diesen Aliasen gebunden sind: {{aliases}}.',
+        secretsNone: 'Die Verbindung {{profile}} liest kein Geheimnis, daher ist keine Geheimnisbindung nötig.',
+        promptBindings: 'Ordnen Sie Prompt-Rollen (System, Task, DelegatedTask und weitere von der Verbindung verwendete Rollen) Vorlagen zu. Ohne Version wird immer die neueste verwendet.',
         resourceBindings: 'Aliase werden zu Vorlagenvariablen, zum Beispiel {{secret.anthropic}}.',
         weight: 'Anfragen ohne explizite Bereitstellung werden nach Gewichtung auf aktive Bereitstellungen verteilt.',
         maxConcurrentRuns: '0 bedeutet unbegrenzt.',
@@ -1178,7 +1178,7 @@ const de = {
       subtitle: 'Was Ihre Agenten und Worker-Knoten gerade tun.',
       lastLoaded: 'Aktualisiert {{time}}',
       partial: 'Einige Bereiche konnten nicht geladen werden. Die Werte sind unvollständig.',
-      getStartedTitle: 'Dieser Mandant hat noch keine Agenten',
+      getStartedTitle: 'Noch keine eigenen Agenten',
       getStartedBody: 'Der Einrichtungsassistent hinterlegt Zugangsdaten, wendet einen Beispielagenten an und startet einen Test.',
       runSetup: 'Einrichtung starten',
       kpis: {
@@ -1917,7 +1917,7 @@ const de = {
       topbar: { title: 'Kontext', body: 'Server, Mandant, Ihre Identität, Zustand und Live-Status sind hier immer sichtbar.' },
       kpis: { title: 'Auf einen Blick', body: 'Jede Karte fasst eine Ressource zusammen. Ein Klick öffnet die gefilterte Liste.' },
       invoke: { title: 'Aufrufen', body: 'Probieren Sie jeden Agenten interaktiv aus und verfolgen Sie das Protokoll live.' },
-      configure: { title: 'Konfiguration', body: 'Harness-Profile, Prompt-Vorlagen, MCP-Server und Geheimnisse bestimmen genau, was ausgeführt wird. Agenten und Bereitstellungen haben einen eigenen Bereich.' },
+      configure: { title: 'Konfiguration', body: 'Verbindungen, Prompt-Vorlagen, MCP-Server und Geheimnisse bestimmen genau, was ausgeführt wird. Agenten und Bereitstellungen haben einen eigenen Bereich.' },
       observe: { title: 'Überwachung', body: 'Anfrageverlauf, Audit und API-Explorer helfen beim Prüfen und bei der Fehlersuche.' }
     }
   },
@@ -3135,13 +3135,13 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   "serverText": {
    "capabilityDerivedEdit": "Die Fähigkeit {{name}} ist von ihrer Quelle abgeleitet und folgt ihr. Ändern Sie stattdessen die Quelle.",
    "capabilityDerivedDelete": "Die Fähigkeit {{name}} ist von ihrer Quelle abgeleitet und verschwindet mit ihr, daher kann sie nicht direkt gelöscht werden.",
-   "capabilityShared": "Die Fähigkeit {{name}} gilt für alle Mandanten und stammt aus einem integrierten Harness-Profil, daher kann sie nicht geändert werden.",
+   "capabilityShared": "Die Fähigkeit {{name}} gilt für alle Mandanten und stammt aus einer integrierten Verbindung, daher kann sie nicht geändert werden.",
    "capabilityNameConflict": "Eine manuelle Fähigkeit namens {{name}} existiert bereits.",
    "capabilitySecretsDenied": "Sie dürfen die Geheimnisse nicht verwenden, die der MCP-Server {{server}} sendet, daher wurden seine Tools nicht aufgelistet.",
    "capabilityNoStdioWorker": "Kein bereiter Worker hat die stdio-MCP-Diagnose aktiviert (GARRISON_WORKER_MCP_TESTS_ENABLED), daher konnten die Tools des stdio-Servers nicht aufgelistet werden.",
    "capabilityRefreshFailed": "Aktualisierung am {{when}} fehlgeschlagen: {{error}}",
    "capabilityMissingTools": "Erforderliche Tools fehlen: {{tools}}.",
-   "capabilityProbeShadowed": "Worker prüfen {{name}} als {{probe}}, das ein anderes Harness-Profil zuerst definiert hat. Die Definition in diesem Profil wird nicht geprüft."
+   "capabilityProbeShadowed": "Worker prüfen {{name}} als {{probe}}, das eine andere Verbindung zuerst definiert hat. Die Definition in dieser Verbindung wird nicht geprüft."
   }
  },
  "components": {
@@ -3222,7 +3222,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
     "requirementCount": "Verwenden Sie höchstens {{max}} Knotenlabel-Anforderungen.",
     "requirement": "Jede Anforderung braucht einen Knotenlabel-Schlüssel mit 1 bis {{max}} Zeichen.",
     "toolNeedsServer": "Wählen Sie den MCP-Server, zu dem das Tool gehört.",
-    "probeCount": "Ein Harness-Profil hat höchstens {{max}} Tool-Prüfungen.",
+    "probeCount": "Eine Verbindung hat höchstens {{max}} Tool-Prüfungen.",
     "probeName": "Der Tool-Name besteht aus 1 bis 63 Kleinbuchstaben, Ziffern, Punkten und Bindestrichen und beginnt mit einem Buchstaben oder einer Ziffer.",
     "probeDuplicate": "Eine andere Prüfung in diesem Profil heißt bereits {{name}}.",
     "probeExecutable": "Das Programm ist ein reiner Dateiname, der über den PATH gefunden wird (Buchstaben, Ziffern, Punkte, Unterstriche, Pluszeichen und Bindestriche), ohne Ordner.",
@@ -3255,7 +3255,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "view": "Details der Fähigkeit",
    "deleteTitle": "Fähigkeit löschen",
    "emptyTitle": "Noch keine Fähigkeiten",
-   "emptyBody": "Veröffentlichen Sie eine Agent-Revision, registrieren Sie einen MCP-Server oder fügen Sie einem Harness-Profil eine Tool-Prüfung hinzu, und aktualisieren Sie dann. Sie können auch einen manuellen Eintrag anlegen.",
+   "emptyBody": "Veröffentlichen Sie eine Agent-Revision, registrieren Sie einen MCP-Server oder fügen Sie einer Verbindung eine Tool-Prüfung hinzu, und aktualisieren Sie dann. Sie können auch einen manuellen Eintrag anlegen.",
    "columns": {
     "name": "Name",
     "kind": "Art",
@@ -3795,10 +3795,10 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
     "title": "Neuer Architekt",
     "intro": "Der Agenten-Architekt entwirft Agenten und Apps in Ihren Entwürfen. Geben Sie ihm eine Bereitstellung: ein Harness-Profil, ein Modell und den Prompt, mit dem er arbeitet. Er bearbeitet nur Ihre Entwürfe und wendet sie nie an.",
     "name": "Name der Bereitstellung",
-    "harnessProfile": "Harness-Profil",
-    "chooseProfile": "Harness-Profil wählen",
+    "harnessProfile": "Verbindung",
+    "chooseProfile": "Verbindung wählen",
     "model": "Modell",
-    "modelHint": "Leer lassen, um das Standardmodell des Harness-Profils zu verwenden.",
+    "modelHint": "Leer lassen, um das Standardmodell der Verbindung zu verwenden.",
     "prompt": "Architekten-Prompt",
     "defaultPrompt": "{{name}} (Standard)",
     "preview": "Prompt-Vorschau",
@@ -4184,7 +4184,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
      "none": "Der Entwurf enthält keine Bereitstellung von {{name}}. Holen Sie unten eine Live-Bereitstellung herein, oder bitten Sie den Architekten um eine.",
      "deployment": "Umgebung und Bereitstellung",
      "option": "{{environment}}: {{name}}",
-     "scope": "Änderungen betreffen nur {{name}} in {{environment}} (Harness-Profil {{profile}}). Andere Umgebungen behalten ihre eigenen Werte.",
+     "scope": "Änderungen betreffen nur {{name}} in {{environment}} (Verbindung {{profile}}). Andere Umgebungen behalten ihre eigenen Werte.",
      "fields": {
       "model": "Modell",
       "effort": "Aufwand",
@@ -4197,7 +4197,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
       "approvalDefaultAction": "Wenn keine Regel passt"
      },
      "hints": {
-      "timeoutSeconds": "Ganze Sekunden, mindestens 1. Leer verwendet das Limit des Harness-Profils.",
+      "timeoutSeconds": "Ganze Sekunden, mindestens 1. Leer verwendet das Limit der Verbindung.",
       "maxTurns": "Ganze Zahl, mindestens 1. Leer bedeutet, der Harness entscheidet.",
       "maxBudgetUsd": "0 oder mehr, zum Beispiel 2.50. Leer bedeutet kein Budget."
      },
@@ -4282,7 +4282,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
  },
  "views": {
   "home": {
-   "getStartedBody": "Der Einrichtungsassistent fügt Zugangsdaten hinzu, gibt dem Agenten-Architekten einen Harness und ein Modell, wendet einen Beispielagenten an und führt einen Test aus. Oder öffnen Sie das Agenten-Studio und beschreiben Sie die gewünschte App.",
+   "getStartedBody": "Starten Sie die Einrichtung, um einen Beispielagenten hinzuzufügen und ihn in wenigen Minuten auszuprobieren. Der Agenten-Assistent ist etwas anderes: Sie beschreiben, was Sie wollen, und der Agenten-Architekt entwirft die Agenten für Sie. Lernen zeigt, wie die Teile zusammenpassen.",
    "openStudio": "Agenten-Studio öffnen"
   },
   "studio": {
@@ -4375,17 +4375,17 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
  "resources": {
   "architects": {
    "title": "Architekten",
-   "subtitle": "Die Agenten-Architekten in diesem Mandanten. Jeder ist eine Bereitstellung von agent-architect mit eigenem Harness-Profil, Modell und Prompt, und jeder Studio-Entwurf kann ihn verwenden.",
+   "subtitle": "Die Agenten-Architekten in diesem Mandanten. Jeder ist eine Bereitstellung von agent-architect mit eigener Verbindung, eigenem Modell und Prompt, und jeder Studio-Entwurf kann ihn verwenden.",
    "add": "Architekt hinzufügen",
    "create": "Architekt erstellen",
    "edit": "Architekt bearbeiten",
    "view": "Architekt-Details",
    "deleteTitle": "Architekt löschen",
    "emptyTitle": "Noch keine Architekten",
-   "emptyBody": "Erstellen Sie einen Architekten, der im Agenten-Studio mit Ihnen Agenten und Apps entwirft. Wählen Sie das Harness-Profil und das Modell, auf denen er läuft, und den Prompt, mit dem er arbeitet.",
+   "emptyBody": "Erstellen Sie einen Architekten, der im Agenten-Studio mit Ihnen Agenten und Apps entwirft. Wählen Sie die Verbindung und das Modell, auf denen er läuft, und den Prompt, mit dem er arbeitet.",
    "columns": {
     "name": "Name",
-    "harnessProfileId": "Harness-Profil",
+    "harnessProfileId": "Verbindung",
     "model": "Modell",
     "architectPromptTemplateId": "Architekten-Prompt",
     "active": "Status",
@@ -4397,14 +4397,14 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "fields": {
     "name": "Name",
     "description": "Beschreibung",
-    "harnessProfileId": "Harness-Profil",
+    "harnessProfileId": "Verbindung",
     "model": "Modell",
     "architectPromptTemplateId": "Architekten-Prompt",
     "architectPromptVersion": "Festgelegte Prompt-Version",
     "active": "Aktiv"
    },
    "hints": {
-    "model": "Leer lassen, um das Standardmodell des Harness-Profils zu verwenden.",
+    "model": "Leer lassen, um das Standardmodell der Verbindung zu verwenden.",
     "architectPromptVersion": "Leer lassen, um immer die aktuelle Version des Prompts zu verwenden."
    },
    "actions": {
@@ -4538,7 +4538,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
  "components": {
   "studio": {
    "architect": {
-    "intro": "Der Agenten-Architekt entwirft Agenten und Apps in Ihren Entwürfen. Geben Sie ihm ein Harness-Profil, das Geheimnis, mit dem er sich anmeldet, ein Modell und den Prompt, mit dem er arbeitet. Er bearbeitet nur Ihre Entwürfe und wendet sie nie an."
+    "intro": "Der Agenten-Architekt entwirft Agenten und Apps in Ihren Entwürfen. Geben Sie ihm eine Verbindung, das Geheimnis, mit dem er sich anmeldet, ein Modell und den Prompt, mit dem er arbeitet. Er bearbeitet nur Ihre Entwürfe und wendet sie nie an."
    }
   }
  }
@@ -4556,7 +4556,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
   }
 })(de, {
  "wizard": {
-  "studioBody": "Der Agenten-Architekt entwirft mit Ihnen Agenten und Apps im Agenten-Studio. Wählen Sie das Harness-Profil und das Modell, auf denen er läuft, die Zugangsdaten, mit denen er sich anmeldet (das im vorigen Schritt gespeicherte Geheimnis wird gewählt, wenn es zum Harness passt), und den Architekten-Prompt, der ihn leitet. Seine Bereitstellung darf nur Ihre Studio-Entwürfe bearbeiten. Sie können diesen Schritt überspringen und später unter Agenten > Architekten einen Architekten erstellen."
+  "studioBody": "Der Agenten-Architekt entwirft mit Ihnen Agenten und Apps im Agenten-Studio. Wählen Sie die Verbindung und das Modell, auf denen er läuft, die Zugangsdaten, mit denen er sich anmeldet (das im vorigen Schritt gespeicherte Geheimnis wird gewählt, wenn es zum Harness passt), und den Architekten-Prompt, der ihn leitet. Seine Bereitstellung darf nur Ihre Studio-Entwürfe bearbeiten. Sie können diesen Schritt überspringen und später unter Agenten > Architekten einen Architekten erstellen."
  }
 });
 
@@ -4607,7 +4607,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "GenericEnv": {
     "s1": "Fügen Sie einen einzelnen Wert ein: ein Token, ein Passwort oder eine URL, die ein Harness oder Werkzeug aus einer Umgebungsvariable liest.",
     "s2": "Binden Sie das Geheimnis unter einem Alias an eine Bereitstellung und fügen Sie eine Umgebungsüberschreibung hinzu, die es verwendet, zum Beispiel:",
-    "s3": "Die Variable muss in der Zugangsdaten-Positivliste des Harness-Profils stehen, sonst wird die Bereitstellung abgelehnt."
+    "s3": "Die Variable muss in der Zugangsdaten-Positivliste der Verbindung stehen, sonst wird die Bereitstellung abgelehnt."
    },
    "GenericFile": {
     "s1": "Fügen Sie die ganze Datei mit Zeilenumbrüchen ein: ein Dienstkonto-JSON, ein Zertifikat oder eine Konfigurationsdatei.",
@@ -4796,7 +4796,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
    "access": {
     "title": "Modellzugriff",
     "intro": "Wählen Sie den Harness, auf dem Ihre Agenten laufen, und die Zugangsdaten, mit denen er sich anmeldet. Der Agenten-Architekt nutzt denselben Harness und dieselben Zugangsdaten, während er mit Ihnen entwirft.",
-    "harness": "Harness-Profil",
+    "harness": "Verbindung",
     "harnessHint": "Das CLI, das die Agenten ausführt, zum Beispiel Claude Code oder Codex.",
     "model": "Modell",
     "modelHint": "Optional. Leer lassen, um das Standardmodell des Harness zu verwenden.",
@@ -4815,7 +4815,7 @@ de.tips.enums.auditEventType.QueueFull = "Die Aufnahme wurde abgelehnt, weil ein
     "contents": "Im Entwurf",
     "empty": "Noch nichts. Der Architekt fügt hier Agenten hinzu, sobald er sie entwirft.",
     "agents": "KI-Agenten",
-    "firstMessage": "Ich möchte Folgendes bauen: {{goal}}\n\nDie Agenten laufen auf dem Harness-Profil {{profile}} mit dem Zugangsdaten-Geheimnis {{secret}}. Fragen Sie mich alles, was Sie wissen müssen, und entwerfen Sie dann die Agenten in diesem Entwurf.",
+    "firstMessage": "Ich möchte Folgendes bauen: {{goal}}\n\nDie Agenten laufen auf der Verbindung {{profile}} mit dem Zugangsdaten-Geheimnis {{secret}}. Fragen Sie mich alles, was Sie wissen müssen, und entwerfen Sie dann die Agenten in diesem Entwurf.",
     "chatTitle": "Chat mit {{architect}}",
     "next": "Weiter zur Prüfung"
    },
@@ -5190,7 +5190,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   "tickOutcome": {
    "Quiet": "Ruhig",
    "Acted": "Gehandelt",
-   "Attention": "Braucht Aufmerksamkeit",
+   "Attention": "Aufmerksamkeit",
    "Escalated": "Eskaliert",
    "Failed": "Fehlgeschlagen",
    "Skipped": "Übersprungen",
@@ -5566,7 +5566,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     "columns": {
      "started": "Wann der Zyklus gestartet wurde. Zeigen Sie mit der Maus darauf für die genaue Zeit.",
      "source": "Was den Wächter für diesen Zyklus geweckt hat.",
-     "outcome": "Was der Zyklus gemeldet hat: ruhig, gehandelt, braucht Aufmerksamkeit, eskaliert oder fehlgeschlagen.",
+     "outcome": "Was der Zyklus gemeldet hat: Ruhig, Gehandelt, Aufmerksamkeit, Eskaliert oder Fehlgeschlagen.",
      "run": "Der Lauf, der den Zyklus ausgeführt hat.",
      "interval": "Die Wartezeit bis zum nächsten Aufwachen, so wie beim Ende dieses Zyklus festgelegt.",
      "cost": "Was der Lauf des Zyklus gekostet hat, laut Modellpreisliste.",
@@ -5807,8 +5807,8 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
  },
  "tips": {
   "nav": {
-   "escalationsBadge_one": "{{count}} Eskalation wartet auf eine Antwort. Öffnen Sie Autonomie und dann Eskalationen.",
-   "escalationsBadge_other": "{{count}} Eskalationen warten auf eine Antwort. Öffnen Sie Autonomie und dann Eskalationen.",
+   "escalationsBadge_one": "{{count}} Eskalation wartet auf eine Antwort. Klicken Sie auf die Zahl, um Eskalationen zu öffnen.",
+   "escalationsBadge_other": "{{count}} Eskalationen warten auf eine Antwort. Klicken Sie auf die Zahl, um Eskalationen zu öffnen.",
    "tabs": {
     "escalations": "Eskalationen: Fragen, die Agenten einer Person, einer Rolle oder einem anderen Agenten gestellt haben, offene zuerst, mit Antworten und Abbrechen."
    }
@@ -6009,7 +6009,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   "liftKeeperMessage": "Die Sperre von {{target}} aufheben? Der Wächter wird wieder aktiv, und sein nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
   "bannerOwn": "Gesperrt: Neue Läufe werden abgelehnt, bis die Sperre aufgehoben ist.",
   "bannerTarget": "{{target}} ist gesperrt: Neue Läufe davon werden abgelehnt.",
-  "bannerKillSwitch": "Der Autonomie-Notschalter ist eingeschaltet: In diesem Mandanten starten keine Wächter-Ticks.",
+  "bannerKillSwitch": "Der Autonomie-Notschalter ist eingeschaltet: In diesem Mandanten wacht kein Wächter auf, und keine Nachricht weckt einen Agenten.",
   "bannerBy": "Gesperrt von {{who}} {{when}}.",
   "bannerReason": "Grund: {{reason}}",
   "openTarget": "Öffnen",
@@ -6046,14 +6046,14 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    "off": "Aus",
    "turnOn": "Einschalten",
    "turnOff": "Ausschalten",
-   "help": "Solange der Notschalter eingeschaltet ist, starten keine Wächter-Ticks, und Wächter-Läufe werden abgelehnt. Aufrufe durch Personen und API-Zugangsdaten funktionieren weiter.",
+   "help": "Solange der Notschalter eingeschaltet ist, wacht kein Wächter auf, keine Nachricht weckt einen Agenten, und Wächter-Läufe werden abgelehnt. Aufrufe durch Personen und API-Zugangsdaten funktionieren weiter.",
    "changedBy": "Eingeschaltet von {{who}} {{when}}.",
    "onTitle": "Notschalter einschalten?",
-   "onMessage": "Alle Wächter in diesem Mandanten wachen nicht mehr auf, und Wächter-Läufe werden abgelehnt, bis der Schalter ausgeschaltet wird. Laufende Ticks werden beendet.",
+   "onMessage": "Jeder Wächter in diesem Mandanten hört auf aufzuwachen, keine Nachricht weckt einen Agenten, und Wächter-Läufe werden abgelehnt, bis der Schalter ausgeschaltet wird. Bereits laufende Zyklen laufen zu Ende.",
    "offTitle": "Notschalter ausschalten?",
    "offMessage": "Die Wächter wachen wieder auf; ihr nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
    "toasts": {
-    "on": "Der Notschalter ist eingeschaltet. Es starten keine Wächter-Ticks.",
+    "on": "Der Notschalter ist eingeschaltet. Kein Wächter wacht auf, und keine Nachricht weckt einen Agenten.",
     "off": "Der Notschalter ist ausgeschaltet. Die Wächter wachen wieder auf."
    }
   }
@@ -6120,7 +6120,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     "App": "Eine Anwendung: Neue Unterhaltungen und Nachrichten in ihrem Chat werden abgelehnt.",
     "OrgUnit": "Eine Organisationseinheit. Erst verfügbar, wenn es Organisationen gibt.",
     "Organization": "Eine ganze Organisation. Erst verfügbar, wenn es Organisationen gibt.",
-    "TenantAutonomy": "Der Notschalter: Im ganzen Mandanten starten keine Wächter-Ticks."
+    "TenantAutonomy": "Der Notschalter: Im ganzen Mandanten wacht kein Wächter auf, und keine Nachricht weckt einen Agenten."
    }
   },
   "freezes": {
@@ -6148,7 +6148,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    },
    "killSwitch": {
     "title": "Ein Schalter, der alle Wächter in diesem Mandanten anhält. Normale Aufrufe funktionieren weiter.",
-    "on": "Ein: Es starten keine Wächter-Ticks, und Wächter-Läufe werden abgelehnt.",
+    "on": "Ein: Kein Wächter wacht auf, keine Nachricht weckt einen Agenten, und Wächter-Läufe werden abgelehnt.",
     "off": "Aus: Wächter wachen nach ihrem Zeitplan auf.",
     "turnOn": "Alle Wächter in diesem Mandanten anhalten. Sie bestätigen zuerst.",
     "turnOff": "Wächter wieder aufwachen lassen. Sie bestätigen zuerst."
@@ -6184,9 +6184,9 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
  "explainers": {
   "freezes": {
    "title": "Sperren",
-   "p1": "Eine Sperre ist eine Bremse. Solange sie aktiv ist, lehnt Garrison neue Läufe des gesperrten Agenten, der gesperrten Bereitstellung, des gesperrten Wächters oder der gesperrten Anwendung mit 409 Frozen ab, und betroffene Wächter wachen nicht mehr auf. Bereits aktive Läufe laufen zu Ende, außer die Sperre bricht sie ebenfalls ab.",
-   "p2": "Sperren Sie auf der Seite eines Agenten, einer Bereitstellung, eines Wächters oder einer Anwendung oder hier mit Etwas sperren. Nach dem Aufheben werden Läufe wieder angenommen; ein gesperrter Wächter wird aktiv, und sein nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
-   "p3": "Der Autonomie-Notschalter in den Einstellungen und auf der Startseite hält alle Wächter-Ticks im Mandanten auf einmal an. Er erscheint hier als Sperre der Art Notschalter."
+   "p1": "Eine Sperre ist eine Bremse. Solange sie aktiv ist, lehnt Garrison neue Läufe des gesperrten Agenten, der Bereitstellung, des Wächters, der Anwendung, der Einheit oder der Organisation mit 409 Frozen ab, und betroffene Wächter wachen nicht mehr auf. Bereits aktive Läufe laufen zu Ende, außer die Sperre bricht sie ebenfalls ab.",
+   "p2": "Sperren Sie auf der Seite eines Agenten, einer Bereitstellung, eines Wächters oder einer Anwendung oder hier mit Etwas sperren. Einheiten und ganze Organisationen sperren Sie auf ihrem Board. Nach dem Aufheben werden Läufe wieder angenommen; ein gesperrter Wächter wird aktiv, und sein nächstes Aufwachen wird über ein kurzes Zeitfenster verteilt.",
+   "p3": "Der Autonomie-Notschalter in den Einstellungen und auf der Startseite hält auf einmal jedes Aufwachen von Wächtern und jedes Wecken durch Nachrichten im Mandanten an, während normale Aufrufe weiter funktionieren. Er erscheint hier als Sperre der Art Notschalter."
   }
  }
 });
@@ -9259,8 +9259,8 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   "diagrams": {
    "runtime": {
     "title": "Die Laufzeit",
-    "summary": "Ein Mandant enthält Agenten und die Bereitstellungen, die sie ausführen. Eine Bereitstellung verbindet einen Agenten mit einem Harness-Profil, einem Modell, seinen Prompts und einem Knotenpool. Jede Anfrage wird zu einem Lauf, und ein Worker-Knoten aus diesem Pool holt sich den Lauf und startet das Harness. Worker greifen nie auf die Datenbank zu: Alles, was sie brauchen, kommt mit der Lease.",
-    "desc": "Ein Mandant enthält Zugangsschlüssel, Agenten, Harness-Profile, Bereitstellungen und Läufe. Knotenpools und Worker-Knoten bilden eine Flotte, die sich die Mandanten teilen.",
+    "summary": "Ein Mandant enthält Agenten und die Bereitstellungen, die sie ausführen. Eine Bereitstellung bindet einen Agenten an eine Verbindung, ein Modell, seine Prompts und einen Knotenpool. Jede Anfrage wird zu einem Lauf, und ein Worker-Knoten aus diesem Pool holt sich den Lauf und startet das Harness. Worker greifen nie auf die Datenbank zu: Alles, was sie brauchen, kommt mit der Lease.",
+    "desc": "Ein Mandant enthält Zugangsschlüssel, Agenten, Verbindungen, Bereitstellungen und Läufe. Knotenpools und Worker-Knoten bilden eine Flotte, die sich die Mandanten teilen.",
     "groups": {
      "tenant": "Mandant",
      "fleet": "Gemeinsame Flotte"
@@ -9275,12 +9275,12 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
       "body": "Das, was Aufrufer über REST, MCP oder A2A aufrufen. Er führt unveränderliche Revisionen."
      },
      "harnessProfile": {
-      "title": "Harness-Profil",
+      "title": "Verbindung",
       "body": "Wie ein Harness-CLI oder eine API ohne Oberfläche läuft. Im Dashboard heißt es Verbindung."
      },
      "deployment": {
       "title": "Bereitstellung",
-      "body": "Verbindet einen Agenten mit Harness-Profil, Modell, Prompts und Knotenpool."
+      "body": "Bindet einen Agenten an eine Verbindung, ein Modell, Prompts und einen Knotenpool."
      },
      "nodePool": {
       "title": "Knotenpool",
@@ -9406,8 +9406,8 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    },
    "teams": {
     "title": "Agenten-Teams",
-    "summary": "Agenten schreiben einander über Postfächer. Eine Nachricht ist Post, kein Telefonat: Der Absender macht weiter, und der Empfänger liest sie bei seinem nächsten Lauf oder sofort, wenn sie dringend ist. Jede Nachricht passiert zuerst die Schleifenschutzregeln, und eine abgelehnte Nachricht bleibt mit ihrem Grund gespeichert, damit Sie sehen, wer wen erreichen wollte.",
-    "desc": "Eine Nachricht passiert die Schleifenschutzregeln ins Postfach des Empfängers oder wird als Abgelehnt gespeichert. Normale Post wartet auf den nächsten Lauf des Empfängers, dringende Post weckt ihn.",
+    "summary": "Agenten schreiben sich über ihre Posteingänge. Eine Nachricht ist Post, kein Anruf: Der Absender macht weiter, und der Empfänger liest sie bei seinem nächsten Lauf oder sofort, wenn sie dringend ist. Jede Sendung passiert zuerst die Schleifenschutzregeln, und eine abgelehnte Nachricht wird mit ihrem Grund aufbewahrt, sodass Sie sehen, wer wen erreichen wollte.",
+    "desc": "Eine Nachricht passiert die Schleifenschutzregeln und landet im Posteingang des Empfängers, oder sie wird als Abgelehnt gespeichert. Normale Post wartet auf den nächsten Lauf des Empfängers, dringende Post weckt ihn.",
     "boxes": {
      "sender": {
       "title": "Absender",
@@ -9418,7 +9418,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
       "body": "In dieser Reihenfolge: Empfänger eingefroren, keine Verbindung, Weiterleitungsgrenze, Verlaufsbudget, Senderate."
      },
      "mailbox": {
-      "title": "Postfach",
+      "title": "Posteingang",
       "body": "Die wartenden Nachrichten des Empfängers, die älteste zuerst."
      },
      "normal": {
@@ -9495,7 +9495,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    },
    "selfRevision": {
     "title": "Selbstüberarbeitung",
-    "summary": "Ein Führungsagent ist eine Einheitsleitung, die Änderungen an den Einheiten unter sich vorschlagen darf. Er schreibt einen gewöhnlichen Studio-Entwurf, und ExecutiveDraftValidator prüft ihn gegen harte Grenzen, die nichts aufheben kann: nichts an ihm selbst, nichts über oder außerhalb seines Teilbaums, keine Geheimnisse, keine Budgeterhöhungen und kein Verwaltungszugriff. Ein Entwurf, den die Änderungsregeln der Menschen vollständig abdecken, wird sofort angewendet. Alles andere wartet auf einen Menschen. Jede Anwendung veröffentlicht eine Organisationsrevision und speichert einen Rückgängig-Entwurf, sodass eine Zurücksetzung sie aufhebt.",
+    "summary": "Ein Führungsagent ist eine Einheitsleitung, die Änderungen an den Einheiten unter sich vorschlagen darf. Er schreibt einen gewöhnlichen Studio-Entwurf, und eine feste Prüfung prüft ihn gegen harte Grenzen, die nichts aufheben kann: nichts an ihm selbst, nichts über oder außerhalb seines Teilbaums, keine Geheimnisse, keine Budgeterhöhungen und kein Verwaltungszugriff. Ein Entwurf, den die Änderungsregeln der Menschen vollständig abdecken, wird sofort angewendet. Alles andere wartet auf einen Menschen. Jede Anwendung veröffentlicht eine Organisationsrevision und speichert einen Rückgängig-Entwurf, sodass eine Zurücksetzung sie aufhebt.",
     "desc": "Ein Führungsagent schreibt einen Entwurf. Harte Grenzen lehnen ihn ab oder reichen ihn an die Änderungsregeln weiter, die eine Eval-Schranke zurückhalten kann. Ein abgedeckter Entwurf wird angewendet, alles andere wartet auf einen Menschen, der Belege aus Schattentests und Canary-Freigaben sieht. Jede Anwendung veröffentlicht eine Organisationsrevision mit Rückgängig-Entwurf, und eine Zurücksetzung stellt sie wieder her.",
     "boxes": {
      "executive": {
@@ -9625,11 +9625,11 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    },
    "deployment": {
     "term": "Bereitstellung",
-    "def": "Ein Agent, verbunden mit Harness-Profil, Modell, Prompts und Knotenpool. Ein Agent kann mehrere haben, gewählt nach Gewicht."
+    "def": "Ein Agent, gebunden an eine Verbindung, ein Modell, Prompts und einen Knotenpool. Ein Agent kann mehrere haben, gewählt nach Gewicht."
    },
    "harnessProfile": {
-    "term": "Harness-Profil",
-    "def": "Wie ein Harness-CLI oder eine Anbieter-API ohne Oberfläche läuft: Argumente, Prompt-Übergabe und Ausgabeparser. Das Dashboard führt sie unter Verbindungen."
+    "term": "Verbindung (Harness-Profil)",
+    "def": "Wie ein Harness-CLI oder eine Anbieter-API ohne Oberfläche läuft: Argumente, Prompt-Übergabe und Ausgabeparser. Dokumentation und API nennen es Harness-Profil; das Dashboard nennt es Verbindung und führt sie unter Verbindungen."
    },
    "nodePool": {
     "term": "Knotenpool",
@@ -9805,7 +9805,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   },
   "sample": {
    "title": "Beispiel laden?",
-   "body": "{{tour}} braucht {{need}}, und dieser Mandant hat noch keins. Du kannst {{example}} über die Manifestanwendung laden oder ohne weitermachen und die Schritte überspringen, die nichts zu zeigen haben.",
+   "body": "{{tour}} braucht {{need}}, und dieser Mandant hat noch keine. Sie können {{example}} laden oder ohne weitermachen und die Schritte überspringen, die nichts zu zeigen haben.",
    "contents_one": "Beim Laden wird {{count}} Ressource angewendet:",
    "contents_other": "Beim Laden werden {{count}} Ressourcen angewendet:",
    "checking": "Es wird geprüft, was die Anwendung ändern würde...",
@@ -9822,8 +9822,8 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     "organizations": "eine Organisation"
    },
    "examples": {
-    "gerbil": "das Beispiel gerbil",
-    "siteReliability": "das Beispiel Site Reliability"
+    "gerbil": "das Beispiel gerbil (ein Agent und sein Wächter)",
+    "siteReliability": "das Beispiel Site Reliability (eine Organisation aus fünf Agenten, jeder mit einem Wächter)"
    }
   },
   "homeCard": {
@@ -9851,7 +9851,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     },
     "kpis": {
      "title": "Auf einen Blick",
-     "body": "Was gerade los ist: Agenten, Bereitstellungen, heute aktive oder fehlgeschlagene Läufe und die Worker-Knoten, die Arbeit annehmen können. Klicke auf eine Karte, um die Liste dahinter zu öffnen."
+     "body": "Was gerade passiert: Agenten, Bereitstellungen, jetzt aktive Läufe und Läufe, die in den letzten 24 Stunden erfolgreich waren oder fehlschlugen, sowie die arbeitsbereiten Worker-Knoten. Klicken Sie auf eine Karte, um die Liste dahinter zu öffnen."
     },
     "invoke": {
      "title": "Aufrufen",
@@ -9859,7 +9859,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     },
     "autonomy": {
      "title": "Agenten, die selbstständig arbeiten",
-     "body": "Gib einem Agenten eine dauerhafte Aufgabe, und er arbeitet, ohne gefragt zu werden. Ein Wächter weckt ihn nach Zeitplan, und dazwischen kann er anderen Agenten schreiben, Berichte einreichen, sich Gelerntes merken und dir eine Frage eskalieren. Eine Sperre hält all das sofort an."
+     "body": "Gib einem Agenten eine dauerhafte Aufgabe, und er arbeitet, ohne gefragt zu werden. Ein Wächter weckt ihn nach Zeitplan, und dazwischen kann er anderen Agenten schreiben, Berichte einreichen, sich Gelerntes merken und dir eine Frage eskalieren. Der Notschalter hält all das auf einmal an. Die Tour Agenten auf eigene Faust zeigt jeden Teil."
     },
     "organizations": {
      "title": "Organisationen",
@@ -9984,7 +9984,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     },
     "attention": {
      "title": "Braucht Aufmerksamkeit",
-     "body": "Was jetzt eine Person braucht: offene Eskalationen, ungesunde Berichte und Einheiten an einer Budgetgrenze. Arbeite diese Liste zuerst ab."
+     "body": "Was jetzt eine Person braucht: offene Eskalationen, Berichte mit Beeinträchtigt oder Gestört und Einheiten, die eine Budgetgrenze erreicht haben. Arbeiten Sie diese Liste zuerst ab."
     },
     "performance": {
      "title": "Leistung",
@@ -10551,5 +10551,95 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   "harnessProfiles": {
    "p2": "Einmal hier konfigurieren. Architekten und Bereitstellungen verweisen auf diese Verbindung; Änderungen gelten beim nächsten Lauf für alle Nutzer."
   }
+ }
+});
+
+// LP5.5 (UX pass 1 fixes): the Agents on their own tour (LP4.11), plain names in the example offer and the setup
+// wizard, Invoke without a runnable agent, stage reviews on Approvals, and keeper interval labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "learn": {
+  "tours": {
+   "agentsOnTheirOwn": "Agenten auf eigene Faust"
+  }
+ },
+ "tours": {
+  "agentsOnTheirOwn": {
+   "summary": "Ein Wächter, wann er aufwacht, was jeder Zyklus getan hat, und die Nachrichten, Erinnerungen und Eskalationen, die er hinterlässt.",
+   "steps": {
+    "keepers": {
+     "title": "Wächter",
+     "body": "Ein Wächter gibt einem Agenten eine dauerhafte Aufgabe, etwa eine Warteschlange kurz zu halten, und weckt ihn nach Zeitplan, damit er sich darum kümmert. Wächter hinzufügen wählt den Agenten, die Bereitstellung für seine Zyklen und das Ziel. Klicken Sie auf einen Wächter, um seine Seite zu öffnen."
+    },
+    "schedule": {
+     "title": "Wann er aufwacht",
+     "body": "Mit Bei Ruhe verlängern beginnt der Wächter mit dem kürzesten Intervall und wartet nach jedem ruhigen Zyklus länger, bis zum längsten. Ein Zyklus mit Aufmerksamkeit, Eskalation oder Fehler bringt ihn zurück zum kürzesten. Mit Festes Intervall wartet er immer das kürzeste. Auch die Ausgabengrenzen stehen hier."
+    },
+    "ticks": {
+     "title": "Zyklen",
+     "body": "Jedes Aufwachen ist ein Zyklus, und jeder Zyklus ist ein gewöhnlicher Lauf. Eine Zeile zeigt, warum er aufwachte, sein Ergebnis, etwa Ruhig, Gehandelt, Aufmerksamkeit oder Eskaliert, was er kostete und die Zusammenfassung, die der Wächter für seinen nächsten Zyklus hinterließ. Öffnen Sie den Lauf oder seine Spur, um genau zu sehen, was er tat."
+    },
+    "revisions": {
+     "title": "Revisionen",
+     "body": "Eine Revision enthält die Aufgabe: das Ziel, was gesund bedeutet, was der Wächter allein tun darf und wann er fragen soll. Eine neue zu veröffentlichen macht sie aktuell und weckt den Wächter sofort. Veröffentlichte Revisionen ändern sich nie, daher ist diese Liste die ganze Geschichte, und Vergleichen zeigt, was jede geändert hat."
+    },
+    "messages": {
+     "title": "Nachrichten",
+     "body": "Hier schreiben sich Agenten gegenseitig, und mit Nachricht senden schreiben Sie selbst einem. Eine Nachricht wartet im Posteingang des Empfängers auf seinen nächsten Lauf oder weckt ihn sofort, wenn sie dringend ist. Antworten bilden einen Verlauf; öffnen Sie eine Nachricht, um den ganzen Verlauf zu lesen. Nachrichten, die die Schleifenschutzregeln abgelehnt haben, bleiben mit dem Grund aufgeführt."
+    },
+    "memory": {
+     "title": "Gedächtnis",
+     "body": "Was Agenten zwischen Läufen gespeichert haben, nach Bereich: ein Agent, eine Anwendung, eine Einheit oder eine ganze Organisation. Jeder Eintrag zeigt, wer ihn geschrieben hat und aus welchem Lauf. Ein Wächter bekommt seine mit recall markierten Einträge bei jedem Zyklus mit. Löschen Sie einen Eintrag, der nicht behalten werden soll."
+    },
+    "escalations": {
+     "title": "Eskalationen",
+     "body": "Erreicht ein Wächter eine Entscheidung, die sein Auftrag nicht abdeckt, fragt er hier und beendet seinen Zyklus. Antworten Sie, und die Antwort weckt den Wächter einmal mit Ihrer Antwort. Die Zahl an Autonomie in der Seitenleiste zählt die offenen."
+    }
+   }
+  },
+  "sample": {
+   "kinds": {
+    "Agent": "Agent",
+    "Deployment": "Bereitstellung",
+    "HarnessProfile": "Verbindung",
+    "Mandate": "Wächter",
+    "Organization": "Organisation",
+    "PromptTemplate": "Prompt-Vorlage"
+   }
+  }
+ },
+ "wizard": {
+  "appliedTitle": "Das Beispielmanifest hat Folgendes angelegt:"
+ },
+ "views": {
+  "home": {
+   "kpis": {
+    "architectOnly": "Nur der eingebaute Agenten-Architekt"
+   }
+  },
+  "invoke": {
+   "chooseAgent": "Agenten wählen",
+   "noRunnable": "Noch kann kein Agent in diesem Mandanten laufen: Keiner hat eine aktive Bereitstellung mit einer Gewichtung über null. Starten Sie die Einrichtung, um einen Beispielagenten hinzuzufügen, der ohne Zugangsdaten funktioniert."
+  },
+  "approvals": {
+   "reviewsWaiting_one": "{{count}} Prüfung einer Pipeline-Stufe wartet auf der Registerkarte Stufenprüfungen.",
+   "reviewsWaiting_other": "{{count}} Prüfungen von Pipeline-Stufen warten auf der Registerkarte Stufenprüfungen.",
+   "openReviews": "Stufenprüfungen öffnen"
+  },
+  "keeperDetail": {
+   "minInterval": "Kürzestes Intervall",
+   "maxInterval": "Längstes Intervall"
+  }
+ },
+ "runtime": {
+  "target": "Endpunkt oder Programm"
  }
 });

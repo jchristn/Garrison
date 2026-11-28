@@ -1,45 +1,92 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useInRouterContext } from 'react-router-dom';
-import { InfoIcon, XIcon } from './Icons';
+import { ChevronDownIcon, ChevronRightIcon, InfoIcon, XIcon } from './Icons';
 import { tip } from './Tooltip';
 import { STORAGE_KEYS } from '../utils/constants';
 import { learnPathForTopic } from './learn/learnSections';
 
 const PARAGRAPHS = ['p1', 'p2', 'p3', 'p4'];
 
-function readHidden() {
+/** Below this width an explainer starts folded to its title line (UXP1-V022). */
+export const EXPLAINER_NARROW_WIDTH = 768;
+
+const SEEN_KEY = `${STORAGE_KEYS.explainers}:seen`;
+
+function readMap(key) {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.explainers) || '{}') || {};
+    return JSON.parse(localStorage.getItem(key) || '{}') || {};
   } catch {
     return {};
   }
 }
 
-function writeHidden(topic, hidden) {
+function writeMap(key, topic, value) {
   try {
-    const all = readHidden();
-    if (hidden) all[topic] = true;
+    const all = readMap(key);
+    if (value) all[topic] = value;
     else delete all[topic];
-    localStorage.setItem(STORAGE_KEYS.explainers, JSON.stringify(all));
+    localStorage.setItem(key, JSON.stringify(all));
   } catch {
     /* ignore */
   }
 }
 
+function readHidden() {
+  return readMap(STORAGE_KEYS.explainers);
+}
+
+function writeHidden(topic, hidden) {
+  writeMap(STORAGE_KEYS.explainers, topic, hidden ? true : null);
+}
+
+function isNarrow() {
+  try {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia(`(max-width: ${EXPLAINER_NARROW_WIDTH - 1}px)`).matches;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether an explainer starts open (UXP1-V022): open on the first view of its topic, folded to its title line after
+ * that, and folded from the start below 768 pixels. Opening or folding one by hand is remembered for the topic.
+ */
+export function explainerStartsOpen(topic) {
+  const seen = readMap(SEEN_KEY)[topic];
+  if (seen === 'open') return true;
+  if (seen === 'closed') return false;
+  if (isNarrow()) return false;
+  return !seen;
+}
+
 /**
  * "How this relates" info panel shown at the top of a page or tab. Text lives in `explainers.<topic>` (title plus
- * paragraphs p1 to p4). Dismissing it collapses it to a small "About ..." button that reopens it; the choice is
- * remembered per topic in localStorage.
+ * paragraphs p1 to p4). The first time a person sees a topic it is open; after that it is folded to its title line so
+ * the list below starts on the first screen, and a click on the title opens it again. Dismissing it collapses it to a
+ * small "About ..." button that reopens it. Both choices are remembered per topic in localStorage.
  */
 export default function Explainer({ topic, diagram = null }) {
   const { t, i18n } = useTranslation();
   const [hidden, setHidden] = useState(() => !!readHidden()[topic]);
+  const [open, setOpen] = useState(() => explainerStartsOpen(topic));
   const title = t(`explainers.${topic}.title`);
+  const bodyId = `explainer-body-${topic}`;
+
+  // The first view is recorded once, so the next visit starts folded.
+  useEffect(() => {
+    if (!readMap(SEEN_KEY)[topic]) writeMap(SEEN_KEY, topic, 'seen');
+  }, [topic]);
 
   const toggle = (next) => {
     setHidden(next);
     writeHidden(topic, next);
+  };
+
+  const fold = (next) => {
+    setOpen(next);
+    writeMap(SEEN_KEY, topic, next ? 'open' : 'closed');
   };
 
   if (hidden) {
@@ -51,17 +98,32 @@ export default function Explainer({ topic, diagram = null }) {
   }
 
   return (
-    <section className="explainer" aria-label={title} data-testid={`explainer-${topic}`}>
+    <section className={`explainer${open ? '' : ' is-folded'}`} aria-label={title} data-testid={`explainer-${topic}`} data-open={open ? 'true' : 'false'}>
       <span className="explainer-icon" aria-hidden="true">
         <InfoIcon />
       </span>
       <div className="explainer-body">
-        <div className="explainer-title">{title}</div>
-        {diagram}
-        {PARAGRAPHS.filter((p) => i18n.exists(`explainers.${topic}.${p}`)).map((p) => (
-          <p key={p}>{t(`explainers.${topic}.${p}`)}</p>
-        ))}
-        <DiagramLink topic={topic} />
+        <button
+          type="button"
+          className="explainer-title explainer-fold"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => fold(!open)}
+          data-testid={`explainer-fold-${topic}`}
+          {...tip(t(open ? 'tips.explainer.fold' : 'tips.explainer.unfold', { topic: title }))}
+        >
+          {open ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
+          <span>{title}</span>
+        </button>
+        {open && (
+          <div id={bodyId}>
+            {diagram}
+            {PARAGRAPHS.filter((p) => i18n.exists(`explainers.${topic}.${p}`)).map((p) => (
+              <p key={p}>{t(`explainers.${topic}.${p}`)}</p>
+            ))}
+            <DiagramLink topic={topic} />
+          </div>
+        )}
       </div>
       <div className="explainer-actions">
         <button type="button" className="icon-button" onClick={() => toggle(true)} aria-label={t('components.explainer.dismiss')} data-testid={`explainer-dismiss-${topic}`} {...tip(t('tips.explainer.dismiss'))}>
