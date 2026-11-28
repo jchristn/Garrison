@@ -1,0 +1,42 @@
+{
+  "originId": "usr_operator1",
+  "focusRunId": "run_b2",
+  "nodes": [
+    { "id": "usr_operator1", "kind": "Caller", "state": null, "agentId": null, "agentName": null, "unitId": null, "unitName": null, "deploymentId": null, "startedUtc": "2026-11-27T10:00:00.000Z", "endedUtc": null, "durationMs": null, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com" },
+    { "id": "run_a1", "kind": "Run", "state": "Succeeded", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "unt_sre", "unitName": "Site reliability", "deploymentId": "dep_lead", "startedUtc": "2026-11-27T10:00:01.000Z", "endedUtc": "2026-11-27T10:04:10.000Z", "durationMs": 249000, "inputTokens": 5200, "outputTokens": 1300, "costUsd": 0.042, "runKind": "Invoke", "isFocus": false, "lane": "agt_lead", "callerType": null, "callerName": null },
+    { "id": "eff_1", "kind": "Effect", "state": "Completed", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "unt_sre", "unitName": "Site reliability", "deploymentId": null, "startedUtc": "2026-11-27T10:00:20.000Z", "endedUtc": "2026-11-27T10:00:21.000Z", "durationMs": 1000, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_lead", "callerType": null, "callerName": null, "toolName": "garrison_send_message" },
+    { "id": "msg_1", "kind": "Message", "state": "Delivered", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "unt_sre", "unitName": "Site reliability", "deploymentId": null, "startedUtc": "2026-11-27T10:00:21.000Z", "endedUtc": "2026-11-27T10:00:22.000Z", "durationMs": 1000, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_lead", "callerType": null, "callerName": null },
+    { "id": "run_b2", "kind": "Run", "state": "Succeeded", "agentId": "agt_triage", "agentName": "Triage", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": "dep_triage", "startedUtc": "2026-11-27T10:00:25.000Z", "endedUtc": "2026-11-27T10:03:00.000Z", "durationMs": 155000, "inputTokens": 3100, "outputTokens": 900, "costUsd": 0.021, "runKind": "Message", "isFocus": true, "lane": "agt_triage", "callerType": null, "callerName": null },
+    { "id": "fan_1", "kind": "FanOutGroup", "state": "Completed", "agentId": "agt_triage", "agentName": "Triage", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": null, "startedUtc": "2026-11-27T10:00:40.000Z", "endedUtc": "2026-11-27T10:02:10.000Z", "durationMs": 90000, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_triage", "callerType": null, "callerName": null },
+    { "id": "run_c3", "kind": "Run", "state": "Succeeded", "agentId": "agt_logs", "agentName": "Log reader", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": "dep_logs", "startedUtc": "2026-11-27T10:00:41.000Z", "endedUtc": "2026-11-27T10:01:50.000Z", "durationMs": 69000, "inputTokens": 1800, "outputTokens": 400, "costUsd": 0.009, "runKind": "Delegated", "isFocus": false, "lane": "agt_logs", "callerType": null, "callerName": null },
+    { "id": "run_c4", "kind": "Run", "state": "Failed", "agentId": "agt_metrics", "agentName": "Metrics reader", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": "dep_metrics", "startedUtc": "2026-11-27T10:00:41.000Z", "endedUtc": "2026-11-27T10:01:05.000Z", "durationMs": 24000, "inputTokens": 900, "outputTokens": 100, "costUsd": 0.004, "runKind": "Delegated", "isFocus": false, "lane": "agt_metrics", "callerType": null, "callerName": null },
+    { "id": "run_c5", "kind": "Run", "state": "Succeeded", "agentId": "agt_metrics", "agentName": "Metrics reader", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": "dep_metrics", "startedUtc": "2026-11-27T10:01:06.000Z", "endedUtc": "2026-11-27T10:02:05.000Z", "durationMs": 59000, "inputTokens": 1000, "outputTokens": 300, "costUsd": 0.005, "runKind": "Retry", "isFocus": false, "lane": "agt_metrics", "callerType": null, "callerName": null },
+    { "id": "esc_1", "kind": "Escalation", "state": "Answered", "agentId": "agt_triage", "agentName": "Triage", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": null, "startedUtc": "2026-11-27T10:02:20.000Z", "endedUtc": "2026-11-27T10:02:50.000Z", "durationMs": 30000, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_triage", "callerType": null, "callerName": null },
+    { "id": "red_1", "kind": "Redacted", "state": null, "agentId": null, "agentName": null, "unitId": null, "unitName": null, "deploymentId": null, "startedUtc": "2026-11-27T10:02:30.000Z", "endedUtc": null, "durationMs": null, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_triage", "callerType": null, "callerName": null, "redactedKind": "Approval" },
+    { "id": "rpt_1", "kind": "Report", "state": "Filed", "agentId": "agt_triage", "agentName": "Triage", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": null, "startedUtc": "2026-11-27T10:02:58.000Z", "endedUtc": null, "durationMs": null, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_triage", "callerType": null, "callerName": null },
+    { "id": "msg_2", "kind": "Message", "state": "Delivered", "agentId": "agt_triage", "agentName": "Triage", "unitId": "unt_oncall", "unitName": "On call", "deploymentId": null, "startedUtc": "2026-11-27T10:02:59.000Z", "endedUtc": "2026-11-27T10:03:00.000Z", "durationMs": 1000, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "agt_triage", "callerType": null, "callerName": null },
+    { "id": "run_a6", "kind": "Run", "state": "Succeeded", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "unt_sre", "unitName": "Site reliability", "deploymentId": "dep_lead", "startedUtc": "2026-11-27T10:03:05.000Z", "endedUtc": "2026-11-27T10:04:05.000Z", "durationMs": 60000, "inputTokens": 2000, "outputTokens": 700, "costUsd": 0.012, "runKind": "Message", "isFocus": false, "lane": "agt_lead", "callerType": null, "callerName": null },
+    { "id": "rep_run_a1", "kind": "Reply", "state": "Succeeded", "agentId": null, "agentName": null, "unitId": null, "unitName": null, "deploymentId": null, "startedUtc": "2026-11-27T10:04:10.000Z", "endedUtc": null, "durationMs": null, "inputTokens": null, "outputTokens": null, "costUsd": null, "runKind": null, "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com" }
+  ],
+  "edges": [
+    { "fromId": "usr_operator1", "toId": "run_a1", "kind": "Started", "atUtc": "2026-11-27T10:00:01.000Z" },
+    { "fromId": "run_a1", "toId": "eff_1", "kind": "Performed", "atUtc": "2026-11-27T10:00:20.000Z" },
+    { "fromId": "run_a1", "toId": "msg_1", "kind": "Sent", "atUtc": "2026-11-27T10:00:21.000Z" },
+    { "fromId": "msg_1", "toId": "run_b2", "kind": "Woke", "atUtc": "2026-11-27T10:00:25.000Z" },
+    { "fromId": "run_b2", "toId": "fan_1", "kind": "FannedOut", "atUtc": "2026-11-27T10:00:40.000Z" },
+    { "fromId": "fan_1", "toId": "run_c3", "kind": "Spawned", "atUtc": "2026-11-27T10:00:41.000Z" },
+    { "fromId": "fan_1", "toId": "run_c4", "kind": "Spawned", "atUtc": "2026-11-27T10:00:41.000Z" },
+    { "fromId": "run_c4", "toId": "run_c5", "kind": "Retried", "atUtc": "2026-11-27T10:01:06.000Z" },
+    { "fromId": "run_b2", "toId": "esc_1", "kind": "Raised", "atUtc": "2026-11-27T10:02:20.000Z" },
+    { "fromId": "run_b2", "toId": "red_1", "kind": "Requested", "atUtc": "2026-11-27T10:02:30.000Z" },
+    { "fromId": "esc_1", "toId": "run_b2", "kind": "Answered", "atUtc": "2026-11-27T10:02:50.000Z" },
+    { "fromId": "run_b2", "toId": "rpt_1", "kind": "Filed", "atUtc": "2026-11-27T10:02:58.000Z" },
+    { "fromId": "run_b2", "toId": "msg_2", "kind": "Sent", "atUtc": "2026-11-27T10:02:59.000Z" },
+    { "fromId": "msg_2", "toId": "run_a6", "kind": "Woke", "atUtc": "2026-11-27T10:03:05.000Z" },
+    { "fromId": "run_a1", "toId": "rep_run_a1", "kind": "Replied", "atUtc": "2026-11-27T10:04:10.000Z" }
+  ],
+  "truncation": "None",
+  "nodeCount": 15,
+  "hopCount": 2,
+  "generatedUtc": "2026-11-27T10:05:00.000Z"
+}

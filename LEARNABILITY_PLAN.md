@@ -184,7 +184,7 @@ New types in `src/Garrison.Core`, one per file:
 | `RunTrailNodeKindEnum` | enum | `Caller`, `Trigger`, `KeeperTick`, `Run`, `Message`, `Report`, `Escalation`, `Approval`, `Effect`, `FanOutGroup`, `PipelineRun`, `Reply`, `Redacted` |
 | `RunTrailEdgeKindEnum` | enum | `Started`, `Spawned`, `FannedOut`, `Retried`, `Sent`, `Woke`, `Filed`, `Raised`, `Routed`, `Answered`, `Requested`, `Decided`, `Performed`, `Replied` |
 | `RunTrailTruncationEnum` | enum | `None`, `NodeCap`, `HopCap`, `SpanCap` |
-| `RunTrailNode` | class | `Id` (the record ID), `Kind`, `State`, `AgentId`, `AgentName`, `UnitId`, `UnitName`, `DeploymentId`, `StartedUtc`, `EndedUtc`, `DurationMs`, `InputTokens`, `OutputTokens`, `CostUsd`, `RunKind`, `IsFocus`, `Lane` (the agent ID, or `caller`) |
+| `RunTrailNode` | class | `Id` (the record ID), `Kind`, `State`, `AgentId`, `AgentName`, `UnitId`, `UnitName`, `DeploymentId`, `StartedUtc`, `EndedUtc`, `DurationMs`, `InputTokens`, `OutputTokens`, `CostUsd`, `RunKind`, `IsFocus`, `Lane` (the agent ID, or `caller`), `CallerType` and `CallerName` (Caller and Reply nodes), `ToolName` (Effect nodes; the tool name, never its arguments), `RedactedKind` (Redacted nodes) |
 | `RunTrailEdge` | class | `FromId`, `ToId`, `Kind`, `AtUtc` |
 | `RunTrail` | class | `OriginId`, `FocusRunId`, `Nodes`, `Edges`, `Truncation`, `NodeCount`, `HopCount`, `GeneratedUtc` |
 | `RunTrailSettings` | class | `MaxNodes` (default 500, min 10, max 5000), `MaxMessageHops` (default 12, min 0, max 50), `MaxSpanHours` (default 72, min 1, max 720), `IncludeEffects` (default true) |
@@ -275,7 +275,7 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
   Accept: migrate-twice, tenant isolation, and backup coverage on both providers.
 - [ ] LP1.3 Enums and models from section 6.1, plus `RunTrailSettings` with clamped setters.  Accept: build is clean; XML docs state defaults and bounds.
 - [ ] LP1.4 Batched data-layer reads: `I*Methods` methods that take a tenant ID and an ID set, with Sqlite and Postgresql implementations, async with `CancellationToken`, and an `IEnumerable` method paired with its async variant where one is returned.  Accept: Touchstone cases on both providers.
-- [ ] LP1.5 `RunTrailService` per section 6.2, with LP-003 origin resolution, caps, dedupe, LP-004 filtering, and the `Reply` node. Freeze the JSON shape and commit `dashboard/src/tests/fixtures/runTrail.json` so LP2 can start.  Accept: the fixture matches the serialized model.
+- [ ] LP1.5 `RunTrailService` per section 6.2, with LP-003 origin resolution, caps, dedupe, LP-004 filtering, and the `Reply` node. The JSON shape is fixed by `dashboard/src/tests/fixtures/runTrail.json` (committed with LP0 so LP2 could start; camelCase, enums as strings).  Accept: a Touchstone case serializes a built trail and checks it has exactly the fixture's property names.
 - [ ] LP1.6 REST route in `RunTrailRoutes.cs` (a registrar class), with OpenAPI metadata, scope map entry, request history capture, and the run-token 403 (LP-010).  Accept: route cases for 200, 404, cross-tenant 404, and the run-token 403.
 - [ ] LP1.7 Management MCP tool `garrison_get_run_trail` with a typed `McpGetRunTrailArguments`, an input schema, `structuredContent`, and run-token hiding.  Accept: tool listed for a person's token and absent for a run token.
 - [ ] LP1.8 Telemetry and settings per section 6.3, including a panel on the runs Grafana dashboard.  Accept: metric names in `GarrisonMetricCatalog`; label cardinality checked by `LabelGuard`; settings documented.
