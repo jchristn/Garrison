@@ -5069,3 +5069,61 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "關閉導覽。可以喺學習頁面或者側邊欄嘅導覽重新開始。",
+  "back": "返去導覽嘅上一步。",
+  "next": "去下一步。導覽會打開嗰一步所在嘅頁面。",
+  "done": "完成導覽，同埋幫你記低做完咗。",
+  "hub": "開始{{tour}}導覽，一步一步帶你行過主控台呢部分。",
+  "start": "開始{{tour}}導覽。佢會打開講到嘅每一頁。",
+  "replay": "你做完咗{{tour}}。由第一步再行一次。",
+  "finished": "你做完咗呢個導覽。喺呢個租用戶入面佢會一直幫你記住。",
+  "pickerLearn": "打開學習頁面：用圖講 Garrison 點樣配合，每部分都有一個導覽。",
+  "sampleLoad": "而家套用範例資訊清單。上面嘅清單顯示佢會建立或者改動嘅所有嘢。",
+  "sampleContinue": "唔載入範例照行導覽。冇嘢顯示嘅步驟會附註跳過。",
+  "homeCardOpen": "打開學習頁面，入面有講 Garrison 點樣配合嘅圖，同埋每部分嘅導覽。",
+  "homeCardDismiss": "收埋呢張卡。喺呢個租用戶入面佢會一直幫你收埋。",
+  "wizardLearn": "關閉精靈，打開學習頁面。",
+  "wizardTour": "關閉精靈，開始執行一個代理程式導覽。"
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "由指令碼、SDK 或者其他服務發出嘅 REST API 呼叫。",
+   "Mcp": "經 Garrison MCP 伺服器發出嘅工具呼叫。",
+   "A2a": "另一個代理程式經 A2A 協定傳過嚟嘅任務。",
+   "App": "代理式應用程式終端用戶頁面上面嘅一輪對話。",
+   "Dashboard": "由人喺呢個主控台啟動，例如喺調用頁面。",
+   "Trigger": "由 cron 排程或者簽咗名嘅 Webhook 啟動。",
+   "Keeper": "守護者照排程醒咗，行咗一次巡檢。",
+   "Message": "傳俾代理程式嘅訊息將佢叫醒做一次新嘅執行。",
+   "Escalation": "對上報嘅答覆令呢次執行繼續或者醒返。",
+   "Eval": "一次評估執行入面嘅一個案例。",
+   "Shadow": "影子試驗喺候選部署上面行嘅線上執行副本。",
+   "Internal": "由 Garrison 自己啟動，例如重試或者管線階段。"
+  },
+  "columns": {
+   "entrySurface": "開始呢條軌跡嘅請求係點樣去到 Garrison。"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "請求去到 Garrison 嘅途徑：API、MCP、A2A、應用程式、主控台、觸發器、守護者、訊息等等。"
+   }
+  },
+  "edges": {
+   "Shadowed": "影子試驗喺候選部署上面行咗呢次線上執行嘅副本，用嚟比較兩者。",
+   "Delivered": "呢個訊息去到一個已經行緊嘅執行，由佢喺收件匣讀，而唔係叫醒新嘅執行。"
+  }
+ }
+});

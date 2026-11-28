@@ -9757,3 +9757,280 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "tours": {
+  "ui": {
+   "finding": "Finding the next step...",
+   "skippedMissing": "Skipped {{step}}, which is not on the page right now.",
+   "skippedNoRecord": "Skipped {{step}}: this tenant has nothing to show there yet.",
+   "endTitle": "End of the tour",
+   "endBody": "That is all of {{tour}}. Replay it any time from Learn or from Guided tour in the sidebar."
+  },
+  "hub": {
+   "label": "Start the {{tour}} tour"
+  },
+  "picker": {
+   "title": "Guided tours",
+   "intro": "Each tour walks through the real pages for one job, a few steps at a time. Finished tours are marked, and you can replay any of them.",
+   "start": "Start",
+   "replay": "Replay",
+   "finished": "Finished",
+   "learn": "Open Learn",
+   "steps_one": "{{count}} step",
+   "steps_other": "{{count}} steps"
+  },
+  "sample": {
+   "title": "Load an example?",
+   "body": "{{tour}} needs {{need}}, and this tenant has none yet. You can load {{example}} through the manifest apply, or carry on without it and skip the steps that have nothing to show.",
+   "contents_one": "Loading it applies {{count}} resource:",
+   "contents_other": "Loading it applies {{count}} resources:",
+   "checking": "Checking what the apply would change...",
+   "fake": "Everything runs on the fake harness, so it needs no credential and costs nothing. Its keepers start waking within seconds.",
+   "runsLater": "The run steps need a run. The first keeper tick makes one a few seconds after the apply.",
+   "load": "Load the example",
+   "loading": "Loading...",
+   "continue": "Continue without it",
+   "loaded": "Loaded {{example}}.",
+   "needs": {
+    "agents": "an agent",
+    "runs": "a run",
+    "keepers": "a keeper",
+    "organizations": "an organization"
+   },
+   "examples": {
+    "gerbil": "the gerbil example",
+    "siteReliability": "the site reliability example"
+   }
+  },
+  "homeCard": {
+   "title": "New here? Start with Learn",
+   "body": "The Learn page shows how the parts of Garrison fit together, with short tours that walk through the real pages.",
+   "open": "Open Learn",
+   "dismiss": "Dismiss"
+  },
+  "wizard": {
+   "nextTitle": "What next",
+   "nextBody": "The Learn page explains how the parts fit together, and the Run an agent tour walks the same path through the dashboard.",
+   "learn": "Open Learn",
+   "tour": "Take the Run an agent tour"
+  },
+  "firstLook": {
+   "summary": "The sidebar, the top bar, Home, and where to find help.",
+   "steps": {
+    "sidebar": {
+     "title": "Navigation",
+     "body": "Everything is grouped into hubs down this side. A hub's pages show as tabs across the top, and each tab has its own link."
+    },
+    "topbar": {
+     "title": "Where you are",
+     "body": "The top bar shows the server and tenant you are working in, who you are signed in as, and whether the server is healthy and updates are live."
+    },
+    "kpis": {
+     "title": "At a glance",
+     "body": "These cards count agents, deployments, runs, and nodes. Click a card to open the list behind it."
+    },
+    "invoke": {
+     "title": "Invoke",
+     "body": "Pick an agent, send it a message, and watch its transcript stream in."
+    },
+    "autonomy": {
+     "title": "Autonomy",
+     "body": "Keepers, messages, reports, memory, escalations, and freezes: everything for agents that work on their own."
+    },
+    "organizations": {
+     "title": "Organizations",
+     "body": "Units of agents with leads and budgets, the board you watch them from, and the change rules their executives work under."
+    },
+    "help": {
+     "title": "Help",
+     "body": "Setup wizard runs first-time setup again, Guided tour lists every tour, and Learn has diagrams of how it all fits. The ? button on a page starts its tour."
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "From a connection to an agent, a deployment, an invocation, and the run it makes.",
+   "steps": {
+    "connections": {
+     "title": "Connections",
+     "body": "A connection is a harness profile: which CLI or API to launch, and how. Set one up once and every deployment can use it."
+    },
+    "agents": {
+     "title": "Agents",
+     "body": "An agent is the name callers use, with how it is exposed and what its answers look like. On its own it runs nothing."
+    },
+    "deployments": {
+     "title": "Deployments",
+     "body": "A deployment makes an agent runnable: a connection, a model, prompts, and limits. With more than one, calls split by weight."
+    },
+    "invoke": {
+     "title": "Invoke",
+     "body": "Choose an agent, and a deployment if you want a particular one, type a message, and press Send. The output streams in next to the form."
+    },
+    "run": {
+     "title": "The run",
+     "body": "Each invocation is a run. Its page has the status and ID at the top, with tabs for the transcript, result, input, and more."
+    },
+    "trail": {
+     "title": "The Trail tab",
+     "body": "Trail follows the request through every agent and back to the reply. The Follow a request tour covers it."
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "The Trail tab of a run: its three views, the totals, and the step details.",
+   "steps": {
+    "views": {
+     "title": "Three views",
+     "body": "Sequence gives each agent a lane with time running down. Graph puts each step after what caused it. List shows every step as a row you can filter."
+    },
+    "summary": {
+     "title": "The totals",
+     "body": "How many agents took part, how many messages passed between them, how long it took, the tokens and cost, and how many steps failed."
+    },
+    "steps": {
+     "title": "Steps",
+     "body": "Each box is a step: a run, message, report, escalation, approval, or tool call. Arrow keys move between steps, and Enter opens one."
+    },
+    "drawer": {
+     "title": "Step details",
+     "body": "The drawer shows a step's state, times, and cost. Text an agent wrote shows as plain data with who wrote it, and Open record goes to the full record."
+    },
+    "actions": {
+     "title": "Refresh and export",
+     "body": "While a step is still running, the trail refreshes on the interval you pick here. Export JSON downloads the steps and links, with no text that agents wrote."
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "The Design tab of an organization: the canvas, people, keepers, budgets, and publishing.",
+   "steps": {
+    "canvas": {
+     "title": "The canvas",
+     "body": "Each box is a unit, with its lead and members at the top and the units that report to it inside. Lines between boxes are peer lines, which let two units message each other directly."
+    },
+    "palette": {
+     "title": "People",
+     "body": "Drag an agent from this list onto a unit, or pick one and choose the unit and whether it leads or joins."
+    },
+    "keepers": {
+     "title": "Keepers",
+     "body": "With a unit selected, this tab lists who in it has a keeper. Attach one, create a new one, or change when it wakes."
+    },
+    "budget": {
+     "title": "Budget",
+     "body": "Give the unit a Day or Month cap. It covers everything the unit and every unit below it run."
+    },
+    "publish": {
+     "title": "Publish",
+     "body": "Changes save to the working tree at once, but nothing goes live until you publish here. Every revision is kept, so you can roll back."
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "The brakes: the kill switch, freezes, spend caps, change rules, and approvals.",
+   "steps": {
+    "killSwitch": {
+     "title": "Kill switch",
+     "body": "Turn this on and no keeper in the tenant wakes, and no message wakes an agent either. Ordinary invocations keep working."
+    },
+    "freezes": {
+     "title": "Freezes",
+     "body": "A freeze refuses new runs of an agent, deployment, keeper, or app until a person lifts it. Units and whole organizations are frozen from their board."
+    },
+    "spendCaps": {
+     "title": "Spend caps",
+     "body": "A keeper can have a budget per tick and per day. When the day's budget is spent, it stops until the next UTC day and asks a person."
+    },
+    "changeRules": {
+     "title": "Change rules",
+     "body": "Rules pre-approve routine changes an executive may make in the units below it. Only people write them, and anything a rule does not cover waits for a person."
+    },
+    "approvals": {
+     "title": "Approvals",
+     "body": "When a deployment asks before tool calls, the calls that need a person wait here. Allow or deny each one, and remember the answer as a rule if you like."
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "The board, performance, reports, and escalations of an organization.",
+   "steps": {
+    "board": {
+     "title": "The board",
+     "body": "Each unit's health, open escalations, brakes, and last report, on the chart and in a table."
+    },
+    "attention": {
+     "title": "Needs attention",
+     "body": "Open escalations, unhealthy reports, and units at a budget cap, in one place."
+    },
+    "performance": {
+     "title": "Performance",
+     "body": "Runs, outcomes, cost, latency, and escalations for each unit, over the window you choose."
+    },
+    "reports": {
+     "title": "Reports",
+     "body": "What runs and people filed about how things stand. A filed report cannot be changed, and its text shows as data, never as instructions."
+    },
+    "escalations": {
+     "title": "Escalations",
+     "body": "Questions agents raised for a person, a role, or another agent. Open ones come first, and you answer them from here."
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "REST API",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "App",
+   "Dashboard": "Dashboard",
+   "Trigger": "Trigger",
+   "Keeper": "Keeper",
+   "Message": "Message",
+   "Escalation": "Escalation",
+   "Eval": "Eval",
+   "Shadow": "Shadow",
+   "Internal": "Internal"
+  },
+  "columns": {
+   "entrySurface": "Came in through"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Came in through"
+   }
+  },
+  "edges": {
+   "Shadowed": "shadowed",
+   "Delivered": "delivered"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "No keeper in the tenant wakes, and no message wakes an agent. Ordinary invocations keep working."
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "A tenant-wide freeze of autonomy. No keeper wakes and no message wakes an agent, while ordinary invocations keep working."
+   }
+  }
+ }
+});

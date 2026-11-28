@@ -5069,3 +5069,61 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "ツアーを閉じます。学ぶページか、サイドバーのガイドツアーから再開できます。",
+  "back": "ツアーの前のステップに戻ります。",
+  "next": "次のステップに進みます。ツアーはそのステップがあるページを開きます。",
+  "done": "ツアーを終え、あなたの完了済みとして記録します。",
+  "hub": "{{tour}} ツアーを開始し、ダッシュボードのこの部分をステップごとに案内します。",
+  "start": "{{tour}} ツアーを開始します。説明する各ページを開いていきます。",
+  "replay": "{{tour}} は完了済みです。最初のステップからもう一度見られます。",
+  "finished": "このツアーは完了済みです。このテナントでは印が付いたままになります。",
+  "pickerLearn": "学ぶページを開きます。Garrison のつながりを示す図と、部分ごとのツアーがあります。",
+  "sampleLoad": "サンプルのマニフェストを今すぐ適用します。上の一覧に、作成または変更されるものがすべて表示されています。",
+  "sampleContinue": "サンプルなしでツアーを進めます。表示するもののないステップは、注記付きでスキップされます。",
+  "homeCardOpen": "学ぶページを開きます。Garrison のつながりを示す図と、部分ごとのツアーがあります。",
+  "homeCardDismiss": "このカードを隠します。このテナントでは、あなたには表示されなくなります。",
+  "wizardLearn": "ウィザードを閉じて、学ぶページを開きます。",
+  "wizardTour": "ウィザードを閉じて、エージェントを実行するツアーを始めます。"
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "スクリプト、SDK、別のサービスからの REST API 呼び出しです。",
+   "Mcp": "Garrison の MCP サーバー経由のツール呼び出しです。",
+   "A2a": "別のエージェントが A2A プロトコルで送ったタスクです。",
+   "App": "エージェントアプリのエンドユーザー画面でのチャットのやり取りです。",
+   "Dashboard": "このダッシュボードで人が開始しました。たとえば呼び出し画面からです。",
+   "Trigger": "cron スケジュールか署名付き Webhook が開始しました。",
+   "Keeper": "キーパーがスケジュールどおりに起動し、ティックを実行しました。",
+   "Message": "エージェントへのメッセージが新しい実行として起動しました。",
+   "Escalation": "エスカレーションへの回答が実行を再開、または起動しました。",
+   "Eval": "評価実行の 1 ケースです。",
+   "Shadow": "シャドートライアルが候補のデプロイメントで動かした本番実行のコピーです。",
+   "Internal": "Garrison 自身が開始しました。たとえば再試行やパイプラインのステージです。"
+  },
+  "columns": {
+   "entrySurface": "このトレイルの始まりのリクエストが、どこから Garrison に届いたかです。"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "リクエストが Garrison に届いた経路です。API、MCP、A2A、アプリ、ダッシュボード、トリガー、キーパー、メッセージなどがあります。"
+   }
+  },
+  "edges": {
+   "Shadowed": "シャドートライアルが、この本番実行のコピーを候補のデプロイメントで動かし、両者を比べました。",
+   "Delivered": "メッセージは新しい実行を起動せず、すでに動いている実行に届き、その受信箱から読まれました。"
+  }
+ }
+});

@@ -13,7 +13,7 @@ import { jsonToText } from '../../utils/jsonFields';
 import { formatDateTime, formatNumber } from '../../i18n/formatters';
 import { formatMs, formatUsd } from '../../utils/telemetry';
 import { owningRunId } from '../../utils/trailLayout';
-import { TrailState, kindLabel, kindTip, stateTip, stepPath, stepTitle } from './trailParts';
+import { TrailState, entrySurfaceLabel, entrySurfaceTip, kindLabel, kindTip, stateTip, stepPath, stepTitle } from './trailParts';
 
 /**
  * Load the record behind a step from its existing detail route (LP-002: the trail itself carries no agent text).
@@ -170,6 +170,7 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
       role="region"
       aria-labelledby={titleId}
       data-testid="trail-drawer"
+      data-tour="trail-drawer"
       data-step-id={node.id}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -201,6 +202,11 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
             <Field label={t('trail.drawer.fields.kind')} tipText={t('tips.trail.drawer.fields.kind')}><span {...tip(kindTip(t, node.kind))}>{kindLabel(t, node.kind)}</span></Field>
             <Field label={t('trail.drawer.fields.state')} tipText={t('tips.trail.drawer.fields.state')}><span {...tip(stateTip(t, node.state))}><TrailState t={t} state={node.state} /></span></Field>
             {(node.agentName || node.callerName) && <Field label={t('trail.drawer.fields.agent')} tipText={t('tips.trail.drawer.fields.agent')}>{node.agentName || node.callerName}</Field>}
+            {node.entrySurface && (
+              <Field label={t('trail.drawer.fields.entrySurface')} tipText={t('tips.trail.drawer.fields.entrySurface')}>
+                <span {...tip(entrySurfaceTip(t, node.entrySurface))}>{entrySurfaceLabel(t, node.entrySurface)}</span>
+              </Field>
+            )}
             {node.unitName && <Field label={t('trail.drawer.fields.unit')} tipText={t('tips.trail.drawer.fields.unit')}>{node.unitName}</Field>}
             {node.runKind && <Field label={t('trail.drawer.fields.runKind')} tipText={t('tips.trail.drawer.fields.runKind')}>{enumLabel(t, 'runKind', node.runKind)}</Field>}
             {node.toolName && <Field label={t('trail.drawer.fields.tool')} tipText={t('tips.trail.drawer.fields.tool')}><code>{node.toolName}</code></Field>}

@@ -5071,3 +5071,61 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "Fermer la visite. Vous pouvez la relancer depuis Apprendre ou depuis Visite guidée dans la barre latérale.",
+  "back": "Revenir à l'étape précédente de la visite.",
+  "next": "Passer à l'étape suivante. La visite ouvre la page où elle se trouve.",
+  "done": "Terminer la visite et la marquer comme faite pour vous.",
+  "hub": "Lance la visite {{tour}}, qui parcourt cette partie du tableau de bord étape par étape.",
+  "start": "Lance la visite {{tour}}. Elle ouvre chaque page dont elle parle.",
+  "replay": "Vous avez terminé {{tour}}. Refaites-la depuis la première étape.",
+  "finished": "Vous avez terminé cette visite. Elle reste marquée pour vous dans ce locataire.",
+  "pickerLearn": "Ouvre la page Apprendre : des diagrammes de l'assemblage de Garrison, avec une visite pour chaque partie.",
+  "sampleLoad": "Applique maintenant le manifeste de l'exemple. La liste ci-dessus montre tout ce qu'il crée ou modifie.",
+  "sampleContinue": "Fait la visite sans l'exemple. Les étapes sans rien à montrer sont passées avec une note.",
+  "homeCardOpen": "Ouvre la page Apprendre, avec des diagrammes de l'assemblage de Garrison et une visite pour chaque partie.",
+  "homeCardDismiss": "Masquer cette carte. Elle reste masquée pour vous dans ce locataire.",
+  "wizardLearn": "Ferme l'assistant et ouvre la page Apprendre.",
+  "wizardTour": "Ferme l'assistant et lance la visite Exécuter un agent."
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "Un appel à l'API REST, depuis un script, un SDK ou un autre service.",
+   "Mcp": "Un appel d'outil via le serveur MCP de Garrison.",
+   "A2a": "Une tâche envoyée par un autre agent via le protocole A2A.",
+   "App": "Un tour de chat sur la page utilisateur d'une app agentique.",
+   "Dashboard": "Lancée par une personne dans ce tableau de bord, par exemple depuis Invoquer.",
+   "Trigger": "Une planification cron ou un webhook signé l'a lancée.",
+   "Keeper": "Un gardien s'est réveillé selon son calendrier et a exécuté un cycle.",
+   "Message": "Un message à un agent l'a réveillé sous forme de nouvelle exécution.",
+   "Escalation": "La réponse à une escalade a repris ou réveillé l'exécution.",
+   "Eval": "Un cas d'une exécution d'évaluation.",
+   "Shadow": "La copie d'une exécution réelle sur le déploiement candidat, issue d'un essai fantôme.",
+   "Internal": "Garrison l'a lancée lui-même, par exemple une nouvelle tentative ou une étape de pipeline."
+  },
+  "columns": {
+   "entrySurface": "Comment la requête qui ouvre ce parcours est arrivée dans Garrison."
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Comment la requête est arrivée dans Garrison : l'API, MCP, A2A, une app, le tableau de bord, un déclencheur, un gardien, un message, etc."
+   }
+  },
+  "edges": {
+   "Shadowed": "Un essai fantôme a exécuté une copie de cette exécution réelle sur le déploiement candidat, pour comparer les deux.",
+   "Delivered": "Le message a atteint une exécution déjà en cours, qui l'a lu dans sa boîte, au lieu de réveiller une nouvelle exécution."
+  }
+ }
+});

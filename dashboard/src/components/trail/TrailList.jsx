@@ -7,7 +7,7 @@ import { formatDateTime, formatNumber } from '../../i18n/formatters';
 import { formatMs, formatUsd } from '../../utils/telemetry';
 import { enumLabel } from '../../utils/enums';
 import { buildLanes, filterTrailNodes, laneOf, orderedNodes } from '../../utils/trailLayout';
-import { TrailState, edgeLabel, edgeTip, kindLabel, kindTip, laneName, stateLabel, stepTitle } from './trailParts';
+import { TrailState, edgeLabel, edgeTip, entrySurfaceLabel, entrySurfaceTip, kindLabel, kindTip, laneName, stateLabel, stepTitle } from './trailParts';
 
 /**
  * The list view of an activity trail (LP2.5): every step in time order in a LocalTableFrame (`run-trail`, with the
@@ -49,6 +49,13 @@ export default function TrailList({ trail, selectedId, onOpen, onRefresh }) {
       csv: (n) => n.kind
     },
     { key: 'lane', label: t('trail.columns.agent'), tip: t('tips.trail.columns.agent'), render: (n) => laneNames.get(laneOf(n)) || '-', csv: (n) => n.agentName || n.callerName || '' },
+    {
+      key: 'entrySurface',
+      label: t('trail.columns.entrySurface'),
+      tip: t('tips.trail.columns.entrySurface'),
+      render: (n) => (n.entrySurface ? <span {...tip(entrySurfaceTip(t, n.entrySurface))}>{entrySurfaceLabel(t, n.entrySurface)}</span> : '-'),
+      csv: (n) => n.entrySurface || ''
+    },
     { key: 'state', label: t('trail.columns.state'), tip: t('tips.trail.columns.state'), pinned: true, render: (n) => <TrailState t={t} state={n.state} />, csv: (n) => n.state || '' },
     {
       key: 'reachedBy',

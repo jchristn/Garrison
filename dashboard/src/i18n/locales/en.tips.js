@@ -5069,3 +5069,61 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "Close the tour. You can start it again from Learn or from Guided tour in the sidebar.",
+  "back": "Go back to the previous step of the tour.",
+  "next": "Go to the next step. The tour opens the page that step is on.",
+  "done": "Finish the tour and mark it as done for you.",
+  "hub": "Start the {{tour}} tour, which walks through this part of the dashboard step by step.",
+  "start": "Start the {{tour}} tour. It opens each page it talks about.",
+  "replay": "You finished {{tour}}. Take it again from the first step.",
+  "finished": "You finished this tour. It stays marked for you in this tenant.",
+  "pickerLearn": "Open the Learn page: diagrams of how Garrison fits together, with a tour for each part.",
+  "sampleLoad": "Apply the example manifest now. The list above shows everything it creates or changes.",
+  "sampleContinue": "Run the tour without the example. Steps with nothing to show are skipped with a note.",
+  "homeCardOpen": "Open the Learn page, with diagrams of how Garrison fits together and a tour for each part.",
+  "homeCardDismiss": "Hide this card. It stays hidden for you in this tenant.",
+  "wizardLearn": "Close the wizard and open the Learn page.",
+  "wizardTour": "Close the wizard and start the Run an agent tour."
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "A call to the REST API, from a script, an SDK, or another service.",
+   "Mcp": "A tool call through the Garrison MCP server.",
+   "A2a": "A task sent by another agent over the A2A protocol.",
+   "App": "A chat turn in an agentic app's end-user page.",
+   "Dashboard": "Started by a person in this dashboard, for example from Invoke.",
+   "Trigger": "A cron schedule or a signed webhook started it.",
+   "Keeper": "A keeper woke on its schedule and ran a tick.",
+   "Message": "A message to an agent woke it as a new run.",
+   "Escalation": "The answer to an escalation resumed or woke the run.",
+   "Eval": "One case of an eval run.",
+   "Shadow": "A shadow trial's copy of a live run on the candidate deployment.",
+   "Internal": "Garrison started it itself, for example a retry or a pipeline stage."
+  },
+  "columns": {
+   "entrySurface": "How the request that started this trail reached Garrison."
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "How the request reached Garrison: the API, MCP, A2A, an app, the dashboard, a trigger, a keeper, a message, and so on."
+   }
+  },
+  "edges": {
+   "Shadowed": "A shadow trial ran a copy of this live run on the candidate deployment, to compare the two.",
+   "Delivered": "The message reached a run that was already running, which read it from its inbox, instead of waking a new run."
+  }
+ }
+});

@@ -5068,3 +5068,61 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "關閉導覽。可以在學習頁面或側邊欄的導覽中重新開始。",
+  "back": "回到導覽的上一步。",
+  "next": "前往下一步。導覽會開啟那一步所在的頁面。",
+  "done": "結束導覽，並為你標記為已完成。",
+  "hub": "開始{{tour}}導覽，一步一步帶你走過主控台的這一部分。",
+  "start": "開始{{tour}}導覽。它會開啟講到的每個頁面。",
+  "replay": "你已完成{{tour}}。從第一步再走一次。",
+  "finished": "你已完成這個導覽。在這個租用戶中它會一直為你標記。",
+  "pickerLearn": "開啟學習頁面：用圖說明 Garrison 如何配合，每個部分都有一個導覽。",
+  "sampleLoad": "現在套用範例資訊清單。上面的清單顯示它會建立或變更的全部內容。",
+  "sampleContinue": "不載入範例直接進行導覽。沒有內容可顯示的步驟會附註說明後略過。",
+  "homeCardOpen": "開啟學習頁面，裡面有說明 Garrison 如何配合的圖，以及每個部分的導覽。",
+  "homeCardDismiss": "隱藏這張卡片。在這個租用戶中它會一直對你隱藏。",
+  "wizardLearn": "關閉精靈並開啟學習頁面。",
+  "wizardTour": "關閉精靈並開始執行一個代理程式導覽。"
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "來自指令碼、SDK 或其他服務的 REST API 呼叫。",
+   "Mcp": "透過 Garrison MCP 伺服器發出的工具呼叫。",
+   "A2a": "另一個代理程式透過 A2A 協定送來的任務。",
+   "App": "代理式應用程式終端使用者頁面上的一輪對話。",
+   "Dashboard": "由某人在此主控台中啟動，例如在呼叫頁面。",
+   "Trigger": "由 cron 排程或簽署的 Webhook 啟動。",
+   "Keeper": "守護者依排程喚醒並執行了一次巡檢。",
+   "Message": "傳給代理程式的訊息把它喚醒為一次新的執行。",
+   "Escalation": "對上報的答覆恢復或喚醒了這次執行。",
+   "Eval": "一次評估執行中的一個案例。",
+   "Shadow": "影子試驗在候選部署上執行的線上執行副本。",
+   "Internal": "由 Garrison 自己啟動，例如重試或管線階段。"
+  },
+  "columns": {
+   "entrySurface": "開啟這條軌跡的請求是如何到達 Garrison 的。"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "請求到達 Garrison 的途徑：API、MCP、A2A、應用程式、主控台、觸發器、守護者、訊息等。"
+   }
+  },
+  "edges": {
+   "Shadowed": "影子試驗在候選部署上執行了這次線上執行的副本，用來比較兩者。",
+   "Delivered": "這則訊息送達一個已在執行中的執行，由它從收件匣讀取，而不是喚醒新的執行。"
+  }
+ }
+});

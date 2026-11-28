@@ -9736,3 +9736,280 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "tours": {
+  "ui": {
+   "finding": "搵緊下一步...",
+   "skippedMissing": "跳咗 {{step}}，佢而家唔喺呢頁度。",
+   "skippedNoRecord": "跳咗 {{step}}：呢個租用戶喺嗰度仲未有嘢可以顯示。",
+   "endTitle": "導覽完咗",
+   "endBody": "{{tour}} 就係咁多。想再睇，隨時喺學習頁面或者側邊欄嘅導覽再開。"
+  },
+  "hub": {
+   "label": "開始{{tour}}導覽"
+  },
+  "picker": {
+   "title": "導覽",
+   "intro": "每個導覽針對一樣工作，一步一步帶你行過真實頁面。做完嘅導覽會有記號，邊個都可以再睇。",
+   "start": "開始",
+   "replay": "再睇",
+   "finished": "做完咗",
+   "learn": "開啟學習",
+   "steps_one": "{{count}} 步",
+   "steps_other": "{{count}} 步"
+  },
+  "sample": {
+   "title": "載入範例？",
+   "body": "{{tour}}需要{{need}}，但呢個租用戶仲未有。你可以經套用資訊清單載入{{example}}，又或者唔載入照行，跳過冇嘢顯示嘅步驟。",
+   "contents_one": "載入會套用 {{count}} 個資源：",
+   "contents_other": "載入會套用 {{count}} 個資源：",
+   "checking": "睇緊套用會改到啲乜...",
+   "fake": "全部都係喺模擬 harness 上面行，所以唔使憑證，亦唔使錢。佢啲守護者幾秒之內就會開始醒。",
+   "runsLater": "執行嗰幾步需要一次執行。套用之後幾秒，第一次守護者巡檢就會整一次出嚟。",
+   "load": "載入範例",
+   "loading": "載入緊...",
+   "continue": "唔載入，照行",
+   "loaded": "載入咗{{example}}。",
+   "needs": {
+    "agents": "一個代理程式",
+    "runs": "一次執行",
+    "keepers": "一個守護者",
+    "organizations": "一個組織"
+   },
+   "examples": {
+    "gerbil": "gerbil 範例",
+    "siteReliability": "網站可靠性範例"
+   }
+  },
+  "homeCard": {
+   "title": "第一次嚟？由學習開始",
+   "body": "學習頁面用圖講 Garrison 各部分點樣配合，仲有帶你行過真實頁面嘅短導覽。",
+   "open": "開啟學習",
+   "dismiss": "收埋"
+  },
+  "wizard": {
+   "nextTitle": "跟住做乜",
+   "nextBody": "學習頁面講各部分點樣配合，執行一個代理程式導覽就喺主控台入面行一次同一條路。",
+   "learn": "開啟學習",
+   "tour": "開始執行一個代理程式導覽"
+  },
+  "firstLook": {
+   "summary": "側邊欄、頂部欄、首頁，同埋去邊度搵幫助。",
+   "steps": {
+    "sidebar": {
+     "title": "導航",
+     "body": "呢一邊將所有嘢按中心分組。中心嘅頁面喺上面顯示做分頁，每個分頁都有自己嘅連結。"
+    },
+    "topbar": {
+     "title": "你喺邊",
+     "body": "頂部欄顯示你用緊嘅伺服器同租用戶、你用咩身分登入，同埋伺服器健唔健康、更新係咪即時到。"
+    },
+    "kpis": {
+     "title": "一眼睇晒",
+     "body": "呢啲卡計住代理程式、部署、執行同節點嘅數量。撳一張卡就會開返佢後面嘅清單。"
+    },
+    "invoke": {
+     "title": "調用",
+     "body": "揀一個代理程式，傳個訊息俾佢，睇住佢嘅對話記錄即時出嚟。"
+    },
+    "autonomy": {
+     "title": "自主運作",
+     "body": "守護者、訊息、報告、記憶、上報同凍結：自己做嘢嘅代理程式要用嘅嘢全部喺度。"
+    },
+    "organizations": {
+     "title": "組織",
+     "body": "有負責人同預算嘅代理程式單位、你用嚟睇住佢哋嘅委員會，同埋佢哋啲主管要跟嘅變更規則。"
+    },
+    "help": {
+     "title": "幫助",
+     "body": "設定精靈可以再做一次初次設定，導覽列出所有導覽，學習用圖講晒點樣配合。頁面上面嘅 ? 掣會開始嗰頁嘅導覽。"
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "由連線到代理程式、部署、調用，再到佢整出嚟嘅執行。",
+   "steps": {
+    "connections": {
+     "title": "連線",
+     "body": "連線即係 harness 設定檔：啟動邊個 CLI 或者 API，點樣啟動。設定一次，所有部署都用得。"
+    },
+    "agents": {
+     "title": "代理程式",
+     "body": "代理程式係呼叫方用嘅名，包括佢點樣對外提供同埋答案嘅格式。單靠佢自己乜都唔會行。"
+    },
+    "deployments": {
+     "title": "部署",
+     "body": "部署令代理程式行得：一個連線、一個模型、提示詞同限制。有幾個部署嘅話，呼叫會按權重分。"
+    },
+    "invoke": {
+     "title": "調用",
+     "body": "揀代理程式，想用指定部署就再揀埋，打個訊息再撳傳送。輸出會喺表單隔籬出嚟。"
+    },
+    "run": {
+     "title": "執行",
+     "body": "每次調用都係一次執行。佢嘅頁面上面有狀態同 ID，下面有對話記錄、結果、輸入等分頁。"
+    },
+    "trail": {
+     "title": "軌跡分頁",
+     "body": "軌跡會跟住個請求行過每個代理程式，一直到回覆。跟住一個請求導覽會詳細講。"
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "執行嘅軌跡分頁：三種檢視、合計同每一步嘅詳情。",
+   "steps": {
+    "views": {
+     "title": "三種檢視",
+     "body": "序列俾每個代理程式一條泳道，時間向下行。圖將每一步擺喺引起佢嘅步驟後面。清單將每一步顯示做一行，可以篩選。"
+    },
+    "summary": {
+     "title": "合計",
+     "body": "有幾多個代理程式參與、佢哋之間傳咗幾多個訊息、用咗幾耐、token 同費用，同埋有幾多步失敗。"
+    },
+    "steps": {
+     "title": "步驟",
+     "body": "每個方框係一步：一次執行、一個訊息、一份報告、一次上報、一次批核或者一次工具呼叫。方向鍵喺步驟之間移動，Enter 打開一步。"
+    },
+    "drawer": {
+     "title": "步驟詳情",
+     "body": "抽屜顯示一步嘅狀態、時間同費用。代理程式寫嘅文字會當純資料顯示，寫明邊個寫，開啟記錄就會去到完整記錄。"
+    },
+    "actions": {
+     "title": "重新整理同匯出",
+     "body": "仲有步驟行緊嘅時候，軌跡會按你喺度揀嘅間隔重新整理。匯出 JSON 會下載步驟同連結，唔包代理程式寫嘅文字。"
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "組織嘅設計分頁：畫布、人員、守護者、預算同發佈。",
+   "steps": {
+    "canvas": {
+     "title": "畫布",
+     "body": "每個方框係一個單位，上面係負責人同成員，入面係向佢匯報嘅單位。方框之間嘅線係同級連線，等兩個單位可以直接互傳訊息。"
+    },
+    "palette": {
+     "title": "人員",
+     "body": "將代理程式由呢個清單拖去一個單位，又或者揀一個，再揀單位同埋佢係帶隊定係加入。"
+    },
+    "keepers": {
+     "title": "守護者",
+     "body": "揀咗一個單位之後，呢個分頁會列出入面邊個有守護者。可以掛一個上去、開個新嘅，或者改佢幾時醒。"
+    },
+    "budget": {
+     "title": "預算",
+     "body": "俾單位設定每日或者每月嘅上限。佢包括呢個單位同佢下面所有單位行嘅一切。"
+    },
+    "publish": {
+     "title": "發佈",
+     "body": "改動會即刻儲存去工作樹，但係喺度發佈之前都唔會生效。每個修訂都會保留，所以可以還原。"
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "煞掣：緊急停止掣、凍結、支出上限、變更規則同批核。",
+   "steps": {
+    "killSwitch": {
+     "title": "緊急停止掣",
+     "body": "一開咗，租用戶入面冇守護者會醒，訊息亦唔會叫醒代理程式。普通調用照常運作。"
+    },
+    "freezes": {
+     "title": "凍結",
+     "body": "凍結會拒絕某個代理程式、部署、守護者或者應用程式嘅新執行，直到有人解除。單位同成個組織要喺佢哋嘅委員會度凍結。"
+    },
+    "spendCaps": {
+     "title": "支出上限",
+     "body": "守護者可以設定每次巡檢同每日嘅預算。當日預算用晒，佢會停到下一個 UTC 日，同埋問一個人。"
+    },
+    "changeRules": {
+     "title": "變更規則",
+     "body": "規則預先批准主管可以喺下屬單位做嘅例行改動。只有人可以寫規則，規則冇包到嘅都要等人決定。"
+    },
+    "approvals": {
+     "title": "批核",
+     "body": "部署喺用工具之前要求確認嘅時候，要人決定嘅呼叫會喺度等。逐個允許或者拒絕，想嘅話將答覆記做規則。"
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "組織嘅委員會、績效、報告同上報。",
+   "steps": {
+    "board": {
+     "title": "委員會",
+     "body": "每個單位嘅健康狀況、未處理嘅上報、煞掣同最新報告，喺組織圖同表格度顯示。"
+    },
+    "attention": {
+     "title": "要處理",
+     "body": "未處理嘅上報、唔健康嘅報告同去到預算上限嘅單位，集中喺一個地方。"
+    },
+    "performance": {
+     "title": "績效",
+     "body": "喺你揀嘅時間範圍入面，每個單位嘅執行、結果、費用、延遲同上報。"
+    },
+    "reports": {
+     "title": "報告",
+     "body": "執行同人就現況提交嘅內容。提交咗嘅報告改唔到，入面嘅文字當資料顯示，永遠唔會當指令。"
+    },
+    "escalations": {
+     "title": "上報",
+     "body": "代理程式向某人、某個角色或者另一個代理程式提出嘅問題。未處理嘅排先，你可以喺度答覆。"
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "REST API",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "應用程式",
+   "Dashboard": "主控台",
+   "Trigger": "觸發器",
+   "Keeper": "守護者",
+   "Message": "訊息",
+   "Escalation": "上報",
+   "Eval": "評估",
+   "Shadow": "影子",
+   "Internal": "內部"
+  },
+  "columns": {
+   "entrySurface": "入嚟途徑"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "入嚟途徑"
+   }
+  },
+  "edges": {
+   "Shadowed": "影子複製",
+   "Delivered": "送達"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "租用戶入面冇守護者會醒，訊息亦唔會叫醒代理程式。普通調用照常運作。"
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "成個租用戶範圍嘅自主運作凍結。守護者唔會醒，訊息亦唔會叫醒代理程式，但普通調用照常運作。"
+   }
+  }
+ }
+});

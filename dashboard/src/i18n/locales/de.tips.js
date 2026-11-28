@@ -5069,3 +5069,61 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "Tour schließen. Du kannst sie unter Lernen oder über Geführte Tour in der Seitenleiste neu starten.",
+  "back": "Zurück zum vorherigen Schritt der Tour.",
+  "next": "Weiter zum nächsten Schritt. Die Tour öffnet die Seite, auf der er liegt.",
+  "done": "Tour beenden und für dich als erledigt markieren.",
+  "hub": "Startet die Tour {{tour}}, die Schritt für Schritt durch diesen Teil des Dashboards führt.",
+  "start": "Startet die Tour {{tour}}. Sie öffnet jede Seite, um die es geht.",
+  "replay": "Du hast {{tour}} abgeschlossen. Mach sie noch einmal ab dem ersten Schritt.",
+  "finished": "Du hast diese Tour abgeschlossen. Sie bleibt für dich in diesem Mandanten markiert.",
+  "pickerLearn": "Öffnet die Seite Lernen: Diagramme, wie Garrison zusammenpasst, mit einer Tour für jeden Teil.",
+  "sampleLoad": "Wendet das Beispielmanifest jetzt an. Die Liste oben zeigt alles, was dabei angelegt oder geändert wird.",
+  "sampleContinue": "Tour ohne Beispiel starten. Schritte ohne Inhalt werden mit einem Hinweis übersprungen.",
+  "homeCardOpen": "Öffnet die Seite Lernen mit Diagrammen, wie Garrison zusammenpasst, und einer Tour für jeden Teil.",
+  "homeCardDismiss": "Diese Karte ausblenden. Sie bleibt für dich in diesem Mandanten verborgen.",
+  "wizardLearn": "Schließt den Assistenten und öffnet die Seite Lernen.",
+  "wizardTour": "Schließt den Assistenten und startet die Tour Einen Agenten ausführen."
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "Ein Aufruf der REST API, aus einem Skript, einem SDK oder einem anderen Dienst.",
+   "Mcp": "Ein Toolaufruf über den MCP-Server von Garrison.",
+   "A2a": "Eine Aufgabe, die ein anderer Agent über das A2A-Protokoll geschickt hat.",
+   "App": "Ein Chatbeitrag auf der Endnutzerseite einer agentischen App.",
+   "Dashboard": "Von einer Person in diesem Dashboard gestartet, zum Beispiel über Aufrufen.",
+   "Trigger": "Ein Cron-Zeitplan oder ein signierter Webhook hat ihn gestartet.",
+   "Keeper": "Ein Wächter ist nach Zeitplan aufgewacht und hat einen Zyklus ausgeführt.",
+   "Message": "Eine Nachricht an einen Agenten hat ihn als neuen Lauf geweckt.",
+   "Escalation": "Die Antwort auf eine Eskalation hat den Lauf fortgesetzt oder geweckt.",
+   "Eval": "Ein Testfall eines Eval-Laufs.",
+   "Shadow": "Die Kopie eines Live-Laufs auf der Kandidaten-Bereitstellung, aus einem Schattentest.",
+   "Internal": "Garrison hat ihn selbst gestartet, zum Beispiel als Wiederholung oder Pipeline-Stufe."
+  },
+  "columns": {
+   "entrySurface": "Wie die Anfrage, mit der dieser Verlauf beginnt, zu Garrison kam."
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Wie die Anfrage zu Garrison kam: über die API, MCP, A2A, eine App, das Dashboard, einen Auslöser, einen Wächter, eine Nachricht und so weiter."
+   }
+  },
+  "edges": {
+   "Shadowed": "Ein Schattentest hat eine Kopie dieses Live-Laufs auf der Kandidaten-Bereitstellung ausgeführt, um beide zu vergleichen.",
+   "Delivered": "Die Nachricht erreichte einen bereits laufenden Lauf, der sie aus seinem Posteingang las, statt einen neuen Lauf zu wecken."
+  }
+ }
+});

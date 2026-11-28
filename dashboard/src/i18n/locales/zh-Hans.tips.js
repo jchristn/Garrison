@@ -5068,3 +5068,61 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "关闭教程。可以在学习页面或侧边栏的引导教程中重新开始。",
+  "back": "回到教程的上一步。",
+  "next": "进入下一步。教程会打开那一步所在的页面。",
+  "done": "结束教程，并为你标记为已完成。",
+  "hub": "开始{{tour}}教程，一步一步带你走过控制台的这一部分。",
+  "start": "开始{{tour}}教程。它会打开讲到的每个页面。",
+  "replay": "你已完成{{tour}}。从第一步再走一遍。",
+  "finished": "你已完成这个教程。在这个租户中它会一直为你标记。",
+  "pickerLearn": "打开学习页面：用图说明 Garrison 如何配合，每个部分都有一个教程。",
+  "sampleLoad": "现在应用示例清单。上面的列表显示它会创建或更改的全部内容。",
+  "sampleContinue": "不加载示例直接进行教程。没有内容可显示的步骤会附带说明跳过。",
+  "homeCardOpen": "打开学习页面，里面有说明 Garrison 如何配合的图，以及每个部分的教程。",
+  "homeCardDismiss": "隐藏这张卡片。在这个租户中它会一直对你隐藏。",
+  "wizardLearn": "关闭向导并打开学习页面。",
+  "wizardTour": "关闭向导并开始运行一个智能体教程。"
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "来自脚本、SDK 或其他服务的 REST API 调用。",
+   "Mcp": "通过 Garrison MCP 服务器发起的工具调用。",
+   "A2a": "另一个智能体通过 A2A 协议发来的任务。",
+   "App": "智能体应用最终用户页面上的一轮对话。",
+   "Dashboard": "由某人在此控制台中启动，例如在调用页面。",
+   "Trigger": "由 cron 计划或签名的 Webhook 启动。",
+   "Keeper": "守护者按计划唤醒并执行了一次巡检。",
+   "Message": "发给智能体的消息把它唤醒为一次新的运行。",
+   "Escalation": "对上报的答复恢复或唤醒了这次运行。",
+   "Eval": "一次评估运行中的一个用例。",
+   "Shadow": "影子试验在候选部署上运行的线上运行副本。",
+   "Internal": "由 Garrison 自己启动，例如重试或流水线阶段。"
+  },
+  "columns": {
+   "entrySurface": "开启这条轨迹的请求是如何到达 Garrison 的。"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "请求到达 Garrison 的途径：API、MCP、A2A、应用、控制台、触发器、守护者、消息等。"
+   }
+  },
+  "edges": {
+   "Shadowed": "影子试验在候选部署上运行了这次线上运行的副本，用来比较两者。",
+   "Delivered": "这条消息送达了一个已在运行的运行，由它从收件箱读取，而不是唤醒新的运行。"
+  }
+ }
+});

@@ -9787,3 +9787,280 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "tours": {
+  "ui": {
+   "finding": "Buscando el siguiente paso...",
+   "skippedMissing": "Se omitió {{step}} porque ahora no está en la página.",
+   "skippedNoRecord": "Se omitió {{step}}: este inquilino todavía no tiene nada que mostrar ahí.",
+   "endTitle": "Fin del recorrido",
+   "endBody": "Has llegado al final de {{tour}}. Puedes repetirlo cuando quieras desde Aprender o desde Visita guiada en la barra lateral."
+  },
+  "hub": {
+   "label": "Iniciar el recorrido {{tour}}"
+  },
+  "picker": {
+   "title": "Visitas guiadas",
+   "intro": "Cada recorrido pasa por las páginas reales de una tarea, unos pocos pasos cada vez. Los terminados quedan marcados y puedes repetir cualquiera.",
+   "start": "Iniciar",
+   "replay": "Repetir",
+   "finished": "Terminado",
+   "learn": "Abrir Aprender",
+   "steps_one": "{{count}} paso",
+   "steps_other": "{{count}} pasos"
+  },
+  "sample": {
+   "title": "¿Cargar un ejemplo?",
+   "body": "{{tour}} necesita {{need}} y este inquilino aún no tiene. Puedes cargar {{example}} aplicando su manifiesto, o seguir sin él y saltar los pasos que no tengan nada que mostrar.",
+   "contents_one": "Al cargarlo se aplica {{count}} recurso:",
+   "contents_other": "Al cargarlo se aplican {{count}} recursos:",
+   "checking": "Comprobando qué cambiaría la aplicación...",
+   "fake": "Todo funciona con el arnés de prueba, así que no necesita credenciales y no cuesta nada. Sus guardianes empiezan a despertar en segundos.",
+   "runsLater": "Los pasos de la ejecución necesitan una ejecución. El primer ciclo de un guardián crea una pocos segundos después de aplicar.",
+   "load": "Cargar el ejemplo",
+   "loading": "Cargando...",
+   "continue": "Seguir sin él",
+   "loaded": "Se cargó {{example}}.",
+   "needs": {
+    "agents": "un agente",
+    "runs": "una ejecución",
+    "keepers": "un guardián",
+    "organizations": "una organización"
+   },
+   "examples": {
+    "gerbil": "el ejemplo gerbil",
+    "siteReliability": "el ejemplo de fiabilidad del sitio"
+   }
+  },
+  "homeCard": {
+   "title": "¿Eres nuevo? Empieza por Aprender",
+   "body": "La página Aprender muestra cómo encajan las piezas de Garrison, con recorridos cortos por las páginas reales.",
+   "open": "Abrir Aprender",
+   "dismiss": "Descartar"
+  },
+  "wizard": {
+   "nextTitle": "Y ahora qué",
+   "nextBody": "La página Aprender explica cómo encajan las piezas, y el recorrido Ejecutar un agente sigue el mismo camino por el panel.",
+   "learn": "Abrir Aprender",
+   "tour": "Hacer el recorrido Ejecutar un agente"
+  },
+  "firstLook": {
+   "summary": "La barra lateral, la barra superior, Inicio y dónde encontrar ayuda.",
+   "steps": {
+    "sidebar": {
+     "title": "Navegación",
+     "body": "Todo se agrupa en secciones a este lado. Las páginas de una sección aparecen como pestañas arriba, y cada pestaña tiene su propio enlace."
+    },
+    "topbar": {
+     "title": "Dónde estás",
+     "body": "La barra superior muestra el servidor y el inquilino en los que trabajas, con quién has iniciado sesión y si el servidor está sano y las actualizaciones llegan en directo."
+    },
+    "kpis": {
+     "title": "De un vistazo",
+     "body": "Estas tarjetas cuentan agentes, despliegues, ejecuciones y nodos. Haz clic en una para abrir la lista que hay detrás."
+    },
+    "invoke": {
+     "title": "Invocar",
+     "body": "Elige un agente, envíale un mensaje y mira cómo llega su transcripción."
+    },
+    "autonomy": {
+     "title": "Autonomía",
+     "body": "Guardianes, mensajes, informes, memoria, escalados y congelaciones: todo para los agentes que trabajan por su cuenta."
+    },
+    "organizations": {
+     "title": "Organizaciones",
+     "body": "Unidades de agentes con responsables y presupuestos, el consejo desde el que las vigilas y las reglas de cambio con las que trabajan sus ejecutivos."
+    },
+    "help": {
+     "title": "Ayuda",
+     "body": "El asistente de configuración repite la configuración inicial, Visita guiada lista todos los recorridos y Aprender tiene diagramas de cómo encaja todo. El botón ? de una página inicia su recorrido."
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "De una conexión a un agente, un despliegue, una invocación y la ejecución que produce.",
+   "steps": {
+    "connections": {
+     "title": "Conexiones",
+     "body": "Una conexión es un perfil de arnés: qué CLI o API se lanza y cómo. Se configura una vez y cualquier despliegue puede usarla."
+    },
+    "agents": {
+     "title": "Agentes",
+     "body": "Un agente es el nombre que usan quienes lo llaman, con cómo se expone y cómo son sus respuestas. Por sí solo no ejecuta nada."
+    },
+    "deployments": {
+     "title": "Despliegues",
+     "body": "Un despliegue hace ejecutable a un agente: una conexión, un modelo, prompts y límites. Si hay varios, las llamadas se reparten por peso."
+    },
+    "invoke": {
+     "title": "Invocar",
+     "body": "Elige un agente, y un despliegue si quieres uno concreto, escribe un mensaje y pulsa Enviar. La salida llega junto al formulario."
+    },
+    "run": {
+     "title": "La ejecución",
+     "body": "Cada invocación es una ejecución. Su página muestra arriba el estado y el ID, con pestañas para la transcripción, el resultado, la entrada y más."
+    },
+    "trail": {
+     "title": "La pestaña Recorrido",
+     "body": "Recorrido sigue la solicitud por cada agente hasta la respuesta. El recorrido Seguir una solicitud lo explica."
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "La pestaña Recorrido de una ejecución: sus tres vistas, los totales y el detalle de cada paso.",
+   "steps": {
+    "views": {
+     "title": "Tres vistas",
+     "body": "Secuencia da a cada agente un carril con el tiempo hacia abajo. Grafo pone cada paso después de lo que lo causó. Lista muestra cada paso como una fila que puedes filtrar."
+    },
+    "summary": {
+     "title": "Los totales",
+     "body": "Cuántos agentes participaron, cuántos mensajes pasaron entre ellos, cuánto tardó, los tokens y el coste, y cuántos pasos fallaron."
+    },
+    "steps": {
+     "title": "Pasos",
+     "body": "Cada caja es un paso: una ejecución, un mensaje, un informe, un escalado, una aprobación o una llamada a herramienta. Las flechas mueven entre pasos y Intro abre uno."
+    },
+    "drawer": {
+     "title": "Detalle del paso",
+     "body": "El panel muestra el estado, los tiempos y el coste de un paso. El texto que escribió un agente aparece como datos, con quién lo escribió, y Abrir registro lleva al registro completo."
+    },
+    "actions": {
+     "title": "Actualizar y exportar",
+     "body": "Mientras un paso sigue en marcha, el recorrido se actualiza con el intervalo que elijas aquí. Exportar JSON descarga los pasos y sus enlaces, sin texto escrito por agentes."
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "La pestaña Diseño de una organización: el lienzo, las personas, los guardianes, los presupuestos y la publicación.",
+   "steps": {
+    "canvas": {
+     "title": "El lienzo",
+     "body": "Cada caja es una unidad, con su responsable y sus miembros arriba y dentro las unidades que le reportan. Las líneas entre cajas son líneas entre pares, que permiten a dos unidades enviarse mensajes directamente."
+    },
+    "palette": {
+     "title": "Personas",
+     "body": "Arrastra un agente de esta lista a una unidad, o elige uno y decide la unidad y si la dirige o se une a ella."
+    },
+    "keepers": {
+     "title": "Guardianes",
+     "body": "Con una unidad seleccionada, esta pestaña muestra quién tiene un guardián en ella. Asigna uno, crea uno nuevo o cambia cuándo despierta."
+    },
+    "budget": {
+     "title": "Presupuesto",
+     "body": "Pon a la unidad un tope por día o por mes. Cubre todo lo que ejecutan la unidad y cada unidad por debajo."
+    },
+    "publish": {
+     "title": "Publicar",
+     "body": "Los cambios se guardan al momento en el árbol de trabajo, pero nada entra en vigor hasta que publicas aquí. Se guarda cada revisión, así que puedes volver atrás."
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "Los frenos: el interruptor de emergencia, las congelaciones, los topes de gasto, las reglas de cambio y las aprobaciones.",
+   "steps": {
+    "killSwitch": {
+     "title": "Interruptor de emergencia",
+     "body": "Si lo activas, ningún guardián del inquilino despierta y ningún mensaje despierta a un agente. Las invocaciones normales siguen funcionando."
+    },
+    "freezes": {
+     "title": "Congelaciones",
+     "body": "Una congelación rechaza nuevas ejecuciones de un agente, despliegue, guardián o app hasta que una persona la levanta. Las unidades y organizaciones enteras se congelan desde su consejo."
+    },
+    "spendCaps": {
+     "title": "Topes de gasto",
+     "body": "Un guardián puede tener un presupuesto por ciclo y por día. Cuando se agota el del día, se detiene hasta el siguiente día UTC y pregunta a una persona."
+    },
+    "changeRules": {
+     "title": "Reglas de cambio",
+     "body": "Las reglas aprueban de antemano cambios rutinarios que un ejecutivo puede hacer en las unidades por debajo. Solo las escriben personas, y lo que una regla no cubre espera a una persona."
+    },
+    "approvals": {
+     "title": "Aprobaciones",
+     "body": "Cuando un despliegue pregunta antes de usar herramientas, las llamadas que necesitan a una persona esperan aquí. Permite o deniega cada una y, si quieres, guarda la respuesta como regla."
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "El consejo, el rendimiento, los informes y los escalados de una organización.",
+   "steps": {
+    "board": {
+     "title": "El consejo",
+     "body": "El estado de cada unidad, sus escalados abiertos, frenos y último informe, en el organigrama y en una tabla."
+    },
+    "attention": {
+     "title": "Requiere atención",
+     "body": "Escalados abiertos, informes con problemas y unidades en su tope de presupuesto, en un solo lugar."
+    },
+    "performance": {
+     "title": "Rendimiento",
+     "body": "Ejecuciones, resultados, coste, latencia y escalados de cada unidad en el periodo que elijas."
+    },
+    "reports": {
+     "title": "Informes",
+     "body": "Lo que ejecuciones y personas presentaron sobre cómo van las cosas. Un informe presentado no se puede cambiar, y su texto se muestra como datos, nunca como instrucciones."
+    },
+    "escalations": {
+     "title": "Escalados",
+     "body": "Preguntas que los agentes dirigieron a una persona, un rol u otro agente. Los abiertos van primero y los respondes desde aquí."
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "API REST",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "Aplicación",
+   "Dashboard": "Panel",
+   "Trigger": "Disparador",
+   "Keeper": "Guardián",
+   "Message": "Mensaje",
+   "Escalation": "Escalado",
+   "Eval": "Evaluación",
+   "Shadow": "Sombra",
+   "Internal": "Interno"
+  },
+  "columns": {
+   "entrySurface": "Entró por"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Entró por"
+   }
+  },
+  "edges": {
+   "Shadowed": "copió en sombra",
+   "Delivered": "entregó"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "Ningún guardián del inquilino despierta y ningún mensaje despierta a un agente. Las invocaciones normales siguen funcionando."
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "Una congelación de la autonomía en todo el inquilino. Ningún guardián despierta y ningún mensaje despierta a un agente, mientras las invocaciones normales siguen funcionando."
+   }
+  }
+ }
+});

@@ -5071,3 +5071,61 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   }
  }
 });
+
+// Tooltips for the guided tours (LP4.5 to LP4.8) and the trail's entry surfaces and new edges (LP1.12, LP1.13).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "tours": {
+  "skip": "Cierra el recorrido. Puedes volver a empezarlo desde Aprender o desde Visita guiada en la barra lateral.",
+  "back": "Vuelve al paso anterior del recorrido.",
+  "next": "Pasa al siguiente paso. El recorrido abre la página donde está.",
+  "done": "Termina el recorrido y lo marca como hecho para ti.",
+  "hub": "Inicia el recorrido {{tour}}, que recorre esta parte del panel paso a paso.",
+  "start": "Inicia el recorrido {{tour}}. Abre cada página de la que habla.",
+  "replay": "Terminaste {{tour}}. Hazlo otra vez desde el primer paso.",
+  "finished": "Terminaste este recorrido. Queda marcado para ti en este inquilino.",
+  "pickerLearn": "Abre la página Aprender: diagramas de cómo encaja Garrison, con un recorrido para cada parte.",
+  "sampleLoad": "Aplica ahora el manifiesto del ejemplo. La lista de arriba muestra todo lo que crea o cambia.",
+  "sampleContinue": "Hace el recorrido sin el ejemplo. Los pasos sin nada que mostrar se omiten con una nota.",
+  "homeCardOpen": "Abre la página Aprender, con diagramas de cómo encaja Garrison y un recorrido para cada parte.",
+  "homeCardDismiss": "Oculta esta tarjeta. Sigue oculta para ti en este inquilino.",
+  "wizardLearn": "Cierra el asistente y abre la página Aprender.",
+  "wizardTour": "Cierra el asistente e inicia el recorrido Ejecutar un agente."
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "Una llamada a la API REST, desde un script, un SDK u otro servicio.",
+   "Mcp": "Una llamada a herramienta a través del servidor MCP de Garrison.",
+   "A2a": "Una tarea que otro agente envió por el protocolo A2A.",
+   "App": "Un turno de chat en la página de usuario final de una app agéntica.",
+   "Dashboard": "La inició una persona en este panel, por ejemplo desde Invocar.",
+   "Trigger": "La inició una programación cron o un webhook firmado.",
+   "Keeper": "Un guardián despertó según su horario y ejecutó un ciclo.",
+   "Message": "Un mensaje a un agente lo despertó como una nueva ejecución.",
+   "Escalation": "La respuesta a un escalado reanudó o despertó la ejecución.",
+   "Eval": "Un caso de una ejecución de evaluación.",
+   "Shadow": "La copia de una ejecución real en el despliegue candidato, de una prueba en sombra.",
+   "Internal": "La inició el propio Garrison, por ejemplo un reintento o una etapa de canalización."
+  },
+  "columns": {
+   "entrySurface": "Cómo llegó a Garrison la solicitud con la que empieza este recorrido."
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Cómo llegó la solicitud a Garrison: la API, MCP, A2A, una app, el panel, un disparador, un guardián, un mensaje, etc."
+   }
+  },
+  "edges": {
+   "Shadowed": "Una prueba en sombra ejecutó una copia de esta ejecución real en el despliegue candidato para comparar ambas.",
+   "Delivered": "El mensaje llegó a una ejecución que ya estaba en marcha y lo leyó de su bandeja, en vez de despertar una nueva."
+  }
+ }
+});

@@ -9769,3 +9769,283 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "tours": {
+  "ui": {
+   "finding": "Nächster Schritt wird gesucht...",
+   "skippedMissing": "{{step}} übersprungen, weil es gerade nicht auf der Seite ist.",
+   "skippedNoRecord": "{{step}} übersprungen: Dieser Mandant hat dort noch nichts zu zeigen.",
+   "endTitle": "Ende der Tour",
+   "endBody": "Das war {{tour}}. Du kannst die Tour jederzeit unter Lernen oder über Geführte Tour in der Seitenleiste wiederholen."
+  },
+  "hub": {
+   "label": "Tour {{tour}} starten"
+  },
+  "picker": {
+   "title": "Geführte Touren",
+   "intro": "Jede Tour führt Schritt für Schritt durch die echten Seiten einer Aufgabe. Abgeschlossene Touren sind markiert, und du kannst jede wiederholen.",
+   "start": "Starten",
+   "replay": "Wiederholen",
+   "finished": "Abgeschlossen",
+   "learn": "Lernen öffnen",
+   "steps_one": "{{count}} Schritt",
+   "steps_other": "{{count}} Schritte"
+  },
+  "sample": {
+   "title": "Beispiel laden?",
+   "body": "{{tour}} braucht {{need}}, und dieser Mandant hat noch keins. Du kannst {{example}} über die Manifestanwendung laden oder ohne weitermachen und die Schritte überspringen, die nichts zu zeigen haben.",
+   "contents_one": "Beim Laden wird {{count}} Ressource angewendet:",
+   "contents_other": "Beim Laden werden {{count}} Ressourcen angewendet:",
+   "checking": "Es wird geprüft, was die Anwendung ändern würde...",
+   "fake": "Alles läuft auf dem Fake-Harness, braucht also keine Zugangsdaten und kostet nichts. Die Wächter wachen innerhalb von Sekunden auf.",
+   "runsLater": "Die Schritte zum Lauf brauchen einen Lauf. Der erste Wächterzyklus erzeugt ihn wenige Sekunden nach der Anwendung.",
+   "load": "Beispiel laden",
+   "loading": "Wird geladen...",
+   "continue": "Ohne Beispiel weiter",
+   "loaded": "{{example}} geladen.",
+   "needs": {
+    "agents": "einen Agenten",
+    "runs": "einen Lauf",
+    "keepers": "einen Wächter",
+    "organizations": "eine Organisation"
+   },
+   "examples": {
+    "gerbil": "das Beispiel gerbil",
+    "siteReliability": "das Beispiel Site Reliability"
+   }
+  },
+  "homeCard": {
+   "title": "Neu hier? Fang mit Lernen an",
+   "body": "Die Seite Lernen zeigt, wie die Teile von Garrison zusammenpassen, mit kurzen Touren durch die echten Seiten.",
+   "open": "Lernen öffnen",
+   "dismiss": "Ausblenden"
+  },
+  "wizard": {
+   "nextTitle": "Wie geht es weiter",
+   "nextBody": "Die Seite Lernen erklärt, wie die Teile zusammenpassen, und die Tour Einen Agenten ausführen geht denselben Weg durch das Dashboard.",
+   "learn": "Lernen öffnen",
+   "tour": "Tour Einen Agenten ausführen starten"
+  },
+  "firstLook": {
+   "summary": "Die Seitenleiste, die obere Leiste, die Startseite und wo es Hilfe gibt.",
+   "steps": {
+    "sidebar": {
+     "title": "Navigation",
+     "body": "Hier an der Seite ist alles in Bereiche gruppiert. Die Seiten eines Bereichs erscheinen oben als Tabs, und jeder Tab hat einen eigenen Link."
+    },
+    "topbar": {
+     "title": "Wo du bist",
+     "body": "Die obere Leiste zeigt Server und Mandant, in denen du arbeitest, mit wem du angemeldet bist und ob der Server gesund ist und Updates live ankommen."
+    },
+    "kpis": {
+     "title": "Auf einen Blick",
+     "body": "Diese Karten zählen Agenten, Bereitstellungen, Läufe und Knoten. Klick auf eine Karte öffnet die Liste dahinter."
+    },
+    "invoke": {
+     "title": "Aufrufen",
+     "body": "Wähle einen Agenten, schick ihm eine Nachricht und sieh zu, wie sein Transkript hereinläuft."
+    },
+    "autonomy": {
+     "title": "Autonomie",
+     "body": "Wächter, Nachrichten, Berichte, Gedächtnis, Eskalationen und Sperren: alles für Agenten, die selbstständig arbeiten."
+    },
+    "organizations": {
+     "title": "Organisationen",
+     "body": "Einheiten von Agenten mit Leitungen und Budgets, das Gremium, von dem aus du sie beobachtest, und die Änderungsregeln für ihre Führungskräfte."
+    },
+    "help": {
+     "title": "Hilfe",
+     "body": "Der Einrichtungsassistent startet die Ersteinrichtung erneut, Geführte Tour listet alle Touren, und Lernen zeigt in Diagrammen, wie alles zusammenpasst. Der ?-Knopf einer Seite startet ihre Tour."
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "Von einer Verbindung zu einem Agenten, einer Bereitstellung, einem Aufruf und dem Lauf, der daraus entsteht.",
+   "steps": {
+    "connections": {
+     "title": "Verbindungen",
+     "body": "Eine Verbindung ist ein Harness-Profil: welche CLI oder API gestartet wird und wie. Einmal eingerichtet, kann jede Bereitstellung sie nutzen."
+    },
+    "agents": {
+     "title": "Agenten",
+     "body": "Ein Agent ist der Name, den Aufrufer verwenden, samt der Art, wie er bereitgestellt wird und wie seine Antworten aussehen. Allein führt er nichts aus."
+    },
+    "deployments": {
+     "title": "Bereitstellungen",
+     "body": "Eine Bereitstellung macht einen Agenten ausführbar: eine Verbindung, ein Modell, Prompts und Grenzen. Bei mehreren teilen sich die Aufrufe nach Gewicht auf."
+    },
+    "invoke": {
+     "title": "Aufrufen",
+     "body": "Wähle einen Agenten, bei Bedarf eine bestimmte Bereitstellung, schreib eine Nachricht und drück Senden. Die Ausgabe läuft neben dem Formular ein."
+    },
+    "run": {
+     "title": "Der Lauf",
+     "body": "Jeder Aufruf ist ein Lauf. Seine Seite zeigt oben Status und ID, mit Tabs für Transkript, Ergebnis, Eingabe und mehr."
+    },
+    "trail": {
+     "title": "Der Tab Verlauf",
+     "body": "Der Verlauf folgt der Anfrage durch jeden Agenten bis zur Antwort. Die Tour Einer Anfrage folgen erklärt ihn."
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "Der Tab Verlauf eines Laufs: seine drei Ansichten, die Summen und die Details der Schritte.",
+   "steps": {
+    "views": {
+     "title": "Drei Ansichten",
+     "body": "Ablauf gibt jedem Agenten eine Bahn, die Zeit läuft nach unten. Graph setzt jeden Schritt hinter seine Ursache. Liste zeigt jeden Schritt als filterbare Zeile."
+    },
+    "summary": {
+     "title": "Die Summen",
+     "body": "Wie viele Agenten beteiligt waren, wie viele Nachrichten zwischen ihnen liefen, wie lange es dauerte, Tokens und Kosten und wie viele Schritte fehlschlugen."
+    },
+    "steps": {
+     "title": "Schritte",
+     "body": "Jedes Feld ist ein Schritt: ein Lauf, eine Nachricht, ein Bericht, eine Eskalation, eine Freigabe oder ein Toolaufruf. Pfeiltasten wechseln zwischen Schritten, Enter öffnet einen."
+    },
+    "drawer": {
+     "title": "Details eines Schritts",
+     "body": "Das Seitenfeld zeigt Zustand, Zeiten und Kosten eines Schritts. Text von einem Agenten erscheint als reine Daten mit Angabe, wer ihn schrieb, und Datensatz öffnen führt zum vollständigen Datensatz."
+    },
+    "actions": {
+     "title": "Aktualisieren und exportieren",
+     "body": "Solange ein Schritt noch läuft, lädt sich der Verlauf im hier gewählten Abstand neu. JSON exportieren lädt Schritte und Verbindungen herunter, ohne Text von Agenten."
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "Der Tab Entwurf einer Organisation: die Fläche, Personen, Wächter, Budgets und das Veröffentlichen.",
+   "steps": {
+    "canvas": {
+     "title": "Die Fläche",
+     "body": "Jedes Feld ist eine Einheit, oben mit Leitung und Mitgliedern und darin die Einheiten, die an sie berichten. Linien zwischen Feldern sind Querverbindungen, über die sich zwei Einheiten direkt Nachrichten schicken."
+    },
+    "palette": {
+     "title": "Personen",
+     "body": "Zieh einen Agenten aus dieser Liste auf eine Einheit, oder wähle einen aus und bestimme Einheit und ob er leitet oder Mitglied wird."
+    },
+    "keepers": {
+     "title": "Wächter",
+     "body": "Ist eine Einheit ausgewählt, listet dieser Tab, wer darin einen Wächter hat. Häng einen an, leg einen neuen an oder ändere, wann er aufwacht."
+    },
+    "budget": {
+     "title": "Budget",
+     "body": "Gib der Einheit eine Grenze pro Tag oder Monat. Sie gilt für alles, was die Einheit und jede Einheit darunter ausführt."
+    },
+    "publish": {
+     "title": "Veröffentlichen",
+     "body": "Änderungen landen sofort im Arbeitsstand, aber live geht nichts, bis du hier veröffentlichst. Jede Revision bleibt erhalten, du kannst also zurückrollen."
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "Die Bremsen: Notschalter, Sperren, Ausgabengrenzen, Änderungsregeln und Freigaben.",
+   "steps": {
+    "killSwitch": {
+     "title": "Notschalter",
+     "body": "Ist er an, wacht kein Wächter im Mandanten auf, und auch keine Nachricht weckt einen Agenten. Normale Aufrufe funktionieren weiter."
+    },
+    "freezes": {
+     "title": "Sperren",
+     "body": "Eine Sperre lehnt neue Läufe eines Agenten, einer Bereitstellung, eines Wächters oder einer App ab, bis eine Person sie aufhebt. Einheiten und ganze Organisationen sperrst du über ihr Gremium."
+    },
+    "spendCaps": {
+     "title": "Ausgabengrenzen",
+     "body": "Ein Wächter kann ein Budget pro Zyklus und pro Tag haben. Ist das Tagesbudget aufgebraucht, pausiert er bis zum nächsten UTC-Tag und fragt eine Person."
+    },
+    "changeRules": {
+     "title": "Änderungsregeln",
+     "body": "Regeln genehmigen Routineänderungen vorab, die eine Führungskraft in den Einheiten unter sich machen darf. Nur Menschen schreiben sie, und alles, was keine Regel abdeckt, wartet auf eine Person."
+    },
+    "approvals": {
+     "title": "Freigaben",
+     "body": "Fragt eine Bereitstellung vor Toolaufrufen nach, warten hier die Aufrufe, die eine Person brauchen. Erlaube oder verweigere jeden, und merk dir die Antwort auf Wunsch als Regel."
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "Gremium, Leistung, Berichte und Eskalationen einer Organisation.",
+   "steps": {
+    "board": {
+     "title": "Das Gremium",
+     "body": "Zustand, offene Eskalationen, Bremsen und letzter Bericht jeder Einheit, im Organigramm und in einer Tabelle."
+    },
+    "attention": {
+     "title": "Braucht Aufmerksamkeit",
+     "body": "Offene Eskalationen, ungesunde Berichte und Einheiten an einer Budgetgrenze, an einem Ort."
+    },
+    "performance": {
+     "title": "Leistung",
+     "body": "Läufe, Ergebnisse, Kosten, Latenz und Eskalationen jeder Einheit im gewählten Zeitraum."
+    },
+    "reports": {
+     "title": "Berichte",
+     "body": "Was Läufe und Personen zum aktuellen Stand eingereicht haben. Ein eingereichter Bericht lässt sich nicht ändern, und sein Text erscheint als Daten, nie als Anweisung."
+    },
+    "escalations": {
+     "title": "Eskalationen",
+     "body": "Fragen, die Agenten an eine Person, eine Rolle oder einen anderen Agenten gerichtet haben. Offene stehen oben, und du beantwortest sie hier."
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "REST API",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "App",
+   "Dashboard": "Web-Konsole",
+   "Trigger": "Auslöser",
+   "Keeper": "Wächter",
+   "Message": "Nachricht",
+   "Escalation": "Eskalation",
+   "Eval": "Eval",
+   "Shadow": "Schatten",
+   "Internal": "Intern"
+  },
+  "columns": {
+   "entrySurface": "Eingang über"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Eingang über"
+   }
+  },
+  "edges": {
+   "Shadowed": "gespiegelt",
+   "Delivered": "zugestellt"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "Kein Wächter im Mandanten wacht auf, und keine Nachricht weckt einen Agenten. Normale Aufrufe funktionieren weiter."
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "Eine mandantenweite Sperre der Autonomie. Kein Wächter wacht auf und keine Nachricht weckt einen Agenten, während normale Aufrufe weiter funktionieren."
+   }
+  }
+ }
+});
+
+// The eval entry surface spelled out in German (LP1.12).
+de.trail.entrySurfaces.Eval = 'Evaluierung';

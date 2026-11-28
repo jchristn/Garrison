@@ -17,6 +17,16 @@ export function edgeLabel(t, kind) {
   return t(`trail.edges.${kind}`, { defaultValue: String(kind || '') });
 }
 
+/** Translated label of an entry surface (LP-013): how the request came in, such as REST API or MCP. */
+export function entrySurfaceLabel(t, surface) {
+  return surface ? t(`trail.entrySurfaces.${surface}`, { defaultValue: String(surface) }) : '';
+}
+
+/** Tooltip of an entry surface. */
+export function entrySurfaceTip(t, surface) {
+  return surface ? optionalText(t, `tips.trail.entrySurfaces.${surface}`) : '';
+}
+
 /** Tooltip of a node kind: what that kind of step is. */
 export function kindTip(t, kind) {
   return optionalText(t, `tips.trail.kinds.${kind}`);
@@ -53,7 +63,7 @@ export function stepDetail(t, node, lng) {
   const label = stateLabel(t, node.state);
   if (label) parts.push(label);
   // The caller lane says how the request came in (LP-013): Rest, Mcp, A2a, App, and so on.
-  if (node.kind === 'Caller' && node.entrySurface) parts.push(enumLabel(t, 'entrySurface', node.entrySurface));
+  if (node.kind === 'Caller' && node.entrySurface) parts.push(entrySurfaceLabel(t, node.entrySurface));
   if (node.durationMs !== null && node.durationMs !== undefined && node.kind !== 'Message') parts.push(formatDuration(node.durationMs, lng));
   return parts.join(' · ');
 }

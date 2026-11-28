@@ -9783,3 +9783,280 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "tours": {
+  "ui": {
+   "finding": "Ricerca del passo successivo...",
+   "skippedMissing": "Saltato {{step}}, che ora non è nella pagina.",
+   "skippedNoRecord": "Saltato {{step}}: questo tenant non ha ancora niente da mostrare lì.",
+   "endTitle": "Fine del tour",
+   "endBody": "Hai finito il tour {{tour}}. Puoi ripeterlo quando vuoi da Impara o da Tour guidato nella barra laterale."
+  },
+  "hub": {
+   "label": "Avvia il tour {{tour}}"
+  },
+  "picker": {
+   "title": "Tour guidati",
+   "intro": "Ogni tour percorre le pagine vere di un compito, pochi passi alla volta. I tour finiti sono segnati e puoi ripeterne uno qualsiasi.",
+   "start": "Avvia",
+   "replay": "Ripeti",
+   "finished": "Completato",
+   "learn": "Apri Impara",
+   "steps_one": "{{count}} passo",
+   "steps_other": "{{count}} passi"
+  },
+  "sample": {
+   "title": "Caricare un esempio?",
+   "body": "{{tour}} ha bisogno di {{need}} e questo tenant non ne ha ancora. Puoi caricare {{example}} applicandone il manifest, oppure continuare senza e saltare i passi che non hanno niente da mostrare.",
+   "contents_one": "Il caricamento applica {{count}} risorsa:",
+   "contents_other": "Il caricamento applica {{count}} risorse:",
+   "checking": "Controllo di cosa cambierebbe l'applicazione...",
+   "fake": "Tutto gira sull'harness finto, quindi non servono credenziali e non costa niente. I suoi custodi iniziano a svegliarsi entro pochi secondi.",
+   "runsLater": "I passi sull'esecuzione richiedono un'esecuzione. Il primo ciclo di un custode ne crea una pochi secondi dopo l'applicazione.",
+   "load": "Carica l'esempio",
+   "loading": "Caricamento...",
+   "continue": "Continua senza",
+   "loaded": "Caricato {{example}}.",
+   "needs": {
+    "agents": "un agente",
+    "runs": "un'esecuzione",
+    "keepers": "un custode",
+    "organizations": "un'organizzazione"
+   },
+   "examples": {
+    "gerbil": "l'esempio gerbil",
+    "siteReliability": "l'esempio di affidabilità del sito"
+   }
+  },
+  "homeCard": {
+   "title": "Sei nuovo? Inizia da Impara",
+   "body": "La pagina Impara mostra come si incastrano le parti di Garrison, con brevi tour delle pagine vere.",
+   "open": "Apri Impara",
+   "dismiss": "Nascondi"
+  },
+  "wizard": {
+   "nextTitle": "E adesso",
+   "nextBody": "La pagina Impara spiega come si incastrano le parti, e il tour Eseguire un agente segue lo stesso percorso nella dashboard.",
+   "learn": "Apri Impara",
+   "tour": "Fai il tour Eseguire un agente"
+  },
+  "firstLook": {
+   "summary": "La barra laterale, la barra in alto, la home e dove trovare aiuto.",
+   "steps": {
+    "sidebar": {
+     "title": "Navigazione",
+     "body": "Su questo lato tutto è raggruppato in aree. Le pagine di un'area compaiono come schede in alto, e ogni scheda ha il suo link."
+    },
+    "topbar": {
+     "title": "Dove sei",
+     "body": "La barra in alto mostra il server e il tenant su cui lavori, con quale utente sei entrato, e se il server è in salute e gli aggiornamenti arrivano in diretta."
+    },
+    "kpis": {
+     "title": "A colpo d'occhio",
+     "body": "Queste schede contano agenti, distribuzioni, esecuzioni e nodi. Fai clic su una per aprire l'elenco dietro."
+    },
+    "invoke": {
+     "title": "Invoca",
+     "body": "Scegli un agente, mandagli un messaggio e guarda arrivare la sua trascrizione."
+    },
+    "autonomy": {
+     "title": "Autonomia",
+     "body": "Custodi, messaggi, rapporti, memoria, escalation e blocchi: tutto per gli agenti che lavorano da soli."
+    },
+    "organizations": {
+     "title": "Organizzazioni",
+     "body": "Unità di agenti con responsabili e budget, il consiglio da cui le osservi e le regole di modifica entro cui lavorano i loro dirigenti."
+    },
+    "help": {
+     "title": "Aiuto",
+     "body": "La configurazione guidata ripete la prima configurazione, Tour guidato elenca tutti i tour e Impara ha diagrammi di come si incastra tutto. Il pulsante ? di una pagina avvia il suo tour."
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "Da una connessione a un agente, una distribuzione, un'invocazione e l'esecuzione che ne nasce.",
+   "steps": {
+    "connections": {
+     "title": "Connessioni",
+     "body": "Una connessione è un profilo di harness: quale CLI o API avviare e come. La configuri una volta e ogni distribuzione può usarla."
+    },
+    "agents": {
+     "title": "Agenti",
+     "body": "Un agente è il nome che usa chi lo chiama, con il modo in cui è esposto e la forma delle sue risposte. Da solo non esegue niente."
+    },
+    "deployments": {
+     "title": "Distribuzioni",
+     "body": "Una distribuzione rende eseguibile un agente: una connessione, un modello, prompt e limiti. Se ce ne sono più di una, le chiamate si dividono in base al peso."
+    },
+    "invoke": {
+     "title": "Invoca",
+     "body": "Scegli un agente, e una distribuzione precisa se vuoi, scrivi un messaggio e premi Invia. L'output arriva accanto al modulo."
+    },
+    "run": {
+     "title": "L'esecuzione",
+     "body": "Ogni invocazione è un'esecuzione. La sua pagina mostra in alto stato e ID, con schede per trascrizione, risultato, input e altro."
+    },
+    "trail": {
+     "title": "La scheda Percorso",
+     "body": "Percorso segue la richiesta attraverso ogni agente fino alla risposta. Il tour Seguire una richiesta lo spiega."
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "La scheda Percorso di un'esecuzione: le sue tre viste, i totali e i dettagli dei passi.",
+   "steps": {
+    "views": {
+     "title": "Tre viste",
+     "body": "Sequenza dà a ogni agente una corsia con il tempo che scorre verso il basso. Grafo mette ogni passo dopo ciò che l'ha causato. Elenco mostra ogni passo come una riga da filtrare."
+    },
+    "summary": {
+     "title": "I totali",
+     "body": "Quanti agenti hanno partecipato, quanti messaggi si sono scambiati, quanto è durato, token e costo, e quanti passi sono falliti."
+    },
+    "steps": {
+     "title": "Passi",
+     "body": "Ogni riquadro è un passo: un'esecuzione, un messaggio, un rapporto, un'escalation, un'approvazione o una chiamata a uno strumento. Le frecce spostano tra i passi e Invio ne apre uno."
+    },
+    "drawer": {
+     "title": "Dettagli del passo",
+     "body": "Il pannello mostra stato, tempi e costo di un passo. Il testo scritto da un agente compare come dati, con chi l'ha scritto, e Apri record porta al record completo."
+    },
+    "actions": {
+     "title": "Aggiorna ed esporta",
+     "body": "Finché un passo è ancora in corso, il percorso si aggiorna all'intervallo scelto qui. Esporta JSON scarica passi e collegamenti, senza testo scritto dagli agenti."
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "La scheda Progettazione di un'organizzazione: il canvas, le persone, i custodi, i budget e la pubblicazione.",
+   "steps": {
+    "canvas": {
+     "title": "Il canvas",
+     "body": "Ogni riquadro è un'unità, con responsabile e membri in alto e, dentro, le unità che le rispondono. Le linee tra i riquadri sono collegamenti tra pari, con cui due unità si scrivono direttamente."
+    },
+    "palette": {
+     "title": "Persone",
+     "body": "Trascina un agente da questo elenco su un'unità, oppure scegline uno e indica l'unità e se la guida o ne fa parte."
+    },
+    "keepers": {
+     "title": "Custodi",
+     "body": "Con un'unità selezionata, questa scheda elenca chi vi ha un custode. Collegane uno, creane uno nuovo o cambia quando si sveglia."
+    },
+    "budget": {
+     "title": "Budget",
+     "body": "Dai all'unità un tetto giornaliero o mensile. Copre tutto ciò che eseguono l'unità e ogni unità sotto di essa."
+    },
+    "publish": {
+     "title": "Pubblica",
+     "body": "Le modifiche si salvano subito nell'albero di lavoro, ma niente diventa attivo finché non pubblichi da qui. Ogni revisione resta salvata, quindi puoi tornare indietro."
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "I freni: l'interruttore di emergenza, i blocchi, i tetti di spesa, le regole di modifica e le approvazioni.",
+   "steps": {
+    "killSwitch": {
+     "title": "Interruttore di emergenza",
+     "body": "Se lo accendi, nessun custode del tenant si sveglia e nessun messaggio sveglia un agente. Le invocazioni normali continuano a funzionare."
+    },
+    "freezes": {
+     "title": "Blocchi",
+     "body": "Un blocco rifiuta nuove esecuzioni di un agente, una distribuzione, un custode o un'app finché una persona non lo toglie. Unità e intere organizzazioni si bloccano dal loro consiglio."
+    },
+    "spendCaps": {
+     "title": "Tetti di spesa",
+     "body": "Un custode può avere un budget per ciclo e per giorno. Quando quello del giorno è finito, si ferma fino al giorno UTC successivo e chiede a una persona."
+    },
+    "changeRules": {
+     "title": "Regole di modifica",
+     "body": "Le regole approvano in anticipo le modifiche di routine che un dirigente può fare nelle unità sotto di sé. Le scrivono solo le persone, e ciò che nessuna regola copre aspetta una persona."
+    },
+    "approvals": {
+     "title": "Approvazioni",
+     "body": "Quando una distribuzione chiede prima delle chiamate agli strumenti, quelle che richiedono una persona aspettano qui. Consenti o nega ciascuna e, se vuoi, salva la risposta come regola."
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "Il consiglio, le prestazioni, i rapporti e le escalation di un'organizzazione.",
+   "steps": {
+    "board": {
+     "title": "Il consiglio",
+     "body": "Lo stato di ogni unità, le escalation aperte, i freni e l'ultimo rapporto, sull'organigramma e in una tabella."
+    },
+    "attention": {
+     "title": "Richiede attenzione",
+     "body": "Escalation aperte, rapporti non in salute e unità al tetto del budget, in un unico posto."
+    },
+    "performance": {
+     "title": "Prestazioni",
+     "body": "Esecuzioni, esiti, costo, latenza ed escalation di ogni unità nell'intervallo che scegli."
+    },
+    "reports": {
+     "title": "Rapporti",
+     "body": "Ciò che esecuzioni e persone hanno presentato su come vanno le cose. Un rapporto presentato non si può modificare, e il suo testo compare come dati, mai come istruzioni."
+    },
+    "escalations": {
+     "title": "Escalation",
+     "body": "Domande che gli agenti hanno rivolto a una persona, a un ruolo o a un altro agente. Quelle aperte vengono prima, e rispondi da qui."
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "API REST",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "Applicazione",
+   "Dashboard": "Console web",
+   "Trigger": "Attivatore",
+   "Keeper": "Custode",
+   "Message": "Messaggio",
+   "Escalation": "Escalation",
+   "Eval": "Valutazione",
+   "Shadow": "Ombra",
+   "Internal": "Interno"
+  },
+  "columns": {
+   "entrySurface": "Arrivata da"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Arrivata da"
+   }
+  },
+  "edges": {
+   "Shadowed": "ha copiato in ombra",
+   "Delivered": "ha consegnato"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "Nessun custode del tenant si sveglia e nessun messaggio sveglia un agente. Le invocazioni normali continuano a funzionare."
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "Un blocco dell'autonomia per tutto il tenant. Nessun custode si sveglia e nessun messaggio sveglia un agente, mentre le invocazioni normali continuano a funzionare."
+   }
+  }
+ }
+});

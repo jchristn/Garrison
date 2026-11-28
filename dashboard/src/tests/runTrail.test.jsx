@@ -123,8 +123,18 @@ describe('TrailSequence', () => {
 
   it('shows on the caller step how the request came in (LP-013)', () => {
     mount(<TrailSequence trail={fixture} />);
-    expect(step('usr_operator1').querySelector('.trail-step-detail').textContent).toContain('Rest');
-    expect(step('run_a1').querySelector('.trail-step-detail').textContent).not.toContain('Rest');
+    expect(step('usr_operator1').querySelector('.trail-step-detail').textContent).toContain('REST API');
+    expect(step('run_a1').querySelector('.trail-step-detail').textContent).not.toContain('REST API');
+  });
+
+  it('labels every entry surface and the Shadowed and Delivered edges in every locale', () => {
+    for (const surface of ['Rest', 'Mcp', 'A2a', 'App', 'Dashboard', 'Trigger', 'Keeper', 'Message', 'Escalation', 'Eval', 'Shadow', 'Internal']) {
+      expect(i18n.exists(`trail.entrySurfaces.${surface}`)).toBe(true);
+      expect(i18n.exists(`tips.trail.entrySurfaces.${surface}`)).toBe(true);
+    }
+    expect(i18n.t('trail.entrySurfaces.Rest')).toBe('REST API');
+    expect(i18n.t('trail.edges.Shadowed')).toBe('shadowed');
+    expect(i18n.t('trail.edges.Delivered')).toBe('delivered');
   });
 
   it('highlights the focus run and draws the redacted step as a hatched box with only its kind', () => {
@@ -196,9 +206,21 @@ describe('TrailList', () => {
     act(() => rows[0].querySelector('[data-testid="trail-list-open"]').click());
     expect(onOpen).toHaveBeenCalledWith('run_c4');
   });
+
+  it('shows how the request came in on the caller row', () => {
+    mount(<TrailList trail={fixture} onOpen={() => {}} />);
+    const row = q('[data-testid="trail-list-table"] tbody tr[data-step-id="usr_operator1"]');
+    expect(row.textContent).toContain('REST API');
+  });
 });
 
 describe('TrailStepDrawer', () => {
+  it('names the entry surface of the caller step', async () => {
+    mount(<TrailStepDrawer trail={fixture} node={node('usr_operator1')} onClose={() => {}} />, { apiClient: {} });
+    await flush();
+    expect(q('[data-testid="trail-drawer"]').textContent).toContain('REST API');
+  });
+
   const markup = 'Please run <script>alert(1)</script> and <b>restart</b> the pods.';
 
   it('shows a message body as escaped data with who wrote it and in which run', async () => {

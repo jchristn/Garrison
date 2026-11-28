@@ -9737,3 +9737,280 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "tours": {
+  "ui": {
+   "finding": "正在查找下一步...",
+   "skippedMissing": "已跳过 {{step}}，它现在不在这个页面上。",
+   "skippedNoRecord": "已跳过 {{step}}：这个租户在那里还没有可显示的内容。",
+   "endTitle": "教程结束",
+   "endBody": "{{tour}} 到此结束。随时可以在学习页面或侧边栏的引导教程中再看一遍。"
+  },
+  "hub": {
+   "label": "开始{{tour}}教程"
+  },
+  "picker": {
+   "title": "引导教程",
+   "intro": "每个教程针对一项工作，带你逐步走过真实页面。完成的教程会被标记，任何一个都可以重看。",
+   "start": "开始",
+   "replay": "重看",
+   "finished": "已完成",
+   "learn": "打开学习",
+   "steps_one": "{{count}} 步",
+   "steps_other": "{{count}} 步"
+  },
+  "sample": {
+   "title": "加载示例？",
+   "body": "{{tour}}需要{{need}}，而这个租户还没有。你可以通过应用清单加载{{example}}，也可以不加载继续，并跳过没有内容可显示的步骤。",
+   "contents_one": "加载会应用 {{count}} 个资源：",
+   "contents_other": "加载会应用 {{count}} 个资源：",
+   "checking": "正在检查应用会改变什么...",
+   "fake": "一切都在模拟 harness 上运行，所以不需要凭据，也不产生费用。它的守护者几秒内就会开始唤醒。",
+   "runsLater": "运行相关的步骤需要一次运行。应用后几秒，第一次守护者巡检就会产生一次运行。",
+   "load": "加载示例",
+   "loading": "正在加载...",
+   "continue": "不加载，继续",
+   "loaded": "已加载{{example}}。",
+   "needs": {
+    "agents": "一个智能体",
+    "runs": "一次运行",
+    "keepers": "一个守护者",
+    "organizations": "一个组织"
+   },
+   "examples": {
+    "gerbil": "gerbil 示例",
+    "siteReliability": "站点可靠性示例"
+   }
+  },
+  "homeCard": {
+   "title": "新来的？从学习开始",
+   "body": "学习页面用图展示 Garrison 各部分如何配合，还有带你走过真实页面的简短教程。",
+   "open": "打开学习",
+   "dismiss": "关闭"
+  },
+  "wizard": {
+   "nextTitle": "接下来",
+   "nextBody": "学习页面讲解各部分如何配合，运行一个智能体教程会在控制台中走一遍同样的路径。",
+   "learn": "打开学习",
+   "tour": "开始运行一个智能体教程"
+  },
+  "firstLook": {
+   "summary": "侧边栏、顶部栏、首页，以及在哪里找到帮助。",
+   "steps": {
+    "sidebar": {
+     "title": "导航",
+     "body": "这一侧把所有内容按中心分组。中心的页面在顶部显示为标签页，每个标签页都有自己的链接。"
+    },
+    "topbar": {
+     "title": "你在哪里",
+     "body": "顶部栏显示你正在使用的服务器和租户、你登录的身份，以及服务器是否健康、更新是否实时到达。"
+    },
+    "kpis": {
+     "title": "一目了然",
+     "body": "这些卡片统计智能体、部署、运行和节点。点击卡片会打开对应的列表。"
+    },
+    "invoke": {
+     "title": "调用",
+     "body": "选一个智能体，给它发一条消息，看它的对话记录实时出现。"
+    },
+    "autonomy": {
+     "title": "自主运行",
+     "body": "守护者、消息、报告、记忆、上报和冻结：所有自己工作的智能体所需的东西都在这里。"
+    },
+    "organizations": {
+     "title": "组织",
+     "body": "带有负责人和预算的智能体单元、你用来观察它们的委员会，以及它们的高管遵循的变更规则。"
+    },
+    "help": {
+     "title": "帮助",
+     "body": "设置向导可以重新做首次设置，引导教程列出所有教程，学习用图说明一切如何配合。页面上的 ? 按钮会开始该页面的教程。"
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "从连接到智能体、部署、调用，再到它产生的运行。",
+   "steps": {
+    "connections": {
+     "title": "连接",
+     "body": "连接就是 harness 配置：启动哪个 CLI 或 API，以及怎么启动。设置一次，所有部署都能用。"
+    },
+    "agents": {
+     "title": "智能体",
+     "body": "智能体是调用方使用的名字，包括它如何对外提供以及回答的格式。单靠它本身什么也不运行。"
+    },
+    "deployments": {
+     "title": "部署",
+     "body": "部署让智能体可以运行：一个连接、一个模型、提示词和限制。有多个部署时，调用按权重分配。"
+    },
+    "invoke": {
+     "title": "调用",
+     "body": "选择智能体，需要的话再选一个特定部署，输入消息并按发送。输出会出现在表单旁边。"
+    },
+    "run": {
+     "title": "运行",
+     "body": "每次调用都是一次运行。它的页面顶部显示状态和 ID，下面有对话记录、结果、输入等标签页。"
+    },
+    "trail": {
+     "title": "轨迹标签页",
+     "body": "轨迹会跟踪请求经过每个智能体，直到回复。跟踪一个请求教程会详细介绍。"
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "运行的轨迹标签页：三种视图、合计和每一步的详情。",
+   "steps": {
+    "views": {
+     "title": "三种视图",
+     "body": "序列给每个智能体一条泳道，时间向下推进。图把每一步放在引起它的步骤之后。列表把每一步显示为可以筛选的一行。"
+    },
+    "summary": {
+     "title": "合计",
+     "body": "有多少智能体参与、它们之间传了多少消息、花了多长时间、token 和费用，以及有多少步骤失败。"
+    },
+    "steps": {
+     "title": "步骤",
+     "body": "每个方框是一步：一次运行、一条消息、一份报告、一次上报、一次审批或一次工具调用。方向键在步骤之间移动，Enter 打开一步。"
+    },
+    "drawer": {
+     "title": "步骤详情",
+     "body": "抽屉显示一步的状态、时间和费用。智能体写的文字会作为纯数据显示，并注明作者，打开记录会转到完整记录。"
+    },
+    "actions": {
+     "title": "刷新和导出",
+     "body": "只要还有步骤在运行，轨迹就按这里选的间隔刷新。导出 JSON 会下载步骤和链接，不含智能体写的文字。"
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "组织的设计标签页：画布、人员、守护者、预算和发布。",
+   "steps": {
+    "canvas": {
+     "title": "画布",
+     "body": "每个方框是一个单元，顶部是负责人和成员，里面是向它汇报的单元。方框之间的线是同级连线，让两个单元可以直接互发消息。"
+    },
+    "palette": {
+     "title": "人员",
+     "body": "把智能体从这个列表拖到某个单元上，或者选中一个，再选择单元以及它是负责还是加入。"
+    },
+    "keepers": {
+     "title": "守护者",
+     "body": "选中一个单元后，这个标签页会列出其中谁有守护者。可以挂上一个、新建一个，或者修改它何时唤醒。"
+    },
+    "budget": {
+     "title": "预算",
+     "body": "为单元设置每天或每月的上限。它涵盖这个单元及其下所有单元运行的一切。"
+    },
+    "publish": {
+     "title": "发布",
+     "body": "更改会立刻保存到工作树，但在这里发布之前都不会生效。每个修订都会保留，所以可以回滚。"
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "刹车：紧急停止开关、冻结、支出上限、变更规则和审批。",
+   "steps": {
+    "killSwitch": {
+     "title": "紧急停止开关",
+     "body": "打开后，租户中的守护者都不会唤醒，消息也不会唤醒智能体。普通调用照常工作。"
+    },
+    "freezes": {
+     "title": "冻结",
+     "body": "冻结会拒绝某个智能体、部署、守护者或应用的新运行，直到有人解除。单元和整个组织要在它们的委员会中冻结。"
+    },
+    "spendCaps": {
+     "title": "支出上限",
+     "body": "守护者可以设置每次巡检和每天的预算。当天预算用完后，它会停到下一个 UTC 日，并询问一个人。"
+    },
+    "changeRules": {
+     "title": "变更规则",
+     "body": "规则预先批准高管可以在下属单元中做的常规更改。只有人能写规则，规则没覆盖的都要等人来定。"
+    },
+    "approvals": {
+     "title": "审批",
+     "body": "当部署在调用工具前要求确认时，需要人来决定的调用会在这里等待。逐个允许或拒绝，愿意的话把答复记成规则。"
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "组织的委员会、绩效、报告和上报。",
+   "steps": {
+    "board": {
+     "title": "委员会",
+     "body": "每个单元的健康状况、未处理的上报、刹车和最新报告，显示在架构图和表格中。"
+    },
+    "attention": {
+     "title": "待处理",
+     "body": "未处理的上报、不健康的报告和达到预算上限的单元，集中在一处。"
+    },
+    "performance": {
+     "title": "绩效",
+     "body": "在你选择的时间范围内，每个单元的运行、结果、费用、延迟和上报。"
+    },
+    "reports": {
+     "title": "报告",
+     "body": "运行和人员就现状提交的内容。提交后的报告不能修改，其文字作为数据显示，绝不当作指令。"
+    },
+    "escalations": {
+     "title": "上报",
+     "body": "智能体向某人、某个角色或另一个智能体提出的问题。未处理的排在前面，你可以在这里答复。"
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "REST API",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "应用",
+   "Dashboard": "控制台",
+   "Trigger": "触发器",
+   "Keeper": "守护者",
+   "Message": "消息",
+   "Escalation": "上报",
+   "Eval": "评估",
+   "Shadow": "影子",
+   "Internal": "内部"
+  },
+  "columns": {
+   "entrySurface": "进入途径"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "进入途径"
+   }
+  },
+  "edges": {
+   "Shadowed": "影子复制",
+   "Delivered": "送达"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "租户中的守护者都不会唤醒，消息也不会唤醒智能体。普通调用照常工作。"
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "整个租户范围的自主运行冻结。守护者不会唤醒，消息也不会唤醒智能体，而普通调用照常工作。"
+   }
+  }
+ }
+});

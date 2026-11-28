@@ -9783,3 +9783,280 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// LP4.5 to LP4.9: the guided tours (engine, list, sample data offer, Home card, wizard next step); the trail's
+// entry surfaces and the Shadowed and Delivered edges (LP1.12, LP1.13); the kill switch also refuses message wakes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "tours": {
+  "ui": {
+   "finding": "Recherche de l'étape suivante...",
+   "skippedMissing": "Étape {{step}} passée, car elle n'est pas sur la page pour l'instant.",
+   "skippedNoRecord": "Étape {{step}} passée : ce locataire n'a encore rien à montrer ici.",
+   "endTitle": "Fin de la visite",
+   "endBody": "Vous avez fait le tour de {{tour}}. Vous pouvez la refaire quand vous voulez depuis Apprendre ou depuis Visite guidée dans la barre latérale."
+  },
+  "hub": {
+   "label": "Lancer la visite {{tour}}"
+  },
+  "picker": {
+   "title": "Visites guidées",
+   "intro": "Chaque visite parcourt les vraies pages d'une tâche, quelques étapes à la fois. Les visites terminées sont marquées, et vous pouvez refaire n'importe laquelle.",
+   "start": "Lancer",
+   "replay": "Refaire",
+   "finished": "Terminée",
+   "learn": "Ouvrir Apprendre",
+   "steps_one": "{{count}} étape",
+   "steps_other": "{{count}} étapes"
+  },
+  "sample": {
+   "title": "Charger un exemple ?",
+   "body": "{{tour}} a besoin d'{{need}}, et ce locataire n'en a pas encore. Vous pouvez charger {{example}} en appliquant son manifeste, ou continuer sans et passer les étapes qui n'ont rien à montrer.",
+   "contents_one": "Le chargement applique {{count}} ressource :",
+   "contents_other": "Le chargement applique {{count}} ressources :",
+   "checking": "Vérification de ce que l'application changerait...",
+   "fake": "Tout tourne sur le harnais factice : aucun identifiant n'est nécessaire et cela ne coûte rien. Ses gardiens commencent à se réveiller en quelques secondes.",
+   "runsLater": "Les étapes sur l'exécution demandent une exécution. Le premier cycle d'un gardien en crée une quelques secondes après l'application.",
+   "load": "Charger l'exemple",
+   "loading": "Chargement...",
+   "continue": "Continuer sans",
+   "loaded": "{{example}} chargé.",
+   "needs": {
+    "agents": "un agent",
+    "runs": "une exécution",
+    "keepers": "un gardien",
+    "organizations": "une organisation"
+   },
+   "examples": {
+    "gerbil": "l'exemple gerbil",
+    "siteReliability": "l'exemple fiabilité du site"
+   }
+  },
+  "homeCard": {
+   "title": "Nouveau ici ? Commencez par Apprendre",
+   "body": "La page Apprendre montre comment les parties de Garrison s'assemblent, avec de courtes visites des vraies pages.",
+   "open": "Ouvrir Apprendre",
+   "dismiss": "Masquer"
+  },
+  "wizard": {
+   "nextTitle": "Et ensuite",
+   "nextBody": "La page Apprendre explique comment les parties s'assemblent, et la visite Exécuter un agent suit le même chemin dans le tableau de bord.",
+   "learn": "Ouvrir Apprendre",
+   "tour": "Faire la visite Exécuter un agent"
+  },
+  "firstLook": {
+   "summary": "La barre latérale, la barre du haut, l'accueil et où trouver de l'aide.",
+   "steps": {
+    "sidebar": {
+     "title": "Navigation",
+     "body": "Tout est regroupé en espaces sur ce côté. Les pages d'un espace apparaissent en onglets en haut, et chaque onglet a son propre lien."
+    },
+    "topbar": {
+     "title": "Où vous êtes",
+     "body": "La barre du haut indique le serveur et le locataire où vous travaillez, avec quel compte vous êtes connecté, et si le serveur va bien et les mises à jour arrivent en direct."
+    },
+    "kpis": {
+     "title": "En un coup d'œil",
+     "body": "Ces cartes comptent les agents, les déploiements, les exécutions et les nœuds. Cliquez sur une carte pour ouvrir la liste correspondante."
+    },
+    "invoke": {
+     "title": "Invoquer",
+     "body": "Choisissez un agent, envoyez-lui un message et regardez sa transcription arriver."
+    },
+    "autonomy": {
+     "title": "Autonomie",
+     "body": "Gardiens, messages, rapports, mémoire, escalades et gels : tout ce qui concerne les agents qui travaillent seuls."
+    },
+    "organizations": {
+     "title": "Organisations",
+     "body": "Des unités d'agents avec leurs responsables et leurs budgets, le comité d'où vous les surveillez, et les règles de changement de leurs dirigeants."
+    },
+    "help": {
+     "title": "Aide",
+     "body": "L'assistant de configuration relance la première configuration, Visite guidée liste toutes les visites, et Apprendre montre en diagrammes comment tout s'assemble. Le bouton ? d'une page lance sa visite."
+    }
+   }
+  },
+  "runAnAgent": {
+   "summary": "D'une connexion à un agent, un déploiement, une invocation et l'exécution qui en résulte.",
+   "steps": {
+    "connections": {
+     "title": "Connexions",
+     "body": "Une connexion est un profil de harnais : quelle CLI ou API lancer, et comment. Configurée une fois, tout déploiement peut l'utiliser."
+    },
+    "agents": {
+     "title": "Agents",
+     "body": "Un agent est le nom qu'utilisent les appelants, avec sa façon d'être exposé et la forme de ses réponses. Seul, il n'exécute rien."
+    },
+    "deployments": {
+     "title": "Déploiements",
+     "body": "Un déploiement rend un agent exécutable : une connexion, un modèle, des prompts et des limites. S'il y en a plusieurs, les appels se répartissent selon leur poids."
+    },
+    "invoke": {
+     "title": "Invoquer",
+     "body": "Choisissez un agent, et un déploiement précis si vous voulez, écrivez un message et appuyez sur Envoyer. La sortie s'affiche à côté du formulaire."
+    },
+    "run": {
+     "title": "L'exécution",
+     "body": "Chaque invocation est une exécution. Sa page affiche en haut l'état et l'ID, avec des onglets pour la transcription, le résultat, l'entrée et plus encore."
+    },
+    "trail": {
+     "title": "L'onglet Parcours",
+     "body": "Parcours suit la requête à travers chaque agent jusqu'à la réponse. La visite Suivre une requête le présente."
+    }
+   }
+  },
+  "followARequest": {
+   "summary": "L'onglet Parcours d'une exécution : ses trois vues, les totaux et le détail des étapes.",
+   "steps": {
+    "views": {
+     "title": "Trois vues",
+     "body": "Séquence donne à chaque agent un couloir, le temps descendant. Graphe place chaque étape après ce qui l'a causée. Liste montre chaque étape sur une ligne que vous pouvez filtrer."
+    },
+    "summary": {
+     "title": "Les totaux",
+     "body": "Combien d'agents ont participé, combien de messages ont circulé entre eux, combien de temps cela a pris, les tokens et le coût, et combien d'étapes ont échoué."
+    },
+    "steps": {
+     "title": "Étapes",
+     "body": "Chaque case est une étape : une exécution, un message, un rapport, une escalade, une approbation ou un appel d'outil. Les flèches passent d'une étape à l'autre, et Entrée en ouvre une."
+    },
+    "drawer": {
+     "title": "Détail d'une étape",
+     "body": "Le panneau montre l'état, les horaires et le coût d'une étape. Le texte écrit par un agent s'affiche comme des données, avec son auteur, et Ouvrir l'enregistrement mène à l'enregistrement complet."
+    },
+    "actions": {
+     "title": "Actualiser et exporter",
+     "body": "Tant qu'une étape tourne encore, le parcours s'actualise à l'intervalle choisi ici. Exporter en JSON télécharge les étapes et leurs liens, sans aucun texte écrit par des agents."
+    }
+   }
+  },
+  "buildATeam": {
+   "summary": "L'onglet Conception d'une organisation : le canevas, les personnes, les gardiens, les budgets et la publication.",
+   "steps": {
+    "canvas": {
+     "title": "Le canevas",
+     "body": "Chaque case est une unité, avec son responsable et ses membres en haut et, à l'intérieur, les unités qui lui rendent compte. Les lignes entre les cases sont des liens entre pairs, qui permettent à deux unités de s'écrire directement."
+    },
+    "palette": {
+     "title": "Personnes",
+     "body": "Faites glisser un agent de cette liste sur une unité, ou choisissez-en un puis l'unité et s'il la dirige ou la rejoint."
+    },
+    "keepers": {
+     "title": "Gardiens",
+     "body": "Quand une unité est sélectionnée, cet onglet liste qui y a un gardien. Rattachez-en un, créez-en un nouveau ou changez quand il se réveille."
+    },
+    "budget": {
+     "title": "Budget",
+     "body": "Donnez à l'unité un plafond par jour ou par mois. Il couvre tout ce qu'exécutent l'unité et chaque unité en dessous."
+    },
+    "publish": {
+     "title": "Publier",
+     "body": "Les changements sont enregistrés tout de suite dans l'arbre de travail, mais rien n'entre en vigueur avant que vous publiiez ici. Chaque révision est conservée, vous pouvez donc revenir en arrière."
+    }
+   }
+  },
+  "keepItSafe": {
+   "summary": "Les freins : l'arrêt d'urgence, les gels, les plafonds de dépense, les règles de changement et les approbations.",
+   "steps": {
+    "killSwitch": {
+     "title": "Arrêt d'urgence",
+     "body": "Activé, aucun gardien du locataire ne se réveille, et aucun message ne réveille un agent non plus. Les invocations ordinaires continuent de fonctionner."
+    },
+    "freezes": {
+     "title": "Gels",
+     "body": "Un gel refuse les nouvelles exécutions d'un agent, d'un déploiement, d'un gardien ou d'une app jusqu'à ce qu'une personne le lève. Les unités et les organisations entières se gèlent depuis leur comité."
+    },
+    "spendCaps": {
+     "title": "Plafonds de dépense",
+     "body": "Un gardien peut avoir un budget par cycle et par jour. Quand le budget du jour est épuisé, il s'arrête jusqu'au jour UTC suivant et demande à une personne."
+    },
+    "changeRules": {
+     "title": "Règles de changement",
+     "body": "Les règles approuvent d'avance des changements courants qu'un dirigeant peut faire dans les unités sous lui. Seules des personnes les écrivent, et tout ce qu'aucune règle ne couvre attend une personne."
+    },
+    "approvals": {
+     "title": "Approbations",
+     "body": "Quand un déploiement demande avant ses appels d'outils, ceux qui ont besoin d'une personne attendent ici. Autorisez ou refusez chacun, et gardez la réponse comme règle si vous voulez."
+    }
+   }
+  },
+  "watchAnOrganization": {
+   "summary": "Le comité, les performances, les rapports et les escalades d'une organisation.",
+   "steps": {
+    "board": {
+     "title": "Le comité",
+     "body": "La santé de chaque unité, ses escalades ouvertes, ses freins et son dernier rapport, sur l'organigramme et dans un tableau."
+    },
+    "attention": {
+     "title": "Demande votre attention",
+     "body": "Escalades ouvertes, rapports en mauvaise santé et unités à leur plafond de budget, au même endroit."
+    },
+    "performance": {
+     "title": "Performances",
+     "body": "Exécutions, résultats, coût, latence et escalades de chaque unité, sur la période que vous choisissez."
+    },
+    "reports": {
+     "title": "Rapports",
+     "body": "Ce que les exécutions et les personnes ont déposé sur l'état des choses. Un rapport déposé ne peut pas être modifié, et son texte s'affiche comme des données, jamais comme des instructions."
+    },
+    "escalations": {
+     "title": "Escalades",
+     "body": "Les questions que des agents ont posées à une personne, un rôle ou un autre agent. Les ouvertes viennent en premier, et vous y répondez d'ici."
+    }
+   }
+  }
+ },
+ "trail": {
+  "entrySurfaces": {
+   "Rest": "API REST",
+   "Mcp": "MCP",
+   "A2a": "A2A",
+   "App": "Application",
+   "Dashboard": "Tableau de bord",
+   "Trigger": "Déclencheur",
+   "Keeper": "Gardien",
+   "Message": "Message",
+   "Escalation": "Escalade",
+   "Eval": "Évaluation",
+   "Shadow": "Fantôme",
+   "Internal": "Interne"
+  },
+  "columns": {
+   "entrySurface": "Arrivée par"
+  },
+  "drawer": {
+   "fields": {
+    "entrySurface": "Arrivée par"
+   }
+  },
+  "edges": {
+   "Shadowed": "a copié en fantôme",
+   "Delivered": "a remis"
+  }
+ },
+ "learn": {
+  "diagrams": {
+   "brakes": {
+    "boxes": {
+     "killSwitch": {
+      "body": "Aucun gardien du locataire ne se réveille, et aucun message ne réveille un agent. Les invocations ordinaires continuent de fonctionner."
+     }
+    }
+   }
+  },
+  "glossary": {
+   "killSwitch": {
+    "def": "Un gel de l'autonomie pour tout le locataire. Aucun gardien ne se réveille et aucun message ne réveille un agent, tandis que les invocations ordinaires continuent de fonctionner."
+   }
+  }
+ }
+});
