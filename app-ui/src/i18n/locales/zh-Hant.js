@@ -272,3 +272,21 @@ const zhHant = {
 });
 
 export default zhHant;
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+  "chat": {
+    "starterPrompts": "建議問題"
+  },
+  "tips": {
+    "starterPrompt": "將這個建議問題直接傳送給代理，用它來開始一段新的對話。"
+  }
+});

@@ -11,6 +11,8 @@ import useConversation from '../hooks/useConversation.js';
 import useFiles from '../hooks/useFiles.js';
 import Splitter from './Splitter.jsx';
 import { STORAGE_KEYS, readStorage, writeStorage } from '../utils/storage.js';
+import { themeSwitchAllowed } from '../utils/theme.js';
+import PoweredBy from './PoweredBy.jsx';
 
 const WIDE = '(min-width: 1100px)';
 const NARROW = '(max-width: 760px)';
@@ -36,14 +38,18 @@ function matches(query) {
   }
 }
 
-// The signed-in app: header (logo, name, files, theme, language, sign out), the conversation list, the chat, and
-// the file panel. On narrow screens the list and the file panel open over the chat.
-export default function ChatShell({ client, info, logoUrl, session, conversationId, onNavigate, onSignOut, theme, onToggleTheme }) {
+// The signed-in app: header (logo, name and subtitle, files, theme, language, sign out), the conversation list, the
+// chat, and the file panel. On narrow screens the list and the file panel open over the chat. The app may hide the
+// file panel (showFilesPanel), the language picker (showLanguagePicker), and the theme switch (allowThemeSwitch), and
+// shows a small Powered by Garrison line under the chat unless showPoweredBy is false.
+export default function ChatShell({ client, info, logoUrl, avatarUrl = null, session, conversationId, onNavigate, onSignOut, theme, onToggleTheme }) {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState(null);
   const [listError, setListError] = useState(null);
   const [listOpen, setListOpen] = useState(() => !matches(NARROW));
-  const [filesOpen, setFilesOpen] = useState(() => matches(WIDE));
+  const showFiles = info.showFilesPanel !== false;
+  const [filesOpenState, setFilesOpen] = useState(() => matches(WIDE));
+  const filesOpen = showFiles && filesOpenState;
   const [missing, setMissing] = useState(false);
   const name = info.displayName || info.slug;
   const [listWidth, setListWidth] = useState(() => storedWidth(STORAGE_KEYS.conversationsWidth, LIST_WIDTH));
@@ -128,26 +134,35 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
         </button>
         <div className="brand">
           {logoUrl ? <img className="brand-logo" src={logoUrl} alt={t('header.logoAlt', { name })} data-testid="brand-logo" /> : null}
-          <span className="brand-name" data-testid="brand-name" dir="auto">
-            {name}
+          <span className="brand-text">
+            <span className="brand-name" data-testid="brand-name" dir="auto">
+              {name}
+            </span>
+            {info.subtitle ? (
+              <span className="brand-subtitle" data-testid="brand-subtitle" dir="auto">
+                {info.subtitle}
+              </span>
+            ) : null}
           </span>
         </div>
         <div className="header-tools">
-          <button
-            type="button"
-            className={`button ghost files-toggle ${filesOpen ? 'is-active' : ''}`}
-            onClick={() => setFilesOpen((v) => !v)}
-            aria-expanded={filesOpen}
-            aria-controls="file-sidebar"
-            {...tip(t('tips.filesToggle'))}
-            data-testid="toggle-files"
-          >
-            <FilesIcon />
-            <span className="files-toggle-label">{t('header.files')}</span>
-            {fileCount ? <span className="count-badge">{fileCount}</span> : null}
-          </button>
-          <LanguageSelect className="header-lang" />
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          {showFiles ? (
+            <button
+              type="button"
+              className={`button ghost files-toggle ${filesOpen ? 'is-active' : ''}`}
+              onClick={() => setFilesOpen((v) => !v)}
+              aria-expanded={filesOpen}
+              aria-controls="file-sidebar"
+              {...tip(t('tips.filesToggle'))}
+              data-testid="toggle-files"
+            >
+              <FilesIcon />
+              <span className="files-toggle-label">{t('header.files')}</span>
+              {fileCount ? <span className="count-badge">{fileCount}</span> : null}
+            </button>
+          ) : null}
+          {info.showLanguagePicker !== false ? <LanguageSelect className="header-lang" /> : null}
+          {themeSwitchAllowed(info) ? <ThemeToggle theme={theme} onToggle={onToggleTheme} /> : null}
           <span className="principal" dir="auto">
             {session.anonymous ? t('header.guest') : t('header.signedInAs', { name: session.principalName })}
           </span>
@@ -161,11 +176,13 @@ export default function ChatShell({ client, info, logoUrl, session, conversation
           <ConversationList conversations={conversations} error={listError} selectedId={conversationId} onSelect={select} onNew={() => select(null)} onRename={rename} onDelete={remove} />
         </div>
         {listOpen ? <Splitter edge="start" width={listWidth} min={LIST_MIN} max={LIST_MAX} onChange={resizeList} label={t('layout.resizeConversations')} tipText={t('tips.resizeConversations')} testId="resize-conversations" /> : null}
-        <ChatPane key={conversationId || 'new'} info={info} conversation={conversation} conversationMissing={missing} filePaths={filePaths} onFile={openFile} />
+        <ChatPane key={conversationId || 'new'} info={info} avatarUrl={avatarUrl} conversation={conversation} conversationMissing={missing} filePaths={filePaths} onFile={showFiles ? openFile : null} footer={info.showPoweredBy !== false ? <PoweredBy className="chat-powered" /> : null} />
         {filesOpen ? <Splitter edge="end" width={filesWidth} min={FILES_MIN} max={FILES_MAX} onChange={resizeFiles} label={t('layout.resizeFiles')} tipText={t('tips.resizeFiles')} testId="resize-files" /> : null}
-        <div id="file-sidebar" className="files-sidebar" hidden={!filesOpen}>
-          <FilePanel client={client} conversationId={conversationId} files={files} viewing={viewing} onView={setViewing} onClose={() => setFilesOpen(false)} />
-        </div>
+        {showFiles ? (
+          <div id="file-sidebar" className="files-sidebar" hidden={!filesOpen}>
+            <FilePanel client={client} conversationId={conversationId} files={files} viewing={viewing} onView={setViewing} onClose={() => setFilesOpen(false)} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

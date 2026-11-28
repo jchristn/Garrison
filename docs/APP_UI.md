@@ -7,7 +7,7 @@ It talks only to the app gateway (`/v1.0/apps/{slug}/...`, described in [APPS.md
 ## What a user sees
 
 1. **Sign-in.** The app's logo and name, an email and password form, and, when the app allows anonymous use, a "Continue without signing in" button. Which accounts may sign in depends on the app's `authMode`: any user of the tenant for `TenantUsers`, users holding the `AppUser` role on the app for `AppUsers`. An `Anonymous` app with `anonymousEnabled` adds the guest button.
-2. **Chat.** A list of the user's conversations on the side, a "New conversation" button, and the conversation itself. Before the first message the page shows the app's welcome text (Markdown). Answers stream in as the agent writes them, and a "working" line with animated dots stays under the turn until it ends, including between tool calls. While a turn runs, Send becomes **Stop**, which cancels the turn (`POST .../conversations/{id}/stop`); the agent's text so far stays in the conversation.
+2. **Chat.** A list of the user's conversations on the side, a "New conversation" button, and the conversation itself. Before the first message the page shows a welcome screen: the welcome title (the display name unless the app sets `welcomeTitle`), the subtitle, the welcome text (Markdown), and up to four starter prompts. A starter prompt is a button, and clicking it sends its text as the first message. Answers stream in as the agent writes them, and a "working" line with animated dots stays under the turn until it ends, including between tool calls. While a turn runs, Send becomes **Stop**, which cancels the turn (`POST .../conversations/{id}/stop`); the agent's text so far stays in the conversation.
 3. **Files.** A panel listing the files the agent wrote in the conversation's [file space](FILE_SPACES.md), with each file's version, size, and last change. Each file can be viewed in the panel, downloaded, or opened in its version history. The list updates while the agent works.
 
 The conversation list has a filter box that matches conversation names, and a sort menu: most recent, oldest, or name. Each conversation can be renamed in place. Deleting one asks for confirmation in a dialog first (Delete "title"? This cannot be undone.), and the delete button is disabled while a turn in that conversation is still running; stop the turn to delete it. A conversation is busy only while its latest turn has not finished, so failed and finished conversations can always be deleted.
@@ -16,7 +16,9 @@ The file list uses compact rows and sorts by newest, oldest, largest, smallest, 
 
 Two dividers set the pane widths: one between the conversation list and the chat (200 to 520 px) and one between the chat and the file list (240 to 640 px). Drag a divider, or focus it and use the arrow keys. The browser remembers the widths. On narrow screens, where the panes become overlays, the dividers are hidden.
 
-The header has a files toggle, a language picker, a light and dark theme toggle, and sign out.
+The header has the logo, the name with the app's subtitle under it, a files toggle, a language picker, a light and dark theme toggle, and sign out. An app can hide the files toggle and the file list (`showFilesPanel: false`), the language picker (`showLanguagePicker: false`), and the theme toggle (`allowThemeSwitch: false`). A small "Built with Garrison Agent Studio" line sits under the message box and at the foot of the sign-in page unless the app sets `showPoweredBy: false`.
+
+Agent answers carry the agent's name and, when the app has one, its avatar (`agentAvatarUrl`, served at `/v1.0/apps/{slug}/avatar`). The name is `agentDisplayName`, which the server fills with the entry agent's name when the app leaves it empty. The message box shows `composerPlaceholder` when the app sets one.
 
 ## URLs and routing
 
@@ -62,8 +64,8 @@ The supplied ingresses (`k8s/overlays/k3s`, `k8s/overlays/production`, and the H
 | `src/hooks/useConversation.js` | Loads a conversation, sends messages, follows running turns |
 | `src/hooks/useFiles.js` | The file listing, refreshed on `files.changed` |
 | `src/utils/turns.js` | Folds stream events into a turn (text, status, operator detail) |
-| `src/utils/branding.js` | Branding colors and typeface to CSS variables, the page title, and the tab icon |
-| `src/utils/theme.js` | Light and dark theme |
+| `src/utils/branding.js` | Branding colors (light and dark) and typeface to CSS variables, corner style and density attributes, the page title, and the tab icon |
+| `src/utils/theme.js` | Light and dark theme, and the app's theme rule (`appTheme`) |
 | `src/utils/location.js` | Slug and conversation from the URL |
 | `src/components/` | Screens and controls |
 | `src/i18n/` | Locale registry and catalogs |
@@ -133,7 +135,33 @@ Branding comes from `AppInfo` and becomes CSS variables on `<html>`:
 | `--app-muted-background`, `--app-muted-header`, `--app-muted-agent-bubble`, `--app-muted-conversations`, `--app-muted-composer`, `--app-muted-files` | computed | Secondary text (timestamps, hints, labels) on each of those, a muted shade of the matching text color |
 | `--app-font` | `fontFamily` | The typeface of the whole page |
 
-Primary and accent always get a value: only `#rgb` and `#rrggbb` are accepted, and anything else keeps the built-in teal and amber. The background, header, agent message, conversation list, composer, and file list variables (and their text and muted companions) are set only when the app sets those colors, so a null color keeps the theme's own color in both light and dark mode.
+Primary and accent always get a value: only `#rgb` and `#rrggbb` are accepted, and anything else keeps the built-in teal and amber. The background, header, agent message, conversation list, composer, and file list variables (and their text and muted companions) are set only when the app sets those colors, so a null color keeps the theme's own color.
+
+### Dark colors
+
+Each of the eight colors has a dark counterpart (`darkPrimaryColor`, `darkAccentColor`, `darkBackgroundColor`, `darkHeaderColor`, `darkAgentBubbleColor`, `darkConversationListColor`, `darkComposerColor`, `darkFilesColor`). In the dark theme the page sets the same variables from those, so the table above holds for both themes. The variables are recomputed whenever the theme changes.
+
+A dark color the app leaves null is filled in as follows:
+
+1. If the app has a `paletteId` (any value, including `custom`), the page derives it from the light color in OKLCH, which keeps the hue and moves only the lightness. A light surface (background, header, messages, lists, composer, files) becomes a dark one with a little of its tint, and a lighter surface stays a little lighter than a darker one, so panels still stand out from the page. A surface that is already dark stays as it is. Primary and accent are lifted to an OKLCH lightness of at least 0.72 so they show on a dark page. Text colors are then computed from the derived color exactly as for any other.
+2. If the app has no `paletteId`, the light color is used in the dark theme too. Apps saved before palettes existed keep the look they had.
+3. If the light color is null as well, the theme's own color applies.
+
+`deriveDarkColor` in `src/utils/branding.js` does this. The dashboard mirrors it in `dashboard/src/utils/appColors.js` so the app editor's preview and its "Derived from light" swatches show the same colors, and a dashboard test fails if the two ever disagree.
+
+The dashboard's eight palettes (Garrison teal, Slate, Ocean, Forest, Sunset, Plum, Graphite, High contrast) fill all sixteen colors and set `paletteId`. The app page needs no palette catalog: it draws the stored colors. Each palette passes WCAG AA (4.5:1) for body, muted, and theme text on every surface in both themes, and also when its dark colors are left to be derived.
+
+### Corners and density
+
+`cornerStyle` and `density` become attributes on `<html>`, and the defaults set none, so an app that leaves them alone looks the same as before:
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `cornerStyle` | `Rounded` (default) | No attribute |
+| | `Sharp` | `data-corners="sharp"`: `--radius-md` 2px, `--radius-lg` 4px |
+| | `Pill` | `data-corners="pill"`: buttons, inputs, and selects fully rounded, larger radii elsewhere |
+| `density` | `Comfortable` (default) | No attribute |
+| | `Compact` | `data-density="compact"`: smaller spacing variables, a 48px header, shorter buttons |
 
 `fontFamily` picks a font stack the browser already has, so no font is downloaded and the Content-Security-Policy needs nothing extra:
 
@@ -147,13 +175,21 @@ Primary and accent always get a value: only `#rgb` and `#rrggbb` are accepted, a
 
 The page title becomes the display name, which may contain any characters (up to 128); the app's `name` and `slug` stay lowercase letters, digits, and hyphens because they identify the app and its URL. The logo shows on sign-in and in the header. The browser tab icon is `faviconUrl` from `AppInfo`: the favicon asset, else the logo, else the built-in icon.
 
-Light and dark themes are `data-theme` on `<html>`. With no saved choice the page follows the system setting and keeps following it. The toggle saves an explicit choice in `localStorage` (`garrison.app.theme`). Brand colors stay the same in both themes, and the computed text colors keep them readable.
+### Theme
+
+Light and dark themes are `data-theme` on `<html>`. The page picks the theme this way:
+
+1. A choice the user saved with the toggle (`localStorage`, `garrison.app.theme`), but only when the app allows switching (`allowThemeSwitch`, default true). With switching off, the toggle is hidden and a saved choice is ignored.
+2. Otherwise the app's `themeDefault`: `Light` or `Dark`.
+3. Otherwise (`System`, the default) the system setting, which the page keeps following as it changes.
+
+Until the app's settings load, the page shows the saved choice or the system theme.
 
 ## Languages
 
 The app UI has the dashboard's locale set: English, German, Japanese, Spanish, French, Italian, Simplified and Traditional Mandarin, and Cantonese, plus the `zz` pseudo-locale (accented, padded, right to left) for layout testing. The language comes from `?lang=`, then the saved choice (`garrison.app.locale`), then the browser. Catalogs are in `src/i18n/locales/`, one file per locale with tooltips under `tips`. To add a locale, add an entry to `src/i18n/localeRegistry.js`, a catalog that mirrors `en.js`, and its import in `src/i18n/resources.js`. The unit tests fail when a catalog misses a key or loses a placeholder. Layout uses logical CSS properties, so right-to-left languages mirror without extra rules.
 
-App content (display name, description, welcome text) is shown as the app owner wrote it and is not translated.
+App content (display name, subtitle, description, welcome title and text, starter prompts, the agent's name, and the message box placeholder) is shown as the app owner wrote it and is not translated.
 
 ## Accessibility
 

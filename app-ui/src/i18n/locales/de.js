@@ -272,3 +272,21 @@ const de = {
 });
 
 export default de;
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+  "chat": {
+    "starterPrompts": "Vorgeschlagene Fragen"
+  },
+  "tips": {
+    "starterPrompt": "Sendet diese Frage an den Agenten und beginnt damit die Unterhaltung."
+  }
+});

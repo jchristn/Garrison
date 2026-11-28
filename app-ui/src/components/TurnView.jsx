@@ -11,8 +11,9 @@ import TurnTelemetry from './TurnTelemetry.jsx';
 // steps, so the turn never looks idle while it runs), the approval notice while
 // an operator must approve a step, a reconnecting note while the stream is down, and the error when the turn failed.
 // When the app shows operator detail, the activity log lists every step as it happens and the (i) beside the answer
-// shows how the turn ran. Every message has a copy button in its top right corner.
-export default function TurnView({ turn, agentName, showDetail, filePaths, onFile }) {
+// shows how the turn ran. Every message has a copy button in its top right corner, and the agent's carries the app's
+// avatar beside the author name when it has one (decorative: the name next to it says who wrote it).
+export default function TurnView({ turn, agentName, avatarUrl = null, showDetail, filePaths, onFile }) {
   const { t } = useTranslation();
   const phase = turnPhase(turn);
   const answer = visibleAnswer(turn);
@@ -33,7 +34,10 @@ export default function TurnView({ turn, agentName, showDetail, filePaths, onFil
       </div>
       <div className={`message message-agent phase-${phase}`} aria-busy={phase === 'waiting' || phase === 'streaming' ? 'true' : 'false'}>
         <div className="message-header">
-          <span className="message-author">{agentName}</span>
+          <span className="message-author" dir="auto">
+            {avatarUrl ? <img className="agent-avatar" src={avatarUrl} alt="" aria-hidden="true" data-testid="agent-avatar" /> : null}
+            {agentName}
+          </span>
           <span className="message-tools">
             {!live && turn.telemetry ? <TurnTelemetry telemetry={turn.telemetry} toolMs={toolTimeMs(steps)} /> : null}
             {answer ? <CopyButton text={answer} label={t('copy.answer')} tipText={t('copy.answerTip')} testId="copy-answer" /> : null}

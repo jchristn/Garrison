@@ -4,13 +4,13 @@ import { tip } from './Tooltip.jsx';
 import LanguageSelect from './LanguageSelect.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import { errorText } from '../utils/errors.js';
-
-// The platform website the sign-in footer links to (AD12.12).
-const WEBSITE_URL = 'https://usegarrison.ai';
+import { themeSwitchAllowed } from '../utils/theme.js';
+import PoweredBy from './PoweredBy.jsx';
 
 // Sign-in screen for an app (AD-021). Every auth mode accepts an email and password (TenantUsers: any user of the
 // app's tenant; AppUsers: users with the AppUser role on the app). When the app allows anonymous sessions,
-// "Continue without signing in" starts one. A small footer names the platform the app runs on (AD12.12).
+// "Continue without signing in" starts one. A small footer names the platform the app runs on (AD12.12) unless the
+// app sets showPoweredBy false; the language picker and theme switch follow showLanguagePicker and allowThemeSwitch.
 export default function SignIn({ client, info, logoUrl, notice, onSignedIn, theme, onToggleTheme }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
@@ -40,13 +40,18 @@ export default function SignIn({ client, info, logoUrl, notice, onSignedIn, them
   return (
     <main className="signin-page">
       <div className="signin-tools">
-        <LanguageSelect />
-        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        {info.showLanguagePicker !== false ? <LanguageSelect /> : null}
+        {themeSwitchAllowed(info) ? <ThemeToggle theme={theme} onToggle={onToggleTheme} /> : null}
       </div>
       <section className="signin-card" aria-labelledby="signin-title">
         <div className="signin-brand">
           {logoUrl ? <img className="brand-logo large" src={logoUrl} alt={t('header.logoAlt', { name })} /> : null}
           <h1 id="signin-title">{t('signIn.title', { name })}</h1>
+          {info.subtitle ? (
+            <p className="signin-subtitle" dir="auto">
+              {info.subtitle}
+            </p>
+          ) : null}
           {info.description ? <p className="signin-description">{info.description}</p> : null}
         </div>
         {notice ? (
@@ -84,11 +89,7 @@ export default function SignIn({ client, info, logoUrl, notice, onSignedIn, them
           </div>
         ) : null}
       </section>
-      <p className="signin-powered">
-        <a href={WEBSITE_URL} target="_blank" rel="noopener noreferrer" data-testid="powered-by" {...tip(t('tips.poweredBy'))}>
-          {t('signIn.poweredBy')}
-        </a>
-      </p>
+      {info.showPoweredBy !== false ? <PoweredBy className="signin-powered" /> : null}
     </main>
   );
 }

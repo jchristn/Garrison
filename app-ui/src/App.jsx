@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TooltipLayer } from './components/Tooltip.jsx';
 import ChatShell from './components/ChatShell.jsx';
@@ -7,8 +7,14 @@ import StatusScreen from './components/StatusScreen.jsx';
 import { createGatewayClient } from './api/gateway.js';
 import { applyBranding } from './utils/branding.js';
 import { appPath, parseAppPath } from './utils/location.js';
-import { applyTheme, resolveTheme, saveTheme, watchSystemTheme } from './utils/theme.js';
+import { appTheme, applyTheme, resolveTheme, saveTheme, watchSystemChange } from './utils/theme.js';
 import { errorText } from './utils/errors.js';
+
+/** An image URL from AppInfo (for example agentAvatarUrl, /v1.0/apps/{slug}/avatar) made absolute; null when unset. */
+function assetUrl(client, url) {
+  if (!url || typeof url !== 'string') return null;
+  return /^https?:/i.test(url) ? url : `${client.baseUrl || ''}${url}`;
+}
 
 // The app UI root. The slug comes from the URL (/apps/{slug}/), branding from GET /v1.0/apps/{slug} at every load,
 // and the session from sessionStorage. Without a session it shows sign-in; a 401 from any gateway route drops the
@@ -23,6 +29,8 @@ export default function App({ fetchImpl }) {
   const [session, setSession] = useState(null);
   const [notice, setNotice] = useState(null);
   const [theme, setTheme] = useState(() => resolveTheme());
+  // The app's theme rule (themeDefault, allowThemeSwitch) applies once the app info has loaded.
+  const infoRef = useRef(null);
 
   const client = useMemo(
     () =>
@@ -43,7 +51,12 @@ export default function App({ fetchImpl }) {
     applyTheme(theme);
   }, [theme]);
 
-  useEffect(() => watchSystemTheme(setTheme), []);
+  // Dark colors differ from light ones, so the branding variables follow the theme.
+  useEffect(() => {
+    if (info) applyBranding(info, document.documentElement, client && client.faviconUrl ? client.faviconUrl(info) : null, theme);
+  }, [info, theme, client]);
+
+  useEffect(() => watchSystemChange(() => setTheme(infoRef.current ? appTheme(infoRef.current) : resolveTheme())), []);
 
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname);
@@ -61,7 +74,8 @@ export default function App({ fetchImpl }) {
       .info()
       .then((value) => {
         if (cancelled) return;
-        applyBranding(value, document.documentElement, client.faviconUrl ? client.faviconUrl(value) : null);
+        infoRef.current = value;
+        setTheme(appTheme(value));
         setInfo(value);
       })
       .catch((err) => !cancelled && setLoadError(err));
@@ -122,6 +136,7 @@ export default function App({ fetchImpl }) {
         client={client}
         info={info}
         logoUrl={client.logoUrl(info)}
+        avatarUrl={assetUrl(client, info.agentAvatarUrl)}
         session={session}
         conversationId={conversationId}
         onNavigate={navigate}

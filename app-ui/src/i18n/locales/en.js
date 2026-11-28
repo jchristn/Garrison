@@ -273,3 +273,21 @@ const en = {
 });
 
 export default en;
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+  "chat": {
+    "starterPrompts": "Suggested prompts"
+  },
+  "tips": {
+    "starterPrompt": "Send this prompt to the agent to start the conversation."
+  }
+});

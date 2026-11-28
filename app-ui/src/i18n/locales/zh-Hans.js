@@ -272,3 +272,21 @@ const zhHans = {
 });
 
 export default zhHans;
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+  "chat": {
+    "starterPrompts": "推荐问题"
+  },
+  "tips": {
+    "starterPrompt": "将这个建议问题直接发送给代理，用它来开始一段新的对话。"
+  }
+});

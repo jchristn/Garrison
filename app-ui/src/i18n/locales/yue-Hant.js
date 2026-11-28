@@ -272,3 +272,21 @@ const yueHant = {
 });
 
 export default yueHant;
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+  "chat": {
+    "starterPrompts": "建議問題"
+  },
+  "tips": {
+    "starterPrompt": "將呢個建議問題直接傳送畀代理，用佢嚟開始一段新嘅對話。"
+  }
+});

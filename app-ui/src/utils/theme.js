@@ -49,3 +49,30 @@ export function watchSystemTheme(listener) {
   m.addEventListener('change', onChange);
   return () => m.removeEventListener('change', onChange);
 }
+
+/** True unless the app turned the theme switch off (allowThemeSwitch false). */
+export function themeSwitchAllowed(info) {
+  return !(info && info.allowThemeSwitch === false);
+}
+
+/**
+ * The theme an app shows now (LP-016): the saved choice when the app lets users switch, else the app's themeDefault
+ * (Light or Dark), else the system theme. With allowThemeSwitch false a saved choice is ignored.
+ */
+export function appTheme(info) {
+  const saved = themeSwitchAllowed(info) ? savedTheme() : null;
+  if (saved) return saved;
+  const preferred = info && info.themeDefault;
+  if (preferred === 'Light') return 'light';
+  if (preferred === 'Dark') return 'dark';
+  return systemTheme();
+}
+
+/** Call listener() whenever the system theme changes. Returns an unsubscribe function. */
+export function watchSystemChange(listener) {
+  const m = media();
+  if (!m || !m.addEventListener) return () => {};
+  const onChange = () => listener();
+  m.addEventListener('change', onChange);
+  return () => m.removeEventListener('change', onChange);
+}

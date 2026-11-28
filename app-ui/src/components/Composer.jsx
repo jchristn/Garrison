@@ -5,8 +5,8 @@ import { SendIcon, StopIcon } from './Icons.jsx';
 
 // The message box. Enter sends; Shift+Enter adds a line. While the agent is still answering, the box stays
 // editable and Send becomes Stop, which cancels the running turn. A message the server refused stays in the box so
-// it can be sent again.
-export default function Composer({ onSend, onStop, disabled, busy, sending, stopping, autoFocus }) {
+// it can be sent again. The app may set its own placeholder (composerPlaceholder).
+export default function Composer({ onSend, onStop, disabled, busy, sending, stopping, placeholder = null, autoFocus }) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const box = useRef(null);
@@ -43,7 +43,7 @@ export default function Composer({ onSend, onStop, disabled, busy, sending, stop
         ref={box}
         rows={1}
         value={text}
-        placeholder={t('chat.composerPlaceholder')}
+        placeholder={placeholder || t('chat.composerPlaceholder')}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
         disabled={disabled}
