@@ -19,13 +19,17 @@ export function proposalPending(p) {
 }
 
 /**
- * Health for OrgChartTree from the board's unitHealth: { [unitId]: { health } }, leaving out units whose health is
- * Unknown (no report yet), so their cards show no badge.
+ * Health for OrgChartTree from the board's unitHealth: { [unitId]: { health, attention } }. Health is null when it is
+ * Unknown (no report yet); a unit with neither a known health nor anything waiting for a person is left out, so its
+ * card shows no badge. attention is unitAttention(h), which the card shows as Needs a person.
  */
 export function healthMap(board) {
   const out = {};
   for (const h of board?.unitHealth || []) {
-    if (h?.unitId && h.health && h.health !== 'Unknown') out[h.unitId] = { id: h.lastReportId || null, health: h.health, createdUtc: h.lastReportUtc || null };
+    if (!h?.unitId) continue;
+    const attention = unitAttention(h);
+    const known = h.health && h.health !== 'Unknown';
+    if (known || attention.needs) out[h.unitId] = { id: h.lastReportId || null, health: known ? h.health : null, createdUtc: h.lastReportUtc || null, attention };
   }
   return out;
 }
@@ -91,4 +95,37 @@ export function ceoUnavailable(t, ceo) {
   if (!ceo.mandateId) return t('board.ceo.noMandate');
   if (!ceo.deploymentId) return t('board.ceo.noDeployment');
   return '';
+}
+
+/**
+ * What a unit's row on the board says needs a person (UXP1-S013): open escalations and a budget cap, which the report
+ * health alone leaves out (a unit that files no report shows Unknown however many questions it raised). Answers
+ * { escalations, capped, needs } where needs is true when either is present.
+ */
+export function unitAttention(h) {
+  const escalations = Number(h?.openEscalations || 0);
+  const capped = !!h?.overBudget;
+  return { escalations, capped, needs: escalations > 0 || capped };
+}
+
+/**
+ * Open escalations grouped by who raised them and what they asked (UXP1-S013): a keeper that raises the same question
+ * on every tick shows once, with how many times it asked. Each group is { key, latest, items, count }, latest being the
+ * newest escalation of the group; groups keep the order of their newest escalation.
+ */
+export function groupEscalations(list) {
+  const groups = [];
+  const index = new Map();
+  for (const e of list || []) {
+    if (!e) continue;
+    const key = `${e.agentId || e.agentName || ''}\u0000${String(e.question || '').trim()}`;
+    if (!index.has(key)) {
+      index.set(key, groups.length);
+      groups.push({ key, latest: e, items: [] });
+    }
+    const g = groups[index.get(key)];
+    g.items.push(e);
+    if (String(e.createdUtc || '') > String(g.latest.createdUtc || '')) g.latest = e;
+  }
+  return groups.map((g) => ({ ...g, count: g.items.length }));
 }

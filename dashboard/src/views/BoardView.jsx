@@ -36,7 +36,7 @@ import { errorMessage, errorMessageWithDetail, fieldErrorMessages } from '../uti
 import { FREEZES_CHANGED_EVENT, freezeDenied } from '../utils/freezes';
 import { chartToUnits, orgDenied } from '../utils/organizations';
 import { cascadeDenied } from '../utils/performance';
-import { BOARD_LIMITS, attentionCount, capHits, directionBody, directionErrors, healthMap, organizationFreeze, proposalPending, spendByUnit } from '../utils/board';
+import { BOARD_LIMITS, attentionCount, capHits, directionBody, directionErrors, groupEscalations, healthMap, organizationFreeze, proposalPending, spendByUnit, unitAttention } from '../utils/board';
 
 /** A panel title (h2) with the tooltip that explains it and an optional count. */
 function PanelHead({ id, title, tipText, count, children }) {
@@ -483,7 +483,29 @@ function Board({ organizationId }) {
                 rowProps={(h) => ({ 'data-unit-health': h.unitId })}
                 columns={[
                   { key: 'unit', label: t('board.chart.columns.unit'), tip: t('tips.board.chart.columns.unit'), pinned: true, render: (h) => h.unitName },
-                  { key: 'health', label: t('board.chart.columns.health'), tip: t('tips.board.chart.columns.health'), render: (h) => <ReportHealthBadge health={h.health || 'Unknown'} t={t} /> },
+                  {
+                    key: 'health',
+                    label: t('board.chart.columns.health'),
+                    tip: t('tips.board.chart.columns.health'),
+                    cellClass: 'inline-meta',
+                    // UXP1-S013: report health alone leaves out a unit that files no report but waits on a person.
+                    render: (h) => {
+                      const known = h.health && h.health !== 'Unknown';
+                      const needs = unitAttention(h).needs;
+                      return (
+                        <>
+                          {known || !needs ? <ReportHealthBadge health={h.health || 'Unknown'} t={t} /> : <span className="text-muted">{t('board.chart.noReport')}</span>}
+                          {needs && (
+                            <span data-testid={`board-needs-person-${h.unitId}`}>
+                              <Badge tone="warning" tip={t('tips.board.chart.needsPerson')}>
+                                {t('board.chart.needsPerson')}
+                              </Badge>
+                            </span>
+                          )}
+                        </>
+                      );
+                    }
+                  },
                   { key: 'escalations', label: t('board.chart.columns.escalations'), tip: t('tips.board.chart.columns.escalations'), render: (h) => formatNumber(h.openEscalations || 0, {}, lng) },
                   {
                     key: 'brakes',
@@ -536,12 +558,21 @@ function Board({ organizationId }) {
                 <Empty text={t('board.attention.none')} />
               ) : (
                 <ul className="plain-list board-list" data-testid="board-escalations">
-                  {escalations.map((e) => (
-                    <li key={e.id} data-escalation={e.id}>
+                  {/* UXP1-S013: the same question from the same agent shows once, with how many times it was asked. */}
+                  {groupEscalations(escalations).map(({ key, latest: e, count }) => (
+                    <li key={key} data-escalation={e.id} data-escalation-count={count}>
                       <EscalationSeverityBadge severity={e.severity} t={t} />{' '}
                       <StudioLink to={pathFor('escalations', e.id)} tipText={t('tips.board.openEscalation')}>
                         {e.question}
                       </StudioLink>
+                      {count > 1 && (
+                        <>
+                          {' '}
+                          <Badge tone="neutral" tip={t('tips.board.attention.repeated', { count })}>
+                            {t('board.attention.repeated', { count })}
+                          </Badge>
+                        </>
+                      )}
                       <div className="text-muted">
                         {t('board.attention.raisedBy', { name: e.agentName || e.agentId || '-' })} {when(e.createdUtc)} <OpenTrailLink runId={e.raisingRunId} step={e.id} testId={`board-escalation-trail-${e.id}`} />
                       </div>
