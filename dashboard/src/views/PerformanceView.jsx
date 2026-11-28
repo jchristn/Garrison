@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Explainer from '../components/Explainer';
+import LocalTableFrame from '../components/LocalTableFrame';
 import StudioLink from '../components/studio/StudioLink';
 import UnitPerformanceChart from '../components/UnitPerformanceChart';
 import { OrganizationStatusBadge } from '../components/OrganizationBadges';
@@ -45,21 +46,26 @@ function PanelHead({ id, title, tipText, children }) {
   );
 }
 
-function MetricHeads({ t }) {
-  return METRIC_COLUMNS.map((c) => (
-    <th key={c.key} scope="col" className={c.key === 'outcomes' || c.key === 'latency' ? '' : 'right'} {...tip(t(`tips.performance.columns.${c.key}`))}>
-      {t(`performance.columns.${c.key}`)}
-    </th>
-  ));
-}
+/** Metric columns the units table hides until the operator picks them, so the default set fits without a sideways scroll. */
+const UNIT_HIDDEN_METRICS = ['outcomes', 'loopGuardRejections'];
 
-function MetricCells({ metrics, t, lng }) {
-  const m = metrics || {};
-  return METRIC_COLUMNS.map((c) => (
-    <td key={c.key} className={c.key === 'outcomes' || c.key === 'latency' ? 'nowrap' : 'right nowrap'} data-metric={c.key}>
-      {c.render(m, lng, t)}
-    </td>
-  ));
+/** Metric columns the agents table hides by default: it also carries the agent, unit, and sample run columns. */
+const AGENT_HIDDEN_METRICS = ['outcomes', 'latency', 'escalations', 'loopGuardRejections'];
+
+/** The shared metric columns as TableFrame column definitions, with `hiddenKeys` marked hidden by default. */
+function metricColumns(t, lng, hiddenKeys) {
+  return METRIC_COLUMNS.map((c) => {
+    const textual = c.key === 'outcomes' || c.key === 'latency';
+    return {
+      key: c.key,
+      label: t(`performance.columns.${c.key}`),
+      tip: t(`tips.performance.columns.${c.key}`),
+      headerClass: textual ? '' : 'right',
+      cellClass: textual ? 'nowrap' : 'right nowrap',
+      defaultHidden: hiddenKeys.includes(c.key),
+      render: (item) => <span data-metric={c.key}>{c.render(item.metrics || {}, lng, t)}</span>
+    };
+  });
 }
 
 /** The organization picker for /dashboard/organizations?tab=performance. */
@@ -301,29 +307,28 @@ function Performance({ organizationId }) {
               {t('performance.units.empty')}
             </p>
           ) : (
-            <div className="table-scroll" tabIndex={0} role="region" aria-label={t('performance.units.title')}>
-              <table className="data-table compact" data-testid="performance-units-table">
-                <caption className="sr-only">{t('performance.units.title')}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" {...tip(t('tips.performance.columns.unit'))}>{t('performance.columns.unit')}</th>
-                    <MetricHeads t={t} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {units.map((u) => (
-                    <tr key={u.unitId} data-perf-unit={u.unitId}>
-                      <th scope="row">
-                        <span className="org-budget-unit" style={{ paddingInlineStart: `${Math.min(depths[u.unitId] || 0, 6) * 12}px` }}>
-                          {u.unitName || u.unitId}
-                        </span>
-                      </th>
-                      <MetricCells metrics={u.metrics} t={t} lng={lng} />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LocalTableFrame
+              tableId="performance-units"
+              testId="performance-units-table"
+              compact
+              items={units}
+              rowId={(u) => u.unitId}
+              rowProps={(u) => ({ 'data-perf-unit': u.unitId })}
+              columns={[
+                {
+                  key: 'unit',
+                  label: t('performance.columns.unit'),
+                  tip: t('tips.performance.columns.unit'),
+                  pinned: true,
+                  render: (u) => (
+                    <span className="org-budget-unit" style={{ paddingInlineStart: `${Math.min(depths[u.unitId] || 0, 6) * 12}px` }}>
+                      {u.unitName || u.unitId}
+                    </span>
+                  )
+                },
+                ...metricColumns(t, lng, UNIT_HIDDEN_METRICS)
+              ]}
+            />
           )}
         </section>
 
@@ -334,49 +339,53 @@ function Performance({ organizationId }) {
               {t('performance.agents.empty')}
             </p>
           ) : (
-            <div className="table-scroll" tabIndex={0} role="region" aria-label={t('performance.agents.title')}>
-              <table className="data-table compact" data-testid="performance-agents-table">
-                <caption className="sr-only">{t('performance.agents.title')}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" {...tip(t('tips.performance.columns.agent'))}>{t('performance.columns.agent')}</th>
-                    <th scope="col" {...tip(t('tips.performance.columns.unit'))}>{t('performance.columns.unit')}</th>
-                    <MetricHeads t={t} />
-                    <th scope="col" {...tip(t('tips.performance.columns.samples'))}>{t('performance.columns.samples')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {agents.map((a) => (
-                    <tr key={`${a.unitId}-${a.agentId}`} data-perf-agent={a.agentId}>
-                      <th scope="row">
-                        <StudioLink to={pathFor('agents', a.agentId)} tipText={t('tips.performance.openAgent')}>
-                          {a.agentName || a.agentId}
-                        </StudioLink>{' '}
-                        {a.isLead && (
-                          <Badge tone="info" tip={t('tips.performance.lead')}>
-                            {t('performance.lead')}
-                          </Badge>
-                        )}
-                      </th>
-                      <td>{a.unitName || a.unitId}</td>
-                      <MetricCells metrics={a.metrics} t={t} lng={lng} />
-                      <td className="nowrap">
-                        {(a.metrics?.sampleRunIds || []).length === 0
-                          ? '-'
-                          : (a.metrics.sampleRunIds || []).map((id, k) => (
-                              <span key={id}>
-                                {k > 0 ? ' ' : ''}
-                                <StudioLink to={pathFor('runs', id)} tipText={t('tips.performance.openRun')}>
-                                  {t('performance.sample', { n: k + 1 })}
-                                </StudioLink>
-                              </span>
-                            ))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LocalTableFrame
+              tableId="performance-agents"
+              testId="performance-agents-table"
+              compact
+              items={agents}
+              rowId={(a) => `${a.unitId}-${a.agentId}`}
+              rowProps={(a) => ({ 'data-perf-agent': a.agentId })}
+              columns={[
+                {
+                  key: 'agent',
+                  label: t('performance.columns.agent'),
+                  tip: t('tips.performance.columns.agent'),
+                  pinned: true,
+                  render: (a) => (
+                    <>
+                      <StudioLink to={pathFor('agents', a.agentId)} tipText={t('tips.performance.openAgent')}>
+                        {a.agentName || a.agentId}
+                      </StudioLink>{' '}
+                      {a.isLead && (
+                        <Badge tone="info" tip={t('tips.performance.lead')}>
+                          {t('performance.lead')}
+                        </Badge>
+                      )}
+                    </>
+                  )
+                },
+                { key: 'unit', label: t('performance.columns.unit'), tip: t('tips.performance.columns.unit'), render: (a) => a.unitName || a.unitId },
+                ...metricColumns(t, lng, AGENT_HIDDEN_METRICS),
+                {
+                  key: 'samples',
+                  label: t('performance.columns.samples'),
+                  tip: t('tips.performance.columns.samples'),
+                  cellClass: 'nowrap',
+                  render: (a) =>
+                    (a.metrics?.sampleRunIds || []).length === 0
+                      ? '-'
+                      : (a.metrics.sampleRunIds || []).map((id, k) => (
+                          <span key={id}>
+                            {k > 0 ? ' ' : ''}
+                            <StudioLink to={pathFor('runs', id)} tipText={t('tips.performance.openRun')}>
+                              {t('performance.sample', { n: k + 1 })}
+                            </StudioLink>
+                          </span>
+                        ))
+                }
+              ]}
+            />
           )}
         </section>
 
@@ -392,58 +401,74 @@ function Performance({ organizationId }) {
               {t('performance.checks.empty')}
             </p>
           ) : (
-            <div className="table-scroll" tabIndex={0} role="region" aria-label={t('performance.checks.title')}>
-              <table className="data-table compact" data-testid="performance-checks-table">
-                <caption className="sr-only">{t('performance.checks.title')}</caption>
-                <thead>
-                  <tr>
-                    {['check', 'evalSet', 'deployment', 'schedule', 'lastRun', 'lastScore', 'nextFire'].map((c) => (
-                      <th key={c} scope="col" {...tip(t(`tips.performance.checks.columns.${c}`))}>
-                        {t(`performance.checks.columns.${c}`)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {checks.map((c) => (
-                    <tr key={c.triggerId} data-check={c.triggerId}>
-                      <th scope="row">
-                        {c.triggerName || c.triggerId}{' '}
-                        <ActiveBadge active={c.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(c.active ? 'tips.badges.active' : 'tips.badges.inactive')} />
-                      </th>
-                      <td>
-                        <StudioLink to={pathFor('evaluations', c.evalSetId)} tipText={t('tips.performance.checks.openSet')}>
-                          {c.evalSetName || c.evalSetId}
+            <LocalTableFrame
+              tableId="performance-checks"
+              testId="performance-checks-table"
+              compact
+              items={checks}
+              rowId={(c) => c.triggerId}
+              rowProps={(c) => ({ 'data-check': c.triggerId })}
+              columns={[
+                {
+                  key: 'check',
+                  label: t('performance.checks.columns.check'),
+                  tip: t('tips.performance.checks.columns.check'),
+                  render: (c) => (
+                    <>
+                      {c.triggerName || c.triggerId}{' '}
+                      <ActiveBadge active={c.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(c.active ? 'tips.badges.active' : 'tips.badges.inactive')} />
+                    </>
+                  )
+                },
+                {
+                  key: 'evalSet',
+                  label: t('performance.checks.columns.evalSet'),
+                  tip: t('tips.performance.checks.columns.evalSet'),
+                  render: (c) => (
+                    <StudioLink to={pathFor('evaluations', c.evalSetId)} tipText={t('tips.performance.checks.openSet')}>
+                      {c.evalSetName || c.evalSetId}
+                    </StudioLink>
+                  )
+                },
+                { key: 'deployment', label: t('performance.checks.columns.deployment'), tip: t('tips.performance.checks.columns.deployment'), cellClass: 'cell-id', defaultHidden: true, render: (c) => c.deploymentId || '-' },
+                { key: 'schedule', label: t('performance.checks.columns.schedule'), tip: t('tips.performance.checks.columns.schedule'), render: (c) => <code>{c.cronExpression || '-'}</code> },
+                {
+                  key: 'lastRun',
+                  label: t('performance.checks.columns.lastRun'),
+                  tip: t('tips.performance.checks.columns.lastRun'),
+                  cellClass: 'nowrap',
+                  render: (c) => (
+                    <>
+                      {c.lastEvalRunId ? (
+                        <StudioLink to={pathFor('evalRuns', c.lastEvalRunId)} testId={`performance-check-run-${c.triggerId}`} tipText={t('tips.performance.checks.openRun')}>
+                          {c.lastRunUtc ? formatRelativeTime(c.lastRunUtc, lng) : c.lastEvalRunId}
                         </StudioLink>
-                      </td>
-                      <td>{c.deploymentId}</td>
-                      <td>
-                        <code>{c.cronExpression || '-'}</code>
-                      </td>
-                      <td className="nowrap">
-                        {c.lastEvalRunId ? (
-                          <StudioLink to={pathFor('evalRuns', c.lastEvalRunId)} testId={`performance-check-run-${c.triggerId}`} tipText={t('tips.performance.checks.openRun')}>
-                            {c.lastRunUtc ? formatRelativeTime(c.lastRunUtc, lng) : c.lastEvalRunId}
-                          </StudioLink>
-                        ) : (
-                          <span className="text-muted">{t('performance.checks.never')}</span>
-                        )}{' '}
-                        {c.lastStatus && <span className="text-muted">{enumLabel(t, 'evalRunStatus', c.lastStatus)}</span>}
-                      </td>
-                      <td className="nowrap">
-                        {c.lastScore == null ? '-' : formatPercent(c.lastScore, lng)}{' '}
-                        {c.lastPassed != null && (
-                          <Badge tone={c.lastPassed ? 'success' : 'danger'} tip={t(c.lastPassed ? 'tips.performance.checks.passed' : 'tips.performance.checks.failed')}>
-                            {t(c.lastPassed ? 'performance.checks.passed' : 'performance.checks.failed')}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="nowrap">{when(c.nextFireUtc)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      ) : (
+                        <span className="text-muted">{t('performance.checks.never')}</span>
+                      )}{' '}
+                      {c.lastStatus && <span className="text-muted">{enumLabel(t, 'evalRunStatus', c.lastStatus)}</span>}
+                    </>
+                  )
+                },
+                {
+                  key: 'lastScore',
+                  label: t('performance.checks.columns.lastScore'),
+                  tip: t('tips.performance.checks.columns.lastScore'),
+                  cellClass: 'nowrap',
+                  render: (c) => (
+                    <>
+                      {c.lastScore == null ? '-' : formatPercent(c.lastScore, lng)}{' '}
+                      {c.lastPassed != null && (
+                        <Badge tone={c.lastPassed ? 'success' : 'danger'} tip={t(c.lastPassed ? 'tips.performance.checks.passed' : 'tips.performance.checks.failed')}>
+                          {t(c.lastPassed ? 'performance.checks.passed' : 'performance.checks.failed')}
+                        </Badge>
+                      )}
+                    </>
+                  )
+                },
+                { key: 'nextFire', label: t('performance.checks.columns.nextFire'), tip: t('tips.performance.checks.columns.nextFire'), cellClass: 'nowrap', render: (c) => when(c.nextFireUtc) }
+              ]}
+            />
           )}
         </section>
       </div>

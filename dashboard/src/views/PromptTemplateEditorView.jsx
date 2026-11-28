@@ -8,6 +8,7 @@ import DiffViewer from '../components/DiffViewer';
 import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import Modal from '../components/Modal';
+import LocalTableFrame from '../components/LocalTableFrame';
 import Tabs from '../components/Tabs';
 import Explainer from '../components/Explainer';
 import { EmptyNote, ErrorBanner, LoadingState } from '../components/States';
@@ -289,41 +290,37 @@ export default function PromptTemplateEditorView({ recordId }) {
           (versions.length === 0 ? (
             <EmptyNote>{t('views.templateEditor.noVersions')}</EmptyNote>
           ) : (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.version'))}>{t('views.templateEditor.version')}</th>
-                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.note'))}>{t('views.templateEditor.note')}</th>
-                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.author'))}>{t('views.templateEditor.author')}</th>
-                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.saved'))}>{t('resources.promptTemplates.columns.lastUpdateUtc')}</th>
-                    <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
-                      {t('common.generic.actions')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...versions].sort((a, b) => b.version - a.version).map((v) => (
-                    <tr key={v.id || v.version}>
-                      <td>v{v.version}</td>
-                      <td>{v.changeNote || '-'}</td>
-                      <td>{v.createdBy || '-'}</td>
-                      <td>{formatDateTime(v.createdUtc, i18n.language)}</td>
-                      <td className="actions-cell">
-                        <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
-                          {t('views.templateEditor.diff')}
+            <LocalTableFrame
+              tableId="prompt-template-versions"
+              testId="prompt-template-versions"
+              items={[...versions].sort((a, b) => b.version - a.version)}
+              rowId={(v) => v.id || String(v.version)}
+              columns={[
+                { key: 'version', label: t('views.templateEditor.version'), tip: t('tips.views.templateEditor.columns.version'), cellClass: 'nowrap', render: (v) => `v${v.version}` },
+                { key: 'changeNote', label: t('views.templateEditor.note'), tip: t('tips.views.templateEditor.columns.note'), render: (v) => v.changeNote || '-' },
+                { key: 'createdBy', label: t('views.templateEditor.author'), tip: t('tips.views.templateEditor.columns.author'), render: (v) => v.createdBy || '-' },
+                { key: 'createdUtc', label: t('resources.promptTemplates.columns.lastUpdateUtc'), tip: t('tips.views.templateEditor.columns.saved'), cellClass: 'nowrap', render: (v) => formatDateTime(v.createdUtc, i18n.language) },
+                {
+                  key: 'actions',
+                  label: t('common.generic.actions'),
+                  tip: t('tips.table.actionsColumn'),
+                  headerClass: 'right',
+                  cellClass: 'actions-cell',
+                  render: (v) => (
+                    <>
+                      <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
+                        {t('views.templateEditor.diff')}
+                      </button>
+                      {!readOnly && v.version !== template?.currentVersion && (
+                        <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'restore', version: v.version })} {...tip(t('tips.views.templateEditor.restore'))}>
+                          {t('views.templateEditor.restore')}
                         </button>
-                        {!readOnly && v.version !== template?.currentVersion && (
-                          <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'restore', version: v.version })} {...tip(t('tips.views.templateEditor.restore'))}>
-                            {t('views.templateEditor.restore')}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      )}
+                    </>
+                  )
+                }
+              ]}
+            />
           ))}
       </div>
 

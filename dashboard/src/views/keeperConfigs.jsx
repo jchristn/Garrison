@@ -158,7 +158,7 @@ export const keepersConfig = {
         </span>
       ), { csv: (r) => r.status || '' }),
       col(t, 'agent', (r) => agentName(r) || '-', { csv: (r) => agentName(r) || '' }),
-      col(t, 'deployment', (r) => deploymentName(r) || '-', { csv: (r) => deploymentName(r) || '' }),
+      col(t, 'deployment', (r) => deploymentName(r) || '-', { defaultHidden: true, csv: (r) => deploymentName(r) || '' }),
       col(t, 'nextWakeUtc', (r) => (r.status === 'Active' && r.nextWakeUtc ? when(r.nextWakeUtc, lng) : '-'), { cellClass: 'nowrap', csv: (r) => r.nextWakeUtc || '' }),
       col(t, 'currentIntervalSeconds', (r) => formatInterval(t, r.currentIntervalSeconds), { cellClass: 'nowrap', csv: (r) => r.currentIntervalSeconds ?? '' }),
       col(t, 'lastTick', (r) =>

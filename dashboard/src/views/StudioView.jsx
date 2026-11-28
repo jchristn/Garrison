@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ActionMenu from '../components/ActionMenu';
+import TableFrame from '../components/TableFrame';
 import ConfirmModal from '../components/ConfirmModal';
 import { LoadingState, EmptyState, ErrorBanner } from '../components/States';
 import { Badge } from '../components/StatusBadge';
@@ -14,14 +15,13 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import useDebounce from '../hooks/useDebounce';
 import useCallerPermissions from '../hooks/useCallerPermissions';
+import usePageSizePref from '../hooks/usePageSizePref';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { DRAFT_STATUSES, draftStatusTone, filterDrafts, studioPermissions } from '../utils/studio';
-
-const COLUMNS = ['title', 'status', 'owner', 'targetApp', 'items', 'version', 'updated'];
 
 /**
  * Agents > Studio (AD7.10): the studio drafts of the tenant, or only the caller's own (the default), with the title
@@ -72,7 +72,18 @@ export default function StudioView() {
     setSelected((current) => current.filter((id) => shown.some((draft) => draft.id === id)));
   }, [shown]);
   useEffect(() => { setSelected([]); setBulkDrafts(null); setDeleteFailures([]); }, [tenantId]);
-  const allSelected = shown.length > 0 && shown.every((draft) => selected.includes(draft.id));
+  const [pageSize, setPageSize] = usePageSizePref('studio-drafts');
+  const [pageNumber, setPageNumber] = useState(1);
+  const pages = Math.max(1, Math.ceil(shown.length / pageSize));
+  // A filter or refresh that shortens the list keeps the page in range.
+  useEffect(() => {
+    if (pageNumber > pages) setPageNumber(pages);
+  }, [pageNumber, pages]);
+  const currentPage = Math.min(pageNumber, pages);
+  const pageDrafts = shown.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageIds = pageDrafts.map((draft) => draft.id);
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+  const toggleAllOnPage = () => setSelected((current) => (allSelected ? current.filter((id) => !pageIds.includes(id)) : [...new Set([...current, ...pageIds])]));
   const toggleSelected = (id) => setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   const confirmBulkDelete = async () => {
     if (denied.discard || deleting) return;
@@ -199,72 +210,91 @@ export default function StudioView() {
         ) : shown.length === 0 ? (
           <EmptyState title={t('views.studio.emptyTitle')} body={rows.length ? t('views.studio.emptyFiltered') : t('views.studio.emptyBody')} action={rows.length ? null : newButton('studio-empty-new')} />
         ) : (
-          <div className="table-scroll">
-            <table className="data-table" data-testid="studio-drafts">
-              <thead>
-                <tr>
-                  <th scope="col" className="select-cell" {...tip(t('tips.table.selectAll'))}>
-                    <input type="checkbox" checked={allSelected} ref={(input) => { if (input) input.indeterminate = selected.length > 0 && !allSelected; }} disabled={deleting || !!denied.discard} onChange={() => setSelected(allSelected ? [] : shown.map((draft) => draft.id))} aria-label={t('components.table.selectAll')} {...tip(denied.discard || t('tips.table.selectAll'))} />
-                  </th>
-                  {COLUMNS.map((c) => (
-                    <th key={c} scope="col" className={['items', 'version'].includes(c) ? 'right' : undefined} {...tip(t(`tips.views.studio.columns.${c}`))}>
-                      {t(`views.studio.columns.${c}`)}
-                    </th>
-                  ))}
-                  <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
-                    {t('common.generic.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((d) => (
-                  <tr key={d.id} data-draft={d.id}>
-                    <td className="select-cell">
-                      <input type="checkbox" checked={selected.includes(d.id)} disabled={deleting || !!denied.discard} onChange={() => toggleSelected(d.id)} aria-label={`${t('components.table.selectRow')}: ${d.title || d.id}`} {...tip(denied.discard || t('tips.table.selectRow'))} />
-                    </td>
-                    <td>
-                      <a
-                        href={pathFor('studio', d.id)}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          openDraft(d);
-                        }}
-                        {...tip(t('tips.views.studio.openDraft'))}
-                      >
-                        <strong>{d.title || t('views.studio.untitled')}</strong>
-                      </a>
-                    </td>
-                    <td>
-                      <Badge tone={draftStatusTone(d.status)} tip={enumTip(t, 'studioDraftStatus', d.status || 'Open')}>
-                        {enumLabel(t, 'studioDraftStatus', d.status || 'Open')}
-                      </Badge>
-                    </td>
-                    <td>{d.ownerName || d.ownerUserId || '-'}</td>
-                    <td>{d.targetApp || '-'}</td>
-                    <td className="right">{formatNumber((d.items || []).length, {}, lng)}</td>
-                    <td className="right">{formatNumber(d.version ?? 1, {}, lng)}</td>
-                    <td className="nowrap">{when(d.lastUpdateUtc)}</td>
-                    <td className="actions-cell">
-                      <ActionMenu
-                        label={d.title || d.id}
-                        items={[
-                          { label: t('views.studio.open'), tip: t('tips.views.studio.openDraft'), onClick: () => openDraft(d) },
-                          {
-                            label: t('views.studio.discard'),
-                            tip: denied.discard || t(d.status === 'PendingApproval' ? 'tips.views.studio.discardPending' : 'tips.views.studio.discard'),
-                            danger: !denied.discard,
-                            disabled: !!denied.discard,
-                            hidden: d.status === 'Discarded',
-                            onClick: () => setDiscard(d)
-                          }
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TableFrame
+            tableId="studio-drafts"
+            testId="studio-drafts"
+            items={pageDrafts}
+            totalRecords={shown.length}
+            pageNumber={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPageNumber}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageNumber(1);
+            }}
+            onRefresh={load}
+            rowProps={(d) => ({ 'data-draft': d.id })}
+            columns={[
+              {
+                key: 'select',
+                label: (
+                  <input type="checkbox" checked={allSelected} ref={(input) => { if (input) input.indeterminate = selected.some((id) => pageIds.includes(id)) && !allSelected; }} disabled={deleting || !!denied.discard} onChange={toggleAllOnPage} aria-label={t('components.table.selectAll')} {...tip(denied.discard || t('tips.table.selectAll'))} />
+                ),
+                tip: t('tips.table.selectAll'),
+                pinned: true,
+                headerClass: 'select-cell',
+                cellClass: 'select-cell',
+                render: (d) => <input type="checkbox" checked={selected.includes(d.id)} disabled={deleting || !!denied.discard} onChange={() => toggleSelected(d.id)} aria-label={`${t('components.table.selectRow')}: ${d.title || d.id}`} {...tip(denied.discard || t('tips.table.selectRow'))} />
+              },
+              {
+                key: 'title',
+                label: t('views.studio.columns.title'),
+                tip: t('tips.views.studio.columns.title'),
+                pinned: true,
+                csv: (d) => d.title || '',
+                render: (d) => (
+                  <a
+                    href={pathFor('studio', d.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openDraft(d);
+                    }}
+                    {...tip(t('tips.views.studio.openDraft'))}
+                  >
+                    <strong>{d.title || t('views.studio.untitled')}</strong>
+                  </a>
+                )
+              },
+              {
+                key: 'status',
+                label: t('views.studio.columns.status'),
+                tip: t('tips.views.studio.columns.status'),
+                render: (d) => (
+                  <Badge tone={draftStatusTone(d.status)} tip={enumTip(t, 'studioDraftStatus', d.status || 'Open')}>
+                    {enumLabel(t, 'studioDraftStatus', d.status || 'Open')}
+                  </Badge>
+                )
+              },
+              { key: 'owner', label: t('views.studio.columns.owner'), tip: t('tips.views.studio.columns.owner'), csv: (d) => d.ownerName || d.ownerUserId || '', render: (d) => d.ownerName || d.ownerUserId || '-' },
+              { key: 'targetApp', label: t('views.studio.columns.targetApp'), tip: t('tips.views.studio.columns.targetApp'), render: (d) => d.targetApp || '-' },
+              { key: 'items', label: t('views.studio.columns.items'), tip: t('tips.views.studio.columns.items'), headerClass: 'right', cellClass: 'right', csv: (d) => (d.items || []).length, render: (d) => formatNumber((d.items || []).length, {}, lng) },
+              { key: 'version', label: t('views.studio.columns.version'), tip: t('tips.views.studio.columns.version'), headerClass: 'right', cellClass: 'right', csv: (d) => d.version ?? 1, render: (d) => formatNumber(d.version ?? 1, {}, lng) },
+              { key: 'updated', label: t('views.studio.columns.updated'), tip: t('tips.views.studio.columns.updated'), cellClass: 'nowrap', csv: (d) => d.lastUpdateUtc || '', render: (d) => when(d.lastUpdateUtc) },
+              {
+                key: 'actions',
+                label: t('common.generic.actions'),
+                tip: t('tips.table.actionsColumn'),
+                headerClass: 'right',
+                cellClass: 'actions-cell',
+                render: (d) => (
+                  <ActionMenu
+                    label={d.title || d.id}
+                    items={[
+                      { label: t('views.studio.open'), tip: t('tips.views.studio.openDraft'), onClick: () => openDraft(d) },
+                      {
+                        label: t('views.studio.discard'),
+                        tip: denied.discard || t(d.status === 'PendingApproval' ? 'tips.views.studio.discardPending' : 'tips.views.studio.discard'),
+                        danger: !denied.discard,
+                        disabled: !!denied.discard,
+                        hidden: d.status === 'Discarded',
+                        onClick: () => setDiscard(d)
+                      }
+                    ]}
+                  />
+                )
+              }
+            ]}
+          />
         )}
       </div>
       {creating && (

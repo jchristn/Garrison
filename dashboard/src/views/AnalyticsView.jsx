@@ -10,7 +10,8 @@ import Explainer from '../components/Explainer';
 import RangeTabs from '../components/RangeTabs';
 import AutoRefreshSelect from '../components/AutoRefreshSelect';
 import TimeSeriesChart from '../components/TimeSeriesChart';
-import ExportMenu from '../components/ExportMenu';
+import LocalTableFrame from '../components/LocalTableFrame';
+import { exportFileName, toCsv } from '../utils/exporters';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
 import { tip } from '../components/Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -34,11 +35,13 @@ import {
   successRate,
   breakdownRows
 } from '../utils/analytics';
-import { exportFileName, toCsv } from '../utils/exporters';
 import { formatNumber, formatPercent, formatCurrency, formatDuration, formatDateTime } from '../i18n/formatters';
 import { enumLabel } from '../utils/enums';
 
 const PRESETS = [{ id: 'hour' }, { id: 'day' }, { id: 'week' }, { id: 'month' }, { id: 'custom' }];
+
+/** Breakdown columns hidden until the operator picks them, so the default set fits without a sideways scroll. */
+const BREAKDOWN_HIDDEN = ['cachedTokens', 'reasoningTokens'];
 
 /**
  * Run analytics over time from GET /analytics/runs: totals cards, one full-width chart per metric family, and
@@ -201,6 +204,8 @@ export default function AnalyticsView() {
     s.metric ? t(`tips.analytics.metrics.${s.metric}`) : s.key === '__other' ? t('tips.analytics.otherSeries') : t(`tips.analytics.groupSeries.${groupBy}`, { name: s.label, metric: t(`views.analytics.metrics.${chart.grouped}`) });
 
   const breakdownColumns = ['harness', 'model', 'runs', 'inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens', 'costUsd', 'timeToFirstTokenMsAvg'];
+  // The export keeps every row, raw numbers, and the range and filters in the file name, as before the table moved
+  // into TableFrame.
   const breakdownCsv = () =>
     toCsv(
       ['harness', 'model', 'runs', 'input_tokens', 'output_tokens', 'cached_tokens', 'reasoning_tokens', 'cost_usd', 'avg_time_to_first_token_ms'],
@@ -384,50 +389,33 @@ export default function AnalyticsView() {
                     />
                   );
                 })}
-                <div className="table-frame" data-testid="analytics-breakdown">
-                  <div className="table-toolbar">
-                    <div className="table-pagination-summary">
-                      <strong {...tip(t('tips.analytics.breakdown'))}>{t('views.analytics.breakdown.title')}</strong>
-                    </div>
-                    <div className="table-pagination-controls">
-                      {breakdown.length > 0 && (
-                        <ExportMenu
-                          title={t('views.analytics.breakdown.title')}
-                          testId="export-breakdown"
-                          fileName={(ext) => exportFileName('analytics-harness-model-breakdown', rangeLabel, filterValues, ext)}
-                          csv={breakdownCsv}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  {breakdown.length === 0 ? (
-                    <div className="chart-empty">{t('views.analytics.noDataInChart')}</div>
-                  ) : (
-                    <div className="table-scroll">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            {breakdownColumns.map((k) => (
-                              <th key={k} scope="col" className={k === 'harness' || k === 'model' ? '' : 'right'} {...tip(t(`tips.analytics.breakdownColumns.${k}`))}>
-                                {t(`views.analytics.breakdown.columns.${k}`)}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {breakdown.map((r) => (
-                            <tr key={r.key} data-row={r.key}>
-                              {breakdownColumns.map((k) => (
-                                <td key={k} className={k === 'harness' || k === 'model' ? '' : 'right nowrap'}>
-                                  {cell(k, r)}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                <div data-testid="analytics-breakdown">
+                  <LocalTableFrame
+                    tableId="analytics-breakdown"
+                    exportTestId="export-breakdown"
+                    exportFileName={(ext) => exportFileName('analytics-harness-model-breakdown', rangeLabel, filterValues, ext)}
+                    exportCsv={breakdownCsv}
+                    items={breakdown}
+                    rowId={(r) => r.key}
+                    rowProps={(r) => ({ 'data-row': r.key })}
+                    emptyMessage={t('views.analytics.noDataInChart')}
+                    leftSlot={<strong {...tip(t('tips.analytics.breakdown'))}>{t('views.analytics.breakdown.title')}</strong>}
+                    columns={breakdownColumns.map((k) => {
+                      const text = k === 'harness' || k === 'model';
+                      return {
+                        key: k,
+                        label: t(`views.analytics.breakdown.columns.${k}`),
+                        tip: t(`tips.analytics.breakdownColumns.${k}`),
+                        headerClass: text ? '' : 'right',
+                        cellClass: text ? '' : 'right nowrap',
+                        pinned: k === 'harness' || k === 'model',
+                        sortable: true,
+                        defaultHidden: BREAKDOWN_HIDDEN.includes(k),
+                        csv: (r) => (k === 'timeToFirstTokenMsAvg' && r[k] !== null && r[k] !== undefined ? Math.round(r[k]) : r[k]),
+                        render: (r) => cell(k, r)
+                      };
+                    })}
+                  />
                 </div>
               </div>
             </section>

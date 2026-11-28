@@ -7,6 +7,7 @@ import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Tabs from '../components/Tabs';
+import LocalTableFrame from '../components/LocalTableFrame';
 import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { Badge, ActiveBadge } from '../components/StatusBadge';
 import { SendIcon, TrashIcon } from '../components/Icons';
@@ -227,56 +228,67 @@ export default function AgentDetailView({ recordId }) {
           ) : (
             <>
               <p className="text-muted agent-deployments-note">{t('views.agentDetail.selectionNote')}</p>
-              <div className="table-scroll">
-                <table className="data-table" data-testid="agent-deployments">
-                  <thead>
-                    <tr>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.name'))}>{t('resources.deployments.columns.name')}</th>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.environment'))}>{t('resources.deployments.columns.environment')}</th>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.revision'))}>{t('resources.deployments.columns.agentRevisionId')}</th>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.harness'))}>{t('resources.deployments.columns.harnessProfileId')}</th>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.model'))}>{t('resources.deployments.columns.model')}</th>
-                      <th scope="col" className="right" {...tip(t('tips.views.agentDetail.columns.weight'))}>
-                        {t('resources.deployments.columns.weight')}
-                      </th>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.traffic'))}>{t('views.agentDetail.traffic')}</th>
-                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.active'))}>{t('resources.deployments.columns.active')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deployments.map((d) => {
-                      const share = shares[d.id] || 0;
+              <LocalTableFrame
+                tableId="agent-deployments"
+                testId="agent-deployments"
+                items={deployments}
+                rowProps={(d) => ({ 'data-deployment': d.name })}
+                columns={[
+                  {
+                    key: 'name',
+                    label: t('resources.deployments.columns.name'),
+                    tip: t('tips.views.agentDetail.columns.name'),
+                    pinned: true,
+                    render: (d) => (
+                      <>
+                        <strong>{d.name}</strong>
+                        {d.description && <div className="text-muted">{d.description}</div>}
+                      </>
+                    )
+                  },
+                  { key: 'environment', label: t('resources.deployments.columns.environment'), tip: t('tips.views.agentDetail.columns.environment'), render: (d) => <EnvironmentBadge deployment={d} t={t} /> },
+                  {
+                    key: 'revision',
+                    label: t('resources.deployments.columns.agentRevisionId'),
+                    tip: t('tips.views.agentDetail.columns.revision'),
+                    render: (d) => (
+                      <span data-cell="revision">
+                        <RevisionPinBadge deployment={d} numbers={numbers} t={t} />
+                      </span>
+                    )
+                  },
+                  {
+                    key: 'harness',
+                    label: t('resources.deployments.columns.harnessProfileId'),
+                    tip: t('tips.views.agentDetail.columns.harness'),
+                    defaultHidden: true,
+                    render: (d) => {
                       const profile = profiles[d.harnessProfileId];
+                      return profile ? <span {...tip(d.harnessProfileId)}>{profile.name}</span> : <CopyableId value={d.harnessProfileId} />;
+                    }
+                  },
+                  { key: 'model', label: t('resources.deployments.columns.model'), tip: t('tips.views.agentDetail.columns.model'), render: (d) => profiles[d.harnessProfileId]?.runtimeConfiguration?.model || d.model || na },
+                  { key: 'weight', label: t('resources.deployments.columns.weight'), tip: t('tips.views.agentDetail.columns.weight'), headerClass: 'right', cellClass: 'right', render: (d) => <span data-cell="weight">{formatNumber(d.weight ?? 0)}</span> },
+                  {
+                    key: 'traffic',
+                    label: t('views.agentDetail.traffic'),
+                    tip: t('tips.views.agentDetail.columns.traffic'),
+                    cellClass: 'nowrap',
+                    render: (d) => {
+                      const share = shares[d.id] || 0;
                       return (
-                        <tr key={d.id} data-deployment={d.name}>
-                          <td>
-                            <strong>{d.name}</strong>
-                            {d.description && <div className="text-muted">{d.description}</div>}
-                          </td>
-                          <td>
-                            <EnvironmentBadge deployment={d} t={t} />
-                          </td>
-                          <td data-cell="revision">
-                            <RevisionPinBadge deployment={d} numbers={numbers} t={t} />
-                          </td>
-                          <td>{profile ? <span {...tip(d.harnessProfileId)}>{profile.name}</span> : <CopyableId value={d.harnessProfileId} />}</td>
-                          <td>{profile?.runtimeConfiguration?.model || d.model || na}</td>
-                          <td className="right" data-cell="weight">{formatNumber(d.weight ?? 0)}</td>
-                          <td data-cell="share">
-                            <span className="weight-bar" aria-hidden="true">
-                              <span style={{ width: `${Math.round(share * 100)}%` }} />
-                            </span>
-                            {formatPercent(share, i18n.language, { digits: 0 })}
-                          </td>
-                          <td>
-                            <ActiveBadge active={d.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(d.active ? 'tips.badges.deploymentActive' : 'tips.badges.deploymentInactive')} />
-                          </td>
-                        </tr>
+                        <span data-cell="share">
+                          <span className="weight-bar" aria-hidden="true">
+                            <span style={{ width: `${Math.round(share * 100)}%` }} />
+                          </span>
+                          {formatPercent(share, i18n.language, { digits: 0 })}
+                        </span>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    }
+                  },
+                  { key: 'active', label: t('resources.deployments.columns.active'), tip: t('tips.views.agentDetail.columns.active'), render: (d) => <ActiveBadge active={d.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(d.active ? 'tips.badges.deploymentActive' : 'tips.badges.deploymentInactive')} /> }
+                ]}
+              />
               <div className="flex gap-sm" style={{ marginTop: 'var(--spacing-sm)' }}>
                 <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('deployments'))} {...tip(t('tips.views.agentDetail.manageDeployments'))}>
                   {t('views.agentDetail.manageDeployments')}

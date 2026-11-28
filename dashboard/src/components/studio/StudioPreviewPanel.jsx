@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import CodeBlock from '../CodeBlock';
 import { tip } from '../Tooltip';
+import LocalTableFrame from '../LocalTableFrame';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { errorMessage } from '../../utils/errors';
@@ -156,32 +157,19 @@ export default function StudioPreviewPanel({ deployments, blocked = '' }) {
           {summary.assets.length === 0 ? (
             <EmptyNote>{t('components.studio.preview.noAssets')}</EmptyNote>
           ) : (
-            <div className="table-scroll">
-              <table className="data-table" data-testid="studio-preview-assets">
-                <thead>
-                  <tr>
-                    {['path', 'asset', 'kind', 'version', 'size'].map((c) => (
-                      <th key={c} scope="col" {...tip(t(`tips.studio.preview.columns.${c}`))}>
-                        {t(`components.studio.preview.columns.${c}`)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.assets.map((a) => (
-                    <tr key={`${a.path}-${a.assetName}`}>
-                      <td>
-                        <code>{a.path}</code>
-                      </td>
-                      <td>{a.assetName}</td>
-                      <td>{enumLabel(t, 'agentAssetKind', a.kind)}</td>
-                      <td className="right">{formatNumber(a.version ?? 1, {}, lng)}</td>
-                      <td className="right">{formatBytes(a.sizeBytes, lng)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LocalTableFrame
+              tableId="studio-preview-assets"
+              columns={[
+                { key: 'path', label: t('components.studio.preview.columns.path'), tip: t('tips.studio.preview.columns.path'), pinned: true, render: (a) => <code className="cell-break">{a.path}</code> },
+                { key: 'asset', label: t('components.studio.preview.columns.asset'), tip: t('tips.studio.preview.columns.asset'), render: (a) => a.assetName },
+                { key: 'kind', label: t('components.studio.preview.columns.kind'), tip: t('tips.studio.preview.columns.kind'), render: (a) => enumLabel(t, 'agentAssetKind', a.kind) },
+                { key: 'version', label: t('components.studio.preview.columns.version'), tip: t('tips.studio.preview.columns.version'), cellClass: 'right', render: (a) => formatNumber(a.version ?? 1, {}, lng) },
+                { key: 'size', label: t('components.studio.preview.columns.size'), tip: t('tips.studio.preview.columns.size'), cellClass: 'right', render: (a) => formatBytes(a.sizeBytes, lng) }
+              ]}
+              items={summary.assets}
+              testId="studio-preview-assets"
+              rowId={(a) => `${a.path}-${a.assetName}`}
+            />
           )}
           <h4 className="section-title" {...tip(t('tips.studio.preview.fileSpace'))}>
             {t('components.studio.preview.fileSpace')}

@@ -29,7 +29,8 @@ test('runs table shows telemetry columns with defaults and the column picker', a
   const headers = page.locator('.data-table thead th');
   await expect(headers.filter({ hasText: 'TTFT' })).toHaveCount(1);
   await expect(headers.filter({ hasText: 'Duration' })).toHaveCount(1);
-  await expect(headers.filter({ hasText: 'Input tokens' })).toHaveCount(1);
+  // Input tokens is in the column picker, hidden by default so the runs table fits at 1366 px.
+  await expect(headers.filter({ hasText: 'Input tokens' })).toHaveCount(0);
   await expect(headers.filter({ hasText: 'Streaming' })).toHaveCount(0);
   await expect(page.locator('.data-table tbody tr').first()).toContainText('1.21 s');
 

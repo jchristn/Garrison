@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import DataTable from './DataTable';
+import LocalTableFrame from './LocalTableFrame';
 import { tip } from './Tooltip';
 import { approvalsConfig } from '../views/runConfigs';
 import { pathFor } from '../config/navConfig';
@@ -55,7 +55,7 @@ export default function RunApprovals({ approvals, loading, error, onDecide }) {
   ];
   return (
     <div data-testid="run-approvals">
-      <DataTable columns={columns} items={approvals} loading={loading} emptyMessage={t('views.runDetail.noApprovals')} onRowClick={(a) => navigate(pathFor('approvals', a.id))} />
+      <LocalTableFrame tableId="run-approvals" columns={columns} items={approvals} loading={loading} emptyMessage={t('views.runDetail.noApprovals')} onRowClick={(a) => navigate(pathFor('approvals', a.id))} />
     </div>
   );
 }

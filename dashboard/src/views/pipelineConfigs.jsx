@@ -277,7 +277,7 @@ export const pipelineReviewsConfig = {
       col('pipelineReviews', t, 'status', (r) => <PipelineReviewStatusBadge status={r.status} t={t} />, { sortable: true, serverSort: false, csv: (r) => r.status || '' }),
       col('pipelineReviews', t, 'decision', (r) => <PipelineReviewDecisionBadge decision={r.decision} t={t} />, { csv: (r) => r.decision || '' }),
       col('pipelineReviews', t, 'decisionSource', (r) => (r.decisionSource ? <span {...tip(enumTip(t, 'pipelineReviewSource', r.decisionSource))}>{enumLabel(t, 'pipelineReviewSource', r.decisionSource)}</span> : '-'), { csv: (r) => r.decisionSource || '' }),
-      col('pipelineReviews', t, 'comment', (r) => (r.comment ? <span {...tip(r.comment)}>{truncate(r.comment, 80)}</span> : '-'), { csv: (r) => r.comment || '' }),
+      col('pipelineReviews', t, 'comment', (r) => (r.comment ? <span {...tip(r.comment)}>{truncate(r.comment, 80)}</span> : '-'), { defaultHidden: true, csv: (r) => r.comment || '' }),
       col('pipelineReviews', t, 'decidedBy', (r) => r.decidedBy || '-'),
       col('pipelineReviews', t, 'expiresUtc', (r) =>
         r.status === 'Pending' ? (r.expiresUtc ? (

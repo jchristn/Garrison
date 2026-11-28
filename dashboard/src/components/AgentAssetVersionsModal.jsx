@@ -5,6 +5,7 @@ import AssetUploadPanel from './AssetUploadPanel';
 import { Badge } from './StatusBadge';
 import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -76,11 +77,75 @@ export default function AgentAssetVersionsModal({ asset, onClose, onChanged }) {
     }
   };
 
-  const th = (group, key, extra = {}) => (
-    <th scope="col" {...extra} {...tip(t(`tips.assets.${group}.${key}`))}>
-      {t(`components.assets.${group}.${key}`)}
-    </th>
-  );
+  const col = (group, key, extra) => ({ key, label: t(`components.assets.${group}.${key}`), tip: t(`tips.assets.${group}.${key}`), ...extra });
+  const versionColumns = [
+    col('versionColumns', 'number', {
+      pinned: true,
+      render: (v) => (
+        <>
+          <strong>{t('resources.agentAssets.version', { number: v.number })}</strong>{' '}
+          {v.number === current && (
+            <Badge tone="success" tip={t('tips.assets.current')}>
+              {t('components.assets.current')}
+            </Badge>
+          )}
+        </>
+      )
+    }),
+    col('versionColumns', 'author', { render: (v) => v.authorName || '-' }),
+    col('versionColumns', 'changeNote', { render: (v) => v.changeNote || '-' }),
+    col('versionColumns', 'totalBytes', { render: (v) => formatBytes(v.totalBytes, lng) }),
+    col('versionColumns', 'createdUtc', { cellClass: 'nowrap', render: (v) => <span {...tip(formatDateTime(v.createdUtc, lng))}>{formatRelativeTime(v.createdUtc, lng)}</span> }),
+    col('versionColumns', 'actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (v) => (
+        <button
+          type="button"
+          className="button-ghost button-sm"
+          onClick={() => {
+            setSelected(v.number);
+            setPreview(null);
+          }}
+          aria-pressed={v.number === selected}
+          data-testid="asset-version-files"
+          {...tip(t('tips.assets.showFiles'))}
+        >
+          {t('components.assets.showFiles')}
+        </button>
+      )
+    })
+  ];
+  const fileColumns = [
+    col('fileColumns', 'path', { pinned: true, render: (f) => <code className="cell-break">{f.path}</code> }),
+    col('fileColumns', 'mediaType', { render: (f) => f.mediaType || '-' }),
+    col('fileColumns', 'sizeBytes', { render: (f) => formatBytes(f.sizeBytes, lng) }),
+    col('fileColumns', 'sha256', {
+      render: (f) => (
+        <code className="cell-id" {...tip(t('tips.assets.sha256Full', { sha: f.sha256 }))}>
+          {shortSha(f.sha256)}
+        </code>
+      )
+    }),
+    col('fileColumns', 'actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (f) => (
+        <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
+          {isPreviewable(f) && (
+            <button type="button" className="button-ghost button-sm" onClick={() => showPreview(f)} data-testid="asset-file-preview-button" {...tip(t('tips.assets.preview'))}>
+              {t('components.assets.preview')}
+            </button>
+          )}
+          <button type="button" className="button-ghost button-sm" onClick={() => download(f)} data-testid="asset-file-download" {...tip(t('tips.assets.download'))}>
+            {t('components.assets.download')}
+          </button>
+        </span>
+      )
+    })
+  ];
 
   return (
     <Modal
@@ -113,55 +178,14 @@ export default function AgentAssetVersionsModal({ asset, onClose, onChanged }) {
             {t('components.assets.noVersions')}
           </EmptyNote>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table" data-testid="asset-version-list">
-              <thead>
-                <tr>
-                  {th('versionColumns', 'number')}
-                  {th('versionColumns', 'author')}
-                  {th('versionColumns', 'changeNote')}
-                  {th('versionColumns', 'totalBytes')}
-                  {th('versionColumns', 'createdUtc')}
-                  {th('versionColumns', 'actions', { className: 'right' })}
-                </tr>
-              </thead>
-              <tbody>
-                {versions.map((v) => (
-                  <tr key={v.id || v.number} data-version={v.number} className={v.number === selected ? 'is-selected' : ''}>
-                    <td>
-                      <strong>{t('resources.agentAssets.version', { number: v.number })}</strong>{' '}
-                      {v.number === current && (
-                        <Badge tone="success" tip={t('tips.assets.current')}>
-                          {t('components.assets.current')}
-                        </Badge>
-                      )}
-                    </td>
-                    <td>{v.authorName || '-'}</td>
-                    <td>{v.changeNote || '-'}</td>
-                    <td>{formatBytes(v.totalBytes, lng)}</td>
-                    <td>
-                      <span {...tip(formatDateTime(v.createdUtc, lng))}>{formatRelativeTime(v.createdUtc, lng)}</span>
-                    </td>
-                    <td className="right">
-                      <button
-                        type="button"
-                        className="button-ghost button-sm"
-                        onClick={() => {
-                          setSelected(v.number);
-                          setPreview(null);
-                        }}
-                        aria-pressed={v.number === selected}
-                        data-testid="asset-version-files"
-                        {...tip(t('tips.assets.showFiles'))}
-                      >
-                        {t('components.assets.showFiles')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LocalTableFrame
+            tableId="asset-versions"
+            columns={versionColumns}
+            items={versions}
+            testId="asset-version-list"
+            rowId={(v) => v.id || String(v.number)}
+            rowProps={(v) => ({ 'data-version': v.number, className: v.number === selected ? 'is-selected' : '' })}
+          />
         )}
 
         {version && (
@@ -170,47 +194,7 @@ export default function AgentAssetVersionsModal({ asset, onClose, onChanged }) {
             {(version.files || []).length === 0 ? (
               <EmptyNote>{t('components.assets.noFiles')}</EmptyNote>
             ) : (
-              <div className="table-scroll">
-                <table className="data-table" data-testid="asset-file-list">
-                  <thead>
-                    <tr>
-                      {th('fileColumns', 'path')}
-                      {th('fileColumns', 'mediaType')}
-                      {th('fileColumns', 'sizeBytes')}
-                      {th('fileColumns', 'sha256')}
-                      {th('fileColumns', 'actions', { className: 'right' })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {version.files.map((f) => (
-                      <tr key={f.path} data-file={f.path}>
-                        <td>
-                          <code>{f.path}</code>
-                        </td>
-                        <td>{f.mediaType || '-'}</td>
-                        <td>{formatBytes(f.sizeBytes, lng)}</td>
-                        <td>
-                          <code className="cell-id" {...tip(t('tips.assets.sha256Full', { sha: f.sha256 }))}>
-                            {shortSha(f.sha256)}
-                          </code>
-                        </td>
-                        <td className="right">
-                          <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
-                            {isPreviewable(f) && (
-                              <button type="button" className="button-ghost button-sm" onClick={() => showPreview(f)} data-testid="asset-file-preview-button" {...tip(t('tips.assets.preview'))}>
-                                {t('components.assets.preview')}
-                              </button>
-                            )}
-                            <button type="button" className="button-ghost button-sm" onClick={() => download(f)} data-testid="asset-file-download" {...tip(t('tips.assets.download'))}>
-                              {t('components.assets.download')}
-                            </button>
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <LocalTableFrame tableId="asset-version-files" columns={fileColumns} items={version.files} testId="asset-file-list" rowId={(f) => f.path} rowProps={(f) => ({ 'data-file': f.path })} />
             )}
           </div>
         )}

@@ -40,7 +40,11 @@ export default function useColumnPrefs(tableId, columns) {
         const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
         const all = readAll();
         all[tableId] = { hidden: next, known: columns.map((c) => c.key) };
-        localStorage.setItem(STORAGE_KEYS.columns, JSON.stringify(all));
+        try {
+          localStorage.setItem(STORAGE_KEYS.columns, JSON.stringify(all));
+        } catch {
+          /* storage blocked: the choice lasts for this visit only */
+        }
         return next;
       });
     },

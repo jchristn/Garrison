@@ -7,6 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import Explainer from '../components/Explainer';
 import Modal from '../components/Modal';
+import LocalTableFrame from '../components/LocalTableFrame';
 import Tabs from '../components/Tabs';
 import FormFields from '../components/FormFields';
 import OrgChartTree from '../components/OrgChartTree';
@@ -565,34 +566,36 @@ export default function OrganizationDetailView({ recordId }) {
           {budgetRows.length === 0 ? (
             <EmptyState title={t('views.organizationDetail.noBudgetsTitle')} body={t('views.organizationDetail.noBudgetsBody')} />
           ) : (
-            <div className="table-scroll">
-              <table className="data-table compact" data-testid="org-budgets-table">
-                <thead>
-                  <tr>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.unit'))}>{t('views.organizationDetail.columns.unit')}</th>
-                    <th scope="col" className="right" {...tip(t('tips.views.organizationDetail.columns.day'))}>{t('views.organizationDetail.columns.day')}</th>
-                    <th scope="col" className="right" {...tip(t('tips.views.organizationDetail.columns.month'))}>{t('views.organizationDetail.columns.month')}</th>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.spend'))}>{t('views.organizationDetail.columns.spend')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {budgetRows.map(({ unit, depth }) => (
-                    <tr key={unit.id} data-unit={unit.name}>
-                      <td>
-                        <span className="org-budget-unit" style={{ paddingInlineStart: `${Math.min(depth, 6) * 12}px` }}>
-                          {unit.name}
-                        </span>
-                      </td>
-                      <td className="right nowrap">{usd(budgetOf(unit, 'Day'))}</td>
-                      <td className="right nowrap">{usd(budgetOf(unit, 'Month'))}</td>
-                      <td className="org-budget-spend">
-                        {spendOf(spend, unit.id).length ? spendOf(spend, unit.id).map((r) => <SpendBar key={r.period} row={r} t={t} lng={lng} testId="org-budget-spend" />) : <span className="text-muted">{t('views.organizationDetail.noSpend')}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LocalTableFrame
+              tableId="org-budgets"
+              testId="org-budgets-table"
+              compact
+              items={budgetRows}
+              rowId={(b) => b.unit.id}
+              rowProps={(b) => ({ 'data-unit': b.unit.name })}
+              columns={[
+                {
+                  key: 'unit',
+                  label: t('views.organizationDetail.columns.unit'),
+                  tip: t('tips.views.organizationDetail.columns.unit'),
+                  pinned: true,
+                  render: ({ unit, depth }) => (
+                    <span className="org-budget-unit" style={{ paddingInlineStart: `${Math.min(depth, 6) * 12}px` }}>
+                      {unit.name}
+                    </span>
+                  )
+                },
+                { key: 'day', label: t('views.organizationDetail.columns.day'), tip: t('tips.views.organizationDetail.columns.day'), headerClass: 'right', cellClass: 'right nowrap', render: ({ unit }) => usd(budgetOf(unit, 'Day')) },
+                { key: 'month', label: t('views.organizationDetail.columns.month'), tip: t('tips.views.organizationDetail.columns.month'), headerClass: 'right', cellClass: 'right nowrap', render: ({ unit }) => usd(budgetOf(unit, 'Month')) },
+                {
+                  key: 'spend',
+                  label: t('views.organizationDetail.columns.spend'),
+                  tip: t('tips.views.organizationDetail.columns.spend'),
+                  cellClass: 'org-budget-spend',
+                  render: ({ unit }) => (spendOf(spend, unit.id).length ? spendOf(spend, unit.id).map((r) => <SpendBar key={r.period} row={r} t={t} lng={lng} testId="org-budget-spend" />) : <span className="text-muted">{t('views.organizationDetail.noSpend')}</span>)
+                }
+              ]}
+            />
           )}
         </section>
       )}
@@ -602,81 +605,94 @@ export default function OrganizationDetailView({ recordId }) {
           {revisions.length === 0 ? (
             <EmptyState title={t('views.organizationDetail.noRevisionsTitle')} body={t('views.organizationDetail.noRevisionsBody')} />
           ) : (
-            <div className="table-scroll">
-              <table className="data-table compact" data-testid="org-revisions-table">
-                <thead>
-                  <tr>
-                    <th scope="col" className="right" {...tip(t('tips.views.organizationDetail.columns.number'))}>{t('views.organizationDetail.columns.number')}</th>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.state'))}>{t('views.organizationDetail.columns.state')}</th>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.note'))}>{t('views.organizationDetail.columns.note')}</th>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.author'))}>{t('views.organizationDetail.columns.author')}</th>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.created'))}>{t('views.organizationDetail.columns.created')}</th>
-                    <th scope="col" {...tip(t('tips.views.organizationDetail.columns.published'))}>{t('views.organizationDetail.columns.published')}</th>
-                    <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>{t('common.generic.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {revisions.map((r) => {
+            <LocalTableFrame
+              tableId="org-revisions"
+              testId="org-revisions-table"
+              compact
+              items={revisions}
+              rowProps={(r) => ({ 'data-revision': r.number })}
+              columns={[
+                {
+                  key: 'number',
+                  label: t('views.organizationDetail.columns.number'),
+                  tip: t('tips.views.organizationDetail.columns.number'),
+                  headerClass: 'right',
+                  cellClass: 'right nowrap',
+                  render: (r) => (
+                    <>
+                      {formatNumber(r.number, {}, lng)}
+                      {r.id === org.currentRevisionId && (
+                        <>
+                          {' '}
+                          <Badge tone="success" tip={t('tips.views.organizationDetail.current')}>{t('views.organizationDetail.current')}</Badge>
+                        </>
+                      )}
+                    </>
+                  )
+                },
+                {
+                  key: 'state',
+                  label: t('views.organizationDetail.columns.state'),
+                  tip: t('tips.views.organizationDetail.columns.state'),
+                  render: (r) => (
+                    <>
+                      <OrgRevisionStateBadge state={r.state} t={t} />
+                      {r.rollbackOfRevisionId ? <span className="text-muted">{` ${t('organizations.revisions.rollbackOf', { number: revisions.find((x) => x.id === r.rollbackOfRevisionId)?.number ?? '?' })}`}</span> : null}
+                      {r.draftId ? (
+                        <>
+                          {' '}
+                          <Badge tone="info" tip={t('tips.views.organizationDetail.appliedProposal')}>{t('views.organizationDetail.appliedProposal')}</Badge>
+                        </>
+                      ) : null}
+                    </>
+                  )
+                },
+                { key: 'note', label: t('views.organizationDetail.columns.note'), tip: t('tips.views.organizationDetail.columns.note'), cellClass: 'org-text', render: (r) => r.note || '-' },
+                { key: 'author', label: t('views.organizationDetail.columns.author'), tip: t('tips.views.organizationDetail.columns.author'), render: (r) => r.authorName || r.authorId || '-' },
+                { key: 'created', label: t('views.organizationDetail.columns.created'), tip: t('tips.views.organizationDetail.columns.created'), cellClass: 'nowrap', defaultHidden: true, render: (r) => when(r.createdUtc) },
+                { key: 'published', label: t('views.organizationDetail.columns.published'), tip: t('tips.views.organizationDetail.columns.published'), cellClass: 'nowrap', render: (r) => when(r.publishedUtc) },
+                {
+                  key: 'actions',
+                  label: t('common.generic.actions'),
+                  tip: t('tips.table.actionsColumn'),
+                  headerClass: 'right',
+                  cellClass: 'right nowrap',
+                  render: (r) => {
                     const current = r.id === org.currentRevisionId;
                     const canRollBack = !current && !!r.publishedUtc && r.state !== 'Draft';
                     return (
-                      <tr key={r.id} data-revision={r.number}>
-                        <td className="right nowrap">
-                          {formatNumber(r.number, {}, lng)}
-                          {current && (
-                            <>
-                              {' '}
-                              <Badge tone="success" tip={t('tips.views.organizationDetail.current')}>{t('views.organizationDetail.current')}</Badge>
-                            </>
-                          )}
-                        </td>
-                        <td>
-                          <OrgRevisionStateBadge state={r.state} t={t} />
-                          {r.rollbackOfRevisionId ? <span className="text-muted">{` ${t('organizations.revisions.rollbackOf', { number: revisions.find((x) => x.id === r.rollbackOfRevisionId)?.number ?? '?' })}`}</span> : null}
-                          {r.draftId ? (
-                            <>
-                              {' '}
-                              <Badge tone="info" tip={t('tips.views.organizationDetail.appliedProposal')}>{t('views.organizationDetail.appliedProposal')}</Badge>
-                            </>
-                          ) : null}
-                        </td>
-                        <td className="org-text">{r.note || '-'}</td>
-                        <td>{r.authorName || r.authorId || '-'}</td>
-                        <td className="nowrap">{when(r.createdUtc)}</td>
-                        <td className="nowrap">{when(r.publishedUtc)}</td>
-                        <td className="right nowrap">
-                          <button type="button" className="button-ghost button-sm" onClick={() => compare(r)} data-testid={`org-revision-diff-${r.number}`} {...tip(t('tips.views.organizationDetail.compare'))}>
-                            {t('views.organizationDetail.compare')}
+                      <>
+                        <button type="button" className="button-ghost button-sm" onClick={() => compare(r)} data-testid={`org-revision-diff-${r.number}`} {...tip(t('tips.views.organizationDetail.compare'))}>
+                          {t('views.organizationDetail.compare')}
+                        </button>
+                        {r.state === 'Draft' && (
+                          <button type="button" className="button-secondary button-sm" aria-disabled={editBlocked || busy ? 'true' : undefined} onClick={() => !editBlocked && !busy && publishDraft(r)} data-testid={`org-revision-publish-${r.number}`} {...tip(editBlocked || t('tips.views.organizationDetail.publishRevision'))}>
+                            {t('views.organizationDetail.publishRevision')}
                           </button>
-                          {r.state === 'Draft' && (
-                            <button type="button" className="button-secondary button-sm" aria-disabled={editBlocked || busy ? 'true' : undefined} onClick={() => !editBlocked && !busy && publishDraft(r)} data-testid={`org-revision-publish-${r.number}`} {...tip(editBlocked || t('tips.views.organizationDetail.publishRevision'))}>
-                              {t('views.organizationDetail.publishRevision')}
-                            </button>
-                          )}
-                          {canRollBack && (
-                            <button
-                              type="button"
-                              className="button-secondary button-sm"
-                              aria-disabled={editBlocked || busy ? 'true' : undefined}
-                              onClick={() => {
-                                if (editBlocked || busy) return;
-                                setConfirmError(null);
-                                setRollbackTicks('Finish');
-                                setConfirm({ kind: 'rollback', revision: r });
-                              }}
-                              data-testid={`org-revision-rollback-${r.number}`}
-                              {...tip(editBlocked || t('tips.views.organizationDetail.rollback'))}
-                            >
-                              {t('views.organizationDetail.rollback')}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                        )}
+                        {canRollBack && (
+                          <button
+                            type="button"
+                            className="button-secondary button-sm"
+                            aria-disabled={editBlocked || busy ? 'true' : undefined}
+                            onClick={() => {
+                              if (editBlocked || busy) return;
+                              setConfirmError(null);
+                              setRollbackTicks('Finish');
+                              setConfirm({ kind: 'rollback', revision: r });
+                            }}
+                            data-testid={`org-revision-rollback-${r.number}`}
+                            {...tip(editBlocked || t('tips.views.organizationDetail.rollback'))}
+                          >
+                            {t('views.organizationDetail.rollback')}
+                          </button>
+                        )}
+                      </>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  }
+                }
+              ]}
+            />
           )}
         </section>
       )}

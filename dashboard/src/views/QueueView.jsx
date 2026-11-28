@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import KpiCard from '../components/KpiCard';
+import LocalTableFrame from '../components/LocalTableFrame';
 import { ErrorBanner, EmptyState, LoadingState } from '../components/States';
 import AutoRefreshSelect from '../components/AutoRefreshSelect';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +13,6 @@ import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatNumber } from '../i18n/formatters';
 import Explainer from '../components/Explainer';
-import { tip } from '../components/Tooltip';
 import { BlockedBadge, BlockedRunsBanner, blockedReasonOf } from '../components/BlockedRun';
 import { enumLabel } from '../utils/enums';
 
@@ -118,49 +118,36 @@ export default function QueueView() {
               <EmptyState title={t('views.queue.emptyTitle')} body={t('views.queue.emptyBody')} />
             </div>
           ) : (
-            <div className="table-frame">
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th scope="col" {...tip(t('tips.views.queue.agent'))}>{t('resources.runs.columns.agentName')}</th>
-                      <th scope="col" {...tip(t('tips.views.queue.harness'))}>{t('resources.runs.columns.harnessType')}</th>
-                      <th scope="col" className="right" {...tip(t('tips.views.queue.queued'))}>
-                        {t('views.queue.queued')}
-                      </th>
-                      <th scope="col" {...tip(t('tips.blocked.queueColumn'))}>{t('components.blocked.queueColumn')}</th>
-                      <th scope="col" className="right" {...tip(t('tips.views.queue.leased'))}>
-                        {t('views.queue.leased')}
-                      </th>
-                      <th scope="col" className="right" {...tip(t('tips.views.queue.running'))}>
-                        {t('views.queue.running')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.groups.map((g) => (
-                      <tr key={`${g.agentName}-${g.harnessType}`}>
-                        <td>
-                          <strong>{g.agentName}</strong>
-                        </td>
-                        <td>{enumLabel(t, 'harnessType', g.harnessType)}</td>
-                        <td className="right">{formatNumber(g.queued)}</td>
-                        <td data-cell="blocked">
-                          {Object.entries(blocked[`${g.agentName}|${g.harnessType}`]?.reasons || {}).map(([reason, n]) => (
-                            <span key={reason} className="inline-meta">
-                              <BlockedBadge reason={reason} t={t} /> <span className="text-muted">{t('components.blocked.queueCount', { count: n })}</span>
-                            </span>
-                          ))}
-                          {!blocked[`${g.agentName}|${g.harnessType}`] && '-'}
-                        </td>
-                        <td className="right">{formatNumber(g.leased)}</td>
-                        <td className="right">{formatNumber(g.running)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <LocalTableFrame
+              tableId="queue-summary"
+              testId="queue-summary"
+              items={summary.groups}
+              rowId={(g) => `${g.agentName}-${g.harnessType}`}
+              onRefresh={load}
+              columns={[
+                { key: 'agentName', label: t('resources.runs.columns.agentName'), tip: t('tips.views.queue.agent'), pinned: true, sortable: true, render: (g) => <strong>{g.agentName}</strong> },
+                { key: 'harnessType', label: t('resources.runs.columns.harnessType'), tip: t('tips.views.queue.harness'), sortable: true, csv: (g) => g.harnessType, render: (g) => enumLabel(t, 'harnessType', g.harnessType) },
+                { key: 'queued', label: t('views.queue.queued'), tip: t('tips.views.queue.queued'), headerClass: 'right', cellClass: 'right', sortable: true, render: (g) => formatNumber(g.queued) },
+                {
+                  key: 'blocked',
+                  label: t('components.blocked.queueColumn'),
+                  tip: t('tips.blocked.queueColumn'),
+                  csv: (g) => blocked[`${g.agentName}|${g.harnessType}`]?.count ?? 0,
+                  render: (g) => (
+                    <span data-cell="blocked">
+                      {Object.entries(blocked[`${g.agentName}|${g.harnessType}`]?.reasons || {}).map(([reason, n]) => (
+                        <span key={reason} className="inline-meta">
+                          <BlockedBadge reason={reason} t={t} /> <span className="text-muted">{t('components.blocked.queueCount', { count: n })}</span>
+                        </span>
+                      ))}
+                      {!blocked[`${g.agentName}|${g.harnessType}`] && '-'}
+                    </span>
+                  )
+                },
+                { key: 'leased', label: t('views.queue.leased'), tip: t('tips.views.queue.leased'), headerClass: 'right', cellClass: 'right', sortable: true, render: (g) => formatNumber(g.leased) },
+                { key: 'running', label: t('views.queue.running'), tip: t('tips.views.queue.running'), headerClass: 'right', cellClass: 'right', sortable: true, render: (g) => formatNumber(g.running) }
+              ]}
+            />
           )}
         </>
       )}

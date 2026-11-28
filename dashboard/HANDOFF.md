@@ -76,7 +76,7 @@ The sign-in page has no Server URL field. The console uses `window.GARRISON_CONF
 
 - An explainer panel for pages whose objects relate to others (agents and deployments, profiles, prompts, secrets and aliases, nodes and pools, control nodes and worker nodes, users and credentials, roles and assignments, runs and queue, manifests). It can be dismissed and reopened.
 - A translated tooltip on every control, column header, tab, badge, and card that says what it is and how it is used (decision D-030).
-- Tables with search, filters, sorting, a column picker, pagination with page sizes up to 1,000, auto-refresh, and CSV export.
+- Tables with search, filters, sorting, a Columns picker, pagination with page sizes up to 1,000, auto-refresh, and CSV export. The column choice and the page size are saved per table.
 - Charts (Home, Request History, Analytics, Run detail phases) with an export menu: CSV, PNG, SVG, and JSON.
 - Nine languages (English, German, Japanese, Spanish, French, Italian, Simplified Chinese, Traditional Chinese, Cantonese), light and dark themes, and an RTL pseudo-locale for layout testing.
 

@@ -7,6 +7,7 @@ import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { RevisionStateBadge } from './RevisionBadges';
 import AgenticAppPromoteModal from './AgenticAppPromoteModal';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -82,11 +83,61 @@ export default function AgenticAppRevisionsModal({ app, denied = {}, permissions
   const list = revisions || [];
   const latest = latestAppRevision(list, app);
   const promoteTip = denied.promote || (latest ? t('tips.apps.revisions.promote') : t('tips.apps.revisions.promoteNothing'));
-  const th = (key) => (
-    <th scope="col" {...tip(t(`tips.apps.revisions.columns.${key}`))}>
-      {t(`components.apps.revisions.columns.${key}`)}
-    </th>
-  );
+  const col = (key, extra) => ({ key, label: t(`components.apps.revisions.columns.${key}`), tip: t(`tips.apps.revisions.columns.${key}`), ...extra });
+  const columns = [
+    col('number', {
+      pinned: true,
+      cellClass: 'nowrap',
+      render: (r) => (
+        <>
+          <strong>{t('components.revisions.number', { number: r.number })}</strong>{' '}
+          {latest?.id === r.id && (
+            <Badge tone="success" tip={t('tips.apps.revisions.latest')}>
+              {t('components.revisions.latest')}
+            </Badge>
+          )}
+        </>
+      )
+    }),
+    col('state', { render: (r) => <RevisionStateBadge state={r.state} t={t} /> }),
+    col('members', {
+      render: (r) => (
+        <span className="capability-names" data-cell="members">
+          {(r.members || []).map((m) => (
+            <Badge key={m.agentId} tip={t('tips.apps.revisions.pin', { name: m.agentName || nameOf(m.agentId), number: m.agentRevisionNumber ?? '?' })}>
+              {t('components.apps.revisions.pin', { name: m.agentName || nameOf(m.agentId), number: m.agentRevisionNumber ?? '?' })}
+            </Badge>
+          ))}
+        </span>
+      )
+    }),
+    col('edges', { cellClass: 'right', defaultHidden: true, render: (r) => (r.edges || []).length }),
+    col('author', { defaultHidden: true, render: (r) => r.authorName || '-' }),
+    col('changeNote', { render: (r) => r.changeNote || '-' }),
+    col('publishedUtc', {
+      cellClass: 'nowrap',
+      render: (r) =>
+        r.publishedUtc ? <span {...tip(t('tips.apps.revisions.publishedBy', { name: r.publishedByName || '-', when: formatDateTime(r.publishedUtc, lng) }))}>{formatRelativeTime(r.publishedUtc, lng)}</span> : '-'
+    }),
+    col('actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (r) =>
+        r.state === 'Draft' && (
+          <button
+            type="button"
+            className="button-secondary button-sm"
+            onClick={() => !denied.publish && setPublishing(r)}
+            aria-disabled={denied.publish ? 'true' : undefined}
+            data-testid="app-revision-publish"
+            {...tip(denied.publish || t('tips.apps.revisions.publish'))}
+          >
+            {t('components.apps.revisions.publish')}
+          </button>
+        )
+    })
+  ];
 
   return (
     <>
@@ -155,74 +206,7 @@ export default function AgenticAppRevisionsModal({ app, denied = {}, permissions
             {t('components.apps.revisions.empty')}
           </EmptyNote>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table" data-testid="app-revisions">
-              <thead>
-                <tr>
-                  {th('number')}
-                  {th('state')}
-                  {th('members')}
-                  {th('edges')}
-                  {th('author')}
-                  {th('changeNote')}
-                  {th('publishedUtc')}
-                  <th scope="col" className="right" {...tip(t('tips.apps.revisions.columns.actions'))}>
-                    {t('components.apps.revisions.columns.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((r) => (
-                  <tr key={r.id} data-revision={r.number} data-state={r.state}>
-                    <td>
-                      <strong>{t('components.revisions.number', { number: r.number })}</strong>{' '}
-                      {latest?.id === r.id && (
-                        <Badge tone="success" tip={t('tips.apps.revisions.latest')}>
-                          {t('components.revisions.latest')}
-                        </Badge>
-                      )}
-                    </td>
-                    <td>
-                      <RevisionStateBadge state={r.state} t={t} />
-                    </td>
-                    <td data-cell="members">
-                      <span className="capability-names">
-                        {(r.members || []).map((m) => (
-                          <Badge key={m.agentId} tip={t('tips.apps.revisions.pin', { name: m.agentName || nameOf(m.agentId), number: m.agentRevisionNumber ?? '?' })}>
-                            {t('components.apps.revisions.pin', { name: m.agentName || nameOf(m.agentId), number: m.agentRevisionNumber ?? '?' })}
-                          </Badge>
-                        ))}
-                      </span>
-                    </td>
-                    <td className="right">{(r.edges || []).length}</td>
-                    <td>{r.authorName || '-'}</td>
-                    <td>{r.changeNote || '-'}</td>
-                    <td>
-                      {r.publishedUtc ? (
-                        <span {...tip(t('tips.apps.revisions.publishedBy', { name: r.publishedByName || '-', when: formatDateTime(r.publishedUtc, lng) }))}>{formatRelativeTime(r.publishedUtc, lng)}</span>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="right">
-                      {r.state === 'Draft' && (
-                        <button
-                          type="button"
-                          className="button-secondary button-sm"
-                          onClick={() => !denied.publish && setPublishing(r)}
-                          aria-disabled={denied.publish ? 'true' : undefined}
-                          data-testid="app-revision-publish"
-                          {...tip(denied.publish || t('tips.apps.revisions.publish'))}
-                        >
-                          {t('components.apps.revisions.publish')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LocalTableFrame tableId="app-revisions" columns={columns} items={list} testId="app-revisions" rowProps={(r) => ({ 'data-revision': r.number, 'data-state': r.state })} />
         )}
       </Modal>
       <ConfirmModal

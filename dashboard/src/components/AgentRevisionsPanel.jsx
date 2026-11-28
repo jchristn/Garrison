@@ -9,6 +9,7 @@ import { RevisionStateBadge } from './RevisionBadges';
 import AgentAssetPinsModal from './AgentAssetPinsModal';
 import AgentCapabilitiesModal from './AgentCapabilitiesModal';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -116,11 +117,85 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
     }
   };
 
-  const th = (key) => (
-    <th scope="col" {...tip(t(`tips.revisions.columns.${key}`))}>
-      {t(`components.revisions.columns.${key}`)}
-    </th>
-  );
+  const col = (key, extra) => ({ key, label: t(`components.revisions.columns.${key}`), tip: t(`tips.revisions.columns.${key}`), ...extra });
+  const columns = [
+    col('number', {
+      pinned: true,
+      cellClass: 'nowrap',
+      render: (r) => (
+        <>
+          <strong>{t('components.revisions.number', { number: r.number })}</strong>{' '}
+          {latest?.id === r.id && <Badge tone="success" tip={t('tips.revisions.latest')}>{t('components.revisions.latest')}</Badge>}
+        </>
+      )
+    }),
+    col('state', { render: (r) => <RevisionStateBadge state={r.state} t={t} /> }),
+    col('author', { render: (r) => r.authorName || '-' }),
+    col('changeNote', { render: (r) => r.changeNote || '-' }),
+    col('publishedUtc', { cellClass: 'nowrap', render: (r) => (r.publishedUtc ? <span {...tip(formatDateTime(r.publishedUtc, lng))}>{formatRelativeTime(r.publishedUtc, lng)}</span> : '-') }),
+    col('assetPins', {
+      render: (r) => (
+        <span data-cell="assetPins">
+          {revisionPins(r).length ? (
+            <span className="asset-pins">
+              {revisionPins(r).map((p) => (
+                <Badge key={p.assetId} tip={t(p.version ? 'tips.assets.pinnedVersion' : 'tips.assets.pinnedCurrent')}>
+                  {pinLabel(t, p, names)}
+                </Badge>
+              ))}
+            </span>
+          ) : (
+            '-'
+          )}
+        </span>
+      )
+    }),
+    col('capabilities', {
+      render: (r) => (
+        <span data-cell="capabilities">
+          {revisionCapabilities(r).length ? (
+            <span className="capability-names">
+              {revisionCapabilities(r).map((name) => (
+                <Badge key={name} tip={t('tips.capabilities.revisionName', { name })}>
+                  {name}
+                </Badge>
+              ))}
+            </span>
+          ) : (
+            '-'
+          )}
+        </span>
+      )
+    }),
+    col('actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (r) => (
+        <span className="flex gap-sm" style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button type="button" className="button-ghost button-sm" onClick={() => compareWith(r)} data-testid="revision-compare" {...tip(t('tips.revisions.compare'))}>
+            {t('components.revisions.compare')}
+          </button>
+          {r.state === 'Draft' && (
+            <>
+              <button type="button" className="button-primary button-sm" onClick={() => setPublishing(r)} data-testid="revision-publish" {...tip(t('tips.revisions.publish'))}>
+                {t('components.revisions.publish')}
+              </button>
+              <button type="button" className="button-ghost button-sm" onClick={() => setPinning(r)} data-testid="revision-assets" {...tip(t('tips.assets.editPins'))}>
+                {t('components.assets.editPins')}
+              </button>
+              <button type="button" className="button-ghost button-sm" onClick={() => setChoosing(r)} data-testid="revision-capabilities" {...tip(t('tips.capabilities.editDraft'))}>
+                {t('components.capabilities.editDraft')}
+              </button>
+              <button type="button" className="button-ghost button-sm" onClick={() => setDiscarding(r)} data-testid="revision-discard" {...tip(t('tips.revisions.discard'))}>
+                {t('components.revisions.discard')}
+              </button>
+            </>
+          )}
+        </span>
+      )
+    })
+  ];
 
   return (
     <div data-testid="agent-revisions-panel">
@@ -138,87 +213,7 @@ export default function AgentRevisionsPanel({ agent, onChanged }) {
       {revisions.length === 0 ? (
         <EmptyNote>{t('components.revisions.empty')}</EmptyNote>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="agent-revisions">
-            <thead>
-              <tr>
-                {th('number')}
-                {th('state')}
-                {th('author')}
-                {th('changeNote')}
-                {th('publishedUtc')}
-                {th('assetPins')}
-                {th('capabilities')}
-                <th scope="col" className="right" {...tip(t('tips.revisions.columns.actions'))}>{t('components.revisions.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {revisions.map((r) => (
-                <tr key={r.id} data-revision={r.number} data-state={r.state}>
-                  <td>
-                    <strong>{t('components.revisions.number', { number: r.number })}</strong>{' '}
-                    {latest?.id === r.id && <Badge tone="success" tip={t('tips.revisions.latest')}>{t('components.revisions.latest')}</Badge>}
-                  </td>
-                  <td>
-                    <RevisionStateBadge state={r.state} t={t} />
-                  </td>
-                  <td>{r.authorName || '-'}</td>
-                  <td>{r.changeNote || '-'}</td>
-                  <td>{r.publishedUtc ? <span {...tip(formatDateTime(r.publishedUtc, lng))}>{formatRelativeTime(r.publishedUtc, lng)}</span> : '-'}</td>
-                  <td data-cell="assetPins">
-                    {revisionPins(r).length ? (
-                      <span className="asset-pins">
-                        {revisionPins(r).map((p) => (
-                          <Badge key={p.assetId} tip={t(p.version ? 'tips.assets.pinnedVersion' : 'tips.assets.pinnedCurrent')}>
-                            {pinLabel(t, p, names)}
-                          </Badge>
-                        ))}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td data-cell="capabilities">
-                    {revisionCapabilities(r).length ? (
-                      <span className="capability-names">
-                        {revisionCapabilities(r).map((name) => (
-                          <Badge key={name} tip={t('tips.capabilities.revisionName', { name })}>
-                            {name}
-                          </Badge>
-                        ))}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="right">
-                    <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
-                      <button type="button" className="button-ghost button-sm" onClick={() => compareWith(r)} data-testid="revision-compare" {...tip(t('tips.revisions.compare'))}>
-                        {t('components.revisions.compare')}
-                      </button>
-                      {r.state === 'Draft' && (
-                        <>
-                          <button type="button" className="button-primary button-sm" onClick={() => setPublishing(r)} data-testid="revision-publish" {...tip(t('tips.revisions.publish'))}>
-                            {t('components.revisions.publish')}
-                          </button>
-                          <button type="button" className="button-ghost button-sm" onClick={() => setPinning(r)} data-testid="revision-assets" {...tip(t('tips.assets.editPins'))}>
-                            {t('components.assets.editPins')}
-                          </button>
-                          <button type="button" className="button-ghost button-sm" onClick={() => setChoosing(r)} data-testid="revision-capabilities" {...tip(t('tips.capabilities.editDraft'))}>
-                            {t('components.capabilities.editDraft')}
-                          </button>
-                          <button type="button" className="button-ghost button-sm" onClick={() => setDiscarding(r)} data-testid="revision-discard" {...tip(t('tips.revisions.discard'))}>
-                            {t('components.revisions.discard')}
-                          </button>
-                        </>
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame tableId="agent-revisions" columns={columns} items={revisions} testId="agent-revisions" rowProps={(r) => ({ 'data-revision': r.number, 'data-state': r.state })} />
       )}
 
       {revisions.length > 1 && (

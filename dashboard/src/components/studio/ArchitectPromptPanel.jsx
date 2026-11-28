@@ -7,6 +7,7 @@ import Modal from '../Modal';
 import CloneTemplateModal from '../CloneTemplateModal';
 import { Badge } from '../StatusBadge';
 import { tip } from '../Tooltip';
+import LocalTableFrame from '../LocalTableFrame';
 import StudioLink from './StudioLink';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -182,43 +183,38 @@ function PromptEditor({ entry, deniedEdit, onSaved, onClose }) {
       {versions.length === 0 ? (
         <EmptyNote>{t('views.templateEditor.noVersions')}</EmptyNote>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="architect-prompt-versions">
-            <thead>
-              <tr>
-                <th scope="col" {...tip(t('tips.views.templateEditor.columns.version'))}>{t('views.templateEditor.version')}</th>
-                <th scope="col" {...tip(t('tips.views.templateEditor.columns.note'))}>{t('views.templateEditor.note')}</th>
-                <th scope="col" {...tip(t('tips.views.templateEditor.columns.author'))}>{t('views.templateEditor.author')}</th>
-                <th scope="col" {...tip(t('tips.views.templateEditor.columns.saved'))}>{t('resources.promptTemplates.columns.lastUpdateUtc')}</th>
-                <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
-                  {t('common.generic.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...versions]
-                .sort((a, b) => b.version - a.version)
-                .map((v) => (
-                  <tr key={v.id || v.version}>
-                    <td>v{v.version}</td>
-                    <td>{v.changeNote || '-'}</td>
-                    <td>{v.createdBy || '-'}</td>
-                    <td>{formatDateTime(v.createdUtc, i18n.language)}</td>
-                    <td className="actions-cell">
-                      <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
-                        {t('views.templateEditor.diff')}
-                      </button>
-                      {editable && v.version !== template?.currentVersion && (
-                        <button type="button" className="button-ghost button-sm" onClick={() => setRestore(v.version)} {...tip(t('tips.views.templateEditor.restore'))}>
-                          {t('views.templateEditor.restore')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame
+          tableId="architect-prompt-versions"
+          columns={[
+            { key: 'version', label: t('views.templateEditor.version'), tip: t('tips.views.templateEditor.columns.version'), pinned: true, render: (v) => `v${v.version}` },
+            { key: 'changeNote', label: t('views.templateEditor.note'), tip: t('tips.views.templateEditor.columns.note'), render: (v) => v.changeNote || '-' },
+            { key: 'createdBy', label: t('views.templateEditor.author'), tip: t('tips.views.templateEditor.columns.author'), render: (v) => v.createdBy || '-' },
+            { key: 'createdUtc', label: t('resources.promptTemplates.columns.lastUpdateUtc'), tip: t('tips.views.templateEditor.columns.saved'), render: (v) => formatDateTime(v.createdUtc, i18n.language) },
+            {
+              key: 'actions',
+              label: t('common.generic.actions'),
+              tip: t('tips.table.actionsColumn'),
+              pinned: true,
+              headerClass: 'right',
+              cellClass: 'actions-cell',
+              render: (v) => (
+                <>
+                  <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
+                    {t('views.templateEditor.diff')}
+                  </button>
+                  {editable && v.version !== template?.currentVersion && (
+                    <button type="button" className="button-ghost button-sm" onClick={() => setRestore(v.version)} {...tip(t('tips.views.templateEditor.restore'))}>
+                      {t('views.templateEditor.restore')}
+                    </button>
+                  )}
+                </>
+              )
+            }
+          ]}
+          items={[...versions].sort((a, b) => b.version - a.version)}
+          testId="architect-prompt-versions"
+          rowId={(v) => v.id || String(v.version)}
+        />
       )}
       <Modal open={!!diffVersion} size="xlarge" onClose={() => setDiffVersion(null)} title={t('views.templateEditor.diffTitle', { version: diffVersion?.version })}>
         {diffVersion && <DiffViewer before={diffVersion.content} after={form.content} beforeLabel={`v${diffVersion.version}`} afterLabel={t('views.templateEditor.current')} />}
@@ -326,6 +322,104 @@ export default function ArchitectPromptPanel({ architect = null, deployments = [
   const selectedId = selection?.architectPromptTemplateId || null;
   const disabled = (reason) => (reason ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {});
 
+  const pcol = (key, extra) => ({ key, label: t(`components.studio.prompts.columns.${key}`), tip: t(`tips.studio.prompts.columns.${key}`), ...extra });
+  const promptColumns = [
+    pcol('name', {
+      pinned: true,
+      render: (entry) => (
+        <span className="inline-meta">
+          <strong>{entry.name}</strong>
+          {entry.isBuiltIn && (
+            <Badge tone="info" tip={t('tips.badges.builtIn')}>
+              {t('common.generic.builtIn')}
+            </Badge>
+          )}
+          {entry.isDefault && (
+            <Badge tone="neutral" tip={t('tips.studio.prompts.defaultBadge')}>
+              {t('components.studio.prompts.default')}
+            </Badge>
+          )}
+          {selectedId === entry.id && (
+            <Badge tone="success" tip={t('tips.studio.prompts.selectedBadge', { architect: architect?.name || '' })}>
+              {t('components.studio.prompts.selectedBadge')}
+            </Badge>
+          )}
+        </span>
+      )
+    }),
+    pcol('description', { render: (entry) => entry.description || '-' }),
+    pcol('version', { headerClass: 'right', cellClass: 'right', render: (entry) => formatNumber(entry.currentVersion ?? 1, {}, lng) }),
+    pcol('usedBy', {
+      render: (entry) => {
+        const used = (entry.deployments || []).map((id) => names.get(id) || id);
+        return used.length ? <span {...tip(used.join(', '))}>{t('components.studio.prompts.usedBy', { total: used.length })}</span> : '-';
+      }
+    }),
+    {
+      key: 'actions',
+      label: t('common.generic.actions'),
+      tip: t('tips.table.actionsColumn'),
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'actions-cell nowrap',
+      render: (entry) => {
+        const isSelected = selectedId === entry.id;
+        const editDenied = entry.isBuiltIn ? builtInTip : denied.editPrompt;
+        const deleteDenied = entry.isBuiltIn ? builtInTip : denied.deletePrompt;
+        const selectDenied = !architect ? t('tips.studio.prompts.selectNoArchitect') : denied.select;
+        return (
+          <>
+            <button
+              type="button"
+              className="button-ghost button-sm"
+              onClick={() => !selectDenied && !isSelected && select(entry)}
+              {...disabled(selectDenied || (isSelected ? 'selected' : ''))}
+              data-testid={`architect-prompt-select-${entry.name}`}
+              {...tip(selectDenied || t(isSelected ? 'tips.studio.prompts.alreadySelected' : 'tips.studio.prompts.select'))}
+            >
+              {t('components.studio.prompts.select')}
+            </button>
+            <button
+              type="button"
+              className="button-ghost button-sm"
+              onClick={() => !denied.clone && setCloning(entry)}
+              {...disabled(denied.clone)}
+              data-testid={`architect-prompt-clone-${entry.name}`}
+              {...tip(denied.clone || t('tips.studio.prompts.clone'))}
+            >
+              {t('common.actions.clone')}
+            </button>
+            <button
+              type="button"
+              className="button-ghost button-sm"
+              onClick={() => !editDenied && setEditing(entry)}
+              {...disabled(editDenied)}
+              data-testid={`architect-prompt-edit-${entry.name}`}
+              {...tip(editDenied || t('tips.studio.prompts.edit'))}
+            >
+              {t('common.actions.edit')}
+            </button>
+            {entry.isBuiltIn && (
+              <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'reset', entry })} data-testid={`architect-prompt-reset-${entry.name}`} {...tip(t('tips.views.templateEditor.reset'))}>
+                {t('views.templateEditor.reset')}
+              </button>
+            )}
+            <button
+              type="button"
+              className="button-ghost button-sm"
+              onClick={() => !deleteDenied && setConfirm({ type: 'delete', entry })}
+              {...disabled(deleteDenied)}
+              data-testid={`architect-prompt-delete-${entry.name}`}
+              {...tip(deleteDenied || t('tips.studio.prompts.delete'))}
+            >
+              {t('common.actions.delete')}
+            </button>
+          </>
+        );
+      }
+    }
+  ];
+
   return (
     <section className="panel studio-prompts" aria-label={t('components.studio.prompts.title')} data-testid="architect-prompts">
       <div className="studio-row-between">
@@ -363,105 +457,7 @@ export default function ArchitectPromptPanel({ architect = null, deployments = [
       ) : entries.length === 0 ? (
         <EmptyNote>{t('components.studio.prompts.empty')}</EmptyNote>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="architect-prompts-table">
-            <thead>
-              <tr>
-                {['name', 'description', 'version', 'usedBy'].map((c) => (
-                  <th key={c} scope="col" className={c === 'version' ? 'right' : undefined} {...tip(t(`tips.studio.prompts.columns.${c}`))}>
-                    {t(`components.studio.prompts.columns.${c}`)}
-                  </th>
-                ))}
-                <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
-                  {t('common.generic.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => {
-                const used = (entry.deployments || []).map((id) => names.get(id) || id);
-                const isSelected = selectedId === entry.id;
-                const editDenied = entry.isBuiltIn ? builtInTip : denied.editPrompt;
-                const deleteDenied = entry.isBuiltIn ? builtInTip : denied.deletePrompt;
-                const selectDenied = !architect ? t('tips.studio.prompts.selectNoArchitect') : denied.select;
-                return (
-                  <tr key={entry.id} data-prompt={entry.name}>
-                    <td>
-                      <span className="inline-meta">
-                        <strong>{entry.name}</strong>
-                        {entry.isBuiltIn && (
-                          <Badge tone="info" tip={t('tips.badges.builtIn')}>
-                            {t('common.generic.builtIn')}
-                          </Badge>
-                        )}
-                        {entry.isDefault && (
-                          <Badge tone="neutral" tip={t('tips.studio.prompts.defaultBadge')}>
-                            {t('components.studio.prompts.default')}
-                          </Badge>
-                        )}
-                        {isSelected && (
-                          <Badge tone="success" tip={t('tips.studio.prompts.selectedBadge', { architect: architect?.name || '' })}>
-                            {t('components.studio.prompts.selectedBadge')}
-                          </Badge>
-                        )}
-                      </span>
-                    </td>
-                    <td>{entry.description || '-'}</td>
-                    <td className="right">{formatNumber(entry.currentVersion ?? 1, {}, lng)}</td>
-                    <td>{used.length ? <span {...tip(used.join(', '))}>{t('components.studio.prompts.usedBy', { total: used.length })}</span> : '-'}</td>
-                    <td className="actions-cell nowrap">
-                      <button
-                        type="button"
-                        className="button-ghost button-sm"
-                        onClick={() => !selectDenied && !isSelected && select(entry)}
-                        {...disabled(selectDenied || (isSelected ? 'selected' : ''))}
-                        data-testid={`architect-prompt-select-${entry.name}`}
-                        {...tip(selectDenied || t(isSelected ? 'tips.studio.prompts.alreadySelected' : 'tips.studio.prompts.select'))}
-                      >
-                        {t('components.studio.prompts.select')}
-                      </button>
-                      <button
-                        type="button"
-                        className="button-ghost button-sm"
-                        onClick={() => !denied.clone && setCloning(entry)}
-                        {...disabled(denied.clone)}
-                        data-testid={`architect-prompt-clone-${entry.name}`}
-                        {...tip(denied.clone || t('tips.studio.prompts.clone'))}
-                      >
-                        {t('common.actions.clone')}
-                      </button>
-                      <button
-                        type="button"
-                        className="button-ghost button-sm"
-                        onClick={() => !editDenied && setEditing(entry)}
-                        {...disabled(editDenied)}
-                        data-testid={`architect-prompt-edit-${entry.name}`}
-                        {...tip(editDenied || t('tips.studio.prompts.edit'))}
-                      >
-                        {t('common.actions.edit')}
-                      </button>
-                      {entry.isBuiltIn && (
-                        <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'reset', entry })} data-testid={`architect-prompt-reset-${entry.name}`} {...tip(t('tips.views.templateEditor.reset'))}>
-                          {t('views.templateEditor.reset')}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="button-ghost button-sm"
-                        onClick={() => !deleteDenied && setConfirm({ type: 'delete', entry })}
-                        {...disabled(deleteDenied)}
-                        data-testid={`architect-prompt-delete-${entry.name}`}
-                        {...tip(deleteDenied || t('tips.studio.prompts.delete'))}
-                      >
-                        {t('common.actions.delete')}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame tableId="architect-prompts" columns={promptColumns} items={entries} testId="architect-prompts-table" rowProps={(entry) => ({ 'data-prompt': entry.name })} />
       )}
       {editing && <PromptEditor key={editing.id} entry={editing} deniedEdit={denied.editPrompt} onSaved={load} onClose={() => setEditing(null)} />}
       {cloning && (

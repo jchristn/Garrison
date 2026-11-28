@@ -7,6 +7,7 @@ import { Badge } from './StatusBadge';
 import { EmptyState, ErrorBanner, LoadingState } from './States';
 import { DownloadIcon, RefreshIcon, TrashIcon } from './Icons';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -162,11 +163,46 @@ export default function ConversationFilesPanel({ conversationId }) {
   if (listing === null) return <LoadingState />;
 
   const files = listing.files;
-  const th = (key, extra = {}) => (
-    <th scope="col" {...extra} {...tip(t(`tips.files.columns.${key}`))}>
-      {t(`components.files.columns.${key}`)}
-    </th>
-  );
+  const col = (key, extra) => ({ key, label: t(`components.files.columns.${key}`), tip: t(`tips.files.columns.${key}`), ...extra });
+  const columns = [
+    col('path', {
+      pinned: true,
+      render: (f) => (
+        <span className="inline-meta">
+          <code className="cell-break">{f.path}</code>
+          {f.deleted && (
+            <Badge tone="warning" tip={t('tips.files.deleted')}>
+              {t('components.files.deleted')}
+            </Badge>
+          )}
+        </span>
+      )
+    }),
+    col('currentVersion', { headerClass: 'right', cellClass: 'right', render: (f) => t('components.files.version', { number: f.currentVersion }) }),
+    col('sizeBytes', { headerClass: 'right', cellClass: 'right', render: (f) => formatBytes(f.sizeBytes, lng) }),
+    col('mediaType', { render: (f) => f.mediaType || '-' }),
+    col('lastUpdateUtc', { cellClass: 'nowrap', render: (f) => <span {...tip(formatDateTime(f.lastUpdateUtc, lng))}>{formatRelativeTime(f.lastUpdateUtc, lng)}</span> }),
+    col('actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (f) => (
+        <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="button-ghost button-sm" onClick={() => setVersionsFor(f)} data-testid="file-versions-button" {...tip(t('tips.files.versions'))}>
+            {t('components.files.versions')}
+          </button>
+          <button type="button" className="button-ghost button-sm" onClick={() => downloadCurrent(f)} data-testid="file-download" {...tip(t('tips.files.download'))}>
+            <DownloadIcon size={14} /> {t('components.files.download')}
+          </button>
+          {!f.deleted && (
+            <button type="button" className="button-ghost button-sm" onClick={() => setDeleting(f)} data-testid="file-delete" aria-label={t('components.files.deleteLabel', { path: f.path })} {...tip(t('tips.files.delete'))}>
+              <TrashIcon size={14} />
+            </button>
+          )}
+        </span>
+      )
+    })
+  ];
 
   return (
     <section className="panel conversation-files" aria-label={t('components.files.title')} data-testid="conversation-files">
@@ -203,57 +239,14 @@ export default function ConversationFilesPanel({ conversationId }) {
           <EmptyState title={t('components.files.emptyTitle')} body={t(includeDeleted ? 'components.files.emptyBodyDeleted' : 'components.files.emptyBody')} />
         </div>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="file-list">
-            <thead>
-              <tr>
-                {th('path')}
-                {th('currentVersion', { className: 'right' })}
-                {th('sizeBytes', { className: 'right' })}
-                {th('mediaType')}
-                {th('lastUpdateUtc')}
-                {th('actions', { className: 'right' })}
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((f) => (
-                <tr key={f.id || f.path} data-file={f.path} data-deleted={f.deleted ? 'true' : 'false'} className={f.deleted ? 'is-deleted' : ''}>
-                  <td>
-                    <span className="inline-meta">
-                      <code>{f.path}</code>
-                      {f.deleted && (
-                        <Badge tone="warning" tip={t('tips.files.deleted')}>
-                          {t('components.files.deleted')}
-                        </Badge>
-                      )}
-                    </span>
-                  </td>
-                  <td className="right">{t('components.files.version', { number: f.currentVersion })}</td>
-                  <td className="right">{formatBytes(f.sizeBytes, lng)}</td>
-                  <td>{f.mediaType || '-'}</td>
-                  <td className="nowrap">
-                    <span {...tip(formatDateTime(f.lastUpdateUtc, lng))}>{formatRelativeTime(f.lastUpdateUtc, lng)}</span>
-                  </td>
-                  <td className="right">
-                    <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
-                      <button type="button" className="button-ghost button-sm" onClick={() => setVersionsFor(f)} data-testid="file-versions-button" {...tip(t('tips.files.versions'))}>
-                        {t('components.files.versions')}
-                      </button>
-                      <button type="button" className="button-ghost button-sm" onClick={() => downloadCurrent(f)} data-testid="file-download" {...tip(t('tips.files.download'))}>
-                        <DownloadIcon size={14} /> {t('components.files.download')}
-                      </button>
-                      {!f.deleted && (
-                        <button type="button" className="button-ghost button-sm" onClick={() => setDeleting(f)} data-testid="file-delete" aria-label={t('components.files.deleteLabel', { path: f.path })} {...tip(t('tips.files.delete'))}>
-                          <TrashIcon size={14} />
-                        </button>
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame
+          tableId="conversation-files"
+          columns={columns}
+          items={files}
+          testId="file-list"
+          rowId={(f) => f.id || f.path}
+          rowProps={(f) => ({ 'data-file': f.path, 'data-deleted': f.deleted ? 'true' : 'false', className: f.deleted ? 'is-deleted' : '' })}
+        />
       )}
 
       <ConversationFileUploadPanel conversationId={conversationId} files={files} onUploaded={() => load()} />

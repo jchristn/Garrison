@@ -5,6 +5,7 @@ import Modal from './Modal';
 import { Badge } from './StatusBadge';
 import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -61,11 +62,71 @@ export default function ConversationFileVersionsModal({ conversationId, file, do
     }
   };
 
-  const th = (key, extra = {}) => (
-    <th scope="col" {...extra} {...tip(t(`tips.files.versionColumns.${key}`))}>
-      {t(`components.files.versionColumns.${key}`)}
-    </th>
-  );
+  const col = (key, extra) => ({ key, label: t(`components.files.versionColumns.${key}`), tip: t(`tips.files.versionColumns.${key}`), ...extra });
+  const columns = [
+    col('number', {
+      pinned: true,
+      render: (v) => (
+        <>
+          <strong>{t('components.files.version', { number: v.number })}</strong>{' '}
+          {v.number === file.currentVersion && !file.deleted && (
+            <Badge tone="success" tip={t('tips.files.current')}>
+              {t('components.files.current')}
+            </Badge>
+          )}
+        </>
+      )
+    }),
+    col('sizeBytes', { render: (v) => formatBytes(v.sizeBytes, lng) }),
+    col('mediaType', { defaultHidden: true, render: (v) => v.mediaType || '-' }),
+    col('sha256', {
+      defaultHidden: true,
+      render: (v) => (
+        <code className="cell-id" {...tip(t('tips.files.sha256Full', { sha: v.sha256 }))}>
+          {shortSha(v.sha256)}
+        </code>
+      )
+    }),
+    col('writtenBy', {
+      render: (v) => (
+        <span className="inline-meta" data-testid="file-version-writer">
+          <span>{versionWriter(v) || '-'}</span>
+          {v.runId && (
+            <a
+              href={pathFor('runs', v.runId)}
+              data-testid="file-version-run"
+              {...tip(t('tips.files.openRun'))}
+              onClick={(e) => {
+                e.preventDefault();
+                onClose();
+                navigate(pathFor('runs', v.runId));
+              }}
+            >
+              <code>{v.runId}</code>
+            </a>
+          )}
+        </span>
+      )
+    }),
+    col('createdUtc', { cellClass: 'nowrap', render: (v) => <span {...tip(formatDateTime(v.createdUtc, lng))}>{formatRelativeTime(v.createdUtc, lng)}</span> }),
+    col('actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (v) => (
+        <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
+          {isPreviewable({ path: file.path, mediaType: v.mediaType }) && (
+            <button type="button" className="button-ghost button-sm" onClick={() => showPreview(v)} aria-pressed={preview?.number === v.number} data-testid="file-version-preview-button" {...tip(t('tips.files.preview'))}>
+              {t('components.files.preview')}
+            </button>
+          )}
+          <button type="button" className="button-ghost button-sm" onClick={() => save(v)} data-testid="file-version-download" {...tip(t('tips.files.downloadVersion'))}>
+            {t('components.files.download')}
+          </button>
+        </span>
+      )
+    })
+  ];
 
   return (
     <Modal
@@ -95,76 +156,14 @@ export default function ConversationFileVersionsModal({ conversationId, file, do
             {t('components.files.noVersions')}
           </EmptyNote>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table" data-testid="file-version-list">
-              <thead>
-                <tr>
-                  {th('number')}
-                  {th('sizeBytes')}
-                  {th('mediaType')}
-                  {th('sha256')}
-                  {th('writtenBy')}
-                  {th('createdUtc')}
-                  {th('actions', { className: 'right' })}
-                </tr>
-              </thead>
-              <tbody>
-                {versions.map((v) => (
-                  <tr key={v.id || v.number} data-version={v.number} className={preview?.number === v.number ? 'is-selected' : ''}>
-                    <td>
-                      <strong>{t('components.files.version', { number: v.number })}</strong>{' '}
-                      {v.number === file.currentVersion && !file.deleted && (
-                        <Badge tone="success" tip={t('tips.files.current')}>
-                          {t('components.files.current')}
-                        </Badge>
-                      )}
-                    </td>
-                    <td>{formatBytes(v.sizeBytes, lng)}</td>
-                    <td>{v.mediaType || '-'}</td>
-                    <td>
-                      <code className="cell-id" {...tip(t('tips.files.sha256Full', { sha: v.sha256 }))}>
-                        {shortSha(v.sha256)}
-                      </code>
-                    </td>
-                    <td data-testid="file-version-writer">
-                      <span className="inline-meta">
-                        <span>{versionWriter(v) || '-'}</span>
-                        {v.runId && (
-                          <a
-                            href={pathFor('runs', v.runId)}
-                            data-testid="file-version-run"
-                            {...tip(t('tips.files.openRun'))}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              onClose();
-                              navigate(pathFor('runs', v.runId));
-                            }}
-                          >
-                            <code>{v.runId}</code>
-                          </a>
-                        )}
-                      </span>
-                    </td>
-                    <td className="nowrap">
-                      <span {...tip(formatDateTime(v.createdUtc, lng))}>{formatRelativeTime(v.createdUtc, lng)}</span>
-                    </td>
-                    <td className="right">
-                      <span className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
-                        {isPreviewable({ path: file.path, mediaType: v.mediaType }) && (
-                          <button type="button" className="button-ghost button-sm" onClick={() => showPreview(v)} aria-pressed={preview?.number === v.number} data-testid="file-version-preview-button" {...tip(t('tips.files.preview'))}>
-                            {t('components.files.preview')}
-                          </button>
-                        )}
-                        <button type="button" className="button-ghost button-sm" onClick={() => save(v)} data-testid="file-version-download" {...tip(t('tips.files.downloadVersion'))}>
-                          {t('components.files.download')}
-                        </button>
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LocalTableFrame
+            tableId="conversation-file-versions"
+            columns={columns}
+            items={versions}
+            testId="file-version-list"
+            rowId={(v) => v.id || String(v.number)}
+            rowProps={(v) => ({ 'data-version': v.number, className: preview?.number === v.number ? 'is-selected' : '' })}
+          />
         )}
 
         {preview && (

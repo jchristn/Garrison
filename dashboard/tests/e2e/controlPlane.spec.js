@@ -57,9 +57,9 @@ test('Control plane lists replicas with status, leader, versions, uptime, heartb
   await page.goto('/dashboard/fleet?tab=control-plane');
   await expect(page.locator('.data-table tbody tr')).toHaveCount(2);
   const headers = page.locator('.data-table thead th');
-  for (const h of ['Name', 'Status', 'Version', 'Schema', 'Backplane', 'Uptime', 'Last heartbeat', 'Requests', 'Streams']) await expect(headers.filter({ hasText: new RegExp(`^${h}\\s*[▲▼⇅]?$`) }), h).toHaveCount(1);
-  // Long polls and Address are in the column picker (hidden by default so the table fits at 1440 px) and in the detail.
-  for (const h of ['Long polls', 'Address']) await expect(headers.filter({ hasText: new RegExp(`^${h}\\s*[▲▼⇅]?$`) }), h).toHaveCount(0);
+  for (const h of ['Name', 'Status', 'Version', 'Uptime', 'Last heartbeat', 'Requests', 'Streams']) await expect(headers.filter({ hasText: new RegExp(`^${h}\\s*[▲▼⇅]?$`) }), h).toHaveCount(1);
+  // Schema, Backplane, Long polls, and Address are in the column picker (hidden by default so the table fits at 1366 px) and in the detail.
+  for (const h of ['Schema', 'Backplane', 'Long polls', 'Address']) await expect(headers.filter({ hasText: new RegExp(`^${h}\\s*[▲▼⇅]?$`) }), h).toHaveCount(0);
 
   const a = rowFor(page, 'garrison-server-a');
   const b = rowFor(page, 'garrison-server-b');

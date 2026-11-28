@@ -180,7 +180,7 @@ export function svgToPng(svgText, scale = 2) {
  * else the raw record value for the column key (objects and arrays become JSON).
  */
 export function tableCsv(columns, items) {
-  const cols = columns.filter((c) => c.key !== 'actions');
+  const cols = columns.filter((c) => c.key !== 'actions' && c.key !== 'select');
   const value = (col, row) => {
     if (col.csv) return col.csv(row);
     const v = row?.[col.key];

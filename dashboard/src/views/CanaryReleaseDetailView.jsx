@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
+import LocalTableFrame from '../components/LocalTableFrame';
 import EvalReasonModal from '../components/EvalReasonModal';
 import { EvalDetail, EvalLink, EvalSection } from '../components/EvalDetailParts';
 import { CanaryStatusBadge } from '../components/EvalBadges';
@@ -162,37 +163,30 @@ export default function CanaryReleaseDetailView({ recordId }) {
       </div>
 
       <EvalSection id="steps" title={t('evals.canaryDetail.steps')} tipText={t('tips.evals.canaryDetail.steps')} testId="canary-steps">
-        <div className="table-scroll" tabIndex={0} role="region" aria-label={t('evals.canaryDetail.steps')}>
-          <table className="data-table compact" data-testid="canary-steps-table">
-            <thead>
-              <tr>
-                {['step', 'weightPercent', 'minimumRuns', 'minimumMinutes', 'state'].map((k) => (
-                  <th key={k} scope="col" {...tip(t(`tips.evals.canaryDetail.columns.${k}`))}>
-                    {t(`evals.canaryDetail.columns.${k}`)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {(x.steps || []).map((s, i) => {
-                const state = stepState(x, i);
-                return (
-                  <tr key={i} className={state === 'current' ? 'eval-current-row' : undefined} data-step={i + 1} data-state={state}>
-                    <td className="nowrap">{i + 1}</td>
-                    <td className="nowrap">{t('evals.percent', { value: s.weightPercent })}</td>
-                    <td className="nowrap">{formatNumber(s.minimumRuns, {}, lng)}</td>
-                    <td className="nowrap">{formatNumber(s.minimumMinutes, {}, lng)}</td>
-                    <td>
-                      <span className={`pill pill-${state === 'done' ? 'success' : state === 'current' ? 'info' : state === 'stopped' ? 'warning' : 'neutral'}`} {...tip(t(`tips.evals.canaryDetail.stepStates.${state}`))}>
-                        {t(`evals.canaryDetail.stepStates.${state}`)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame
+          tableId="canary-steps"
+          testId="canary-steps-table"
+          compact
+          items={(x.steps || []).map((s, i) => ({ ...s, index: i, state: stepState(x, i) }))}
+          rowId={(s) => String(s.index)}
+          rowProps={(s) => ({ 'data-step': s.index + 1, 'data-state': s.state, className: s.state === 'current' ? 'eval-current-row' : undefined })}
+          columns={[
+            { key: 'step', label: t('evals.canaryDetail.columns.step'), tip: t('tips.evals.canaryDetail.columns.step'), cellClass: 'nowrap', render: (s) => s.index + 1 },
+            { key: 'weightPercent', label: t('evals.canaryDetail.columns.weightPercent'), tip: t('tips.evals.canaryDetail.columns.weightPercent'), cellClass: 'nowrap', render: (s) => t('evals.percent', { value: s.weightPercent }) },
+            { key: 'minimumRuns', label: t('evals.canaryDetail.columns.minimumRuns'), tip: t('tips.evals.canaryDetail.columns.minimumRuns'), cellClass: 'nowrap', render: (s) => formatNumber(s.minimumRuns, {}, lng) },
+            { key: 'minimumMinutes', label: t('evals.canaryDetail.columns.minimumMinutes'), tip: t('tips.evals.canaryDetail.columns.minimumMinutes'), cellClass: 'nowrap', render: (s) => formatNumber(s.minimumMinutes, {}, lng) },
+            {
+              key: 'state',
+              label: t('evals.canaryDetail.columns.state'),
+              tip: t('tips.evals.canaryDetail.columns.state'),
+              render: (s) => (
+                <span className={`pill pill-${s.state === 'done' ? 'success' : s.state === 'current' ? 'info' : s.state === 'stopped' ? 'warning' : 'neutral'}`} {...tip(t(`tips.evals.canaryDetail.stepStates.${s.state}`))}>
+                  {t(`evals.canaryDetail.stepStates.${s.state}`)}
+                </span>
+              )
+            }
+          ]}
+        />
       </EvalSection>
 
       {modal === 'abort' && (

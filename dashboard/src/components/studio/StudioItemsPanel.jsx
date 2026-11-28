@@ -4,6 +4,7 @@ import ConfirmModal from '../ConfirmModal';
 import { Badge } from '../StatusBadge';
 import { PlusIcon } from '../Icons';
 import { tip } from '../Tooltip';
+import LocalTableFrame from '../LocalTableFrame';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
@@ -139,6 +140,58 @@ export default function StudioItemsPanel({ draft, diff, blocked = '', onDraft })
 
   const disabledProps = (reason) => (reason ? { 'aria-disabled': 'true', 'data-denied': 'true' } : {});
 
+  const col = (key, extra) => ({ key, label: t(`components.studio.items.columns.${key}`), tip: t(`tips.studio.items.${key}`), ...extra });
+  const columns = [
+    col('kind', { render: (item) => item.kind }),
+    col('name', { pinned: true, render: (item) => <strong>{item.name}</strong> }),
+    col('operation', {
+      render: (item) => (
+        <Badge tone={item.operation === 'Delete' ? 'warning' : 'neutral'} tip={enumTip(t, 'studioDraftOperation', item.operation || 'Upsert')}>
+          {enumLabel(t, 'studioDraftOperation', item.operation || 'Upsert')}
+        </Badge>
+      )
+    }),
+    col('stale', {
+      render: (item) =>
+        stale.has(itemKey(item)) ? (
+          <Badge tone="warning" tip={t('tips.studio.items.staleBadge')}>
+            {t('components.studio.items.stale')}
+          </Badge>
+        ) : (
+          '-'
+        )
+    }),
+    col('updated', { cellClass: 'nowrap', render: (item) => (item.lastUpdateUtc ? <span {...tip(formatDateTime(item.lastUpdateUtc, lng))}>{formatRelativeTime(item.lastUpdateUtc, lng)}</span> : '-') }),
+    {
+      key: 'actions',
+      label: t('common.generic.actions'),
+      tip: t('tips.table.actionsColumn'),
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'actions-cell',
+      render: (item) => {
+        const key = itemKey(item);
+        return (
+          <>
+            <button type="button" className="button-ghost button-sm" onClick={() => open(item)} data-testid={`studio-item-edit-${key}`} {...tip(t(blocked ? 'tips.studio.items.viewItem' : 'tips.studio.items.editItem'))}>
+              {t(blocked ? 'common.actions.view' : 'common.actions.edit')}
+            </button>
+            <button
+              type="button"
+              className="button-ghost button-sm"
+              onClick={() => !blocked && setRemoving(item)}
+              data-testid={`studio-item-remove-${key}`}
+              {...disabledProps(blocked)}
+              {...tip(blocked || t('tips.studio.items.remove'))}
+            >
+              {t('components.studio.items.remove')}
+            </button>
+          </>
+        );
+      }
+    }
+  ];
+
   return (
     <section className="panel studio-items" aria-label={t('components.studio.items.title')} data-testid="studio-items">
       <div className="studio-row-between">
@@ -198,66 +251,14 @@ export default function StudioItemsPanel({ draft, diff, blocked = '', onDraft })
       {items.length === 0 ? (
         <EmptyNote>{t('components.studio.items.empty')}</EmptyNote>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="studio-items-table">
-            <thead>
-              <tr>
-                {['kind', 'name', 'operation', 'stale', 'updated'].map((c) => (
-                  <th key={c} scope="col" {...tip(t(`tips.studio.items.${c}`))}>
-                    {t(`components.studio.items.columns.${c}`)}
-                  </th>
-                ))}
-                <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
-                  {t('common.generic.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => {
-                const key = itemKey(item);
-                const isStale = stale.has(key);
-                return (
-                  <tr key={key} data-item={key} className={editing && itemKey(editing) === key ? 'is-selected' : undefined}>
-                    <td>{item.kind}</td>
-                    <td>
-                      <strong>{item.name}</strong>
-                    </td>
-                    <td>
-                      <Badge tone={item.operation === 'Delete' ? 'warning' : 'neutral'} tip={enumTip(t, 'studioDraftOperation', item.operation || 'Upsert')}>
-                        {enumLabel(t, 'studioDraftOperation', item.operation || 'Upsert')}
-                      </Badge>
-                    </td>
-                    <td>
-                      {isStale ? (
-                        <Badge tone="warning" tip={t('tips.studio.items.staleBadge')}>
-                          {t('components.studio.items.stale')}
-                        </Badge>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="nowrap">{item.lastUpdateUtc ? <span {...tip(formatDateTime(item.lastUpdateUtc, lng))}>{formatRelativeTime(item.lastUpdateUtc, lng)}</span> : '-'}</td>
-                    <td className="actions-cell">
-                      <button type="button" className="button-ghost button-sm" onClick={() => open(item)} data-testid={`studio-item-edit-${key}`} {...tip(t(blocked ? 'tips.studio.items.viewItem' : 'tips.studio.items.editItem'))}>
-                        {t(blocked ? 'common.actions.view' : 'common.actions.edit')}
-                      </button>
-                      <button
-                        type="button"
-                        className="button-ghost button-sm"
-                        onClick={() => !blocked && setRemoving(item)}
-                        data-testid={`studio-item-remove-${key}`}
-                        {...disabledProps(blocked)}
-                        {...tip(blocked || t('tips.studio.items.remove'))}
-                      >
-                        {t('components.studio.items.remove')}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame
+          tableId="studio-items"
+          columns={columns}
+          items={items}
+          testId="studio-items-table"
+          rowId={itemKey}
+          rowProps={(item) => ({ 'data-item': itemKey(item), className: editing && itemKey(editing) === itemKey(item) ? 'is-selected' : '' })}
+        />
       )}
       {editing && (
         <div className="studio-editor" data-testid="studio-item-editor">

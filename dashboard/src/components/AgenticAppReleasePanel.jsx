@@ -7,6 +7,7 @@ import { Badge } from './StatusBadge';
 import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { PromotionKindBadge, PromotionOutcomeBadge } from './RevisionBadges';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -156,6 +157,54 @@ export default function AgenticAppReleasePanel({ app, permissions = null, onChan
     </th>
   );
 
+  const pinLabel = (id) => (id ? (numbers[id] !== undefined ? t('components.revisions.number', { number: numbers[id] }) : id) : t('resources.deployments.latest'));
+  const col = (key, extra) => ({ key, label: t(`components.promotions.columns.${key}`), tip: t(`tips.promotions.columns.${key}`), ...extra });
+  const historyColumns = [
+    col('createdUtc', { cellClass: 'nowrap', render: (r) => <span {...tip(formatDateTime(r.createdUtc, lng))}>{formatRelativeTime(r.createdUtc, lng)}</span> }),
+    col('kind', { render: (r) => <PromotionKindBadge kind={r.kind} t={t} /> }),
+    col('outcome', { render: (r) => <PromotionOutcomeBadge outcome={r.outcome} t={t} /> }),
+    col('environments', { render: (r) => t('components.promotions.path', { source: r.sourceEnvironment, target: r.targetEnvironment }) }),
+    col('deployments', {
+      render: (r) => (
+        <ul className="plain-list promotion-history-items">
+          {(r.items || []).map((item) => (
+            <li key={item.deploymentId}>
+              <code className="cell-break">{item.deploymentName || item.deploymentId}</code>{' '}
+              <span className="text-muted">{t('components.promotions.pinChange', { from: pinLabel(item.previousRevisionId), to: pinLabel(item.newRevisionId) })}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    }),
+    col('actor', { render: (r) => r.actorName || '-' }),
+    col('note', { defaultHidden: true, render: (r) => r.note || '-' }),
+    col('actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (r) => {
+        if (!canRollback(r)) return null;
+        const denied = deniedTip(r.targetEnvironment);
+        return (
+          <button
+            type="button"
+            className="button-secondary button-sm"
+            onClick={() => {
+              if (denied) return;
+              setNote('');
+              setRollingBack(r);
+            }}
+            aria-disabled={denied ? 'true' : undefined}
+            data-testid="app-release-rollback"
+            {...tip(denied || t('tips.promotions.rollback'))}
+          >
+            {t('components.promotions.rollback')}
+          </button>
+        );
+      }
+    })
+  ];
+
   return (
     <div className="app-release" data-testid="app-release" data-app={app?.name}>
       <p className="field-hint">{t('components.apps.release.intro')}</p>
@@ -285,72 +334,13 @@ export default function AgenticAppReleasePanel({ app, permissions = null, onChan
           {t('components.apps.release.historyEmpty')}
         </EmptyNote>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="app-release-history">
-            <thead>
-              <tr>
-                {th('tips.promotions.columns.createdUtc', t('components.promotions.columns.createdUtc'))}
-                {th('tips.promotions.columns.kind', t('components.promotions.columns.kind'))}
-                {th('tips.promotions.columns.outcome', t('components.promotions.columns.outcome'))}
-                {th('tips.promotions.columns.environments', t('components.promotions.columns.environments'))}
-                {th('tips.promotions.columns.deployments', t('components.promotions.columns.deployments'))}
-                {th('tips.promotions.columns.actor', t('components.promotions.columns.actor'))}
-                {th('tips.promotions.columns.note', t('components.promotions.columns.note'))}
-                {th('tips.promotions.columns.actions', t('components.promotions.columns.actions'), 'right')}
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => {
-                const denied = deniedTip(r.targetEnvironment);
-                const pinLabel = (id) => (id ? (numbers[id] !== undefined ? t('components.revisions.number', { number: numbers[id] }) : id) : t('resources.deployments.latest'));
-                return (
-                  <tr key={r.id} data-promotion={r.id} data-kind={r.kind} data-outcome={r.outcome}>
-                    <td>
-                      <span {...tip(formatDateTime(r.createdUtc, lng))}>{formatRelativeTime(r.createdUtc, lng)}</span>
-                    </td>
-                    <td>
-                      <PromotionKindBadge kind={r.kind} t={t} />
-                    </td>
-                    <td>
-                      <PromotionOutcomeBadge outcome={r.outcome} t={t} />
-                    </td>
-                    <td>{t('components.promotions.path', { source: r.sourceEnvironment, target: r.targetEnvironment })}</td>
-                    <td>
-                      <ul className="plain-list promotion-history-items">
-                        {(r.items || []).map((item) => (
-                          <li key={item.deploymentId}>
-                            <code>{item.deploymentName || item.deploymentId}</code>{' '}
-                            <span className="text-muted">{t('components.promotions.pinChange', { from: pinLabel(item.previousRevisionId), to: pinLabel(item.newRevisionId) })}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </td>
-                    <td>{r.actorName || '-'}</td>
-                    <td>{r.note || '-'}</td>
-                    <td className="right">
-                      {canRollback(r) && (
-                        <button
-                          type="button"
-                          className="button-secondary button-sm"
-                          onClick={() => {
-                            if (denied) return;
-                            setNote('');
-                            setRollingBack(r);
-                          }}
-                          aria-disabled={denied ? 'true' : undefined}
-                          data-testid="app-release-rollback"
-                          {...tip(denied || t('tips.promotions.rollback'))}
-                        >
-                          {t('components.promotions.rollback')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame
+          tableId="app-release-history"
+          columns={historyColumns}
+          items={records}
+          testId="app-release-history"
+          rowProps={(r) => ({ 'data-promotion': r.id, 'data-kind': r.kind, 'data-outcome': r.outcome })}
+        />
       )}
       {promoting && (
         <AgenticAppPromoteModal

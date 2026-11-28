@@ -5,7 +5,10 @@ import { ColumnsIcon } from './Icons';
 import { tip } from './Tooltip';
 import { popupLeft } from '../utils/direction';
 
-/** "Select Columns" control. Pinned columns are listed but cannot be hidden. */
+/**
+ * The "Columns" control inside a table's pagination bar: picks which columns the table shows. Pinned columns are listed
+ * but cannot be hidden. The choice is saved per table by useColumnPrefs, so it survives a reload.
+ */
 export default function ColumnPicker({ columns, hidden, onToggle }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -42,7 +45,7 @@ export default function ColumnPicker({ columns, hidden, onToggle }) {
       <button
         ref={triggerRef}
         type="button"
-        className="table-pagination-btn"
+        className="table-pagination-btn table-columns-btn"
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={t('components.table.selectColumns')}
@@ -50,7 +53,8 @@ export default function ColumnPicker({ columns, hidden, onToggle }) {
         onClick={() => setOpen((v) => !v)}
         data-testid="column-picker"
       >
-        <ColumnsIcon />
+        <ColumnsIcon size={16} />
+        <span>{t('components.table.columns')}</span>
       </button>
       {open &&
         createPortal(

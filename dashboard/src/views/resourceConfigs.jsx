@@ -1089,7 +1089,7 @@ export const capabilitiesConfig = {
     col('capabilities', t, 'tags', (r) => (r.tags || []).join(', ') || '-'),
     col('capabilities', t, 'lastRefreshedUtc', (r) => (r.lastRefreshedUtc ? <span {...tip(formatDateTime(r.lastRefreshedUtc, i18n.language))}>{formatRelativeTime(r.lastRefreshedUtc, i18n.language)}</span> : '-'), { defaultHidden: true }),
     idCol('capabilities', t),
-    createdCol('capabilities', t, i18n)
+    { ...createdCol('capabilities', t, i18n), defaultHidden: true }
   ],
   // The view dialog shows CapabilityDetail instead of disabled form fields.
   fields: (_d, { t, mode, options = {} }) =>
@@ -1159,7 +1159,8 @@ export const usageQuotasConfig = {
   blank: () => ({ name: '', description: '', scope: 'Tenant', resourceId: '', dailyRunLimit: null, dailyTokenLimit: null, dailyCostUsdLimit: null, maxConcurrentRuns: null, enforcementEnabled: false, active: true }),
   loadOptions: async ({ apiClient, tenantId }) => ({ agents: await safeList(apiClient.listAgents(tenantId, { pageSize: 1000 })), deployments: await safeList(apiClient.listDeployments(tenantId, { pageSize: 1000 })) }),
   columns: ({ t, i18n }) => [nameCol('usageQuotas', t), col('usageQuotas', t, 'enforcementEnabled', (r) => t(r.enforcementEnabled ? 'common.boolean.yes' : 'common.boolean.no')), col('usageQuotas', t, 'scope', (r) => enumBadge(t, 'usageQuotaScope', r.scope)), col('usageQuotas', t, 'resourceId', (r) => <CopyableId value={r.resourceId} />),
-    ...['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => col('usageQuotas', t, key, (r) => r[key] == null ? t('common.generic.none') : formatNumber(r[key], i18n.language, { maximumFractionDigits: 6 }))), activeCol('usageQuotas', t), idCol('usageQuotas', t), createdCol('usageQuotas', t, i18n)],
+    // The token and concurrency limits and the created time start hidden so the table fits a 1366 pixel screen (Columns shows them).
+    ...['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => col('usageQuotas', t, key, (r) => r[key] == null ? t('common.generic.none') : formatNumber(r[key], i18n.language, { maximumFractionDigits: 6 }), { defaultHidden: key === 'dailyTokenLimit' || key === 'maxConcurrentRuns' })), activeCol('usageQuotas', t), idCol('usageQuotas', t), { ...createdCol('usageQuotas', t, i18n), defaultHidden: true }],
   fields: (d, { t, options = {} }) => [
     field('usageQuotas', t, 'name', 'text', { required: true }),
     field('usageQuotas', t, 'scope', 'select', { required: true, options: enumOptions(t, 'usageQuotaScope') }),
@@ -1533,9 +1534,9 @@ export const deploymentsConfig = {
     col('deployments', t, 'model', (r) => lookups?.profileModels?.[r.harnessProfileId] || r.model || '-'),
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
     col('deployments', t, 'trustLevel', (r) => trustBadge(t, r, lookups?.tenant), { csv: (r) => r.trustLevel || 'Trusted' }),
-    col('deployments', t, 'egressRules', (r) => egressBadge(t, r), { csv: (r) => (r.egressRules || []).map((x) => egressRuleText(x)).join(' ') }),
-    col('deployments', t, 'effectPolicy', (r) => enumBadge(t, 'effectPolicy', effectPolicyOf(r), effectPolicyOf(r) === 'AtLeastOnce' ? 'warning' : 'neutral'), { csv: (r) => effectPolicyOf(r) }),
-    col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
+    col('deployments', t, 'egressRules', (r) => egressBadge(t, r), { csv: (r) => (r.egressRules || []).map((x) => egressRuleText(x)).join(' '), defaultHidden: true }),
+    col('deployments', t, 'effectPolicy', (r) => enumBadge(t, 'effectPolicy', effectPolicyOf(r), effectPolicyOf(r) === 'AtLeastOnce' ? 'warning' : 'neutral'), { csv: (r) => effectPolicyOf(r), defaultHidden: true }),
+    col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right', defaultHidden: true }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
     col('deployments', t, 'approvalsEnabled', (r) =>
       r.approvalsEnabled ? (
@@ -1546,7 +1547,8 @@ export const deploymentsConfig = {
     { defaultHidden: true, csv: (r) => (r.approvalsEnabled ? 'true' : 'false') }),
     activeCol('deployments', t),
     idCol('deployments', t),
-    createdCol('deployments', t, i18n)
+    // Hidden by default so the trust level, which flags deployments the tenant would refuse, fits on a 1366 pixel screen.
+    { ...createdCol('deployments', t, i18n), defaultHidden: true }
   ],
   fields: (d, { t, i18n, options }) => {
     const id = 'deployments';

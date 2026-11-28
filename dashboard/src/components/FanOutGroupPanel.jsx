@@ -6,6 +6,7 @@ import CopyableId from './CopyableId';
 import { Badge } from './StatusBadge';
 import { StopIcon } from './Icons';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { RunStatus } from '../views/runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -181,11 +182,31 @@ export default function FanOutGroupPanel({ group, onChange, highlighted = false 
   const members = Array.isArray(group.members) ? group.members : [];
   const pending = Array.isArray(group.pending) ? group.pending : [];
   const failed = Array.isArray(group.failed) ? group.failed : [];
-  const th = (key, extra = {}) => (
-    <th scope="col" {...extra} {...tip(t(`tips.fanOut.columns.${key}`))}>
-      {t(`components.fanOut.columns.${key}`)}
-    </th>
-  );
+  // Labels come from the position in the whole list, so they are fixed before the table pages.
+  const rows = members.map((m, index) => ({ ...m, label: memberLabel(m, index), rowKey: m.runId || String(index) }));
+  const col = (key, extra) => ({ key, label: t(`components.fanOut.columns.${key}`), tip: t(`tips.fanOut.columns.${key}`), ...extra });
+  const columns = [
+    col('label', { pinned: true, render: (m) => <strong>{m.label}</strong> }),
+    col('agent', { render: (m) => m.agent || '-' }),
+    col('status', {
+      render: (m) => (
+        <>
+          <span className="inline-meta">
+            <RunStatus status={m.status} t={t} />
+            {m.outcome && m.outcome !== 'None' && m.outcome !== m.status && (
+              <span className="text-muted" {...tip(enumTip(t, 'runOutcome', m.outcome))}>
+                {enumLabel(t, 'runOutcome', m.outcome)}
+              </span>
+            )}
+          </span>
+          {m.errorMessage && <div className="field-hint">{translateServerText(t, m.errorMessage)}</div>}
+        </>
+      )
+    }),
+    col('costUsd', { headerClass: 'right', cellClass: 'right', render: (m) => (m.costUsd === null || m.costUsd === undefined ? '-' : usd(m.costUsd)) }),
+    col('tokens', { headerClass: 'right', cellClass: 'right', render: (m) => count(m.tokens) }),
+    col('run', { render: (m) => (m.runId ? <RunLink runId={m.runId} navigate={navigate} tipText={t('tips.fanOut.openMember', { label: m.label })} testId="fan-out-member-link" /> : '-') })
+  ];
 
   return (
     <section ref={ref} id={`fan-out-${id}`} className={`fanout-group${highlighted ? ' is-highlighted' : ''}`} aria-label={t('components.fanOut.groupTitle', { id })} data-testid="fan-out-group" data-group={id} data-status={group.status}>
@@ -268,44 +289,7 @@ export default function FanOutGroupPanel({ group, onChange, highlighted = false 
         </p>
       )}
 
-      <div className="table-scroll">
-        <table className="data-table" data-testid="fan-out-members">
-          <thead>
-            <tr>
-              {th('label')}
-              {th('agent')}
-              {th('status')}
-              {th('costUsd', { className: 'right' })}
-              {th('tokens', { className: 'right' })}
-              {th('run')}
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m, index) => (
-              <tr key={m.runId || index} data-member={memberLabel(m, index)}>
-                <td>
-                  <strong>{memberLabel(m, index)}</strong>
-                </td>
-                <td>{m.agent || '-'}</td>
-                <td>
-                  <span className="inline-meta">
-                    <RunStatus status={m.status} t={t} />
-                    {m.outcome && m.outcome !== 'None' && m.outcome !== m.status && (
-                      <span className="text-muted" {...tip(enumTip(t, 'runOutcome', m.outcome))}>
-                        {enumLabel(t, 'runOutcome', m.outcome)}
-                      </span>
-                    )}
-                  </span>
-                  {m.errorMessage && <div className="field-hint">{translateServerText(t, m.errorMessage)}</div>}
-                </td>
-                <td className="right">{m.costUsd === null || m.costUsd === undefined ? '-' : usd(m.costUsd)}</td>
-                <td className="right">{count(m.tokens)}</td>
-                <td>{m.runId ? <RunLink runId={m.runId} navigate={navigate} tipText={t('tips.fanOut.openMember', { label: memberLabel(m, index) })} testId="fan-out-member-link" /> : '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <LocalTableFrame tableId="fan-out-members" columns={columns} items={rows} testId="fan-out-members" rowId={(m) => m.rowKey} rowProps={(m) => ({ 'data-member': m.label })} />
 
       <ConfirmModal
         open={confirmCancel}

@@ -8,6 +8,8 @@ const INTERACTIVE = 'a, button, input, select, textarea, label, [role="menu"], [
  * Presentation table. columns: [{ key, label, tip?, cellClass?, headerClass?, render?(item), sortable?, serverSort? }].
  * `tip` is the column header tooltip: what the column shows and how it is measured.
  * Row clicks are ignored when the target is an interactive element. Optional row selection checkboxes.
+ * `compact` uses the tighter row padding; `testId` sets the table's data-testid.
+ * `rowProps(item)` adds attributes to a row's `<tr>` (data attributes; a `className` merges with the row's own).
  */
 export default function DataTable({
   columns = [],
@@ -21,7 +23,10 @@ export default function DataTable({
   onSort = null,
   selectable = false,
   selected = [],
-  onSelectChange = null
+  onSelectChange = null,
+  compact = false,
+  testId,
+  rowProps = null
 }) {
   const { t } = useTranslation();
 
@@ -47,7 +52,7 @@ export default function DataTable({
 
   return (
     <div className="table-scroll" aria-busy={loading || undefined}>
-      <table className="data-table">
+      <table className={compact ? 'data-table compact' : 'data-table'} data-testid={testId}>
         <thead>
           <tr>
             {selectable && (
@@ -89,8 +94,9 @@ export default function DataTable({
           ) : (
             items.map((item, index) => {
               const id = ids[index];
+              const { className: rowClass, onClick: _ignored, key: _key, ...extra } = (rowProps && rowProps(item)) || {};
               return (
-                <tr key={id} className={onRowClick ? 'clickable' : ''} onClick={(e) => handleRowClick(e, item)}>
+                <tr key={id} {...extra} className={[onRowClick ? 'clickable' : '', rowClass || ''].join(' ').trim()} onClick={(e) => handleRowClick(e, item)}>
                   {selectable && (
                     <td className="select-cell" data-ignore-row-click>
                       <input type="checkbox" checked={selected.includes(id)} onChange={() => toggleOne(id)} aria-label={t('components.table.selectRow')} {...tip(t('tips.table.selectRow'))} />

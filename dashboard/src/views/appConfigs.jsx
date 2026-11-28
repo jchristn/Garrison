@@ -148,7 +148,7 @@ export const appsConfig = {
         { cellClass: 'right', csv: (r) => (r.members || []).length }
       ),
       col(t, 'liveEnvironment', (r) => <EnvironmentBadge environment={r.liveEnvironment || 'dev'} t={t} />, { csv: (r) => r.liveEnvironment || 'dev' }),
-      col(t, 'authMode', (r) => <Badge tone={r.authMode === 'Anonymous' ? 'warning' : 'neutral'} tip={enumTip(t, 'appAuthMode', r.authMode || 'AppUsers')}>{enumLabel(t, 'appAuthMode', r.authMode || 'AppUsers')}</Badge>, { csv: (r) => r.authMode || 'AppUsers' }),
+      col(t, 'authMode', (r) => <Badge tone={r.authMode === 'Anonymous' ? 'warning' : 'neutral'} tip={enumTip(t, 'appAuthMode', r.authMode || 'AppUsers')}>{enumLabel(t, 'appAuthMode', r.authMode || 'AppUsers')}</Badge>, { csv: (r) => r.authMode || 'AppUsers', defaultHidden: true }),
       col(t, 'active', (r) => <ActiveBadge active={r.active !== false} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(r.active !== false ? 'tips.resources.apps.activeBadge' : 'tips.resources.apps.inactiveBadge')} />),
       col(t, 'description', (r) => (r.description ? <span {...tip(r.description)}>{truncate(r.description, 80)}</span> : '-'), { defaultHidden: true, csv: (r) => r.description || '' }),
       col(t, 'id', (r) => <CopyableId value={r.id} />, { cellClass: 'cell-id', defaultHidden: true }),

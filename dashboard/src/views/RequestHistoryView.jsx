@@ -16,7 +16,8 @@ import { useToast } from '../context/ToastContext';
 import { principalCaps } from '../utils/principal';
 import { errorMessage } from '../utils/errors';
 import useAutoRefresh from '../hooks/useAutoRefresh';
-import { HTTP_METHODS, DEFAULT_PAGE_SIZE, DEFAULT_AUTO_REFRESH, requestRangeToParams } from '../utils/constants';
+import { savedPageSize, persistPageSize } from '../hooks/usePageSizePref';
+import { HTTP_METHODS, DEFAULT_AUTO_REFRESH, requestRangeToParams } from '../utils/constants';
 import { formatDateTime, formatRelativeTime, formatNumber, formatDuration, truncate } from '../i18n/formatters';
 import { tip } from '../components/Tooltip';
 import Explainer from '../components/Explainer';
@@ -55,7 +56,7 @@ export default function RequestHistoryView({ apiClient }) {
     toUtc: toLocalInput(searchParams.get('toUtc'))
   }));
   const [items, setItems] = useState([]);
-  const [page, setPage] = useState({ pageNumber: 1, pageSize: DEFAULT_PAGE_SIZE, totalCount: 0 });
+  const [page, setPage] = useState({ pageNumber: 1, pageSize: savedPageSize('requests'), totalCount: 0 });
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
@@ -270,7 +271,10 @@ export default function RequestHistoryView({ apiClient }) {
           pageNumber={page.pageNumber}
           pageSize={page.pageSize}
           onPageChange={(p) => load(filters, p, page.pageSize)}
-          onPageSizeChange={(s) => load(filters, 1, s)}
+          onPageSizeChange={(s) => {
+            persistPageSize('requests', s);
+            load(filters, 1, s);
+          }}
           onRefresh={() => load(filters, page.pageNumber, page.pageSize)}
           autoRefreshSeconds={autoRefreshSeconds}
           onAutoRefreshChange={setAutoRefreshSeconds}

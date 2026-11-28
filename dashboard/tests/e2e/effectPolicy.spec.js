@@ -27,6 +27,10 @@ test('the deployment form edits the effect policy and sends it without retryOnNo
   });
   await login(page);
   await page.goto('/dashboard/deployments');
+  // The column is hidden by default so the table fits at 1366 px; turn it on with the Columns control.
+  await page.getByTestId('column-picker').click();
+  await page.locator('.column-picker-item', { hasText: /^Effect policy$/ }).locator('input').check();
+  await page.keyboard.press('Escape');
   await expect(page.locator('.data-table tbody tr', { hasText: 'deployment-2' })).toContainText('At least once');
   await expect(page.locator('.data-table tbody tr', { hasText: 'deployment-1' })).toContainText('At most once');
   await page.locator('.data-table tbody tr', { hasText: 'deployment-2' }).getByText('deployment-2', { exact: true }).click();

@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
-import { EmptyNote, ErrorBanner, LoadingState } from './States';
+import { ErrorBanner, LoadingState } from './States';
 import { PromotionKindBadge, PromotionOutcomeBadge } from './RevisionBadges';
 import { Badge } from './StatusBadge';
 import { tip } from './Tooltip';
+import TableFrame from './TableFrame';
+import usePageSizePref from '../hooks/usePageSizePref';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -28,6 +30,9 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
   const [agents, setAgents] = useState([]);
   const [numbers, setNumbers] = useState({});
   const [records, setRecords] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = usePageSizePref('promotion-history', 100);
   const [error, setError] = useState(null);
   const [target, setTarget] = useState(null);
   const [note, setNote] = useState('');
@@ -44,13 +49,16 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
     if (!apiClient) return;
     setError(null);
     apiClient
-      .listPromotions(tenantId, { agentId: agent || undefined, pageNumber: 1, pageSize: 100 })
-      .then((r) => setRecords(r.items || []))
+      .listPromotions(tenantId, { agentId: agent || undefined, pageNumber, pageSize })
+      .then((r) => {
+        setRecords(r.items || []);
+        setTotal(r.totalCount ?? (r.items || []).length);
+      })
       .catch((e) => {
         setRecords([]);
         setError(e);
       });
-  }, [apiClient, tenantId, agent]);
+  }, [apiClient, tenantId, agent, pageNumber, pageSize]);
   useEffect(load, [load]);
 
   // Revision numbers for the agents in view, so records show "Revision 3" rather than an ID.
@@ -84,11 +92,58 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
     }
   };
 
-  const th = (key, className) => (
-    <th scope="col" className={className} {...tip(t(`tips.promotions.columns.${key}`))}>
-      {t(`components.promotions.columns.${key}`)}
-    </th>
-  );
+  const col = (key, extra) => ({ key, label: t(`components.promotions.columns.${key}`), tip: t(`tips.promotions.columns.${key}`), ...extra });
+  const columns = [
+    col('createdUtc', { cellClass: 'nowrap', render: (r) => <span {...tip(formatDateTime(r.createdUtc, lng))}>{formatRelativeTime(r.createdUtc, lng)}</span> }),
+    col('kind', { render: (r) => <PromotionKindBadge kind={r.kind} t={t} /> }),
+    col('outcome', { render: (r) => <PromotionOutcomeBadge outcome={r.outcome} t={t} /> }),
+    col('agent', { render: (r) => agentName(r.agentId) }),
+    col('revision', { render: (r) => revisionLabel(r.agentRevisionId) }),
+    col('environments', {
+      render: (r) => (
+        <>
+          {t('components.promotions.path', { source: r.sourceEnvironment, target: r.targetEnvironment })}{' '}
+          {r.skippedEnvironments && <Badge tone="warning" tip={t('tips.promotions.skipped')}>{t('components.promotions.skipped')}</Badge>}
+        </>
+      )
+    }),
+    col('deployments', {
+      render: (r) => (
+        <ul className="plain-list promotion-history-items">
+          {(r.items || []).map((item) => (
+            <li key={item.deploymentId}>
+              <code className="cell-break">{item.deploymentName || item.deploymentId}</code>{' '}
+              <span className="text-muted">
+                {t('components.promotions.pinChange', { from: item.previousRevisionId ? revisionLabel(item.previousRevisionId) : t('resources.deployments.latest'), to: item.newRevisionId ? revisionLabel(item.newRevisionId) : t('resources.deployments.latest') })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )
+    }),
+    col('actor', { defaultHidden: true, render: (r) => r.actorName || '-' }),
+    col('note', { defaultHidden: true, render: (r) => r.note || '-' }),
+    col('actions', {
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right',
+      render: (r) =>
+        canRollback(r) && (
+          <button
+            type="button"
+            className="button-secondary button-sm"
+            onClick={() => {
+              setNote('');
+              setTarget(r);
+            }}
+            data-testid="promotion-rollback"
+            {...tip(t('tips.promotions.rollback'))}
+          >
+            {t('components.promotions.rollback')}
+          </button>
+        )
+    })
+  ];
 
   return (
     <Modal
@@ -98,9 +153,6 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
       title={t('components.promotions.title')}
       footer={
         <>
-          <button type="button" className="button-secondary" onClick={load} {...tip(t('tips.promotions.refresh'))}>
-            {t('components.table.refresh')}
-          </button>
           <button type="button" className="button-primary" onClick={onClose} {...tip(t('tips.modal.close'))}>
             {t('common.actions.close')}
           </button>
@@ -110,7 +162,10 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
       <div className="filter-inline">
         <label className="filter-select" {...tip(t('tips.promotions.agentFilter'))}>
           <span className="sr-only">{t('components.promotions.agentFilter')}</span>
-          <select value={agent} onChange={(e) => setAgent(e.target.value)} aria-label={t('components.promotions.agentFilter')} data-testid="promotions-agent" {...tip(t('tips.promotions.agentFilter'))}>
+          <select value={agent} onChange={(e) => {
+              setAgent(e.target.value);
+              setPageNumber(1);
+            }} aria-label={t('components.promotions.agentFilter')} data-testid="promotions-agent" {...tip(t('tips.promotions.agentFilter'))}>
             <option value="">{t('components.promotions.allAgents')}</option>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
@@ -127,78 +182,24 @@ export default function PromotionHistoryModal({ agentId = '', onClose, onChanged
       )}
       {records === null ? (
         <LoadingState />
-      ) : records.length === 0 ? (
-        <EmptyNote>{t('components.promotions.empty')}</EmptyNote>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table" data-testid="promotions-table">
-            <thead>
-              <tr>
-                {th('createdUtc')}
-                {th('kind')}
-                {th('outcome')}
-                {th('agent')}
-                {th('revision')}
-                {th('environments')}
-                {th('deployments')}
-                {th('actor')}
-                {th('note')}
-                {th('actions', 'right')}
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => (
-                <tr key={r.id} data-promotion={r.id} data-kind={r.kind}>
-                  <td>
-                    <span {...tip(formatDateTime(r.createdUtc, lng))}>{formatRelativeTime(r.createdUtc, lng)}</span>
-                  </td>
-                  <td>
-                    <PromotionKindBadge kind={r.kind} t={t} />
-                  </td>
-                  <td>
-                    <PromotionOutcomeBadge outcome={r.outcome} t={t} />
-                  </td>
-                  <td>{agentName(r.agentId)}</td>
-                  <td>{revisionLabel(r.agentRevisionId)}</td>
-                  <td>
-                    {t('components.promotions.path', { source: r.sourceEnvironment, target: r.targetEnvironment })}{' '}
-                    {r.skippedEnvironments && <Badge tone="warning" tip={t('tips.promotions.skipped')}>{t('components.promotions.skipped')}</Badge>}
-                  </td>
-                  <td>
-                    <ul className="plain-list promotion-history-items">
-                      {(r.items || []).map((item) => (
-                        <li key={item.deploymentId}>
-                          <code>{item.deploymentName || item.deploymentId}</code>{' '}
-                          <span className="text-muted">
-                            {t('components.promotions.pinChange', { from: item.previousRevisionId ? revisionLabel(item.previousRevisionId) : t('resources.deployments.latest'), to: item.newRevisionId ? revisionLabel(item.newRevisionId) : t('resources.deployments.latest') })}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </td>
-                  <td>{r.actorName || '-'}</td>
-                  <td>{r.note || '-'}</td>
-                  <td className="right">
-                    {canRollback(r) && (
-                      <button
-                        type="button"
-                        className="button-secondary button-sm"
-                        onClick={() => {
-                          setNote('');
-                          setTarget(r);
-                        }}
-                        data-testid="promotion-rollback"
-                        {...tip(t('tips.promotions.rollback'))}
-                      >
-                        {t('components.promotions.rollback')}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TableFrame
+          tableId="promotion-history"
+          columns={columns}
+          items={records}
+          testId="promotions-table"
+          emptyMessage={t('components.promotions.empty')}
+          rowProps={(r) => ({ 'data-promotion': r.id, 'data-kind': r.kind })}
+          totalRecords={total}
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          onPageChange={setPageNumber}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPageNumber(1);
+          }}
+          onRefresh={load}
+        />
       )}
       <ConfirmModal
         open={!!target}

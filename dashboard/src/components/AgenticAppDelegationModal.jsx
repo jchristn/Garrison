@@ -5,6 +5,7 @@ import Modal from './Modal';
 import { Badge } from './StatusBadge';
 import { EmptyNote, ErrorBanner, LoadingState } from './States';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -80,11 +81,47 @@ export default function AgenticAppDelegationModal({ app, deniedTip = '', onClose
   };
 
   const summary = delegationSummary(plan);
-  const th = (key) => (
-    <th scope="col" {...tip(t(`tips.apps.delegation.columns.${key}`))}>
-      {t(`components.apps.delegation.columns.${key}`)}
-    </th>
-  );
+  const col = (key, extra) => ({ key, label: t(`components.apps.delegation.columns.${key}`), tip: t(`tips.apps.delegation.columns.${key}`), ...extra });
+  const columns = [
+    col('member', {
+      pinned: true,
+      render: (m) => (
+        <Link to={pathFor('agents', m.agentId)} {...tip(t('tips.apps.delegation.openAgent', { name: m.agentName }))}>
+          {m.agentName}
+        </Link>
+      )
+    }),
+    col('desiredMode', { render: (m) => <Mode mode={m.desiredMode} t={t} /> }),
+    col('desiredAllowList', { render: (m) => <Names list={m.desiredAllowList} /> }),
+    col('desiredMaxDepth', { cellClass: 'right', render: (m) => m.desiredMaxDepth ?? 0 }),
+    col('publishedMode', { render: (m) => (m.publishedMode ? <Mode mode={m.publishedMode} t={t} /> : <span className="text-muted">{t('components.apps.delegation.notPublished')}</span>) }),
+    col('publishedAllowList', { render: (m) => <Names list={m.publishedAllowList} /> }),
+    col('publishedMaxDepth', { cellClass: 'right', render: (m) => m.publishedMaxDepth ?? '-' }),
+    col('status', {
+      render: (m) => (
+        <span className="capability-names" data-cell="status">
+          {m.drift ? (
+            <Badge tone="warning" tip={t('tips.apps.delegation.drift')}>
+              {t('components.apps.delegation.drift')}
+            </Badge>
+          ) : (
+            <Badge tone="success" tip={t('tips.apps.delegation.inSync')}>
+              {t('components.apps.delegation.inSyncBadge')}
+            </Badge>
+          )}
+          {m.skippedReason ? (
+            <Badge tone="danger" tip={t(m.skippedReason === 'DraftConflict' ? 'tips.apps.delegation.draftConflict' : 'tips.apps.delegation.skipped', { reason: m.skippedReason })}>
+              {m.skippedReason === 'DraftConflict' ? t('components.apps.delegation.draftConflict') : m.skippedReason}
+            </Badge>
+          ) : m.draftRevisionNumber ? (
+            <Badge tone="info" tip={t('tips.apps.delegation.draft', { number: m.draftRevisionNumber })}>
+              {t('components.apps.delegation.draft', { number: m.draftRevisionNumber })}
+            </Badge>
+          ) : null}
+        </span>
+      )
+    })
+  ];
   const applyTip = deniedTip || (summary.drifting ? t('tips.apps.delegation.apply') : t('tips.apps.delegation.applyNothing'));
 
   return (
@@ -131,67 +168,14 @@ export default function AgenticAppDelegationModal({ app, deniedTip = '', onClose
                 : t('components.apps.delegation.inSync')}
           </div>
           {plan.members?.length ? (
-            <div className="table-scroll">
-              <table className="data-table" data-testid="app-delegation">
-                <thead>
-                  <tr>
-                    {th('member')}
-                    {th('desiredMode')}
-                    {th('desiredAllowList')}
-                    {th('desiredMaxDepth')}
-                    {th('publishedMode')}
-                    {th('publishedAllowList')}
-                    {th('publishedMaxDepth')}
-                    {th('status')}
-                  </tr>
-                </thead>
-                <tbody>
-                  {plan.members.map((m) => (
-                    <tr key={m.agentId} data-member={m.agentName} data-drift={m.drift ? 'true' : 'false'}>
-                      <td>
-                        <Link to={pathFor('agents', m.agentId)} {...tip(t('tips.apps.delegation.openAgent', { name: m.agentName }))}>
-                          {m.agentName}
-                        </Link>
-                      </td>
-                      <td>
-                        <Mode mode={m.desiredMode} t={t} />
-                      </td>
-                      <td>
-                        <Names list={m.desiredAllowList} />
-                      </td>
-                      <td className="right">{m.desiredMaxDepth ?? 0}</td>
-                      <td>{m.publishedMode ? <Mode mode={m.publishedMode} t={t} /> : <span className="text-muted">{t('components.apps.delegation.notPublished')}</span>}</td>
-                      <td>
-                        <Names list={m.publishedAllowList} />
-                      </td>
-                      <td className="right">{m.publishedMaxDepth ?? '-'}</td>
-                      <td data-cell="status">
-                        <span className="capability-names">
-                          {m.drift ? (
-                            <Badge tone="warning" tip={t('tips.apps.delegation.drift')}>
-                              {t('components.apps.delegation.drift')}
-                            </Badge>
-                          ) : (
-                            <Badge tone="success" tip={t('tips.apps.delegation.inSync')}>
-                              {t('components.apps.delegation.inSyncBadge')}
-                            </Badge>
-                          )}
-                          {m.skippedReason ? (
-                            <Badge tone="danger" tip={t(m.skippedReason === 'DraftConflict' ? 'tips.apps.delegation.draftConflict' : 'tips.apps.delegation.skipped', { reason: m.skippedReason })}>
-                              {m.skippedReason === 'DraftConflict' ? t('components.apps.delegation.draftConflict') : m.skippedReason}
-                            </Badge>
-                          ) : m.draftRevisionNumber ? (
-                            <Badge tone="info" tip={t('tips.apps.delegation.draft', { number: m.draftRevisionNumber })}>
-                              {t('components.apps.delegation.draft', { number: m.draftRevisionNumber })}
-                            </Badge>
-                          ) : null}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LocalTableFrame
+              tableId="app-delegation"
+              columns={columns}
+              items={plan.members}
+              testId="app-delegation"
+              rowId={(m) => m.agentId}
+              rowProps={(m) => ({ 'data-member': m.agentName, 'data-drift': m.drift ? 'true' : 'false' })}
+            />
           ) : (
             <EmptyNote>{t('components.apps.delegation.empty')}</EmptyNote>
           )}

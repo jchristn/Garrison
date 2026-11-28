@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Explainer from '../components/Explainer';
+import LocalTableFrame from '../components/LocalTableFrame';
 import ConfirmModal from '../components/ConfirmModal';
 import FreezeModal from '../components/FreezeModal';
 import LiftFreezeModal from '../components/LiftFreezeModal';
@@ -472,53 +473,53 @@ function Board({ organizationId }) {
           ) : (
             <>
               <OrgChartTree units={units} t={t} lng={lng} spend={board.spend || []} health={healthMap(board)} onCancelAll={(unit) => setCascade(unit)} cancelAllDenied={cancelAllDenied} />
-              <div className="table-scroll" tabIndex={0} role="region" aria-label={t('board.chart.health')}>
-                <table className="data-table compact" data-testid="board-unit-health">
-                  <caption className="sr-only">{t('board.chart.health')}</caption>
-                  <thead>
-                    <tr>
-                      {['unit', 'health', 'escalations', 'brakes', 'lastReport'].map((c) => (
-                        <th key={c} scope="col" {...tip(t(`tips.board.chart.columns.${c}`))}>
-                          {t(`board.chart.columns.${c}`)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unitHealth.map((h) => (
-                      <tr key={h.unitId} data-unit-health={h.unitId}>
-                        <td>{h.unitName}</td>
-                        <td>
-                          <ReportHealthBadge health={h.health || 'Unknown'} t={t} />
-                        </td>
-                        <td>{formatNumber(h.openEscalations || 0, {}, lng)}</td>
-                        <td className="inline-meta">
-                          {h.frozen && (
-                            <Badge tone="info" tip={t('tips.board.chart.frozen')}>
-                              {t('board.chart.frozen')}
-                            </Badge>
-                          )}
-                          {h.overBudget && (
-                            <Badge tone="danger" tip={t('tips.board.chart.overBudget')}>
-                              {t('board.chart.overBudget')}
-                            </Badge>
-                          )}
-                          {!h.frozen && !h.overBudget && '-'}
-                        </td>
-                        <td>
-                          {h.lastReportId ? (
-                            <StudioLink to={pathFor('reports', h.lastReportId)} tipText={t('tips.board.openReport')}>
-                              {when(h.lastReportUtc)}
-                            </StudioLink>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <LocalTableFrame
+                tableId="board-unit-health"
+                testId="board-unit-health"
+                compact
+                items={unitHealth}
+                rowId={(h) => h.unitId}
+                rowProps={(h) => ({ 'data-unit-health': h.unitId })}
+                columns={[
+                  { key: 'unit', label: t('board.chart.columns.unit'), tip: t('tips.board.chart.columns.unit'), pinned: true, render: (h) => h.unitName },
+                  { key: 'health', label: t('board.chart.columns.health'), tip: t('tips.board.chart.columns.health'), render: (h) => <ReportHealthBadge health={h.health || 'Unknown'} t={t} /> },
+                  { key: 'escalations', label: t('board.chart.columns.escalations'), tip: t('tips.board.chart.columns.escalations'), render: (h) => formatNumber(h.openEscalations || 0, {}, lng) },
+                  {
+                    key: 'brakes',
+                    label: t('board.chart.columns.brakes'),
+                    tip: t('tips.board.chart.columns.brakes'),
+                    cellClass: 'inline-meta',
+                    render: (h) => (
+                      <>
+                        {h.frozen && (
+                          <Badge tone="info" tip={t('tips.board.chart.frozen')}>
+                            {t('board.chart.frozen')}
+                          </Badge>
+                        )}
+                        {h.overBudget && (
+                          <Badge tone="danger" tip={t('tips.board.chart.overBudget')}>
+                            {t('board.chart.overBudget')}
+                          </Badge>
+                        )}
+                        {!h.frozen && !h.overBudget && '-'}
+                      </>
+                    )
+                  },
+                  {
+                    key: 'lastReport',
+                    label: t('board.chart.columns.lastReport'),
+                    tip: t('tips.board.chart.columns.lastReport'),
+                    render: (h) =>
+                      h.lastReportId ? (
+                        <StudioLink to={pathFor('reports', h.lastReportId)} tipText={t('tips.board.openReport')}>
+                          {when(h.lastReportUtc)}
+                        </StudioLink>
+                      ) : (
+                        '-'
+                      )
+                  }
+                ]}
+              />
             </>
           )}
         </section>

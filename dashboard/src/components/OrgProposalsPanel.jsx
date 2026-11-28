@@ -7,6 +7,7 @@ import ProposalEvidence from './ProposalEvidence';
 import { ProposalDecisionBadge } from './ChangeRuleBadges';
 import { EmptyNote, EmptyState } from './States';
 import { tip } from './Tooltip';
+import LocalTableFrame from './LocalTableFrame';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -230,6 +231,37 @@ export default function OrgProposalsPanel({ organization, proposals, revisions, 
   const shown = (proposals || []).filter((p) => inView(view, p));
   const pendingCount = (proposals || []).filter((p) => p.status === 'PendingApproval').length;
   const when = (v) => (v ? <span {...tip(formatDateTime(v, lng))}>{formatRelativeTime(v, lng)}</span> : '-');
+  const col = (key, extra) => ({ key, label: t(`orgProposals.columns.${key}`), tip: t(`tips.orgProposals.columns.${key}`), ...extra });
+  const columns = [
+    col('title', { pinned: true, cellClass: 'org-text', render: (p) => p.title || p.draftId }),
+    col('unit', { render: (p) => p.unitName || p.unitId || '-' }),
+    col('agent', { render: (p) => p.agentName || p.agentId || '-' }),
+    col('decision', {
+      render: (p) => {
+        const detail = decisionDetail(t, p, rules);
+        return (
+          <span className="org-proposal-decision">
+            <ProposalDecisionBadge decision={proposalDecision(p)} t={t} />
+            {detail && <span className="text-muted" data-testid="org-proposal-detail">{detail}</span>}
+          </span>
+        );
+      }
+    }),
+    col('updated', { cellClass: 'nowrap', render: (p) => when(p.lastUpdateUtc) }),
+    {
+      key: 'actions',
+      label: t('common.generic.actions'),
+      tip: t('tips.table.actionsColumn'),
+      pinned: true,
+      headerClass: 'right',
+      cellClass: 'right nowrap',
+      render: (p) => (
+        <button type="button" className={p.status === 'PendingApproval' ? 'button-primary button-sm' : 'button-ghost button-sm'} onClick={() => setOpen(p)} data-testid={`org-proposal-open-${p.draftId}`} {...tip(t(p.status === 'PendingApproval' ? 'tips.orgProposals.decide' : 'tips.orgProposals.review.open'))}>
+          {p.status === 'PendingApproval' ? t('orgProposals.decide') : t('orgProposals.review.open')}
+        </button>
+      )
+    }
+  ];
 
   return (
     <section className="panel" aria-label={t('orgProposals.title')} data-testid="org-proposals">
@@ -249,46 +281,7 @@ export default function OrgProposalsPanel({ organization, proposals, revisions, 
       {shown.length === 0 ? (
         <EmptyState title={t('orgProposals.emptyTitle')} body={t('orgProposals.emptyBody')} />
       ) : (
-        <div className="table-scroll" tabIndex={0} role="region" aria-label={t('orgProposals.title')}>
-          <table className="data-table compact" data-testid="org-proposals-table">
-            <thead>
-              <tr>
-                {['title', 'unit', 'agent', 'decision', 'updated'].map((c) => (
-                  <th key={c} scope="col" {...tip(t(`tips.orgProposals.columns.${c}`))}>
-                    {t(`orgProposals.columns.${c}`)}
-                  </th>
-                ))}
-                <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
-                  {t('common.generic.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((p) => {
-                const detail = decisionDetail(t, p, rules);
-                return (
-                  <tr key={p.draftId} data-proposal={p.draftId}>
-                    <td className="org-text">{p.title || p.draftId}</td>
-                    <td>{p.unitName || p.unitId || '-'}</td>
-                    <td>{p.agentName || p.agentId || '-'}</td>
-                    <td>
-                      <span className="org-proposal-decision">
-                        <ProposalDecisionBadge decision={proposalDecision(p)} t={t} />
-                        {detail && <span className="text-muted" data-testid="org-proposal-detail">{detail}</span>}
-                      </span>
-                    </td>
-                    <td className="nowrap">{when(p.lastUpdateUtc)}</td>
-                    <td className="right nowrap">
-                      <button type="button" className={p.status === 'PendingApproval' ? 'button-primary button-sm' : 'button-ghost button-sm'} onClick={() => setOpen(p)} data-testid={`org-proposal-open-${p.draftId}`} {...tip(t(p.status === 'PendingApproval' ? 'tips.orgProposals.decide' : 'tips.orgProposals.review.open'))}>
-                        {p.status === 'PendingApproval' ? t('orgProposals.decide') : t('orgProposals.review.open')}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LocalTableFrame tableId="org-proposals" columns={columns} items={shown} compact testId="org-proposals-table" rowId={(p) => p.draftId} rowProps={(p) => ({ 'data-proposal': p.draftId })} />
       )}
       {open && <ProposalModal key={open.draftId} organization={organization} summary={open} rules={rules} revisions={revisions} deniedDecide={deniedDecide} onClose={() => setOpen(null)} onDecided={onChanged} />}
     </section>

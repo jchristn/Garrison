@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import CodeBlock from './CodeBlock';
-import { EmptyNote, ErrorBanner } from './States';
+import { ErrorBanner } from './States';
+import TableFrame from './TableFrame';
+import usePageSizePref from '../hooks/usePageSizePref';
 import { tip } from './Tooltip';
 import { NotificationDeliveryStatusBadge } from './TriggerBadges';
 import { useAuth } from '../context/AuthContext';
@@ -14,7 +16,7 @@ import { errorMessage } from '../utils/errors';
 import { prettyPayload } from '../utils/triggers';
 import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i18n/formatters';
 
-const PAGE = 50;
+const TABLE_ID = 'notification-deliveries';
 
 /** One delivery's fields and payload, used by the delivery log and the test result. */
 export function DeliveryDetail({ delivery, t, lng }) {
@@ -57,6 +59,8 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
   const { tenantId } = useApp();
   const lng = i18n.language;
   const [status, setStatus] = useState('');
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = usePageSizePref(TABLE_ID, 50);
   const [page, setPage] = useState(null);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -64,10 +68,10 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
   const load = useCallback(() => {
     setError(null);
     apiClient
-      .listNotificationDeliveries(tenantId, endpoint.id, { status: status || undefined, pageNumber: 1, pageSize: PAGE })
+      .listNotificationDeliveries(tenantId, endpoint.id, { status: status || undefined, pageNumber, pageSize })
       .then(setPage)
       .catch((e) => setError(e));
-  }, [apiClient, tenantId, endpoint.id, status]);
+  }, [apiClient, tenantId, endpoint.id, status, pageNumber, pageSize]);
   useEffect(load, [load]);
 
   const select = (d) => {
@@ -76,13 +80,27 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
       .then(setSelected)
       .catch(() => setSelected(d));
   };
-  const th = (key) => (
-    <th key={key} {...tip(t(`tips.resources.notifications.deliveries.${key}`))}>
-      {t(`resources.notifications.deliveries.${key}`)}
-    </th>
-  );
   const items = page?.items || [];
   const when = (v) => (v ? <span {...tip(formatDateTime(v, lng))}>{formatRelativeTime(v, lng)}</span> : '-');
+  const col = (key, extra) => ({ key, label: t(`resources.notifications.deliveries.${key}`), tip: t(`tips.resources.notifications.deliveries.${key}`), ...extra });
+  const columns = [
+    col('createdUtc', {
+      pinned: true,
+      cellClass: 'nowrap',
+      render: (d) => (
+        <button type="button" className="button-link" onClick={() => select(d)} {...tip(t('tips.notificationDeliveries.open'))}>
+          {formatRelativeTime(d.createdUtc, lng)}
+        </button>
+      )
+    }),
+    col('event', { render: (d) => <span {...tip(enumTip(t, 'notificationEvent', d.event))}>{enumLabel(t, 'notificationEvent', d.event)}</span> }),
+    col('status', { render: (d) => <NotificationDeliveryStatusBadge status={d.status} t={t} /> }),
+    col('attempts', { cellClass: 'right', render: (d) => `${formatNumber(d.attempts ?? 0, {}, lng)} / ${formatNumber(d.maxAttempts ?? 0, {}, lng)}` }),
+    col('lastStatusCode', { cellClass: 'right', defaultHidden: true, render: (d) => d.lastStatusCode ?? '-' }),
+    col('lastError', { render: (d) => (d.lastError ? <span {...tip(d.lastError)}>{truncate(d.lastError, 60)}</span> : '-') }),
+    col('nextAttemptUtc', { cellClass: 'nowrap', defaultHidden: true, render: (d) => when(d.nextAttemptUtc) }),
+    col('deliveredUtc', { cellClass: 'nowrap', render: (d) => when(d.deliveredUtc) })
+  ];
 
   return (
     <Modal
@@ -93,9 +111,6 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
       headerMeta={endpoint.name}
       footer={
         <>
-          <button type="button" className="button-secondary" onClick={load} {...tip(t('tips.notificationDeliveries.refresh'))}>
-            {t('components.table.refresh')}
-          </button>
           <button type="button" className="button-primary" onClick={onClose} {...tip(t('tips.modal.close'))}>
             {t('common.actions.close')}
           </button>
@@ -105,7 +120,10 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
       <div className="filter-inline">
         <label className="filter-select" {...tip(t('tips.filters.deliveryStatus'))}>
           <span className="sr-only">{t('resources.notifications.deliveries.status')}</span>
-          <select aria-label={t('resources.notifications.deliveries.status')} value={status} data-testid="deliveries-status" onChange={(e) => setStatus(e.target.value)} {...tip(t('tips.filters.deliveryStatus'))}>
+          <select aria-label={t('resources.notifications.deliveries.status')} value={status} data-testid="deliveries-status" onChange={(e) => {
+              setStatus(e.target.value);
+              setPageNumber(1);
+            }} {...tip(t('tips.filters.deliveryStatus'))}>
             <option value="">{t('resources.notifications.deliveries.status')}: {t('common.generic.all')}</option>
             {ENUMS.notificationDeliveryStatus.map((o) => (
               <option key={o} value={o}>
@@ -118,35 +136,26 @@ export default function NotificationDeliveriesModal({ endpoint, onClose }) {
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!page && !error && <p>{t('common.generic.loading')}</p>}
-      {page && items.length === 0 && <EmptyNote data-testid="deliveries-empty">{t('components.notificationDeliveries.empty')}</EmptyNote>}
-      {items.length > 0 && (
-        <table className="data-table compact" data-testid="deliveries-table">
-          <thead>
-            <tr>{['createdUtc', 'event', 'status', 'attempts', 'lastStatusCode', 'lastError', 'nextAttemptUtc', 'deliveredUtc'].map(th)}</tr>
-          </thead>
-          <tbody>
-            {items.map((d) => (
-              <tr key={d.id} data-delivery={d.id} className={selected?.id === d.id ? 'selected' : ''}>
-                <td className="nowrap">
-                  <button type="button" className="button-link" onClick={() => select(d)} {...tip(t('tips.notificationDeliveries.open'))}>
-                    {formatRelativeTime(d.createdUtc, lng)}
-                  </button>
-                </td>
-                <td>
-                  <span {...tip(enumTip(t, 'notificationEvent', d.event))}>{enumLabel(t, 'notificationEvent', d.event)}</span>
-                </td>
-                <td>
-                  <NotificationDeliveryStatusBadge status={d.status} t={t} />
-                </td>
-                <td className="right">{`${formatNumber(d.attempts ?? 0, {}, lng)} / ${formatNumber(d.maxAttempts ?? 0, {}, lng)}`}</td>
-                <td className="right">{d.lastStatusCode ?? '-'}</td>
-                <td>{d.lastError ? <span {...tip(d.lastError)}>{truncate(d.lastError, 60)}</span> : '-'}</td>
-                <td className="nowrap">{when(d.nextAttemptUtc)}</td>
-                <td className="nowrap">{when(d.deliveredUtc)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {page && (
+        <TableFrame
+          tableId={TABLE_ID}
+          columns={columns}
+          items={items}
+          compact
+          testId="deliveries-table"
+          rowProps={(d) => ({ 'data-delivery': d.id, className: selected?.id === d.id ? 'is-selected' : '' })}
+          emptyMessage={t('components.notificationDeliveries.empty')}
+          onRowClick={select}
+          totalRecords={page.totalCount ?? items.length}
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          onPageChange={setPageNumber}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPageNumber(1);
+          }}
+          onRefresh={load}
+        />
       )}
       {selected && (
         <div className="form-section">

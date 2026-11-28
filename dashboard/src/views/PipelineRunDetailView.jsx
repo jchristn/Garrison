@@ -6,6 +6,7 @@ import CopyableId from '../components/CopyableId';
 import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import Explainer from '../components/Explainer';
+import LocalTableFrame from '../components/LocalTableFrame';
 import PipelineReviewDecideModal from '../components/PipelineReviewDecideModal';
 import { Badge } from '../components/StatusBadge';
 import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
@@ -365,34 +366,22 @@ export default function PipelineRunDetailView({ recordId }) {
                   </div>
                 )}
                 {runs.length > 0 && (
-                  <div className="table-scroll">
-                    <table className="data-table compact" data-testid={`stage-${stage.position}-runs`}>
-                      <thead>
-                        <tr>
-                          <th scope="col" className="right" {...tip(t('tips.views.pipelineRunDetail.columns.execution'))}>{t('views.pipelineRunDetail.columns.execution')}</th>
-                          <th scope="col" {...tip(t('tips.views.pipelineRunDetail.columns.run'))}>{t('views.pipelineRunDetail.columns.run')}</th>
-                          <th scope="col" {...tip(t('tips.views.pipelineRunDetail.columns.status'))}>{t('views.pipelineRunDetail.columns.status')}</th>
-                          <th scope="col" {...tip(t('tips.views.pipelineRunDetail.columns.outcome'))}>{t('views.pipelineRunDetail.columns.outcome')}</th>
-                          <th scope="col" {...tip(t('tips.views.pipelineRunDetail.columns.error'))}>{t('views.pipelineRunDetail.columns.error')}</th>
-                          <th scope="col" {...tip(t('tips.views.pipelineRunDetail.columns.created'))}>{t('views.pipelineRunDetail.columns.created')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {runs.map((x) => (
-                          <tr key={x.runId} data-execution={x.execution}>
-                            <td className="right">{formatNumber(x.execution ?? 0, {}, lng)}</td>
-                            <td className="cell-id">{runLink(x.runId, `stage-run-${x.runId}`)}</td>
-                            <td>
-                              <RunStatus status={x.status} t={t} />
-                            </td>
-                            <td>{x.outcome && x.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', x.outcome))}>{enumLabel(t, 'runOutcome', x.outcome)}</span> : '-'}</td>
-                            <td>{x.errorMessage ? <span {...tip(x.errorMessage)}>{textPreview(x.errorMessage, 80)}</span> : '-'}</td>
-                            <td className="nowrap">{when(x.createdUtc)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <LocalTableFrame
+                    tableId="pipeline-stage-runs"
+                    testId={`stage-${stage.position}-runs`}
+                    compact
+                    items={runs}
+                    rowId={(x) => x.runId}
+                    rowProps={(x) => ({ 'data-execution': x.execution })}
+                    columns={[
+                      { key: 'execution', label: t('views.pipelineRunDetail.columns.execution'), tip: t('tips.views.pipelineRunDetail.columns.execution'), headerClass: 'right', cellClass: 'right', render: (x) => formatNumber(x.execution ?? 0, {}, lng) },
+                      { key: 'run', label: t('views.pipelineRunDetail.columns.run'), tip: t('tips.views.pipelineRunDetail.columns.run'), cellClass: 'cell-id', render: (x) => runLink(x.runId, `stage-run-${x.runId}`) },
+                      { key: 'status', label: t('views.pipelineRunDetail.columns.status'), tip: t('tips.views.pipelineRunDetail.columns.status'), render: (x) => <RunStatus status={x.status} t={t} /> },
+                      { key: 'outcome', label: t('views.pipelineRunDetail.columns.outcome'), tip: t('tips.views.pipelineRunDetail.columns.outcome'), defaultHidden: true, render: (x) => (x.outcome && x.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', x.outcome))}>{enumLabel(t, 'runOutcome', x.outcome)}</span> : '-') },
+                      { key: 'error', label: t('views.pipelineRunDetail.columns.error'), tip: t('tips.views.pipelineRunDetail.columns.error'), cellClass: 'conversation-preview', render: (x) => (x.errorMessage ? <span {...tip(x.errorMessage)}>{textPreview(x.errorMessage, 80)}</span> : '-') },
+                      { key: 'created', label: t('views.pipelineRunDetail.columns.created'), tip: t('tips.views.pipelineRunDetail.columns.created'), cellClass: 'nowrap', render: (x) => when(x.createdUtc) }
+                    ]}
+                  />
                 )}
                 {reviews.length > 0 && (
                   <ul className="plain-list pipeline-timeline-reviews" data-testid={`stage-${stage.position}-reviews`}>

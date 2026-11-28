@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
 import JsonViewerModal from '../components/JsonViewerModal';
 import KpiCard from '../components/KpiCard';
+import LocalTableFrame from '../components/LocalTableFrame';
 import Modal from '../components/Modal';
 import DiffViewer from '../components/DiffViewer';
 import EvalReasonModal from '../components/EvalReasonModal';
@@ -356,47 +357,51 @@ export default function EvalRunDetailView({ recordId }) {
         {rows.length === 0 ? (
           <EmptyNote>{state.results.length ? t('evals.runDetail.noFailing') : t(finished ? 'evals.runDetail.noResults' : 'evals.runDetail.waiting')}</EmptyNote>
         ) : (
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('evals.runDetail.results', { count: state.results.length })}>
-            <table className="data-table compact" data-testid="eval-results-table">
-              <thead>
-                <tr>
-                  {['order', 'case', 'outcome', 'score', 'checks', 'output'].map((k) => (
-                    <th key={k} scope="col" {...tip(t(`tips.evals.runDetail.columns.${k}`))}>
-                      {t(`evals.runDetail.columns.${k}`)}
-                    </th>
-                  ))}
-                  <th scope="col" className="right" {...tip(t('tips.evals.runDetail.columns.open'))}>
-                    {t('common.generic.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((res) => {
-                  const outcome = resultOutcome(res);
+          <LocalTableFrame
+            tableId="eval-run-results"
+            testId="eval-results-table"
+            compact
+            items={rows}
+            rowId={(res) => res.id || String(res.order)}
+            rowProps={(res) => {
+              const outcome = resultOutcome(res);
+              return { 'data-result': res.order, 'data-outcome': outcome, className: outcome === 'passed' ? undefined : 'eval-result-failing' };
+            }}
+            columns={[
+              { key: 'order', label: t('evals.runDetail.columns.order'), tip: t('tips.evals.runDetail.columns.order'), cellClass: 'nowrap', render: (res) => (res.order ?? 0) + 1 },
+              { key: 'case', label: t('evals.runDetail.columns.case'), tip: t('tips.evals.runDetail.columns.case'), cellClass: 'eval-text-cell', render: (res) => caseLabel(t, res, cases) },
+              { key: 'outcome', label: t('evals.runDetail.columns.outcome'), tip: t('tips.evals.runDetail.columns.outcome'), render: (res) => <EvalResultBadge result={res} t={t} /> },
+              { key: 'score', label: t('evals.runDetail.columns.score'), tip: t('tips.evals.runDetail.columns.score'), cellClass: 'nowrap', render: (res) => scoreText(res.score, lng) },
+              {
+                key: 'checks',
+                label: t('evals.runDetail.columns.checks'),
+                tip: t('tips.evals.runDetail.columns.checks'),
+                render: (res) => {
                   const checks = res.checkResults || [];
-                  return (
-                    <tr key={res.id || res.order} className={outcome === 'passed' ? undefined : 'eval-result-failing'} data-result={res.order} data-outcome={outcome}>
-                      <td className="nowrap">{(res.order ?? 0) + 1}</td>
-                      <td className="eval-text-cell">{caseLabel(t, res, cases)}</td>
-                      <td>
-                        <EvalResultBadge result={res} t={t} />
-                      </td>
-                      <td className="nowrap">{scoreText(res.score, lng)}</td>
-                      <td>{checks.length ? t('evals.runDetail.checksPassed', { passed: checks.filter((c) => c.passed).length, total: checks.length }) : '-'}</td>
-                      <td className="eval-text-cell" {...tip(res.errorMessage || res.outputText || '')}>
-                        {res.errorMessage ? <span className="eval-error-text">{truncate(res.errorMessage, 60)}</span> : truncate(res.outputText || '', 60) || '-'}
-                      </td>
-                      <td className="actions-cell">
-                        <button type="button" className="button-ghost button-sm" onClick={() => setOpened(res)} data-testid={`eval-result-open-${res.order}`} {...tip(t('tips.evals.runDetail.open'))}>
-                          {t('evals.runDetail.open')}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  return checks.length ? t('evals.runDetail.checksPassed', { passed: checks.filter((c) => c.passed).length, total: checks.length }) : '-';
+                }
+              },
+              {
+                key: 'output',
+                label: t('evals.runDetail.columns.output'),
+                tip: t('tips.evals.runDetail.columns.output'),
+                cellClass: 'eval-text-cell',
+                render: (res) => <span {...tip(res.errorMessage || res.outputText || '')}>{res.errorMessage ? <span className="eval-error-text">{truncate(res.errorMessage, 60)}</span> : truncate(res.outputText || '', 60) || '-'}</span>
+              },
+              {
+                key: 'actions',
+                label: t('common.generic.actions'),
+                tip: t('tips.evals.runDetail.columns.open'),
+                headerClass: 'right',
+                cellClass: 'actions-cell',
+                render: (res) => (
+                  <button type="button" className="button-ghost button-sm" onClick={() => setOpened(res)} data-testid={`eval-result-open-${res.order}`} {...tip(t('tips.evals.runDetail.open'))}>
+                    {t('evals.runDetail.open')}
+                  </button>
+                )
+              }
+            ]}
+          />
         )}
       </EvalSection>
 

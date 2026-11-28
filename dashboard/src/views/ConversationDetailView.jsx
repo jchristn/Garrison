@@ -9,6 +9,7 @@ import JsonViewerModal from '../components/JsonViewerModal';
 import NamedId from '../components/NamedId';
 import Explainer from '../components/Explainer';
 import Tabs from '../components/Tabs';
+import LocalTableFrame from '../components/LocalTableFrame';
 import ConversationFilesPanel from '../components/ConversationFilesPanel';
 import { EmptyNote, EmptyState, ErrorBanner, LoadingState } from '../components/States';
 import { SendIcon, TrashIcon, CodeIcon } from '../components/Icons';
@@ -272,46 +273,41 @@ export default function ConversationDetailView({ recordId }) {
             {turns.length === 0 ? (
               <EmptyNote>{t('views.conversationDetail.noTurns')}</EmptyNote>
             ) : (
-              <div className="table-scroll">
-                <table className="data-table" data-testid="conversation-turns">
-                  <thead>
-                    <tr>
-                      <th scope="col" className="right" {...tip(t('tips.views.conversationDetail.columns.turn'))}>{t('views.conversationDetail.columns.turn')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.run'))}>{t('views.conversationDetail.columns.run')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.status'))}>{t('views.conversationDetail.columns.status')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.outcome'))}>{t('views.conversationDetail.columns.outcome')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.session'))}>{t('views.conversationDetail.columns.session')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.input'))}>{t('views.conversationDetail.columns.input')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.result'))}>{t('views.conversationDetail.columns.result')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.node'))}>{t('views.conversationDetail.columns.node')}</th>
-                      <th scope="col" {...tip(t('tips.views.conversationDetail.columns.created'))}>{t('views.conversationDetail.columns.created')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {turns.map((r) => {
+              <LocalTableFrame
+                tableId="conversation-turns"
+                testId="conversation-turns"
+                rowProps={(r) => ({ 'data-turn': r.conversationTurn })}
+                items={turns}
+                columns={[
+                  { key: 'turn', label: t('views.conversationDetail.columns.turn'), tip: t('tips.views.conversationDetail.columns.turn'), headerClass: 'right', cellClass: 'right', render: (r) => formatNumber(r.conversationTurn ?? 0, {}, lng) },
+                  { key: 'run', label: t('views.conversationDetail.columns.run'), tip: t('tips.views.conversationDetail.columns.run'), cellClass: 'cell-id', render: (r) => runLink(r.id) },
+                  { key: 'status', label: t('views.conversationDetail.columns.status'), tip: t('tips.views.conversationDetail.columns.status'), render: (r) => <RunStatus status={r.status} t={t} /> },
+                  { key: 'outcome', label: t('views.conversationDetail.columns.outcome'), tip: t('tips.views.conversationDetail.columns.outcome'), defaultHidden: true, render: (r) => (r.outcome && r.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', r.outcome))}>{enumLabel(t, 'runOutcome', r.outcome)}</span> : '-') },
+                  { key: 'session', label: t('views.conversationDetail.columns.session'), tip: t('tips.views.conversationDetail.columns.session'), render: (r) => <TurnSession run={r} t={t} /> },
+                  {
+                    key: 'input',
+                    label: t('views.conversationDetail.columns.input'),
+                    tip: t('tips.views.conversationDetail.columns.input'),
+                    cellClass: 'conversation-preview',
+                    render: (r) => {
                       const input = textPreview(r.inputText, 120);
+                      return input ? <span {...tip(textPreview(r.inputText, 600))}>{input}</span> : '-';
+                    }
+                  },
+                  {
+                    key: 'result',
+                    label: t('views.conversationDetail.columns.result'),
+                    tip: t('tips.views.conversationDetail.columns.result'),
+                    cellClass: 'conversation-preview',
+                    render: (r) => {
                       const result = textPreview(r.resultText || r.errorMessage, 160);
-                      return (
-                        <tr key={r.id} data-turn={r.conversationTurn}>
-                          <td className="right">{formatNumber(r.conversationTurn ?? 0, {}, lng)}</td>
-                          <td className="cell-id">{runLink(r.id)}</td>
-                          <td>
-                            <RunStatus status={r.status} t={t} />
-                          </td>
-                          <td>{r.outcome && r.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', r.outcome))}>{enumLabel(t, 'runOutcome', r.outcome)}</span> : '-'}</td>
-                          <td>
-                            <TurnSession run={r} t={t} />
-                          </td>
-                          <td className="conversation-preview">{input ? <span {...tip(textPreview(r.inputText, 600))}>{input}</span> : '-'}</td>
-                          <td className="conversation-preview">{result ? <span {...tip(textPreview(r.resultText || r.errorMessage, 600))}>{result}</span> : <span className="text-muted">{TERMINAL_RUN_STATUSES.includes(r.status) ? '-' : t('views.conversationDetail.pending')}</span>}</td>
-                          <td>{r.leaseNodeName || '-'}</td>
-                          <td className="nowrap">{when(r.createdUtc)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      return result ? <span {...tip(textPreview(r.resultText || r.errorMessage, 600))}>{result}</span> : <span className="text-muted">{TERMINAL_RUN_STATUSES.includes(r.status) ? '-' : t('views.conversationDetail.pending')}</span>;
+                    }
+                  },
+                  { key: 'node', label: t('views.conversationDetail.columns.node'), tip: t('tips.views.conversationDetail.columns.node'), defaultHidden: true, render: (r) => r.leaseNodeName || '-' },
+                  { key: 'created', label: t('views.conversationDetail.columns.created'), tip: t('tips.views.conversationDetail.columns.created'), cellClass: 'nowrap', render: (r) => when(r.createdUtc) }
+                ]}
+              />
             )}
           </section>
 

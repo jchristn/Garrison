@@ -180,6 +180,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 - The run effect safety and cluster effect checks run only on relevant pushes; their weekly, pull request, and manual triggers are gone.
 
 - Dashboard navigation follows the order you set things up in: Agents comes right after Invoke, with Studio as its second tab, then Autonomy, Organizations, Evaluations, Runs, Approvals, and Analytics. Autonomy had 14 tabs and now has Keepers, Messages, Reports, Memory, Escalations, and Freezes. Organizations holds Organizations, Board, Performance, and Change rules. Evaluations holds Eval sets, Eval runs, Shadow trials, and Canary releases. An old link such as `/dashboard/autonomy?tab=board` forwards to the tab's new hub, and the record routes (`/dashboard/board/<id>`, `/dashboard/eval-runs/<id>`) are unchanged.
+- Every record table in the dashboard, including the lists on detail pages and in modals that were hand-built tables before, sits in the pagination bar with a labeled Columns button. The column choice and the rows per page are saved per table in the browser and come back on the next visit. Default columns are chosen so no table scrolls sideways at 1366x768 with the sidebar open; the rest are in the Columns list. Table headers can wrap between words. The keeper ticks table honors the page size it offers. `dashboard/tests/audit/tableWidths.mjs` measures every table against a seeded server, and `tableColumnBudget.test.js` caps each list's default columns.
 
 ## [1.3.0] - 2026-11-03
 

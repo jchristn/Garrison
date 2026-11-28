@@ -8,7 +8,8 @@ import JsonViewerModal from '../components/JsonViewerModal';
 import Explainer from '../components/Explainer';
 import Modal from '../components/Modal';
 import DiffViewer from '../components/DiffViewer';
-import TablePagination from '../components/TablePagination';
+import TableFrame from '../components/TableFrame';
+import LocalTableFrame from '../components/LocalTableFrame';
 import TimeSeriesChart from '../components/TimeSeriesChart';
 import KeeperRevisionModal from '../components/KeeperRevisionModal';
 import { MandateStatusBadge, TickOutcomeBadge } from '../components/KeeperBadges';
@@ -30,9 +31,11 @@ import FreezeAction from '../components/FreezeAction';
 import FrozenBanner from '../components/FrozenBanner';
 import useActiveFreezes from '../hooks/useActiveFreezes';
 import useCallerPermissions from '../hooks/useCallerPermissions';
+import usePageSizePref from '../hooks/usePageSizePref';
 import { deniedProps, permissionDenied } from '../utils/permissions';
 import { FREEZES_CHANGED_EVENT, freezeOn, freezesFor } from '../utils/freezes';
 
+/** Rows per page of the ticks table until the operator picks another size (saved per table). */
 const TICK_PAGE_SIZE = 25;
 
 function Detail({ label, tip: tipText, children, testId }) {
@@ -136,6 +139,7 @@ export default function KeeperDetailView({ recordId }) {
   const [error, setError] = useState(null);
   const [ticks, setTicks] = useState({ items: [], totalCount: 0 });
   const [tickPage, setTickPage] = useState(1);
+  const [tickPageSize, setTickPageSize] = usePageSizePref('keeper-ticks', TICK_PAGE_SIZE);
   const [tickOutcome, setTickOutcome] = useState('');
   const [revisions, setRevisions] = useState([]);
   const [names, setNames] = useState({ agent: null, deployment: null });
@@ -168,10 +172,10 @@ export default function KeeperDetailView({ recordId }) {
   const loadTicks = useCallback(() => {
     if (!apiClient || !recordId) return Promise.resolve();
     return apiClient
-      .listMandateTicks(tenantId, recordId, { pageNumber: tickPage, pageSize: TICK_PAGE_SIZE, ...(tickOutcome ? { outcome: tickOutcome } : {}) })
+      .listMandateTicks(tenantId, recordId, { pageNumber: tickPage, pageSize: tickPageSize, ...(tickOutcome ? { outcome: tickOutcome } : {}) })
       .then((r) => !unmounted.current && setTicks({ items: r.items || [], totalCount: r.totalCount ?? (r.items || []).length }))
       .catch(() => !unmounted.current && setTicks({ items: [], totalCount: 0 }));
-  }, [apiClient, tenantId, recordId, tickPage, tickOutcome]);
+  }, [apiClient, tenantId, recordId, tickPage, tickPageSize, tickOutcome]);
 
   const loadRevisions = useCallback(() => {
     if (!apiClient || !recordId) return Promise.resolve();
@@ -513,51 +517,54 @@ export default function KeeperDetailView({ recordId }) {
                 exportInfo={{ name: `keeper-${m.name}-intervals`, lines: [], unit: 'min', filters: { outcome: tickOutcome || null } }}
               />
             )}
-            <TablePagination
+            <TableFrame
+              tableId="keeper-ticks"
+              testId="keeper-ticks-table"
+              rowProps={(x) => ({ 'data-tick': x.id, 'data-outcome': x.outcome || '' })}
+              compact
+              items={ticks.items}
               totalRecords={ticks.totalCount}
               pageNumber={tickPage}
-              pageSize={TICK_PAGE_SIZE}
+              pageSize={tickPageSize}
               onPageChange={setTickPage}
-              onPageSizeChange={() => {}}
+              onPageSizeChange={(size) => {
+                setTickPageSize(size);
+                setTickPage(1);
+              }}
               onRefresh={loadTicks}
+              columns={[
+                { key: 'started', label: t('views.keeperDetail.columns.started'), tip: t('tips.views.keeperDetail.columns.started'), cellClass: 'nowrap', render: (x) => when(x.startedUtc) },
+                { key: 'source', label: t('views.keeperDetail.columns.source'), tip: t('tips.views.keeperDetail.columns.source'), render: (x) => <span {...tip(enumTip(t, 'wakeSource', x.wakeSource))}>{enumLabel(t, 'wakeSource', x.wakeSource)}</span> },
+                { key: 'outcome', label: t('views.keeperDetail.columns.outcome'), tip: t('tips.views.keeperDetail.columns.outcome'), render: (x) => (x.finishedUtc || x.outcome ? <TickOutcomeBadge outcome={x.outcome} t={t} /> : <Badge tone="info" tip={t('tips.resources.keepers.ticking')}>{t('resources.keepers.ticking')}</Badge>) },
+                { key: 'run', label: t('views.keeperDetail.columns.run'), tip: t('tips.views.keeperDetail.columns.run'), cellClass: 'cell-id', render: (x) => (x.runId ? runLink(x.runId, `keeper-tick-run-${x.id}`) : '-') },
+                {
+                  key: 'interval',
+                  label: t('views.keeperDetail.columns.interval'),
+                  tip: t('tips.views.keeperDetail.columns.interval'),
+                  cellClass: 'nowrap',
+                  render: (x) => (
+                    <>
+                      {formatInterval(t, x.appliedIntervalSeconds)}
+                      {x.requestedNextWakeSeconds ? <span className="text-muted" {...tip(t('tips.views.keeperDetail.requested'))}>{` (${t('views.keeperDetail.requested', { interval: formatInterval(t, x.requestedNextWakeSeconds) })})`}</span> : null}
+                    </>
+                  )
+                },
+                { key: 'cost', label: t('views.keeperDetail.columns.cost'), tip: t('tips.views.keeperDetail.columns.cost'), headerClass: 'right', cellClass: 'right', render: (x) => usd(x.costUsd) },
+                {
+                  key: 'summary',
+                  label: t('views.keeperDetail.columns.summary'),
+                  tip: t('tips.views.keeperDetail.columns.summary'),
+                  cellClass: 'keeper-tick-summary',
+                  render: (x) => (
+                    <>
+                      {x.summary ? <span {...tip(x.summary)}>{x.summary.length > 160 ? `${x.summary.slice(0, 160)}...` : x.summary}</span> : null}
+                      {x.errorMessage ? <span className="text-danger" {...tip(x.errorCode || '')}>{x.errorMessage}</span> : null}
+                      {!x.summary && !x.errorMessage ? '-' : null}
+                    </>
+                  )
+                }
+              ]}
             />
-            <div className="table-scroll">
-              <table className="data-table compact" data-testid="keeper-ticks-table">
-                <thead>
-                  <tr>
-                    <th scope="col" {...tip(t('tips.views.keeperDetail.columns.started'))}>{t('views.keeperDetail.columns.started')}</th>
-                    <th scope="col" {...tip(t('tips.views.keeperDetail.columns.source'))}>{t('views.keeperDetail.columns.source')}</th>
-                    <th scope="col" {...tip(t('tips.views.keeperDetail.columns.outcome'))}>{t('views.keeperDetail.columns.outcome')}</th>
-                    <th scope="col" {...tip(t('tips.views.keeperDetail.columns.run'))}>{t('views.keeperDetail.columns.run')}</th>
-                    <th scope="col" {...tip(t('tips.views.keeperDetail.columns.interval'))}>{t('views.keeperDetail.columns.interval')}</th>
-                    <th scope="col" className="right" {...tip(t('tips.views.keeperDetail.columns.cost'))}>{t('views.keeperDetail.columns.cost')}</th>
-                    <th scope="col" {...tip(t('tips.views.keeperDetail.columns.summary'))}>{t('views.keeperDetail.columns.summary')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ticks.items.map((x) => (
-                    <tr key={x.id} data-tick={x.id} data-outcome={x.outcome || ''}>
-                      <td className="nowrap">{when(x.startedUtc)}</td>
-                      <td>
-                        <span {...tip(enumTip(t, 'wakeSource', x.wakeSource))}>{enumLabel(t, 'wakeSource', x.wakeSource)}</span>
-                      </td>
-                      <td>{x.finishedUtc || x.outcome ? <TickOutcomeBadge outcome={x.outcome} t={t} /> : <Badge tone="info" tip={t('tips.resources.keepers.ticking')}>{t('resources.keepers.ticking')}</Badge>}</td>
-                      <td className="cell-id">{x.runId ? runLink(x.runId, `keeper-tick-run-${x.id}`) : '-'}</td>
-                      <td className="nowrap">
-                        {formatInterval(t, x.appliedIntervalSeconds)}
-                        {x.requestedNextWakeSeconds ? <span className="text-muted" {...tip(t('tips.views.keeperDetail.requested'))}>{` (${t('views.keeperDetail.requested', { interval: formatInterval(t, x.requestedNextWakeSeconds) })})`}</span> : null}
-                      </td>
-                      <td className="right">{usd(x.costUsd)}</td>
-                      <td className="keeper-tick-summary">
-                        {x.summary ? <span {...tip(x.summary)}>{x.summary.length > 160 ? `${x.summary.slice(0, 160)}...` : x.summary}</span> : null}
-                        {x.errorMessage ? <span className="text-danger" {...tip(x.errorCode || '')}>{x.errorMessage}</span> : null}
-                        {!x.summary && !x.errorMessage ? '-' : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </>
         )}
       </section>
@@ -569,60 +576,62 @@ export default function KeeperDetailView({ recordId }) {
         {revisions.length === 0 ? (
           <EmptyNote>{t('views.keeperDetail.noRevisions')}</EmptyNote>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table compact" data-testid="keeper-revisions-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="right" {...tip(t('tips.views.keeperDetail.columns.number'))}>{t('views.keeperDetail.columns.number')}</th>
-                  <th scope="col" {...tip(t('tips.views.keeperDetail.columns.state'))}>{t('views.keeperDetail.columns.state')}</th>
-                  <th scope="col" {...tip(t('tips.views.keeperDetail.columns.revisionSource'))}>{t('views.keeperDetail.columns.revisionSource')}</th>
-                  <th scope="col" {...tip(t('tips.views.keeperDetail.columns.author'))}>{t('views.keeperDetail.columns.author')}</th>
-                  <th scope="col" {...tip(t('tips.views.keeperDetail.columns.changeNote'))}>{t('views.keeperDetail.columns.changeNote')}</th>
-                  <th scope="col" {...tip(t('tips.views.keeperDetail.columns.created'))}>{t('views.keeperDetail.columns.created')}</th>
-                  <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>{t('common.generic.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {revisions.map((r) => (
-                  <tr key={r.id} data-revision={r.number}>
-                    <td className="right">
-                      {formatNumber(r.number, {}, lng)}
-                      {r.id === m.currentRevisionId && (
-                        <>
-                          {' '}
-                          <Badge tone="success" tip={t('tips.views.keeperDetail.current')}>{t('views.keeperDetail.current')}</Badge>
-                        </>
-                      )}
-                    </td>
-                    <td>
-                      <span {...tip(enumTip(t, 'mandateRevisionState', r.state))}>{enumLabel(t, 'mandateRevisionState', r.state)}</span>
-                    </td>
-                    <td>
-                      <span {...tip(enumTip(t, 'mandateRevisionSource', r.source))}>{enumLabel(t, 'mandateRevisionSource', r.source)}</span>
-                    </td>
-                    <td>{r.author || '-'}</td>
-                    <td>{r.changeNote ? <span {...tip(r.changeNote)}>{r.changeNote.length > 80 ? `${r.changeNote.slice(0, 80)}...` : r.changeNote}</span> : '-'}</td>
-                    <td className="nowrap">{when(r.createdUtc)}</td>
-                    <td className="right nowrap">
-                      <button type="button" className="button-ghost button-sm" onClick={() => setDiffOf(r)} data-testid={`keeper-revision-diff-${r.number}`} {...tip(t('tips.views.keeperDetail.diff'))}>
-                        {t('views.keeperDetail.diff')}
-                      </button>
-                      {r.state === 'Draft' &&
-                        (() => {
-                          // A draft that says the same as the current revision cannot be published (409 RevisionUnchanged).
-                          const blocked = deniedUpdate || (sameRevisionContent(r, m.currentRevision) ? t('tips.keeperRevision.unchanged') : '');
-                          return (
-                            <button type="button" className="button-secondary button-sm" disabled={busy} onClick={() => !blocked && publish(r)} data-testid={`keeper-revision-publish-${r.number}`} {...deniedProps(blocked)} {...tip(blocked || t('tips.keeperRevision.publish'))}>
-                              {t('components.keeperRevision.publish')}
-                            </button>
-                          );
-                        })()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LocalTableFrame
+            tableId="keeper-revisions"
+            testId="keeper-revisions-table"
+            compact
+            items={revisions}
+            rowProps={(r) => ({ 'data-revision': r.number })}
+            columns={[
+              {
+                key: 'number',
+                label: t('views.keeperDetail.columns.number'),
+                tip: t('tips.views.keeperDetail.columns.number'),
+                headerClass: 'right',
+                cellClass: 'right nowrap',
+                render: (r) => (
+                  <>
+                    {formatNumber(r.number, {}, lng)}
+                    {r.id === m.currentRevisionId && (
+                      <>
+                        {' '}
+                        <Badge tone="success" tip={t('tips.views.keeperDetail.current')}>{t('views.keeperDetail.current')}</Badge>
+                      </>
+                    )}
+                  </>
+                )
+              },
+              { key: 'state', label: t('views.keeperDetail.columns.state'), tip: t('tips.views.keeperDetail.columns.state'), render: (r) => <span {...tip(enumTip(t, 'mandateRevisionState', r.state))}>{enumLabel(t, 'mandateRevisionState', r.state)}</span> },
+              { key: 'source', label: t('views.keeperDetail.columns.revisionSource'), tip: t('tips.views.keeperDetail.columns.revisionSource'), render: (r) => <span {...tip(enumTip(t, 'mandateRevisionSource', r.source))}>{enumLabel(t, 'mandateRevisionSource', r.source)}</span> },
+              { key: 'author', label: t('views.keeperDetail.columns.author'), tip: t('tips.views.keeperDetail.columns.author'), render: (r) => r.author || '-' },
+              { key: 'changeNote', label: t('views.keeperDetail.columns.changeNote'), tip: t('tips.views.keeperDetail.columns.changeNote'), render: (r) => (r.changeNote ? <span {...tip(r.changeNote)}>{r.changeNote.length > 80 ? `${r.changeNote.slice(0, 80)}...` : r.changeNote}</span> : '-') },
+              { key: 'created', label: t('views.keeperDetail.columns.created'), tip: t('tips.views.keeperDetail.columns.created'), cellClass: 'nowrap', render: (r) => when(r.createdUtc) },
+              {
+                key: 'actions',
+                label: t('common.generic.actions'),
+                tip: t('tips.table.actionsColumn'),
+                headerClass: 'right',
+                cellClass: 'right nowrap',
+                render: (r) => (
+                  <>
+                    <button type="button" className="button-ghost button-sm" onClick={() => setDiffOf(r)} data-testid={`keeper-revision-diff-${r.number}`} {...tip(t('tips.views.keeperDetail.diff'))}>
+                      {t('views.keeperDetail.diff')}
+                    </button>
+                    {r.state === 'Draft' &&
+                      (() => {
+                        // A draft that says the same as the current revision cannot be published (409 RevisionUnchanged).
+                        const blocked = deniedUpdate || (sameRevisionContent(r, m.currentRevision) ? t('tips.keeperRevision.unchanged') : '');
+                        return (
+                          <button type="button" className="button-secondary button-sm" disabled={busy} onClick={() => !blocked && publish(r)} data-testid={`keeper-revision-publish-${r.number}`} {...deniedProps(blocked)} {...tip(blocked || t('tips.keeperRevision.publish'))}>
+                            {t('components.keeperRevision.publish')}
+                          </button>
+                        );
+                      })()}
+                  </>
+                )
+              }
+            ]}
+          />
         )}
       </section>
 

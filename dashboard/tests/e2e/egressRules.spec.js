@@ -27,6 +27,10 @@ test('the deployment form edits egress rules and sends them with an empty port a
   });
   await login(page);
   await page.goto('/dashboard/deployments');
+  // The column is hidden by default so the table fits at 1366 px; turn it on with the Columns control.
+  await page.getByTestId('column-picker').click();
+  await page.locator('.column-picker-item', { hasText: /^Egress$/ }).locator('input').check();
+  await page.keyboard.press('Escape');
   await expect(page.locator('.data-table tbody tr', { hasText: 'deployment-4' }).getByTestId('egress-rules-cell')).toContainText('Allowlist, 2 rules');
   await expect(page.locator('.data-table tbody tr', { hasText: 'deployment-1' }).getByTestId('egress-rules-cell')).toHaveCount(0);
   await page.locator('.data-table tbody tr', { hasText: 'deployment-4' }).getByText('deployment-4', { exact: true }).click();

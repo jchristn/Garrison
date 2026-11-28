@@ -19,28 +19,9 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import useDebounce from '../hooks/useDebounce';
-import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '../utils/constants';
+import { savedPageSize, persistPageSize } from '../hooks/usePageSizePref';
 import { buildListParams, sortLocal, SERVER_SORT_KEYS, stripForDuplicate, toLocalInput, toUtcIso } from '../utils/query';
 import { errorMessage, errorDetail, isMissingEndpoint, fieldErrorMessages, withListItemErrors } from '../utils/errors';
-
-function savedPageSize(tableId) {
-  try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.pageSize) || '{}');
-    return all[tableId] || DEFAULT_PAGE_SIZE;
-  } catch {
-    return DEFAULT_PAGE_SIZE;
-  }
-}
-
-function persistPageSize(tableId, size) {
-  try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.pageSize) || '{}');
-    all[tableId] = size;
-    localStorage.setItem(STORAGE_KEYS.pageSize, JSON.stringify(all));
-  } catch {
-    /* ignore */
-  }
-}
 
 /** A free-text filter (for example a run ID) that applies after typing pauses, so each keystroke is not a request. */
 function TextFilter({ filter, value, onChange, tipText, t }) {
