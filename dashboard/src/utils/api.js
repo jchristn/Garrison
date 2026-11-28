@@ -1426,6 +1426,15 @@ class ApiClient {
     return this._request('GET', this._t(tenantId, `organizations/${enc(orgId)}/spend`));
   }
 
+  /**
+   * Run the publish checks over the working tree without publishing (LP3.7). Answers { valid, problems: [{ code
+   * (UnitWithoutLead, AgentInTwoUnits, PeerLineToMissingUnit, BudgetOverParent, KeeperDeploymentMissing, or
+   * UnitDetachedFromRoot), unitId, agentId, mandateId, message }] }.
+   */
+  validateOrganization(tenantId, orgId) {
+    return this._request('POST', this._t(tenantId, `organizations/${enc(orgId)}/validate`));
+  }
+
   // ------------------------------------------------------------------ change rules and proposals (AA8)
 
   /** Change rules, newest first. filters: organization, unit (ID or name), activeOnly, search, pageNumber, pageSize. */
@@ -2036,6 +2045,22 @@ class ApiClient {
 
   listRunChildren(tenantId, id) {
     return this._list(this._t(tenantId, `runs/${enc(id)}/children`), {});
+  }
+
+  /**
+   * The activity trail of a run (LP1.6): every hop from the request that started the chain, through each agent,
+   * message, child run, report, escalation, approval, and tool effect, back to the reply. The server walks back to the
+   * origin and marks the requested run as the focus. The trail carries no agent-written text (LP-002). Options:
+   * includeEffects (default true). Answers 404 for a missing or another tenant's run.
+   */
+  getRunTrail(tenantId, id, { includeEffects = true } = {}) {
+    return this._request('GET', this._t(tenantId, `runs/${enc(id)}/trail`), { query: { includeEffects: includeEffects ? 'true' : 'false' } });
+  }
+
+  /** The gateway effect operations of a run (the tool, its state, and an argument digest, never the arguments). */
+  async listRunOperations(tenantId, id) {
+    const res = await this._request('GET', this._t(tenantId, `runs/${enc(id)}/operations`));
+    return Array.isArray(res) ? res : Array.isArray(res?.objects) ? res.objects : [];
   }
 
   // ------------------------------------------------------------------ fan-out groups (AD5)
