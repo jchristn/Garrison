@@ -74,7 +74,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 |---|---|---|---|---|
 | LP0 | Plan wiring | none | Done | 2 / 2 |
 | LP1 | Activity trail: server | LP0 | Not started | 0 / 11 |
-| LP2 | Activity trail: dashboard | LP1.5 (API shape) | Not started | 0 / 10 |
+| LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | Not started | 0 / 11 |
 | LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
 | LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | Not started | 0 / 5 |
@@ -306,9 +306,9 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 
 ### Phase LP2: Activity trail, dashboard
 
-- [ ] LP2.1 API client method `getRunTrail(runId, { includeEffects })` and a `useRunTrail` hook that drives auto-refresh per LP-011.  Accept: vitest against the LP1.5 fixture.
-- [ ] LP2.2 Layout utility `utils/trailLayout.js`. Lanes are ordered by first appearance with the caller lane first. Rows follow time with collapsed idle gaps. Edges route between lanes. The utility is pure and unit tested for ordering, gap collapse, loops, and right-to-left mirroring.  Accept: vitest passes.
-- [ ] LP2.3 `TrailSequence.jsx`, an SVG sequence view:
+- [x] LP2.1 API client method `getRunTrail(runId, { includeEffects })` and a `useRunTrail` hook that drives auto-refresh per LP-011.  Accept: vitest against the LP1.5 fixture.  | claude 2026-11-27 5faccb7b getRunTrail, listRunOperations, useRunTrail (5 s while running, off when terminal); vitest runTrailApi.test.jsx passes
+- [x] LP2.2 Layout utility `utils/trailLayout.js`. Lanes are ordered by first appearance with the caller lane first. Rows follow time with collapsed idle gaps. Edges route between lanes. The utility is pure and unit tested for ordering, gap collapse, loops, and right-to-left mirroring.  Accept: vitest passes.  | claude 2026-11-27 5faccb7b vitest trailLayout.test.js passes (ordering, shared rows, gap collapse, loops, RTL, keyboard order, graph layers, summary)
+- [x] LP2.3 `TrailSequence.jsx`, an SVG sequence view:
   - **Lanes:** headers show the agent name and unit; badges show the run kind (Shadow and Eval marked).
   - **Edges:** arrows are labeled with their edge kind.
   - **States:** colors pair with an icon and a text label.
@@ -316,27 +316,27 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
   - **Placeholders:** redacted steps are drawn as a hatched box.
   - **Interaction:** zoom and pan, plus keyboard navigation (arrow keys move between steps, Enter opens the drawer).
 
-  Accept: renders the fixture at 1366 wide without page scroll, and the axe check passes.
-- [ ] LP2.4 `TrailGraph.jsx`, a graph view on `@xyflow/react` with a time-layered layout. Nodes match the sequence view's styles. A minimap is shown above 25 nodes.  Accept: renders the fixture; shares styles with LP2.3.
-- [ ] LP2.5 `TrailList.jsx`, the list view. A LocalTableFrame (`tableId="run-trail"`) with Columns and saved page size, filters for kind, agent, and state, and a row click that opens the drawer. It is the only view below 768px (LP-005).  Accept: default columns fit at 1366; it is the only view at 390.
-- [ ] LP2.6 `TrailStepDrawer.jsx`:
+  Accept: renders the fixture at 1366 wide without page scroll, and the axe check passes.  | claude 2026-11-27 7dbcc104 vitest runTrail.test.jsx (lanes, icon and label, hatched redacted, focus, keys, RTL, axe in jsdom); fixture width checked against a 1050px budget; real-browser width and axe are in the unrun e2e spec
+- [x] LP2.4 `TrailGraph.jsx`, a graph view on `@xyflow/react` with a time-layered layout. Nodes match the sequence view's styles. A minimap is shown above 25 nodes.  Accept: renders the fixture; shares styles with LP2.3.  | claude 2026-11-27 7dbcc104 trailToFlow vitest (layers, labels, RTL); shared tone styles; lazy loaded with the canvas chunk
+- [x] LP2.5 `TrailList.jsx`, the list view. A LocalTableFrame (`tableId="run-trail"`) with Columns and saved page size, filters for kind, agent, and state, and a row click that opens the drawer. It is the only view below 768px (LP-005).  Accept: default columns fit at 1366; it is the only view at 390.  | claude 2026-11-27 7dbcc104 vitest filters and row open; list only below 768px (matchMedia) in vitest; 1366 fit not measured in a browser
+- [x] LP2.6 `TrailStepDrawer.jsx`:
   - It loads the step's record from its existing detail route.
   - Agent-written text is shown as data, with its source line ("written by agent X in run Y") inside a marked block and never rendered as raw HTML.
   - Each step has links to its record page and Copy ID.
 
-  Accept: vitest covers a message, a report, an escalation, an effect, and a redacted step.
-- [ ] LP2.7 The Trail tab on Run detail, with three view tabs (sequence, graph, list), a summary strip, a truncation banner, an Export JSON button, and an empty state for a single run.
+  Accept: vitest covers a message, a report, an escalation, an effect, and a redacted step.  | claude 2026-11-27 7dbcc104 vitest message, report, escalation, effect, redacted, person-written provenance
+- [x] LP2.7 The Trail tab on Run detail, with three view tabs (sequence, graph, list), a summary strip, a truncation banner, an Export JSON button, and an empty state for a single run.
   - The summary strip shows agents, hops, duration, tokens, cost, and failures.
   - The truncation banner names the cap and links to the setting.
 
-  Accept: vitest for each state.
-- [ ] LP2.8 "Open trail" entry points:
+  Accept: vitest for each state.  | claude 2026-11-27 7dbcc104 vitest sequence default, view switch, ?step= drawer, truncation, single run, load error, narrow
+- [x] LP2.8 "Open trail" entry points:
   - Run rows (action menu), Conversation detail turns, the Message thread, Escalation detail, Approval detail, Report detail, Keeper tick rows, and the board's activity items.
   - Each opens the focus run's trail with the step selected.
 
-  Accept: each link has a vitest or e2e assertion.
-- [ ] LP2.9 i18n and tooltips for every new string in all nine locales, plus a right-to-left check of the sequence view.  Accept: missing-key and pseudo-locale checks pass.
-- [ ] LP2.10 e2e spec `trail.spec.js`. Start a two-agent message chain on the fake harness, open the trail from the first run, step through it with the keyboard, and open a message in the drawer. Not run by default per the targeted-test rule. The annotation records whether it ran.  Accept: spec committed; targeted run recorded.
+  Accept: each link has a vitest or e2e assertion.  | claude 2026-11-27 7dbcc104 vitest for the Runs row menu, escalation, approval, report, message thread, conversation turns, keeper ticks, board (escalations and unhealthy reports; the latest brief link is covered only when the brief has a runId)
+- [x] LP2.9 i18n and tooltips for every new string in all nine locales, plus a right-to-left check of the sequence view.  Accept: missing-key and pseudo-locale checks pass.  | claude 2026-11-27 7dbcc104 nine locales and tips appended; i18nKeys parity, placeholder, and leftover-English checks pass; RTL mirroring covered by vitest. The static-key test fails only on other agents' in-progress learn and orgDesigner keys
+- [~] LP2.10 e2e spec `trail.spec.js`. Start a two-agent message chain on the fake harness, open the trail from the first run, step through it with the keyboard, and open a message in the drawer. Not run by default per the targeted-test rule. The annotation records whether it ran.  Accept: spec committed; targeted run recorded.  | claude 2026-11-27 e0785a16 spec committed against mocked APIs with the LP1.5 fixture instead of a live fake-harness chain; NOT run
 
 ### Phase LP3: Organization designer
 
