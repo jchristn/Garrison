@@ -51,6 +51,7 @@ These are the 0.3.0 guides. Read them roughly in order: a keeper is the unit eve
 | Let an agent ask a person, a role, or another agent for a decision, with or without waiting | [Escalations](ESCALATIONS.md) |
 | Let agents message each other, wake each other for urgent work, and stop loops | [Messaging](MESSAGING.md) |
 | Have agents report status, metrics, issues, and decisions to the agents and people above them | [Reports](REPORTS.md) |
+| Follow a request from the caller through every agent, message, and record it reached, and back | [Activity trails](TRAILS.md) |
 | Share memory between the agents of an app or an organization unit, with provenance on every entry | [Agent memory](AGENT_MEMORY.md#who-may-use-which-scope) |
 | Arrange agents into an organization with leads, reporting and peer lines, shared unit memory, budgets, and performance rollups | [Organizations](ORGANIZATIONS.md) |
 | Let a unit lead propose changes to the units below it, and pre-authorize routine ones with change rules | [Executives](EXECUTIVES.md), [executive drafts in the studio](STUDIO.md#executives) |
