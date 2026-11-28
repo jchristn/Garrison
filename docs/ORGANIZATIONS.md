@@ -75,6 +75,48 @@ Every edit to the working tree is checked against the whole tree, and so is ever
 
 Field errors (a name that is too long, an agent, mandate, or app that does not exist, a lead mandate without a lead) answer 400 `ValidationFailed` with the field. Deleting a unit also deletes the peer lines that point at it.
 
+## Designing in the dashboard
+
+The Design tab on an organization's page is a canvas over the working tree. Units are drawn as boxes nested inside their parents, so the reporting lines are the nesting itself. Each box shows the unit's lead and members, and peer lines run between the boxes. The canvas is the same one the studio uses for draft organizations ([STUDIO.md](STUDIO.md#organizations-on-the-canvas)). Here every change goes through the unit routes above, with the permissions they already need. Nothing on the Design tab is live. The page header's Publish button snapshots the working tree and publishes it exactly as before, and the pending-changes banner still says how far the tree has drifted from the live revision.
+
+Below 768 pixels the canvas has no room, so the Design tab falls back to the chart cards with their Edit, Add unit below, and Remove buttons. Those buttons write to the same working tree.
+
+You add a unit from the toolbar: its name, its parent, and optionally a lead and the lead's title. Selecting a unit opens its panel, which has four tabs:
+
+| Tab | What you can do there |
+|---|---|
+| People | Change the lead and its title, move the unit under another parent, add and remove members, start or remove peer lines, add a unit below, or remove the unit (after a confirmation) |
+| Keepers | See the keeper attached to each person's position and when it wakes next. Attach another of that agent's keepers, detach one, create a new keeper with the keeper form (the agent is filled in, and the new keeper is attached to the position), or open New revision to change the wake schedule |
+| Budget | Set or clear the Day and Month budgets. The tab shows what the subtree has spent in the current window, the most the budget may be (the budget of the nearest unit above with one for the same period), and how much of that the parent has left. A budget the server refuses with `BudgetExceedsParent` or `BudgetInvalid` stays in the field, with the server's reason under it |
+| Rules | The [change rules](EXECUTIVES.md) that cover the unit, which are the rules set on it or on any unit above it. Add rule and Edit open the change rule form with the organization and unit filled in |
+
+Change rules are written by people only, and the canvas keeps it that way: the Rules tab lists rules and opens the existing rule form, and nothing on the canvas or in a studio draft writes a rule. A caller signed in with a run token sees the tab read-only, with the reason in place of the buttons, because the rule routes answer 403 `RulesArePeopleOnly` to runs.
+
+People are placed from the palette beside the canvas, which lists the tenant's agents with the unit each one already sits in. Drag an agent onto a unit box to add it as a member, or onto the box's lead row to make it the lead. A member who becomes the lead leaves the member list, because an agent holds one position per organization. From the keyboard, pick an agent in the palette and either choose a unit and a position in the bar that opens, or focus a unit on the canvas and press Enter for a member or L for the lead. New agent opens the agent form, and the new agent joins the selected unit when you save it.
+
+Undo and Redo sit in the toolbar, with Ctrl+Z and Ctrl+Shift+Z or Ctrl+Y (Cmd on a Mac). Undo sends the opposite change through the same routes rather than restoring a saved copy: a removed member is added again with its title, a moved unit goes back under its old parent, and a removed unit is rebuilt with its lead, members, peer lines, budgets, and keepers. If someone else changed the unit in the meantime, the opposite change is checked like any other edit and may be refused.
+
+### Live checks
+
+After every change the canvas runs the publish checks against the working tree without publishing (`POST .../organizations/{id}/validate`) and lists what they found under the outline. Each entry has a button that selects the unit on the canvas, and a unit with problems carries a count on its box. Errors stop a publish. Warnings are worth fixing but do not:
+
+| Severity | Codes |
+|---|---|
+| Error | `AgentInTwoUnits`, `PeerLineToMissingUnit`, `BudgetOverParent`, `UnitDetachedFromRoot`, `OneRoot`, `Cycle`, `UnitNameTaken`, `TooManyUnits`, `TooManyMembers`, `TooManyPeerLines`, `BudgetPeriodTaken`, `BudgetInvalid`, `AgentInactive` |
+| Warning | `UnitWithoutLead`, `KeeperDeploymentMissing` (an attached keeper whose deployment is missing or inactive), `MandateMismatch` |
+
+Most errors cannot reach the working tree in the first place, because the unit routes refuse them at write time. They show up when something changes underneath the tree, such as an agent deactivated after it joined. A dashboard talking to an older server without the validate route runs the main checks itself and lists them the same way.
+
+### Templates
+
+New from template on the Organizations page starts an organization three ways. Blank asks for a name and creates an empty organization. Gerbil applies [examples/autonomous/gerbil](../examples/autonomous/gerbil) with a one-unit organization, `gerbil-org`, whose lead is the gerbil keeper. Site reliability applies [examples/autonomous/site-reliability-org](../examples/autonomous/site-reliability-org): the reliability lead, three keepers, a memory curator, budgets, and peer lines. Both examples run on the fake harness, so they need no credentials.
+
+The two example templates go through the manifest apply route, the same as the setup wizard's sample. The dialog first runs the manifest as a dry run and lists every resource it would create or change, and Apply stays off until that preview comes back clean. The keepers in a template start waking within seconds of the apply. The site reliability example's change rules and eval set are not part of the template, since manifests have no kind for them. Add rules afterwards on the Rules tab. The new organization opens on its Design tab.
+
+### The chart as a canvas
+
+The Chart tab keeps the card tree, and above 768 pixels a Tree and Canvas switch draws the same units on a read-only canvas instead. Each box shows the unit's health from its latest report, its spend against each budget in the current window, and its runs, escalations, and cost over the last day, 7 days, or 30 days. The activity numbers come from the [Performance](#performance) response, so they match that page. Selecting a unit lists a sample of its recent runs, each with a link to the run and to its activity trail.
+
 ## Revisions, publish, and rollback
 
 `POST .../revisions` snapshots the working tree as a `Draft` revision: its units with their members, peer lines, and budgets, and the current revision of every mandate the units name. Revisions are numbered from 1 in each organization and never change once written.

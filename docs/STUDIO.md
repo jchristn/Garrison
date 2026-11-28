@@ -138,6 +138,14 @@ The System prompt is edited on Runtime rather than Agent because that is where G
 
 Saved edits appear in Diff and apply like any other item change. Mistakes show where they happen: a schema that is not JSON is caught in the browser before anything is sent, a field error from the server shows under its field with its field code translated, and when validation fails for the item (an `InvalidJsonSchema` from the dry run, say) the panel shows the server's message next to the field it concerns.
 
+### Organizations on the canvas
+
+When a draft holds an `Organization` item, the Graph tab switches between apps and organizations. An organization is drawn as nested unit boxes, the same way the Design tab of a published organization draws it ([ORGANIZATIONS.md](ORGANIZATIONS.md#designing-in-the-dashboard)). Both are one canvas component fed by a different source. In the studio, the source turns each change into one of the unit operations listed under [The graph](#the-graph): `AddUnit`, `RemoveUnit`, `AddUnitMember`, `RemoveUnitMember`, `ConnectUnits`, and `DisconnectUnits`. Each one rewrites the draft's `Organization` item, queued and versioned like every other canvas change.
+
+A draft has no operation for changing a lead after the unit exists, moving a unit to another parent, setting budgets, or attaching keepers. The studio canvas therefore leaves those out. Change them in the `Organization` item's document, or apply the draft and finish on the Design tab. Change rules never appear in a draft at all. Only people write them, on the organization itself.
+
+Undo and Redo work here too (Ctrl+Z, and Ctrl+Shift+Z or Ctrl+Y). Undo sends the opposite unit operation, so undoing a removed unit adds it back with its lead, members, and peer lines. Under the outline the canvas lists the problems it can see in the draft's tree after each change: a unit without a lead, an agent in two units, a peer line to a unit that is not there, and a unit with no path to the root. The dashboard works these out from the draft graph itself, because the studio's Validate is a dry run of the whole draft and too heavy to repeat on every change. Budget and keeper problems are left to that dry run, which runs the full publish checks before the draft can be applied.
+
 ### Live updates and conflicts
 
 The canvas follows the draft's `studio-draft:{id}` channel, or polls every five seconds when the channel is not available. When the architect connects two agents through its graph tools, or a colleague moves a box, the canvas redraws without a reload, and the banner above the tabs says what moved.
