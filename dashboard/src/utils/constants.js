@@ -15,8 +15,21 @@ export const STORAGE_KEYS = {
   tourDone: 'garrison_tour_done',
   sidebarCollapsed: 'garrison_sidebar_collapsed',
   explainers: 'garrison_explainers_hidden',
-  invokeStopOnLeave: 'garrison_invoke_stop_on_leave'
+  invokeStopOnLeave: 'garrison_invoke_stop_on_leave',
+  // LP4.5 and LP4.8: per user (the key is followed by :<tenant>:<principal>), see utils/tours.js userStorageKey.
+  toursDone: 'garrison_tours_done',
+  setupSkipped: 'garrison_setup_skipped',
+  learnCardDismissed: 'garrison_learn_card_dismissed'
 };
+
+/**
+ * Guided tours (LP4.5). How long a step waits for its target to appear after the engine navigates, in milliseconds,
+ * before the step is skipped with a note. Default 3000; values below 250 are treated as 250.
+ */
+export const TOUR_TARGET_TIMEOUT_MS = 3000;
+
+/** How often a tour step looks for its target while it waits, in milliseconds. Default 100. */
+export const TOUR_TARGET_POLL_MS = 100;
 
 export const GITHUB_URL = 'https://github.com/jchristn/Garrison';
 

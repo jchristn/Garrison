@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AppContext from '../context/AppContext';
+import { useTours } from '../context/TourContext';
 import PageHeader from '../components/PageHeader';
 import { tip } from '../components/Tooltip';
 import { HelpIcon } from '../components/Icons';
@@ -13,21 +14,23 @@ import { GLOSSARY, LEARN_SECTIONS, sectionAnchor, tourKey } from '../components/
  * The Learn page (LP4.3): the seven concept diagrams in learning order, each with a short paragraph and a tour, then a
  * glossary in the docs' vocabulary. Static and translated; it calls no API.
  *
- * `startTour(tourId)` starts a tour. The tour engine (LP4.5) will pass the real one. Until it lands, every button opens
- * the existing shell tour through AppContext.setTourOpen, whatever the tour id.
+ * `startTour(tourId)` starts a tour; without it the buttons use the tour engine (LP4.5, TourContext), and outside a
+ * TourProvider they open the tour list through AppContext.setTourOpen.
  */
 export default function LearnView({ startTour }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { hash } = useLocation();
   const app = useContext(AppContext);
+  const tours = useTours();
 
   const begin = useCallback(
     (tourId) => {
       if (startTour) startTour(tourId);
+      else if (tours?.startTour) tours.startTour(tourId);
       else app?.setTourOpen?.(true);
     },
-    [startTour, app]
+    [startTour, tours, app]
   );
 
   // A link such as /dashboard/learn#learn-brakes (from an Explainer) lands on its section.

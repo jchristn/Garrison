@@ -1,81 +1,15 @@
-import { useState, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { useTranslation } from 'react-i18next';
-import { useApp } from '../context/AppContext';
-import { STORAGE_KEYS } from '../utils/constants';
-import { tip } from './Tooltip';
-import { popupStartLeft } from '../utils/direction';
+import TourRunner from './tours/TourRunner';
+import TourPicker from './tours/TourPicker';
 
-const STEPS = [
-  { id: 'sidebar', selector: '[data-tour="sidebar"]' },
-  { id: 'topbar', selector: '[data-tour="topbar"]' },
-  { id: 'kpis', selector: '[data-tour="kpis"]' },
-  { id: 'invoke', selector: '[data-nav="invoke"]' },
-  // AA10.8: keepers and their brakes, then the board that oversees an organization of them.
-  { id: 'autonomy', selector: '[data-nav="autonomy"]' },
-  { id: 'board', selector: '[data-nav="autonomy"]' },
-  // AA11.7: how the units and agents of an organization are doing, and the checks agents cannot grade.
-  { id: 'performance', selector: '[data-nav="autonomy"]' },
-  { id: 'configure', selector: '[data-nav="configuration"]' },
-  { id: 'observe', selector: '[data-nav="monitoring"]' }
-];
-
-/** Guided tour highlighting the main areas. Completion is persisted; replay from the sidebar footer. */
+/**
+ * The guided tours in the shell (LP4.5): the engine that runs the active tour, and the sidebar's list of tours. The
+ * old single shell tour is now the "First look" tour in config/tours.js. Render inside a TourProvider.
+ */
 export default function Tour() {
-  const { t } = useTranslation();
-  const { tourOpen, setTourOpen } = useApp();
-  const [index, setIndex] = useState(0);
-  const [rect, setRect] = useState(null);
-
-  useLayoutEffect(() => {
-    if (!tourOpen) return undefined;
-    const update = () => {
-      const el = document.querySelector(STEPS[index].selector);
-      setRect(el ? el.getBoundingClientRect() : null);
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, [tourOpen, index]);
-
-  if (!tourOpen) return null;
-  const finish = () => {
-    localStorage.setItem(STORAGE_KEYS.tourDone, 'true');
-    setTourOpen(false);
-    setIndex(0);
-  };
-  const step = STEPS[index];
-  const top = rect ? Math.min(window.innerHeight - 200, rect.bottom + 12) : window.innerHeight / 2 - 80;
-  const left = rect ? popupStartLeft(rect, Math.min(340, window.innerWidth - 32), 12) : window.innerWidth / 2 - 160;
-
-  return createPortal(
-    <div className="tour-layer" role="dialog" aria-modal="true" aria-label={t('tour.title')}>
-      {rect && <div className="tour-highlight" style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }} />}
-      <div className="tour-card" style={{ top, left }}>
-        <div className="tour-progress">{t('wizard.stepOf', { step: index + 1, total: STEPS.length })}</div>
-        <h3>{t(`tour.steps.${step.id}.title`)}</h3>
-        <p>{t(`tour.steps.${step.id}.body`)}</p>
-        <div className="tour-actions">
-          <button type="button" className="button-ghost button-sm" onClick={finish} {...tip(t('tips.tour.skip'))}>
-            {t('tour.skip')}
-          </button>
-          {index > 0 && (
-            <button type="button" className="button-secondary button-sm" onClick={() => setIndex((i) => i - 1)} {...tip(t('tips.tour.back'))}>
-              {t('common.actions.back')}
-            </button>
-          )}
-          {index < STEPS.length - 1 ? (
-            <button type="button" className="button-primary button-sm" onClick={() => setIndex((i) => i + 1)} {...tip(t('tips.tour.next'))}>
-              {t('common.actions.next')}
-            </button>
-          ) : (
-            <button type="button" className="button-primary button-sm" onClick={finish} {...tip(t('tips.tour.done'))}>
-              {t('tour.done')}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
+  return (
+    <>
+      <TourRunner />
+      <TourPicker />
+    </>
   );
 }

@@ -13,6 +13,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import SetupWizard from './SetupWizard';
 import Tour from './Tour';
+import { TourProvider } from '../context/TourContext';
 import LegacyRedirect from './LegacyRedirect';
 import { EmptyState } from './States';
 import { useTranslation } from 'react-i18next';
@@ -208,6 +209,7 @@ export default function Dashboard() {
   return (
     <ApprovalsProvider value={approvals}>
       <EscalationsProvider value={escalations}>
+        <TourProvider>
         <div className={cls.join(' ')}>
           <a className="skip-link" href="#main-content" {...tip(t('tips.nav.skipToContent'))}>
             {t('nav.skipToContent')}
@@ -228,6 +230,7 @@ export default function Dashboard() {
           <SetupWizard />
           <Tour />
         </div>
+        </TourProvider>
       </EscalationsProvider>
     </ApprovalsProvider>
   );

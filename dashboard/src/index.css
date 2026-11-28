@@ -2209,3 +2209,26 @@ a.sidebar-utility { text-decoration: none; }
 .org-problem-group { display: flex; flex-direction: column; gap: 4px; }
 .org-problem-group-title { font-size: var(--font-size-sm); font-weight: 600; }
 .org-problem-group.is-warnings .org-problem-list li { border-inline-start-color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, transparent); }
+
+/* Guided tours (LP4.5 to LP4.8): the step card on the tour engine, the hub "?" button, the tour list, the Home card
+   for people who skipped setup, and the setup wizard's last step. The card is placed in viewport pixels by
+   utils/tours.js placeTourCard, so it stays inside the viewport down to 390px wide and in right-to-left layouts. */
+.tour-card { max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box; }
+.tour-card:focus, .tour-card:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.tour-card h3 { margin: 0; font-size: var(--font-size-md, 1rem); }
+.tour-card p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.tour-card .tour-actions button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.tour-note { padding: var(--spacing-xs) var(--spacing-sm); border-inline-start: 3px solid var(--color-warning); background: color-mix(in srgb, var(--color-warning) 10%, transparent); border-radius: var(--radius-sm, 4px); font-size: var(--font-size-sm); }
+.tour-note p + p { margin-top: 0.25rem; }
+.hub-tour-button { display: inline-flex; align-items: center; justify-content: center; min-width: 2.25rem; padding-inline: var(--spacing-sm); }
+.hub-header { display: flex; align-items: flex-start; gap: var(--spacing-sm); }
+.hub-header .page-header-text { flex: 1 1 auto; min-width: 0; }
+.tour-picker { list-style: none; padding: 0; margin: var(--spacing-md) 0 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.tour-picker-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.tour-picker-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.tour-picker-count { font-size: var(--font-size-xs); }
+.tour-sample-items li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }
+.home-learn-card { margin-bottom: var(--spacing-md); }
+.wizard-next { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--spacing-xs); }
+@media (max-width: 480px) { .tour-picker-row { flex-direction: column; align-items: stretch; } }
+@media (prefers-reduced-motion: reduce) { .tour-card { scroll-behavior: auto; } }
