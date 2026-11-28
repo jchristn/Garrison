@@ -2,8 +2,10 @@
 // peer lines, and budgets, versioned by org revisions. Re-exported by resourceConfigs.jsx so the configuration-wide
 // tests (tooltips, i18n keys, enum labels) cover it.
 
+import { Suspense, lazy } from 'react';
 import CopyableId from '../components/CopyableId';
 import { OrganizationStatusBadge } from '../components/OrganizationBadges';
+import { WandIcon } from '../components/Icons';
 import { tip } from '../components/Tooltip';
 import { ORGANIZATION_LIMITS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
@@ -14,6 +16,9 @@ import { organizationFormErrors, organizationFormToBody, organizationToForm } fr
 import { deniedReasonFor, permissionsLookup } from '../utils/permissions';
 
 const ID = 'organizations';
+
+// The template picker carries the example manifests and the YAML library, so it loads when opened (LP3.8).
+const OrgTemplateModal = lazy(() => import('../components/orgDesigner/OrgTemplateModal'));
 
 function col(t, key, render, extra = {}) {
   return { key, label: t(`resources.${ID}.columns.${key}`), tip: resourceTip(t, ID, key), render, ...extra };
@@ -35,7 +40,8 @@ async function copyId(ctx, id) {
 /**
  * Organizations (AA7.14): by name, with status, the live revision number, and when each was created. Create asks for
  * the name, description, mission, and budget freeze margin (AA11.5) and opens the new organization, which starts as Draft with no units; units,
- * budgets, publishing, and rollback live on the organization's page. Edit changes the name, description, and mission.
+ * budgets, publishing, and rollback live on the organization's page.
+ * New from template (LP3.8) starts from Blank or applies an example organization. Edit changes the name, description, and mission.
  * Delete removes the organization with its units, revisions, and unit and organization memory.
  */
 export const organizationsConfig = {
@@ -64,6 +70,29 @@ export const organizationsConfig = {
   errorFields: (e, t) => (e?.code === 'NameConflict' ? { name: t('organizations.errors.NameConflict') } : null),
   afterCreate: (created, ctx) => {
     if (created?.id) ctx.navigate(pathFor('organizations', created.id));
+  },
+  // LP3.8: start from Blank, Gerbil, or Site reliability.
+  headerActions: ({ t, setExtraModal, lookups }) => {
+    const denied = deniedReasonFor('Organization')('create', null, { t, lookups });
+    return (
+      <button
+        type="button"
+        className="button-secondary"
+        aria-disabled={denied ? 'true' : undefined}
+        onClick={() =>
+          !denied &&
+          setExtraModal(
+            <Suspense fallback={null}>
+              <OrgTemplateModal onClose={() => setExtraModal(null)} />
+            </Suspense>
+          )
+        }
+        data-testid="org-open-templates"
+        {...tip(denied || t('tips.orgDesigner.templates.open'))}
+      >
+        <WandIcon /> {t('components.orgDesigner.templates.open')}
+      </button>
+    );
   },
   columns: ({ t, i18n }) => {
     const lng = i18n.language;

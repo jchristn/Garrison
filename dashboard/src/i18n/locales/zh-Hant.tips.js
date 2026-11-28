@@ -4929,6 +4929,99 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "在畫布上設計此組織的工作樹：單位、負責人、成員、同級線路、守護者、預算，以及適用的變更規則。",
+   "people": "單位的負責人、成員和同級線路，以及在其下新增單位、開始同級線路或移除單位的動作。",
+   "keepers": "單位中每位人員連結的守護者及其下次喚醒時間。可在此連結、解除、新增或重新排程。",
+   "budget": "單位的每日與每月預算、其子樹已花費的金額，以及每項預算的上限。",
+   "rules": "涵蓋此單位的變更規則。規則由人撰寫；此分頁列出規則並開啟規則表單。"
+  },
+  "readOnly": "此檢視只顯示組織。請在「設計」分頁中變更。",
+  "unitOverlay": "顯示健康狀態、支出和活動的單位。選取後可檢視其最近的執行。",
+  "history": {
+   "undo": "送出相反的變更，復原上一次變更（{{change}}）。",
+   "redo": "再次執行變更：{{change}}。",
+   "nothingToUndo": "還沒有可復原的變更。",
+   "nothingToRedo": "沒有可取消復原的變更。"
+  },
+  "palette": {
+   "title": "此租戶的代理程式。把一個拖到單位上，或先選取再選擇單位。",
+   "search": "依名稱篩選代理程式。",
+   "agent": "拖到單位上可新增為成員，拖到單位的負責人那一列可設為負責人。按 Enter 選取後可用鍵盤放置。",
+   "newAgent": "開啟代理程式表單。新代理程式會以成員身分加入所選單位。",
+   "unit": "所選代理程式要去的單位。",
+   "as": "代理程式以成員身分加入，還是成為單位負責人。",
+   "leadOff": "此畫布不能變更負責人，因此代理程式以成員身分加入。",
+   "place": "將所選代理程式新增到所選單位。",
+   "cancel": "不放置，放回代理程式。"
+  },
+  "structure": {
+   "lead": "帶領該單位的代理程式。留空表示沒有負責人。",
+   "title": "負責人的職稱，例如帳務主管。",
+   "setLead": "將此代理程式設為單位負責人。成為負責人的成員會離開成員清單。",
+   "parent": "此單位隸屬的單位。單位不能隸屬於自己或其下層單位。",
+   "move": "將此單位連同其下所有單位移到所選單位之下。",
+   "sameParent": "此單位已經隸屬於該單位。"
+  },
+  "keepers": {
+   "open": "開啟守護者頁面。",
+   "schedule": "為守護者撰寫一個使用不同喚醒排程的新修訂。",
+   "detach": "從此職位解除守護者。守護者本身會保留。",
+   "pick": "此代理程式的另一個守護者，用來連結到此職位。",
+   "attach": "將所選守護者連結到此職位。",
+   "create": "開啟已填入此代理程式的守護者表單。新守護者會連結到此職位。"
+  },
+  "budget": {
+   "period": "一個預算週期。其時間範圍每天或每月重新開始。",
+   "amount": "單位子樹在此週期內最多可花費的金額（美元）。留空表示沒有預算。",
+   "save": "將預算儲存到工作樹。高於上層預算的金額會被伺服器拒絕。",
+   "clear": "移除此預算。",
+   "cap": "此預算的上限：最近一個設有同週期預算的上層單位的預算。"
+  },
+  "rules": {
+   "add": "為此單位開啟變更規則表單。規則涵蓋該單位及其下所有單位。",
+   "edit": "在變更規則表單中開啟此規則。"
+  },
+  "problems": {
+   "title": "發佈檢查在工作樹中發現的問題。每次變更後都會更新。",
+   "show": "在畫布上選取此單位。"
+  },
+  "overlay": {
+   "range": "執行次數、上報和成本的統計時間範圍。",
+   "unit": "您在組織圖中選取的單位。",
+   "runs": "此單位子樹中最近執行的樣本，與「績效」頁面顯示的樣本相同。",
+   "openRun": "開啟執行。",
+   "openTrail": "開啟執行的活動軌跡。"
+  },
+  "chartLayout": {
+   "tree": "以卡片樹狀圖顯示組織圖。",
+   "canvas": "在畫布上顯示組織圖，每個單位上顯示健康狀態、支出和活動。"
+  },
+  "templates": {
+   "open": "新增組織，可以是空組織，也可以依據某個範例組織。",
+   "preview": "以試執行方式執行範本，並列出它會建立或變更的項目。",
+   "previewFirst": "請先查看範本會建立什麼。",
+   "apply": "透過資訊清單套用功能套用範本，並開啟新組織。",
+   "contents": "範本資訊清單中的資源，依類型和名稱列出。",
+   "blank": "一個沒有單位的空組織。",
+   "gerbil": "gerbil 範例：一個監看狀態頁面的守護者，放在只有一個單位的組織中。",
+   "siteReliability": "網站可靠性範例：一位負責人、三個守護者、一位記憶整理員、預算和同級線路。"
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4954,5 +5047,24 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "startTour": "開始{{tour}}導覽，帶你走一遍 Garrison 這一部分用到的頁面。",
   "toc": "跳到本頁的{{title}}。",
   "seeDiagram": "開啟學習頁面，定位到說明此頁面在 Garrison 中位置的圖示。"
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "會阻止發佈的問題。發佈修訂前請先修正。",
+   "warnings": "值得查看但不會阻止發佈的問題。"
+  }
  }
 });

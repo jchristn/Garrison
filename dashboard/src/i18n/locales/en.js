@@ -9003,6 +9003,195 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "Design",
+    "people": "People",
+    "keepers": "Keepers",
+    "budget": "Budget",
+    "rules": "Rules",
+    "label": "Unit {{name}}"
+   },
+   "note": "Changes save to the working tree at once. Nothing goes live until you publish a revision from the page header.",
+   "empty": "No units yet. Add the root unit with Add unit, or start a new organization from a template.",
+   "narrow": "The canvas needs a wider screen, so the units are listed below. Every change still saves to the working tree.",
+   "failed": "{{change}} did not go through.",
+   "operations": {
+    "AddUnit": "Adding the unit",
+    "RemoveUnit": "Removing the unit",
+    "MoveUnit": "Moving the unit",
+    "SetLead": "Changing the lead",
+    "AddUnitMember": "Adding the member",
+    "RemoveUnitMember": "Removing the member",
+    "ConnectUnits": "Adding the peer line",
+    "DisconnectUnits": "Removing the peer line",
+    "SetBudget": "Saving the budget",
+    "AttachMandate": "Attaching the keeper",
+    "DetachMandate": "Detaching the keeper"
+   },
+   "minimap": "Minimap of the organization",
+   "node": {
+    "problems_one": "{{count}} problem",
+    "problems_other": "{{count}} problems"
+   },
+   "announce": {
+    "leadSet": "{{name}} now leads {{unit}}."
+   },
+   "keys": {
+    "undo": "Ctrl+Z undoes the last change, and Ctrl+Shift+Z or Ctrl+Y redoes it (Cmd on a Mac).",
+    "place": "With an agent picked under People, Enter on a unit adds it as a member and L makes it the lead."
+   },
+   "history": {
+    "label": "Undo and redo",
+    "undo": "Undo",
+    "redo": "Redo",
+    "undone": "Undid: {{change}}.",
+    "redone": "Redid: {{change}}.",
+    "methods": {
+     "addUnit": "add unit",
+     "removeUnit": "remove unit",
+     "moveUnit": "move unit",
+     "setLead": "change lead",
+     "addMember": "add member",
+     "removeMember": "remove member",
+     "connectUnits": "add peer line",
+     "disconnectUnits": "remove peer line",
+     "setBudget": "change budget",
+     "attachMandate": "attach keeper",
+     "detachMandate": "detach keeper"
+    }
+   },
+   "palette": {
+    "title": "People",
+    "search": "Search agents",
+    "hint": "Drag an agent onto a unit to add it as a member, or onto the lead row to make it the lead. You can also pick one and choose where it goes.",
+    "none": "This tenant has no agents yet.",
+    "noMatch": "No agent matches the search.",
+    "inUnit": "in {{unit}}",
+    "newAgent": "New agent",
+    "newAgentTitle": "New agent for {{unit}}",
+    "placing": "Place {{name}}:",
+    "unit": "Unit",
+    "as": "As",
+    "asMember": "Member",
+    "asLead": "Lead",
+    "place": "Place"
+   },
+   "structure": {
+    "lead": "Lead",
+    "title": "Lead title",
+    "setLead": "Set lead",
+    "parent": "Reports to",
+    "move": "Move"
+   },
+   "keepers": {
+    "hint": "A keeper is a standing job an agent does on a wake schedule. Each position in the unit can carry one.",
+    "noPeople": "Add a lead or a member first. Keepers attach to the people in a unit.",
+    "lead": "Lead",
+    "member": "Member",
+    "none": "No keeper attached.",
+    "nextWake": "Next wake {{when}}",
+    "notScheduled": "Not scheduled",
+    "every": "every {{interval}}",
+    "schedule": "Edit schedule",
+    "detach": "Detach",
+    "pick": "Keeper to attach",
+    "attach": "Attach",
+    "create": "New keeper",
+    "createTitle": "New keeper for {{name}}"
+   },
+   "budget": {
+    "hint": "A budget caps what the unit and everything below it may spend. Spend is the current window of the live revision.",
+    "amount": "Budget (USD)",
+    "clear": "Clear",
+    "noSpend": "No spend recorded in this window.",
+    "cap": "At most {{amount}}, the {{period}} budget of {{unit}}.",
+    "noCap": "No unit above this one sets a {{period}} budget.",
+    "capLeft": "{{unit}} has {{left}} left in this window."
+   },
+   "rules": {
+    "hint": "Change rules let an executive's routine proposals in this subtree apply without a person. Only people write them.",
+    "add": "Add rule",
+    "none": "No change rule covers this unit.",
+    "here": "Set on this unit.",
+    "above": "Set on {{unit}}, above this unit.",
+    "by": "Written by {{name}}.",
+    "runToken": "Agents cannot write change rules, so a run token sees this list read-only."
+   },
+   "problems": {
+    "title_one": "Checks: {{count}} problem",
+    "title_other": "Checks: {{count}} problems",
+    "checking": "Checking the organization...",
+    "none": "No problems found.",
+    "failed": "The checks could not run: {{reason}}",
+    "show": "Show {{unit}}",
+    "UnitWithoutLead": "{{unit}} has no lead.",
+    "AgentInTwoUnits": "{{agent}} sits in more than one unit, including {{unit}}.",
+    "PeerLineToMissingUnit": "{{unit}} has a peer line to a unit that is not in the organization.",
+    "BudgetOverParent": "The budget of {{unit}} is higher than the budget of a unit above it.",
+    "KeeperDeploymentMissing": "The keeper {{mandate}} of {{agent}} in {{unit}} has no active deployment.",
+    "UnitDetachedFromRoot": "{{unit}} has no path to the root unit."
+   },
+   "overlay": {
+    "range": "Activity range",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "spend": "{{period}}: {{spent}} of {{amount}}",
+    "spendOnly": "{{period}}: {{spent}} spent",
+    "activity_one": "{{runs}} runs, {{escalations}} escalations, {{cost}} in the last day",
+    "activity_other": "{{runs}} runs, {{escalations}} escalations, {{cost}} in the last {{count}} days",
+    "pick": "Select a unit to see its recent runs.",
+    "noReport": "No report filed yet.",
+    "noActivity": "No activity in this range.",
+    "runs": "Recent runs",
+    "noRuns": "No runs in this range.",
+    "openTrail": "Open trail"
+   },
+   "chartLayout": {
+    "label": "Chart layout",
+    "tree": "Tree",
+    "canvas": "Canvas"
+   },
+   "templates": {
+    "title": "New organization from a template",
+    "open": "New from template",
+    "intro": "Start empty, or apply one of the example organizations. The examples run on the fake harness, so they need no credentials.",
+    "apply": "Apply template",
+    "create": "Create organization",
+    "preview": "Check what it creates",
+    "previewHint": "Check what it creates before you apply it. That runs the manifest as a dry run and lists what would be created or changed.",
+    "contents_one": "This template holds {{count}} resource",
+    "contents_other": "This template holds {{count}} resources",
+    "ticks": "The keepers in this template start waking within seconds of the apply.",
+    "blank": {
+     "name": "Blank",
+     "body": "An empty organization. You add the root unit on the Design tab."
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "One keeper in one unit. It watches a status page and asks a person when the page stays down."
+    },
+    "siteReliability": {
+     "name": "Site reliability",
+     "body": "A lead and three keepers that look after a public site, with peer lines, budgets, and a memory curator."
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9531,6 +9720,40 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
  "components": {
   "explainer": {
    "seeDiagram": "See the diagram"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "Errors: {{count}}",
+    "errors_other": "Errors: {{count}}",
+    "warnings_one": "Warnings: {{count}}",
+    "warnings_other": "Warnings: {{count}}",
+    "warningsOnly": "Only warnings are left, so the working tree can still be published.",
+    "OneRoot": "The organization has more than one root unit, including {{unit}}.",
+    "Cycle": "{{unit}} sits below itself.",
+    "UnitNameTaken": "Two units are named {{unit}}.",
+    "TooManyUnits": "The organization has more units than it may hold.",
+    "TooManyMembers": "{{unit}} has more members than a unit may hold.",
+    "TooManyPeerLines": "{{unit}} has more peer lines than a unit may hold.",
+    "BudgetPeriodTaken": "{{unit}} has two budgets for the same period.",
+    "BudgetInvalid": "A budget of {{unit}} is not a valid amount.",
+    "AgentInactive": "{{agent}} in {{unit}} is not active.",
+    "MandateMismatch": "The keeper {{mandate}} in {{unit}} does not belong to {{agent}}."
+   }
   }
  }
 });

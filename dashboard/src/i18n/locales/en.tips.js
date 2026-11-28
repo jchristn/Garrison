@@ -4930,6 +4930,99 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "Design this organization's working tree on a canvas: units, leads, members, peer lines, keepers, budgets, and the change rules that apply.",
+   "people": "The unit's lead, members, and peer lines, and the actions that add a unit below it, start a peer line, or remove it.",
+   "keepers": "The keepers attached to each person in the unit, with their next wake. Attach, detach, create, or reschedule them here.",
+   "budget": "The unit's Day and Month budgets, what its subtree has spent, and the most each budget may be.",
+   "rules": "The change rules that cover this unit. People write rules; this tab lists them and opens the rule form."
+  },
+  "readOnly": "This view only shows the organization. Use the Design tab to change it.",
+  "unitOverlay": "A unit with its health, spend, and activity. Select it to list its recent runs.",
+  "history": {
+   "undo": "Undo the last change ({{change}}) by sending the opposite change.",
+   "redo": "Make the change again: {{change}}.",
+   "nothingToUndo": "There is nothing to undo yet.",
+   "nothingToRedo": "There is nothing to redo."
+  },
+  "palette": {
+   "title": "The agents of this tenant. Drag one onto a unit, or pick it and choose a unit.",
+   "search": "Filter the agents by name.",
+   "agent": "Drag onto a unit to add it as a member, or onto the unit's lead row to make it the lead. Press Enter to pick it and place it with the keyboard.",
+   "newAgent": "Open the agent form. The new agent joins the selected unit as a member.",
+   "unit": "The unit the picked agent goes to.",
+   "as": "Whether the agent joins as a member or becomes the unit's lead.",
+   "leadOff": "This canvas cannot change a lead, so the agent joins as a member.",
+   "place": "Add the picked agent to the chosen unit.",
+   "cancel": "Put the agent back without placing it."
+  },
+  "structure": {
+   "lead": "The agent that leads the unit. Leave it empty for no lead.",
+   "title": "The lead's title, for example Head of billing.",
+   "setLead": "Make this agent the unit's lead. A member who becomes the lead leaves the member list.",
+   "parent": "The unit this one reports to. A unit cannot report to itself or to a unit below it.",
+   "move": "Move the unit, with everything below it, under the chosen unit.",
+   "sameParent": "The unit already reports there."
+  },
+  "keepers": {
+   "open": "Open the keeper's page.",
+   "schedule": "Write a new revision of the keeper with a different wake schedule.",
+   "detach": "Take the keeper off this position. The keeper itself is kept.",
+   "pick": "Another keeper of this agent to attach to the position.",
+   "attach": "Attach the chosen keeper to this position.",
+   "create": "Open the keeper form with this agent filled in. The new keeper is attached to the position."
+  },
+  "budget": {
+   "period": "One budget period. Its window starts again each day or each month.",
+   "amount": "The most the unit's subtree may spend in the period, in US dollars. Leave it empty for no budget.",
+   "save": "Save the budget to the working tree. The server refuses a budget higher than the one above it.",
+   "clear": "Remove this budget.",
+   "cap": "The most this budget may be: the budget of the nearest unit above with one for the same period."
+  },
+  "rules": {
+   "add": "Open the change rule form for this unit. A rule covers the unit and everything below it.",
+   "edit": "Open this rule in the change rule form."
+  },
+  "problems": {
+   "title": "Problems the publish checks find in the working tree. The list updates after every change.",
+   "show": "Select the unit on the canvas."
+  },
+  "overlay": {
+   "range": "How far back the run counts, escalations, and cost go.",
+   "unit": "The unit you selected on the chart.",
+   "runs": "A sample of recent runs in this unit's subtree, the same sample the Performance page shows.",
+   "openRun": "Open the run.",
+   "openTrail": "Open the run's activity trail."
+  },
+  "chartLayout": {
+   "tree": "Show the chart as a tree of cards.",
+   "canvas": "Show the chart on the canvas with health, spend, and activity on each unit."
+  },
+  "templates": {
+   "open": "Start a new organization, empty or from one of the example organizations.",
+   "preview": "Run the template as a dry run and list what it would create or change.",
+   "previewFirst": "Check what the template creates first.",
+   "apply": "Apply the template through the manifest apply route and open the new organization.",
+   "contents": "The resources in the template's manifest, by kind and name.",
+   "blank": "An empty organization with no units.",
+   "gerbil": "The gerbil example: one keeper that watches a status page, placed in a one-unit organization.",
+   "siteReliability": "The site reliability example: a lead, three keepers, a memory curator, budgets, and peer lines."
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4955,5 +5048,24 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "startTour": "Starts the {{tour}} tour, which walks through the pages this part of Garrison uses.",
   "toc": "Jumps to {{title}} on this page.",
   "seeDiagram": "Opens the Learn page at the diagram that shows where this page fits in Garrison."
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "Problems that stop a publish. Fix them before you publish a revision.",
+   "warnings": "Problems worth a look that do not stop a publish."
+  }
  }
 });

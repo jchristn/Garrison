@@ -4930,6 +4930,99 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "Den Arbeitsbaum dieser Organisation auf einer Zeichenfläche entwerfen: Einheiten, Leitungen, Mitglieder, Querverbindungen, Wächter, Budgets und die geltenden Änderungsregeln.",
+   "people": "Leitung, Mitglieder und Querverbindungen der Einheit sowie die Aktionen, um eine Einheit darunter anzulegen, eine Querverbindung zu beginnen oder sie zu entfernen.",
+   "keepers": "Die Wächter jeder Person in der Einheit mit ihrem nächsten Wecken. Hier zuordnen, lösen, anlegen oder neu planen.",
+   "budget": "Tages- und Monatsbudget der Einheit, was ihr Teilbaum ausgegeben hat und wie hoch jedes Budget höchstens sein darf.",
+   "rules": "Die Änderungsregeln, die diese Einheit abdecken. Regeln schreiben Personen; dieser Tab listet sie und öffnet das Regelformular."
+  },
+  "readOnly": "Diese Ansicht zeigt die Organisation nur an. Ändern Sie sie im Tab Entwurf.",
+  "unitOverlay": "Eine Einheit mit Zustand, Ausgaben und Aktivität. Wählen Sie sie aus, um ihre letzten Läufe zu sehen.",
+  "history": {
+   "undo": "Die letzte Änderung ({{change}}) rückgängig machen, indem die Gegenänderung gesendet wird.",
+   "redo": "Die Änderung erneut ausführen: {{change}}.",
+   "nothingToUndo": "Es gibt noch nichts rückgängig zu machen.",
+   "nothingToRedo": "Es gibt nichts wiederherzustellen."
+  },
+  "palette": {
+   "title": "Die Agenten dieses Mandanten. Ziehen Sie einen auf eine Einheit oder wählen Sie ihn aus und dann eine Einheit.",
+   "search": "Die Agenten nach Namen filtern.",
+   "agent": "Auf eine Einheit ziehen, um ihn als Mitglied hinzuzufügen, oder auf die Leitungszeile, um ihn zur Leitung zu machen. Enter wählt ihn aus, um ihn mit der Tastatur zu platzieren.",
+   "newAgent": "Das Agentenformular öffnen. Der neue Agent kommt als Mitglied in die ausgewählte Einheit.",
+   "unit": "Die Einheit, in die der ausgewählte Agent kommt.",
+   "as": "Ob der Agent als Mitglied hinzukommt oder die Leitung der Einheit wird.",
+   "leadOff": "Diese Zeichenfläche kann keine Leitung ändern, daher kommt der Agent als Mitglied hinzu.",
+   "place": "Den ausgewählten Agenten der gewählten Einheit hinzufügen.",
+   "cancel": "Den Agenten zurücklegen, ohne ihn zu platzieren."
+  },
+  "structure": {
+   "lead": "Der Agent, der die Einheit leitet. Leer lassen für keine Leitung.",
+   "title": "Der Titel der Leitung, zum Beispiel Leitung Abrechnung.",
+   "setLead": "Diesen Agenten zur Leitung der Einheit machen. Ein Mitglied, das die Leitung übernimmt, verlässt die Mitgliederliste.",
+   "parent": "Die Einheit, an die diese berichtet. Eine Einheit kann nicht an sich selbst oder an eine Einheit darunter berichten.",
+   "move": "Die Einheit mit allem darunter unter die gewählte Einheit verschieben.",
+   "sameParent": "Die Einheit berichtet bereits dorthin."
+  },
+  "keepers": {
+   "open": "Die Seite des Wächters öffnen.",
+   "schedule": "Eine neue Revision des Wächters mit einem anderen Weckplan schreiben.",
+   "detach": "Den Wächter von dieser Position lösen. Der Wächter selbst bleibt erhalten.",
+   "pick": "Ein anderer Wächter dieses Agenten, der der Position zugeordnet werden soll.",
+   "attach": "Den gewählten Wächter dieser Position zuordnen.",
+   "create": "Das Wächter-Formular mit diesem Agenten öffnen. Der neue Wächter wird der Position zugeordnet."
+  },
+  "budget": {
+   "period": "Ein Budgetzeitraum. Sein Zeitfenster beginnt jeden Tag oder jeden Monat neu.",
+   "amount": "Der Höchstbetrag, den der Teilbaum der Einheit im Zeitraum ausgeben darf, in US-Dollar. Leer lassen für kein Budget.",
+   "save": "Das Budget im Arbeitsbaum speichern. Der Server lehnt ein Budget ab, das höher ist als das darüber.",
+   "clear": "Dieses Budget entfernen.",
+   "cap": "Wie hoch dieses Budget höchstens sein darf: das Budget der nächsten Einheit darüber mit einem Budget für denselben Zeitraum."
+  },
+  "rules": {
+   "add": "Das Formular für Änderungsregeln für diese Einheit öffnen. Eine Regel deckt die Einheit und alles darunter ab.",
+   "edit": "Diese Regel im Formular für Änderungsregeln öffnen."
+  },
+  "problems": {
+   "title": "Probleme, die die Veröffentlichungsprüfungen im Arbeitsbaum finden. Die Liste wird nach jeder Änderung aktualisiert.",
+   "show": "Die Einheit auf der Zeichenfläche auswählen."
+  },
+  "overlay": {
+   "range": "Wie weit Laufzahlen, Eskalationen und Kosten zurückreichen.",
+   "unit": "Die Einheit, die Sie im Organigramm ausgewählt haben.",
+   "runs": "Eine Auswahl letzter Läufe im Teilbaum dieser Einheit, dieselbe Auswahl wie auf der Seite Leistung.",
+   "openRun": "Den Lauf öffnen.",
+   "openTrail": "Die Aktivitätsverlauf des Laufs öffnen."
+  },
+  "chartLayout": {
+   "tree": "Das Organigramm als Baum aus Karten zeigen.",
+   "canvas": "Das Organigramm auf der Zeichenfläche zeigen, mit Zustand, Ausgaben und Aktivität an jeder Einheit."
+  },
+  "templates": {
+   "open": "Eine neue Organisation beginnen, leer oder aus einer der Beispielorganisationen.",
+   "preview": "Die Vorlage als Probelauf ausführen und auflisten, was sie anlegen oder ändern würde.",
+   "previewFirst": "Prüfen Sie zuerst, was die Vorlage anlegt.",
+   "apply": "Die Vorlage über die Manifest-Anwendung anwenden und die neue Organisation öffnen.",
+   "contents": "Die Ressourcen im Manifest der Vorlage, nach Art und Name.",
+   "blank": "Eine leere Organisation ohne Einheiten.",
+   "gerbil": "Das Gerbil-Beispiel: ein Wächter, der eine Statusseite beobachtet, in einer Organisation mit einer Einheit.",
+   "siteReliability": "Das Site-Reliability-Beispiel: eine Leitung, drei Wächter, ein Speicherkurator, Budgets und Querverbindungen."
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4955,5 +5048,24 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "startTour": "Startet die Tour {{tour}}, die durch die Seiten führt, die dieser Teil von Garrison nutzt.",
   "toc": "Springt zu {{title}} auf dieser Seite.",
   "seeDiagram": "Öffnet die Seite Lernen beim Diagramm, das zeigt, wo diese Seite in Garrison hingehört."
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "Probleme, die eine Veröffentlichung verhindern. Beheben Sie sie, bevor Sie eine Revision veröffentlichen.",
+   "warnings": "Probleme, die einen Blick wert sind, eine Veröffentlichung aber nicht verhindern."
+  }
  }
 });

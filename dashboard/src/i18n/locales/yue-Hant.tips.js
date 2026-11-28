@@ -4930,6 +4930,99 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "喺畫布上設計呢個組織嘅工作樹：單位、負責人、成員、同級線路、守護者、預算，同適用嘅變更規則。",
+   "people": "單位嘅負責人、成員同同級線路，同埋喺下面新增單位、開始同級線路或者移除單位嘅動作。",
+   "keepers": "單位入面每個人連結嘅守護者同佢哋下次喚醒時間。可以喺度連結、解除、新增或者重新排期。",
+   "budget": "單位嘅每日同每月預算、佢子樹使咗幾多，同每項預算最多可以係幾多。",
+   "rules": "涵蓋呢個單位嘅變更規則。規則由人寫；呢個分頁列出規則同打開規則表單。"
+  },
+  "readOnly": "呢個檢視只係顯示組織。要改就用「設計」分頁。",
+  "unitOverlay": "顯示健康狀態、支出同活動嘅單位。揀咗之後可以睇佢最近嘅執行。",
+  "history": {
+   "undo": "送出相反嘅改動，還原上一次改動（{{change}}）。",
+   "redo": "再做一次改動：{{change}}。",
+   "nothingToUndo": "仲未有可以還原嘅改動。",
+   "nothingToRedo": "冇可以重做嘅改動。"
+  },
+  "palette": {
+   "title": "呢個租戶嘅代理程式。拖一個去單位，或者先揀再揀單位。",
+   "search": "按名稱篩選代理程式。",
+   "agent": "拖去單位就加做成員，拖去單位嘅負責人嗰行就設做負責人。撳 Enter 揀咗之後可以用鍵盤放置。",
+   "newAgent": "打開代理程式表單。新代理程式會以成員身分加入揀咗嘅單位。",
+   "unit": "揀咗嘅代理程式要去嘅單位。",
+   "as": "代理程式以成員身分加入，定係做單位負責人。",
+   "leadOff": "呢個畫布唔可以換負責人，所以代理程式會以成員身分加入。",
+   "place": "將揀咗嘅代理程式加去揀咗嘅單位。",
+   "cancel": "唔放置，放返個代理程式。"
+  },
+  "structure": {
+   "lead": "帶領呢個單位嘅代理程式。留空即係冇負責人。",
+   "title": "負責人嘅職銜，例如帳務主管。",
+   "setLead": "將呢個代理程式設做單位負責人。做咗負責人嘅成員會離開成員清單。",
+   "parent": "呢個單位隸屬嘅單位。單位唔可以隸屬自己或者佢下層嘅單位。",
+   "move": "將呢個單位連同佢下面所有單位搬去揀咗嘅單位下面。",
+   "sameParent": "呢個單位已經隸屬嗰個單位。"
+  },
+  "keepers": {
+   "open": "打開守護者頁面。",
+   "schedule": "為守護者寫一個用唔同喚醒時間表嘅新修訂。",
+   "detach": "喺呢個職位解除守護者。守護者本身會保留。",
+   "pick": "呢個代理程式嘅另一個守護者，用嚟連結去呢個職位。",
+   "attach": "將揀咗嘅守護者連結去呢個職位。",
+   "create": "打開已經填好呢個代理程式嘅守護者表單。新守護者會連結去呢個職位。"
+  },
+  "budget": {
+   "period": "一個預算週期。佢嘅時間範圍每日或者每月重新開始。",
+   "amount": "單位子樹喺呢個週期最多可以使幾多（美元）。留空即係冇預算。",
+   "save": "將預算儲存落工作樹。高過上層預算嘅金額會俾伺服器拒絕。",
+   "clear": "移除呢個預算。",
+   "cap": "呢個預算嘅上限：最近一個有同週期預算嘅上層單位嘅預算。"
+  },
+  "rules": {
+   "add": "為呢個單位打開變更規則表單。規則涵蓋呢個單位同佢下面所有單位。",
+   "edit": "喺變更規則表單打開呢條規則。"
+  },
+  "problems": {
+   "title": "發佈檢查喺工作樹搵到嘅問題。每次改動之後都會更新。",
+   "show": "喺畫布上揀呢個單位。"
+  },
+  "overlay": {
+   "range": "執行次數、上報同成本計返幾耐。",
+   "unit": "你喺組織圖揀咗嘅單位。",
+   "runs": "呢個單位子樹最近執行嘅樣本，同「績效」頁面顯示嘅樣本一樣。",
+   "openRun": "打開執行。",
+   "openTrail": "打開執行嘅活動軌跡。"
+  },
+  "chartLayout": {
+   "tree": "用卡片樹狀圖顯示組織圖。",
+   "canvas": "喺畫布上顯示組織圖，每個單位都顯示健康狀態、支出同活動。"
+  },
+  "templates": {
+   "open": "新增組織，可以係空組織，又可以根據一個範例組織。",
+   "preview": "用試行方式執行範本，再列出佢會建立或者改動嘅嘢。",
+   "previewFirst": "請先睇吓範本會建立乜。",
+   "apply": "透過資訊清單套用功能套用範本，再打開新組織。",
+   "contents": "範本資訊清單入面嘅資源，按類型同名稱列出。",
+   "blank": "一個冇單位嘅空組織。",
+   "gerbil": "gerbil 範例：一個睇住狀態頁面嘅守護者，放喺得一個單位嘅組織入面。",
+   "siteReliability": "網站可靠性範例：一個負責人、三個守護者、一個記憶整理員、預算同同級線路。"
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4955,5 +5048,24 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   "startTour": "開始{{tour}}導覽，帶你行一次 Garrison 呢部分用到嘅頁面。",
   "toc": "跳去呢頁嘅{{title}}。",
   "seeDiagram": "開學習頁面，去到講明呢頁喺 Garrison 入面位置嘅圖。"
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "會阻止發佈嘅問題。發佈修訂之前請先修正。",
+   "warnings": "值得睇吓但唔會阻止發佈嘅問題。"
+  }
  }
 });

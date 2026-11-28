@@ -32,7 +32,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     // The lowest escalation severity (AA2.13), spelled the same in German, French, and Italian.
     'Info',
     // Evaluations (AA9.15): version notation, a name and time pair, the JSON Schema scorer's argument, and its example.
-    'v{{version}}', '{{name}} v{{version}}', '{{name}}, {{when}}', 'JSON Schema', '{"type": "object", "required": ["answer"]}'
+    'v{{version}}', '{{name}} v{{version}}', '{{name}}, {{when}}', 'JSON Schema', '{"type": "object", "required": ["answer"]}',
+    // The name of the gerbil example organization template (LP3.8).
+    'Gerbil'
   ],
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
@@ -40,7 +42,9 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Version', 'Version {{version}}', 'Leader', 'Executor', 'Executors', 'Pipeline', 'Pipelines', 'Quorum', 'App', 'Apps', 'Graph',
     'Logo', 'Revision', 'Asset', 'Details', 'Revision {{number}} ({{state}})', 'Studio', 'Signal', 'Revision {{number}}',
     // A message urgency (AA6.12), spelled the same in German.
-    'Normal'
+    'Normal',
+    // The organization designer (LP3.5, LP3.3): words German spells the same.
+    'Budget', 'Budget (USD)', 'in {{unit}}'
   ],
   ja: [],
   es: [
@@ -61,12 +65,16 @@ export const UNTRANSLATED_ALLOWLIST = {
     // Messages between agents (AA6.12), spelled the same in French.
     'Messages', '{{count}} message', '{{count}} messages',
     // An organization's mission (AA7.14), spelled the same in French.
-    'Mission'
+    'Mission',
+    // The organization designer's Budget tab (LP3.5).
+    'Budget'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',
     'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file', 'Leader', 'Quorum', 'Logo', 'Asset',
-    'Studio', 'Escalation'
+    'Studio', 'Escalation',
+    // The organization designer (LP3.5, LP3.3): words Italian spells the same.
+    'Budget', 'Budget (USD)', 'in {{unit}}'
   ],
   'zh-Hans': [],
   'zh-Hant': [],

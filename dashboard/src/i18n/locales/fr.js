@@ -9029,6 +9029,195 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "Conception",
+    "people": "Personnes",
+    "keepers": "Gardiens",
+    "budget": "Budget",
+    "rules": "Règles",
+    "label": "Unité {{name}}"
+   },
+   "note": "Les modifications sont enregistrées tout de suite dans l'arbre de travail. Rien n'est mis en service avant que vous publiiez une révision depuis l'en-tête de la page.",
+   "empty": "Aucune unité pour l'instant. Ajoutez l'unité racine avec Ajouter une unité, ou commencez une nouvelle organisation à partir d'un modèle.",
+   "narrow": "Le canevas demande un écran plus large, les unités sont donc listées ci-dessous. Chaque modification est toujours enregistrée dans l'arbre de travail.",
+   "failed": "{{change}} n'a pas abouti.",
+   "operations": {
+    "AddUnit": "Ajout de l'unité",
+    "RemoveUnit": "Retrait de l'unité",
+    "MoveUnit": "Déplacement de l'unité",
+    "SetLead": "Changement de responsable",
+    "AddUnitMember": "Ajout du membre",
+    "RemoveUnitMember": "Retrait du membre",
+    "ConnectUnits": "Ajout de la ligne transversale",
+    "DisconnectUnits": "Retrait de la ligne transversale",
+    "SetBudget": "Enregistrement du budget",
+    "AttachMandate": "Rattachement du gardien",
+    "DetachMandate": "Détachement du gardien"
+   },
+   "minimap": "Mini-carte de l'organisation",
+   "node": {
+    "problems_one": "{{count}} problème",
+    "problems_other": "{{count}} problèmes"
+   },
+   "announce": {
+    "leadSet": "{{name}} est maintenant responsable de {{unit}}."
+   },
+   "keys": {
+    "undo": "Ctrl+Z annule la dernière modification, et Ctrl+Maj+Z ou Ctrl+Y la rétablit (Cmd sur Mac).",
+    "place": "Quand un agent est choisi dans Personnes, Entrée sur une unité l'ajoute comme membre et L en fait le responsable."
+   },
+   "history": {
+    "label": "Annuler et rétablir",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "undone": "Annulé : {{change}}.",
+    "redone": "Rétabli : {{change}}.",
+    "methods": {
+     "addUnit": "ajouter une unité",
+     "removeUnit": "retirer une unité",
+     "moveUnit": "déplacer une unité",
+     "setLead": "changer de responsable",
+     "addMember": "ajouter un membre",
+     "removeMember": "retirer un membre",
+     "connectUnits": "ajouter une ligne transversale",
+     "disconnectUnits": "retirer une ligne transversale",
+     "setBudget": "modifier le budget",
+     "attachMandate": "rattacher un gardien",
+     "detachMandate": "détacher un gardien"
+    }
+   },
+   "palette": {
+    "title": "Personnes",
+    "search": "Rechercher des agents",
+    "hint": "Faites glisser un agent sur une unité pour l'ajouter comme membre, ou sur la ligne du responsable pour qu'il la dirige. Vous pouvez aussi le choisir puis indiquer où il va.",
+    "none": "Ce locataire n'a pas encore d'agents.",
+    "noMatch": "Aucun agent ne correspond à la recherche.",
+    "inUnit": "dans {{unit}}",
+    "newAgent": "Nouvel agent",
+    "newAgentTitle": "Nouvel agent pour {{unit}}",
+    "placing": "Placer {{name}} :",
+    "unit": "Unité",
+    "as": "En tant que",
+    "asMember": "Membre",
+    "asLead": "Responsable",
+    "place": "Placer"
+   },
+   "structure": {
+    "lead": "Responsable",
+    "title": "Titre du responsable",
+    "setLead": "Définir le responsable",
+    "parent": "Rend compte à",
+    "move": "Déplacer"
+   },
+   "keepers": {
+    "hint": "Un gardien est une tâche permanente qu'un agent accomplit selon un calendrier de réveil. Chaque poste de l'unité peut en porter un.",
+    "noPeople": "Ajoutez d'abord un responsable ou un membre. Les gardiens se rattachent aux personnes d'une unité.",
+    "lead": "Responsable",
+    "member": "Membre",
+    "none": "Aucun gardien rattaché.",
+    "nextWake": "Prochain réveil {{when}}",
+    "notScheduled": "Non planifié",
+    "every": "toutes les {{interval}}",
+    "schedule": "Modifier le calendrier",
+    "detach": "Détacher",
+    "pick": "Gardien à rattacher",
+    "attach": "Rattacher",
+    "create": "Nouveau gardien",
+    "createTitle": "Nouveau gardien pour {{name}}"
+   },
+   "budget": {
+    "hint": "Un budget plafonne ce que l'unité et tout ce qui se trouve en dessous peuvent dépenser. Les dépenses portent sur la fenêtre en cours de la révision active.",
+    "amount": "Budget (USD)",
+    "clear": "Effacer",
+    "noSpend": "Aucune dépense enregistrée dans cette fenêtre.",
+    "cap": "Au plus {{amount}}, le budget {{period}} de {{unit}}.",
+    "noCap": "Aucune unité au-dessus ne fixe de budget {{period}}.",
+    "capLeft": "Il reste {{left}} à {{unit}} dans cette fenêtre."
+   },
+   "rules": {
+    "hint": "Les règles de changement permettent aux propositions courantes d'un dirigeant dans ce sous-arbre de s'appliquer sans intervention humaine. Seules des personnes les écrivent.",
+    "add": "Ajouter une règle",
+    "none": "Aucune règle de changement ne couvre cette unité.",
+    "here": "Définie sur cette unité.",
+    "above": "Définie sur {{unit}}, au-dessus de cette unité.",
+    "by": "Écrite par {{name}}.",
+    "runToken": "Les agents ne peuvent pas écrire de règles de changement : un jeton d'exécution voit donc cette liste en lecture seule."
+   },
+   "problems": {
+    "title_one": "Vérifications : {{count}} problème",
+    "title_other": "Vérifications : {{count}} problèmes",
+    "checking": "Vérification de l'organisation...",
+    "none": "Aucun problème trouvé.",
+    "failed": "Les vérifications n'ont pas pu s'exécuter : {{reason}}",
+    "show": "Afficher {{unit}}",
+    "UnitWithoutLead": "{{unit}} n'a pas de responsable.",
+    "AgentInTwoUnits": "{{agent}} figure dans plusieurs unités, dont {{unit}}.",
+    "PeerLineToMissingUnit": "{{unit}} a une ligne transversale vers une unité qui ne fait pas partie de l'organisation.",
+    "BudgetOverParent": "Le budget de {{unit}} dépasse celui d'une unité située au-dessus.",
+    "KeeperDeploymentMissing": "Le gardien {{mandate}} de {{agent}} dans {{unit}} n'a pas de déploiement actif.",
+    "UnitDetachedFromRoot": "{{unit}} n'a pas de chemin vers l'unité racine."
+   },
+   "overlay": {
+    "range": "Période d'activité",
+    "days_one": "{{count}} jour",
+    "days_other": "{{count}} jours",
+    "spend": "{{period}} : {{spent}} sur {{amount}}",
+    "spendOnly": "{{period}} : {{spent}} dépensés",
+    "activity_one": "{{runs}} exécutions, {{escalations}} escalades, {{cost}} sur le dernier jour",
+    "activity_other": "{{runs}} exécutions, {{escalations}} escalades, {{cost}} sur les {{count}} derniers jours",
+    "pick": "Sélectionnez une unité pour voir ses exécutions récentes.",
+    "noReport": "Aucun rapport déposé pour l'instant.",
+    "noActivity": "Aucune activité sur cette période.",
+    "runs": "Exécutions récentes",
+    "noRuns": "Aucune exécution sur cette période.",
+    "openTrail": "Ouvrir le parcours"
+   },
+   "chartLayout": {
+    "label": "Présentation de l'organigramme",
+    "tree": "Arbre",
+    "canvas": "Canevas"
+   },
+   "templates": {
+    "title": "Nouvelle organisation à partir d'un modèle",
+    "open": "Nouvelle à partir d'un modèle",
+    "intro": "Partez de zéro ou appliquez l'une des organisations d'exemple. Les exemples tournent sur le harness factice, ils n'ont donc besoin d'aucun identifiant.",
+    "apply": "Appliquer le modèle",
+    "create": "Créer l'organisation",
+    "preview": "Voir ce qu'il crée",
+    "previewHint": "Vérifiez ce qu'il crée avant de l'appliquer. Le manifeste s'exécute alors à blanc et liste ce qui serait créé ou modifié.",
+    "contents_one": "Ce modèle contient {{count}} ressource",
+    "contents_other": "Ce modèle contient {{count}} ressources",
+    "ticks": "Les gardiens de ce modèle commencent à se réveiller quelques secondes après l'application.",
+    "blank": {
+     "name": "Vide",
+     "body": "Une organisation vide. Vous ajoutez l'unité racine dans l'onglet Conception."
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "Un gardien dans une unité. Il surveille une page d'état et demande à une personne quand la page reste en panne."
+    },
+    "siteReliability": {
+     "name": "Fiabilité du site",
+     "body": "Un responsable et trois gardiens qui veillent sur un site public, avec des lignes transversales, des budgets et un conservateur de mémoire."
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9557,6 +9746,40 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
  "components": {
   "explainer": {
    "seeDiagram": "Voir le schéma"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "Erreurs : {{count}}",
+    "errors_other": "Erreurs : {{count}}",
+    "warnings_one": "Avertissements : {{count}}",
+    "warnings_other": "Avertissements : {{count}}",
+    "warningsOnly": "Il ne reste que des avertissements : l'arbre de travail peut donc toujours être publié.",
+    "OneRoot": "L'organisation a plusieurs unités racines, dont {{unit}}.",
+    "Cycle": "{{unit}} se trouve sous elle-même.",
+    "UnitNameTaken": "Deux unités s'appellent {{unit}}.",
+    "TooManyUnits": "L'organisation a plus d'unités qu'elle ne peut en contenir.",
+    "TooManyMembers": "{{unit}} a plus de membres qu'une unité ne peut en avoir.",
+    "TooManyPeerLines": "{{unit}} a plus de lignes transversales qu'une unité ne peut en avoir.",
+    "BudgetPeriodTaken": "{{unit}} a deux budgets pour la même période.",
+    "BudgetInvalid": "Un budget de {{unit}} n'est pas un montant valide.",
+    "AgentInactive": "{{agent}} dans {{unit}} n'est pas actif.",
+    "MandateMismatch": "Le gardien {{mandate}} dans {{unit}} n'appartient pas à {{agent}}."
+   }
   }
  }
 });

@@ -8962,6 +8962,195 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "設計",
+    "people": "人員",
+    "keepers": "守護者",
+    "budget": "預算",
+    "rules": "規則",
+    "label": "單位 {{name}}"
+   },
+   "note": "改動會即刻儲存落工作樹。喺頁面頂部發佈修訂之前，唔會生效。",
+   "empty": "仲未有單位。用「新增單位」建立根單位，或者由範本開始一個新組織。",
+   "narrow": "畫布要闊啲嘅螢幕，所以單位以清單形式喺下面顯示。每次改動都照樣儲存落工作樹。",
+   "failed": "{{change}}做唔到。",
+   "operations": {
+    "AddUnit": "新增單位",
+    "RemoveUnit": "移除單位",
+    "MoveUnit": "移動單位",
+    "SetLead": "更換負責人",
+    "AddUnitMember": "新增成員",
+    "RemoveUnitMember": "移除成員",
+    "ConnectUnits": "新增同級線路",
+    "DisconnectUnits": "移除同級線路",
+    "SetBudget": "儲存預算",
+    "AttachMandate": "連結守護者",
+    "DetachMandate": "解除守護者"
+   },
+   "minimap": "組織小地圖",
+   "node": {
+    "problems_one": "{{count}} 個問題",
+    "problems_other": "{{count}} 個問題"
+   },
+   "announce": {
+    "leadSet": "{{name}} 而家負責 {{unit}}。"
+   },
+   "keys": {
+    "undo": "Ctrl+Z 還原上一次改動，Ctrl+Shift+Z 或者 Ctrl+Y 重做（Mac 用 Cmd）。",
+    "place": "喺「人員」揀咗代理程式之後，喺單位上面撳 Enter 就加佢做成員，撳 L 就設佢做負責人。"
+   },
+   "history": {
+    "label": "還原同重做",
+    "undo": "還原",
+    "redo": "重做",
+    "undone": "已還原：{{change}}。",
+    "redone": "已重做：{{change}}。",
+    "methods": {
+     "addUnit": "新增單位",
+     "removeUnit": "移除單位",
+     "moveUnit": "移動單位",
+     "setLead": "更換負責人",
+     "addMember": "新增成員",
+     "removeMember": "移除成員",
+     "connectUnits": "新增同級線路",
+     "disconnectUnits": "移除同級線路",
+     "setBudget": "更改預算",
+     "attachMandate": "連結守護者",
+     "detachMandate": "解除守護者"
+    }
+   },
+   "palette": {
+    "title": "人員",
+    "search": "搜尋代理程式",
+    "hint": "將代理程式拖去單位就會加佢做成員，拖去負責人嗰行就會設佢做負責人。你都可以先揀代理程式，再揀佢去邊。",
+    "none": "呢個租戶仲未有代理程式。",
+    "noMatch": "冇代理程式符合搜尋。",
+    "inUnit": "喺 {{unit}}",
+    "newAgent": "新增代理程式",
+    "newAgentTitle": "為 {{unit}} 新增代理程式",
+    "placing": "放置 {{name}}：",
+    "unit": "單位",
+    "as": "身分",
+    "asMember": "成員",
+    "asLead": "負責人",
+    "place": "放置"
+   },
+   "structure": {
+    "lead": "負責人",
+    "title": "負責人職銜",
+    "setLead": "設做負責人",
+    "parent": "隸屬",
+    "move": "移動"
+   },
+   "keepers": {
+    "hint": "守護者係代理程式按喚醒時間表一直做落去嘅常設工作。單位入面每個職位都可以有一個。",
+    "noPeople": "請先新增負責人或者成員。守護者係連結去單位入面嘅人。",
+    "lead": "負責人",
+    "member": "成員",
+    "none": "未連結守護者。",
+    "nextWake": "下次喚醒 {{when}}",
+    "notScheduled": "未排期",
+    "every": "每 {{interval}}",
+    "schedule": "編輯時間表",
+    "detach": "解除",
+    "pick": "要連結嘅守護者",
+    "attach": "連結",
+    "create": "新增守護者",
+    "createTitle": "為 {{name}} 新增守護者"
+   },
+   "budget": {
+    "hint": "預算限制單位同佢下面所有單位可以使幾多。支出係而家已發佈修訂喺目前時間範圍嘅數字。",
+    "amount": "預算（USD）",
+    "clear": "清除",
+    "noSpend": "呢個時間範圍冇支出紀錄。",
+    "cap": "最多 {{amount}}，即係 {{unit}} 嘅{{period}}預算。",
+    "noCap": "上層單位冇設定{{period}}預算。",
+    "capLeft": "{{unit}} 喺呢個時間範圍仲剩 {{left}}。"
+   },
+   "rules": {
+    "hint": "變更規則令主管喺呢個子樹嘅例行提案唔使人批都可以套用。規則只可以由人寫。",
+    "add": "新增規則",
+    "none": "冇變更規則涵蓋呢個單位。",
+    "here": "設定喺呢個單位。",
+    "above": "設定喺上層單位 {{unit}}。",
+    "by": "由 {{name}} 寫。",
+    "runToken": "代理程式唔可以寫變更規則，所以執行權杖只可以唯讀睇呢個清單。"
+   },
+   "problems": {
+    "title_one": "檢查：{{count}} 個問題",
+    "title_other": "檢查：{{count}} 個問題",
+    "checking": "檢查緊組織...",
+    "none": "搵唔到問題。",
+    "failed": "檢查做唔到：{{reason}}",
+    "show": "顯示 {{unit}}",
+    "UnitWithoutLead": "{{unit}} 冇負責人。",
+    "AgentInTwoUnits": "{{agent}} 喺多過一個單位入面，包括 {{unit}}。",
+    "PeerLineToMissingUnit": "{{unit}} 有一條同級線路指去一個唔喺呢個組織嘅單位。",
+    "BudgetOverParent": "{{unit}} 嘅預算高過佢上層單位嘅預算。",
+    "KeeperDeploymentMissing": "{{unit}} 入面 {{agent}} 嘅守護者 {{mandate}} 冇可用嘅部署。",
+    "UnitDetachedFromRoot": "{{unit}} 去唔到根單位。"
+   },
+   "overlay": {
+    "range": "活動時間範圍",
+    "days_one": "{{count}} 日",
+    "days_other": "{{count}} 日",
+    "spend": "{{period}}：{{spent}} / {{amount}}",
+    "spendOnly": "{{period}}：使咗 {{spent}}",
+    "activity_one": "最近 {{count}} 日：{{runs}} 次執行、{{escalations}} 次上報、{{cost}}",
+    "activity_other": "最近 {{count}} 日：{{runs}} 次執行、{{escalations}} 次上報、{{cost}}",
+    "pick": "揀一個單位就會見到佢最近嘅執行。",
+    "noReport": "仲未有報告提交。",
+    "noActivity": "呢個時間範圍冇活動。",
+    "runs": "最近嘅執行",
+    "noRuns": "呢個時間範圍冇執行。",
+    "openTrail": "開啟軌跡"
+   },
+   "chartLayout": {
+    "label": "組織圖版面",
+    "tree": "樹狀",
+    "canvas": "畫布"
+   },
+   "templates": {
+    "title": "由範本新增組織",
+    "open": "由範本新增",
+    "intro": "由空組織開始，或者套用一個範例組織。範例喺模擬 Harness 上面行，所以唔使憑證。",
+    "apply": "套用範本",
+    "create": "建立組織",
+    "preview": "睇吓會建立乜",
+    "previewHint": "套用之前先睇吓會建立乜。咁會用試行方式執行資訊清單，再列出會建立或者改動嘅嘢。",
+    "contents_one": "呢個範本有 {{count}} 個資源",
+    "contents_other": "呢個範本有 {{count}} 個資源",
+    "ticks": "呢個範本嘅守護者會喺套用之後幾秒內開始喚醒。",
+    "blank": {
+     "name": "空白",
+     "body": "一個空組織。根單位喺「設計」分頁新增。"
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "一個單位入面有一個守護者。佢睇住一個狀態頁面，頁面一直停咗就會問人。"
+    },
+    "siteReliability": {
+     "name": "網站可靠性",
+     "body": "一個負責人同三個守護者睇住一個公開網站，包括同級線路、預算同一個記憶整理員。"
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9490,6 +9679,60 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
  "components": {
   "explainer": {
    "seeDiagram": "睇圖"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "錯誤：{{count}}",
+    "errors_other": "錯誤：{{count}}",
+    "warnings_one": "警告：{{count}}",
+    "warnings_other": "警告：{{count}}",
+    "warningsOnly": "淨係剩返警告，所以工作樹照樣可以發佈。",
+    "OneRoot": "組織有多過一個根單位，包括 {{unit}}。",
+    "Cycle": "{{unit}} 喺自己下面。",
+    "UnitNameTaken": "有兩個單位都叫 {{unit}}。",
+    "TooManyUnits": "組織嘅單位數超過上限。",
+    "TooManyMembers": "{{unit}} 嘅成員數超過上限。",
+    "TooManyPeerLines": "{{unit}} 嘅同級線路數超過上限。",
+    "BudgetPeriodTaken": "{{unit}} 有兩個同週期嘅預算。",
+    "BudgetInvalid": "{{unit}} 有一項預算金額無效。",
+    "AgentInactive": "{{unit}} 入面嘅 {{agent}} 未啟用。",
+    "MandateMismatch": "{{unit}} 入面嘅守護者 {{mandate}} 唔屬於 {{agent}}。"
+   }
+  }
+ }
+});
+
+// The organization designer (LP3.9): the one-day activity line, without a count placeholder.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "orgDesigner": {
+   "overlay": {
+    "activity_one": "最近 1 日：{{runs}} 次執行、{{escalations}} 次上報、{{cost}}"
+   }
   }
  }
 });

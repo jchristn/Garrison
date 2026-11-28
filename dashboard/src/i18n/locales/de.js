@@ -9015,6 +9015,195 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "Entwurf",
+    "people": "Personen",
+    "keepers": "Wächter",
+    "budget": "Budget",
+    "rules": "Regeln",
+    "label": "Einheit {{name}}"
+   },
+   "note": "Änderungen werden sofort im Arbeitsbaum gespeichert. Live geht erst etwas, wenn Sie oben auf der Seite eine Revision veröffentlichen.",
+   "empty": "Noch keine Einheiten. Legen Sie mit Einheit hinzufügen die Stammeinheit an oder beginnen Sie eine neue Organisation aus einer Vorlage.",
+   "narrow": "Die Zeichenfläche braucht einen breiteren Bildschirm, deshalb stehen die Einheiten unten als Liste. Jede Änderung wird weiterhin im Arbeitsbaum gespeichert.",
+   "failed": "{{change}} ist nicht gelungen.",
+   "operations": {
+    "AddUnit": "Einheit hinzufügen",
+    "RemoveUnit": "Einheit entfernen",
+    "MoveUnit": "Einheit verschieben",
+    "SetLead": "Leitung ändern",
+    "AddUnitMember": "Mitglied hinzufügen",
+    "RemoveUnitMember": "Mitglied entfernen",
+    "ConnectUnits": "Querverbindung hinzufügen",
+    "DisconnectUnits": "Querverbindung entfernen",
+    "SetBudget": "Budget speichern",
+    "AttachMandate": "Wächter zuordnen",
+    "DetachMandate": "Wächter lösen"
+   },
+   "minimap": "Übersichtskarte der Organisation",
+   "node": {
+    "problems_one": "{{count}} Problem",
+    "problems_other": "{{count}} Probleme"
+   },
+   "announce": {
+    "leadSet": "{{name}} leitet jetzt {{unit}}."
+   },
+   "keys": {
+    "undo": "Strg+Z macht die letzte Änderung rückgängig, Strg+Umschalt+Z oder Strg+Y stellt sie wieder her (auf dem Mac Cmd).",
+    "place": "Ist unter Personen ein Agent ausgewählt, fügt Enter auf einer Einheit ihn als Mitglied hinzu und L macht ihn zur Leitung."
+   },
+   "history": {
+    "label": "Rückgängig und Wiederherstellen",
+    "undo": "Rückgängig",
+    "redo": "Wiederherstellen",
+    "undone": "Rückgängig gemacht: {{change}}.",
+    "redone": "Wiederhergestellt: {{change}}.",
+    "methods": {
+     "addUnit": "Einheit hinzufügen",
+     "removeUnit": "Einheit entfernen",
+     "moveUnit": "Einheit verschieben",
+     "setLead": "Leitung ändern",
+     "addMember": "Mitglied hinzufügen",
+     "removeMember": "Mitglied entfernen",
+     "connectUnits": "Querverbindung hinzufügen",
+     "disconnectUnits": "Querverbindung entfernen",
+     "setBudget": "Budget ändern",
+     "attachMandate": "Wächter zuordnen",
+     "detachMandate": "Wächter lösen"
+    }
+   },
+   "palette": {
+    "title": "Personen",
+    "search": "Agenten suchen",
+    "hint": "Ziehen Sie einen Agenten auf eine Einheit, um ihn als Mitglied hinzuzufügen, oder auf die Leitungszeile, um ihn zur Leitung zu machen. Sie können ihn auch auswählen und dann das Ziel wählen.",
+    "none": "Dieser Mandant hat noch keine Agenten.",
+    "noMatch": "Kein Agent passt zur Suche.",
+    "inUnit": "in {{unit}}",
+    "newAgent": "Neuer Agent",
+    "newAgentTitle": "Neuer Agent für {{unit}}",
+    "placing": "{{name}} platzieren:",
+    "unit": "Einheit",
+    "as": "Als",
+    "asMember": "Mitglied",
+    "asLead": "Leitung",
+    "place": "Platzieren"
+   },
+   "structure": {
+    "lead": "Leitung",
+    "title": "Titel der Leitung",
+    "setLead": "Leitung festlegen",
+    "parent": "Berichtet an",
+    "move": "Verschieben"
+   },
+   "keepers": {
+    "hint": "Ein Wächter ist eine dauerhafte Aufgabe, die ein Agent nach einem Weckplan erledigt. Jede Position in der Einheit kann einen tragen.",
+    "noPeople": "Fügen Sie zuerst eine Leitung oder ein Mitglied hinzu. Wächter hängen an den Personen einer Einheit.",
+    "lead": "Leitung",
+    "member": "Mitglied",
+    "none": "Kein Wächter zugeordnet.",
+    "nextWake": "Nächstes Wecken {{when}}",
+    "notScheduled": "Nicht geplant",
+    "every": "alle {{interval}}",
+    "schedule": "Zeitplan bearbeiten",
+    "detach": "Lösen",
+    "pick": "Zuzuordnender Wächter",
+    "attach": "Zuordnen",
+    "create": "Neuer Wächter",
+    "createTitle": "Neuer Wächter für {{name}}"
+   },
+   "budget": {
+    "hint": "Ein Budget begrenzt, was die Einheit und alles darunter ausgeben darf. Die Ausgaben gelten für das aktuelle Zeitfenster der Live-Revision.",
+    "amount": "Budget (USD)",
+    "clear": "Leeren",
+    "noSpend": "In diesem Zeitfenster wurden keine Ausgaben erfasst.",
+    "cap": "Höchstens {{amount}}, das {{period}}-Budget von {{unit}}.",
+    "noCap": "Keine Einheit darüber legt ein {{period}}-Budget fest.",
+    "capLeft": "{{unit}} hat in diesem Zeitfenster noch {{left}} übrig."
+   },
+   "rules": {
+    "hint": "Mit Änderungsregeln gelten Routinevorschläge einer Führungskraft in diesem Teilbaum ohne eine Person. Nur Personen schreiben sie.",
+    "add": "Regel hinzufügen",
+    "none": "Keine Änderungsregel deckt diese Einheit ab.",
+    "here": "Auf dieser Einheit festgelegt.",
+    "above": "Auf {{unit}} festgelegt, über dieser Einheit.",
+    "by": "Geschrieben von {{name}}.",
+    "runToken": "Agenten können keine Änderungsregeln schreiben, daher sieht ein Lauf-Token diese Liste nur lesend."
+   },
+   "problems": {
+    "title_one": "Prüfungen: {{count}} Problem",
+    "title_other": "Prüfungen: {{count}} Probleme",
+    "checking": "Die Organisation wird geprüft...",
+    "none": "Keine Probleme gefunden.",
+    "failed": "Die Prüfungen konnten nicht laufen: {{reason}}",
+    "show": "{{unit}} anzeigen",
+    "UnitWithoutLead": "{{unit}} hat keine Leitung.",
+    "AgentInTwoUnits": "{{agent}} sitzt in mehr als einer Einheit, darunter {{unit}}.",
+    "PeerLineToMissingUnit": "{{unit}} hat eine Querverbindung zu einer Einheit, die nicht zur Organisation gehört.",
+    "BudgetOverParent": "Das Budget von {{unit}} ist höher als das Budget einer Einheit darüber.",
+    "KeeperDeploymentMissing": "Der Wächter {{mandate}} von {{agent}} in {{unit}} hat keine aktive Bereitstellung.",
+    "UnitDetachedFromRoot": "{{unit}} hat keinen Weg zur Stammeinheit."
+   },
+   "overlay": {
+    "range": "Aktivitätszeitraum",
+    "days_one": "{{count}} Tag",
+    "days_other": "{{count}} Tage",
+    "spend": "{{period}}: {{spent}} von {{amount}}",
+    "spendOnly": "{{period}}: {{spent}} ausgegeben",
+    "activity_one": "{{runs}} Läufe, {{escalations}} Eskalationen, {{cost}} am letzten Tag",
+    "activity_other": "{{runs}} Läufe, {{escalations}} Eskalationen, {{cost}} in den letzten {{count}} Tagen",
+    "pick": "Wählen Sie eine Einheit, um ihre letzten Läufe zu sehen.",
+    "noReport": "Noch kein Bericht eingereicht.",
+    "noActivity": "Keine Aktivität in diesem Zeitraum.",
+    "runs": "Letzte Läufe",
+    "noRuns": "Keine Läufe in diesem Zeitraum.",
+    "openTrail": "Verlauf öffnen"
+   },
+   "chartLayout": {
+    "label": "Darstellung des Organigramms",
+    "tree": "Baum",
+    "canvas": "Zeichenfläche"
+   },
+   "templates": {
+    "title": "Neue Organisation aus einer Vorlage",
+    "open": "Neu aus Vorlage",
+    "intro": "Beginnen Sie leer oder wenden Sie eine der Beispielorganisationen an. Die Beispiele laufen auf der Test-Harness und brauchen daher keine Zugangsdaten.",
+    "apply": "Vorlage anwenden",
+    "create": "Organisation erstellen",
+    "preview": "Prüfen, was sie anlegt",
+    "previewHint": "Prüfen Sie vor dem Anwenden, was angelegt wird. Dabei läuft das Manifest als Probelauf und listet auf, was angelegt oder geändert würde.",
+    "contents_one": "Diese Vorlage enthält {{count}} Ressource",
+    "contents_other": "Diese Vorlage enthält {{count}} Ressourcen",
+    "ticks": "Die Wächter dieser Vorlage beginnen wenige Sekunden nach dem Anwenden zu wecken.",
+    "blank": {
+     "name": "Leer",
+     "body": "Eine leere Organisation. Die Stammeinheit legen Sie im Tab Entwurf an."
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "Ein Wächter in einer Einheit. Er beobachtet eine Statusseite und fragt eine Person, wenn die Seite ausgefallen bleibt."
+    },
+    "siteReliability": {
+     "name": "Site Reliability",
+     "body": "Eine Leitung und drei Wächter, die eine öffentliche Website betreuen, mit Querverbindungen, Budgets und einem Speicherkurator."
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9543,6 +9732,40 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
  "components": {
   "explainer": {
    "seeDiagram": "Zum Diagramm"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "Fehler: {{count}}",
+    "errors_other": "Fehler: {{count}}",
+    "warnings_one": "Warnungen: {{count}}",
+    "warnings_other": "Warnungen: {{count}}",
+    "warningsOnly": "Es bleiben nur Warnungen, der Arbeitsbaum kann also trotzdem veröffentlicht werden.",
+    "OneRoot": "Die Organisation hat mehr als eine Stammeinheit, darunter {{unit}}.",
+    "Cycle": "{{unit}} liegt unter sich selbst.",
+    "UnitNameTaken": "Zwei Einheiten heißen {{unit}}.",
+    "TooManyUnits": "Die Organisation hat mehr Einheiten, als sie haben darf.",
+    "TooManyMembers": "{{unit}} hat mehr Mitglieder, als eine Einheit haben darf.",
+    "TooManyPeerLines": "{{unit}} hat mehr Querverbindungen, als eine Einheit haben darf.",
+    "BudgetPeriodTaken": "{{unit}} hat zwei Budgets für denselben Zeitraum.",
+    "BudgetInvalid": "Ein Budget von {{unit}} ist kein gültiger Betrag.",
+    "AgentInactive": "{{agent}} in {{unit}} ist nicht aktiv.",
+    "MandateMismatch": "Der Wächter {{mandate}} in {{unit}} gehört nicht zu {{agent}}."
+   }
   }
  }
 });

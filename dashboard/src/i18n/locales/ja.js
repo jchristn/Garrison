@@ -8962,6 +8962,195 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "設計",
+    "people": "メンバー",
+    "keepers": "キーパー",
+    "budget": "予算",
+    "rules": "ルール",
+    "label": "組織単位 {{name}}"
+   },
+   "note": "変更はすぐに作業ツリーへ保存されます。ページ上部からリビジョンを公開するまで、本番には反映されません。",
+   "empty": "組織単位はまだありません。[組織単位を追加] でルートの組織単位を作るか、テンプレートから新しい組織を始めてください。",
+   "narrow": "キャンバスにはもっと広い画面が必要なため、組織単位を下に一覧で表示しています。変更はこれまでどおり作業ツリーに保存されます。",
+   "failed": "{{change}}に失敗しました。",
+   "operations": {
+    "AddUnit": "組織単位の追加",
+    "RemoveUnit": "組織単位の削除",
+    "MoveUnit": "組織単位の移動",
+    "SetLead": "責任者の変更",
+    "AddUnitMember": "メンバーの追加",
+    "RemoveUnitMember": "メンバーの削除",
+    "ConnectUnits": "ピアラインの追加",
+    "DisconnectUnits": "ピアラインの削除",
+    "SetBudget": "予算の保存",
+    "AttachMandate": "キーパーの割り当て",
+    "DetachMandate": "キーパーの解除"
+   },
+   "minimap": "組織のミニマップ",
+   "node": {
+    "problems_one": "問題 {{count}} 件",
+    "problems_other": "問題 {{count}} 件"
+   },
+   "announce": {
+    "leadSet": "{{name}} が {{unit}} の責任者になりました。"
+   },
+   "keys": {
+    "undo": "Ctrl+Z で直前の変更を元に戻し、Ctrl+Shift+Z または Ctrl+Y でやり直します (Mac では Cmd)。",
+    "place": "[メンバー] でエージェントを選んだ状態で組織単位の上で Enter を押すとメンバーとして追加し、L を押すと責任者にします。"
+   },
+   "history": {
+    "label": "元に戻す / やり直し",
+    "undo": "元に戻す",
+    "redo": "やり直し",
+    "undone": "元に戻しました: {{change}}。",
+    "redone": "やり直しました: {{change}}。",
+    "methods": {
+     "addUnit": "組織単位の追加",
+     "removeUnit": "組織単位の削除",
+     "moveUnit": "組織単位の移動",
+     "setLead": "責任者の変更",
+     "addMember": "メンバーの追加",
+     "removeMember": "メンバーの削除",
+     "connectUnits": "ピアラインの追加",
+     "disconnectUnits": "ピアラインの削除",
+     "setBudget": "予算の変更",
+     "attachMandate": "キーパーの割り当て",
+     "detachMandate": "キーパーの解除"
+    }
+   },
+   "palette": {
+    "title": "メンバー",
+    "search": "エージェントを検索",
+    "hint": "エージェントを組織単位にドラッグするとメンバーとして追加し、責任者の行にドラッグすると責任者にします。エージェントを選んでから行き先を選ぶこともできます。",
+    "none": "このテナントにはまだエージェントがありません。",
+    "noMatch": "検索に一致するエージェントはありません。",
+    "inUnit": "{{unit}} に所属",
+    "newAgent": "新しいエージェント",
+    "newAgentTitle": "{{unit}} の新しいエージェント",
+    "placing": "{{name}} の配置先:",
+    "unit": "組織単位",
+    "as": "役割",
+    "asMember": "メンバー",
+    "asLead": "責任者",
+    "place": "配置"
+   },
+   "structure": {
+    "lead": "責任者",
+    "title": "責任者の肩書き",
+    "setLead": "責任者を設定",
+    "parent": "報告先",
+    "move": "移動"
+   },
+   "keepers": {
+    "hint": "キーパーは、エージェントが起動スケジュールに従って続ける常設の仕事です。組織単位の各ポジションに 1 つずつ割り当てられます。",
+    "noPeople": "先に責任者かメンバーを追加してください。キーパーは組織単位の人に割り当てます。",
+    "lead": "責任者",
+    "member": "メンバー",
+    "none": "キーパーは割り当てられていません。",
+    "nextWake": "次回の起動 {{when}}",
+    "notScheduled": "予定なし",
+    "every": "{{interval}} ごと",
+    "schedule": "スケジュールを編集",
+    "detach": "解除",
+    "pick": "割り当てるキーパー",
+    "attach": "割り当て",
+    "create": "新しいキーパー",
+    "createTitle": "{{name}} の新しいキーパー"
+   },
+   "budget": {
+    "hint": "予算は、この組織単位とその配下すべてが使える上限です。支出は公開中のリビジョンの現在の期間の値です。",
+    "amount": "予算 (USD)",
+    "clear": "クリア",
+    "noSpend": "この期間の支出は記録されていません。",
+    "cap": "上限は {{amount}} ({{unit}} の{{period}}予算) です。",
+    "noCap": "上位の組織単位に{{period}}予算はありません。",
+    "capLeft": "{{unit}} のこの期間の残りは {{left}} です。"
+   },
+   "rules": {
+    "hint": "変更ルールがあると、このサブツリー内のエグゼクティブの定型的な提案が人の承認なしで適用されます。ルールを書けるのは人だけです。",
+    "add": "ルールを追加",
+    "none": "この組織単位に当てはまる変更ルールはありません。",
+    "here": "この組織単位で設定されています。",
+    "above": "上位の {{unit}} で設定されています。",
+    "by": "作成者: {{name}}。",
+    "runToken": "エージェントは変更ルールを書けないため、実行トークンではこの一覧は読み取り専用です。"
+   },
+   "problems": {
+    "title_one": "チェック: 問題 {{count}} 件",
+    "title_other": "チェック: 問題 {{count}} 件",
+    "checking": "組織をチェックしています...",
+    "none": "問題は見つかりませんでした。",
+    "failed": "チェックを実行できませんでした: {{reason}}",
+    "show": "{{unit}} を表示",
+    "UnitWithoutLead": "{{unit}} に責任者がいません。",
+    "AgentInTwoUnits": "{{agent}} が {{unit}} を含む複数の組織単位に所属しています。",
+    "PeerLineToMissingUnit": "{{unit}} に、組織にない組織単位へのピアラインがあります。",
+    "BudgetOverParent": "{{unit}} の予算が上位の組織単位の予算を超えています。",
+    "KeeperDeploymentMissing": "{{unit}} の {{agent}} のキーパー {{mandate}} に有効なデプロイメントがありません。",
+    "UnitDetachedFromRoot": "{{unit}} からルートの組織単位までたどれません。"
+   },
+   "overlay": {
+    "range": "アクティビティの期間",
+    "days_one": "{{count}} 日",
+    "days_other": "{{count}} 日",
+    "spend": "{{period}}: {{amount}} 中 {{spent}}",
+    "spendOnly": "{{period}}: {{spent}} を支出",
+    "activity_one": "直近 {{count}} 日で実行 {{runs}} 件、エスカレーション {{escalations}} 件、{{cost}}",
+    "activity_other": "直近 {{count}} 日で実行 {{runs}} 件、エスカレーション {{escalations}} 件、{{cost}}",
+    "pick": "組織単位を選ぶと最近の実行が表示されます。",
+    "noReport": "まだレポートは提出されていません。",
+    "noActivity": "この期間のアクティビティはありません。",
+    "runs": "最近の実行",
+    "noRuns": "この期間の実行はありません。",
+    "openTrail": "トレイルを開く"
+   },
+   "chartLayout": {
+    "label": "組織図の表示",
+    "tree": "ツリー",
+    "canvas": "キャンバス"
+   },
+   "templates": {
+    "title": "テンプレートから新しい組織を作成",
+    "open": "テンプレートから作成",
+    "intro": "空の組織から始めるか、サンプルの組織を適用します。サンプルは擬似ハーネスで動くので、認証情報は不要です。",
+    "apply": "テンプレートを適用",
+    "create": "組織を作成",
+    "preview": "作成内容を確認",
+    "previewHint": "適用する前に作成内容を確認してください。マニフェストをドライランで実行し、作成または変更されるものを一覧にします。",
+    "contents_one": "このテンプレートのリソース: {{count}} 件",
+    "contents_other": "このテンプレートのリソース: {{count}} 件",
+    "ticks": "このテンプレートのキーパーは、適用から数秒で起動を始めます。",
+    "blank": {
+     "name": "空の組織",
+     "body": "空の組織です。ルートの組織単位は [設計] タブで追加します。"
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "1 つの組織単位に 1 つのキーパー。ステータスページを監視し、ページが落ちたままのときは人に確認します。"
+    },
+    "siteReliability": {
+     "name": "サイト信頼性",
+     "body": "公開サイトを見守る責任者 1 人とキーパー 3 つ。ピアライン、予算、メモリーキュレーターも含みます。"
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9490,6 +9679,60 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
  "components": {
   "explainer": {
    "seeDiagram": "図を見る"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "エラー: {{count}} 件",
+    "errors_other": "エラー: {{count}} 件",
+    "warnings_one": "警告: {{count}} 件",
+    "warnings_other": "警告: {{count}} 件",
+    "warningsOnly": "残っているのは警告だけなので、作業ツリーはこのまま公開できます。",
+    "OneRoot": "組織に {{unit}} を含む複数のルートの組織単位があります。",
+    "Cycle": "{{unit}} が自分自身の配下にあります。",
+    "UnitNameTaken": "{{unit}} という名前の組織単位が 2 つあります。",
+    "TooManyUnits": "組織単位の数が上限を超えています。",
+    "TooManyMembers": "{{unit}} のメンバー数が上限を超えています。",
+    "TooManyPeerLines": "{{unit}} のピアライン数が上限を超えています。",
+    "BudgetPeriodTaken": "{{unit}} に同じ期間の予算が 2 つあります。",
+    "BudgetInvalid": "{{unit}} の予算に無効な金額があります。",
+    "AgentInactive": "{{unit}} の {{agent}} は有効ではありません。",
+    "MandateMismatch": "{{unit}} のキーパー {{mandate}} は {{agent}} のものではありません。"
+   }
+  }
+ }
+});
+
+// The organization designer (LP3.9): the one-day activity line, without a count placeholder.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "orgDesigner": {
+   "overlay": {
+    "activity_one": "直近 1 日で実行 {{runs}} 件、エスカレーション {{escalations}} 件、{{cost}}"
+   }
   }
  }
 });

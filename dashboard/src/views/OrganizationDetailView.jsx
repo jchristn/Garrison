@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CopyableId from '../components/CopyableId';
 import ConfirmModal from '../components/ConfirmModal';
@@ -14,6 +14,9 @@ import OrgChartTree from '../components/OrgChartTree';
 import OrgUnitModal from '../components/OrgUnitModal';
 import OrgRevisionDiff from '../components/OrgRevisionDiff';
 import OrgProposalsPanel from '../components/OrgProposalsPanel';
+import useMediaQuery from '../hooks/useMediaQuery';
+import { readStored, writeStored } from '../utils/studio';
+import { agentsConfig, changeRulesConfig, keepersConfig } from './resourceConfigs';
 import CascadeCancelModal from '../components/CascadeCancelModal';
 import FreezeModal from '../components/FreezeModal';
 import RollbackTicksChoice from '../components/RollbackTicksChoice';
@@ -34,6 +37,19 @@ import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from
 import { upsertProposal } from '../utils/changeRules';
 import { cascadeDenied } from '../utils/performance';
 import { budgetOf, chartToUnits, diffIsEmpty, diffOrgUnits, orgDenied, orgErrorMessage, organizationFormErrors, organizationFormToBody, organizationToForm, spendOf, statusBody, treeOrder } from '../utils/organizations';
+
+// The designer and the Chart canvas carry React Flow, so they load when first shown (the studio canvas does the same).
+const OrgDesigner = lazy(() => import('../components/orgDesigner/OrgDesigner'));
+const OrgChartCanvas = lazy(() => import('../components/orgDesigner/OrgChartCanvas'));
+const OrgTemplateModal = lazy(() => import('../components/orgDesigner/OrgTemplateModal'));
+
+/** Tabs a link may open with ?tab= (LP3.2: the templates open a new organization on Design). */
+const DETAIL_TABS = ['chart', 'design', 'budgets', 'revisions', 'proposals'];
+/** The canvas and the chart tree switch at this width (LP-006). */
+const WIDE = '(min-width: 768px)';
+const CHART_LAYOUT_KEY = 'garrison.organizations.chartLayout';
+/** The existing forms the designer opens (LP3.3, LP3.4, LP3.6). */
+const DESIGNER_FORMS = { agents: agentsConfig, keepers: keepersConfig, changeRules: changeRulesConfig };
 
 const safeItems = (promise) => promise.then((r) => (Array.isArray(r) ? r : r?.items || [])).catch(() => []);
 const asList = (r) => (Array.isArray(r) ? r : r?.items || r?.objects || []);
@@ -73,7 +89,16 @@ export default function OrganizationDetailView({ recordId }) {
   const [proposals, setProposals] = useState([]);
   const [health, setHealth] = useState({});
   const [options, setOptions] = useState({ agents: [], mandates: [], apps: [] });
-  const [tab, setTab] = useState('chart');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => (DETAIL_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'chart'));
+  const wide = useMediaQuery(WIDE);
+  const [chartLayout, setChartLayout] = useState(() => (readStored(CHART_LAYOUT_KEY) === 'canvas' ? 'canvas' : 'tree'));
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  // A link to another organization with ?tab= (a template opening its result on Design) keeps this view mounted.
+  const requestedTab = searchParams.get('tab');
+  useEffect(() => {
+    if (DETAIL_TABS.includes(requestedTab)) setTab(requestedTab);
+  }, [requestedTab, recordId]);
   const [view, setView] = useState('working');
   const [unitEditor, setUnitEditor] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -504,6 +529,7 @@ export default function OrganizationDetailView({ recordId }) {
         onChange={setTab}
         tabs={[
           { id: 'chart', label: t('views.organizationDetail.tabs.chart'), tip: t('tips.views.organizationDetail.tabs.chart') },
+          { id: 'design', label: t('components.orgDesigner.tabs.design'), tip: t('tips.orgDesigner.tabs.design') },
           { id: 'budgets', label: t('views.organizationDetail.tabs.budgets'), tip: t('tips.views.organizationDetail.tabs.budgets') },
           { id: 'revisions', label: t('views.organizationDetail.tabs.revisions', { count: revisions.length }), tip: t('tips.views.organizationDetail.tabs.revisions') },
           { id: 'proposals', label: t('views.organizationDetail.tabs.proposals', { count: proposals.length }), tip: t('tips.views.organizationDetail.tabs.proposals') }
@@ -529,6 +555,26 @@ export default function OrganizationDetailView({ recordId }) {
                 {t('views.organizationDetail.viewLive')}
               </button>
             </div>
+            {wide && (
+              <div className="range-group segmented" role="group" aria-label={t('components.orgDesigner.chartLayout.label')}>
+                {['tree', 'canvas'].map((layout) => (
+                  <button
+                    key={layout}
+                    type="button"
+                    aria-pressed={chartLayout === layout}
+                    className={`range-btn ${chartLayout === layout ? 'active' : ''}`}
+                    onClick={() => {
+                      setChartLayout(layout);
+                      writeStored(CHART_LAYOUT_KEY, layout);
+                    }}
+                    data-testid={`org-chart-layout-${layout}`}
+                    {...tip(t(`tips.orgDesigner.chartLayout.${layout}`))}
+                  >
+                    {t(`components.orgDesigner.chartLayout.${layout}`)}
+                  </button>
+                ))}
+              </div>
+            )}
             {view === 'working' &&
               actionButton('add-unit', units.length ? t('views.organizationDetail.addUnit') : t('views.organizationDetail.addRoot'), t('tips.views.organizationDetail.addUnit'), () => setUnitEditor({ unit: null, parentUnitId: units.find((u) => !u.parentUnitId)?.id || null }), {
                 denied: editBlocked,
@@ -538,6 +584,10 @@ export default function OrganizationDetailView({ recordId }) {
           <p className="text-muted org-chart-note">{view === 'live' ? t('views.organizationDetail.liveNote') : t('views.organizationDetail.workingNote')}</p>
           {shownUnits.length === 0 ? (
             <EmptyState title={t('views.organizationDetail.noUnitsTitle')} body={t('views.organizationDetail.noUnitsBody')} />
+          ) : wide && chartLayout === 'canvas' ? (
+            <Suspense fallback={<LoadingState />}>
+              <OrgChartCanvas organization={org} units={shownUnits} agents={options.agents} spend={spend} health={health} />
+            </Suspense>
           ) : (
             <OrgChartTree
               units={shownUnits}
@@ -558,6 +608,56 @@ export default function OrganizationDetailView({ recordId }) {
             />
           )}
         </section>
+      )}
+
+      {tab === 'design' && (
+        <section className="panel" aria-label={t('components.orgDesigner.tabs.design')} data-testid="org-design-panel-section">
+          <p className="text-muted org-chart-note">{t('components.orgDesigner.note')}</p>
+          {units.length === 0 && (
+            <div className="info-banner org-design-empty" role="status" data-testid="org-design-empty">
+              <span>{t('components.orgDesigner.empty')}</span>
+              <button type="button" className="button-secondary button-sm" onClick={() => setTemplatesOpen(true)} data-testid="org-design-templates" {...tip(t('tips.orgDesigner.templates.open'))}>
+                {t('components.orgDesigner.templates.open')}
+              </button>
+            </div>
+          )}
+          {wide ? (
+            <Suspense fallback={<LoadingState />}>
+              <OrgDesigner organization={org} options={options} spend={spend} permissions={permissions} blocked={editBlocked} forms={DESIGNER_FORMS} onReload={reloadAll} />
+            </Suspense>
+          ) : (
+            <>
+              <p className="text-muted">{t('components.orgDesigner.narrow')}</p>
+              {actionButton('design-add-unit', units.length ? t('views.organizationDetail.addUnit') : t('views.organizationDetail.addRoot'), t('tips.views.organizationDetail.addUnit'), () => setUnitEditor({ unit: null, parentUnitId: units.find((u) => !u.parentUnitId)?.id || null }), {
+                denied: editBlocked,
+                icon: <PlusIcon size={14} />
+              })}
+              {units.length > 0 && (
+                <OrgChartTree
+                  units={units}
+                  t={t}
+                  lng={lng}
+                  names={names}
+                  spend={spend}
+                  health={health}
+                  editable={editable}
+                  onEdit={(unit) => setUnitEditor({ unit, parentUnitId: null })}
+                  onAdd={(unit) => setUnitEditor({ unit: null, parentUnitId: unit.id })}
+                  onRemove={(unit) => {
+                    setConfirmError(null);
+                    setConfirm({ kind: 'removeUnit', unit });
+                  }}
+                />
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {templatesOpen && (
+        <Suspense fallback={null}>
+          <OrgTemplateModal onClose={() => setTemplatesOpen(false)} />
+        </Suspense>
       )}
 
       {tab === 'budgets' && (

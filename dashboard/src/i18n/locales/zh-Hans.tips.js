@@ -4929,6 +4929,99 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "在画布上设计此组织的工作树：单元、负责人、成员、对等线路、守护者、预算和适用的变更规则。",
+   "people": "单元的负责人、成员和对等线路，以及在其下添加单元、开始对等线路或移除单元的操作。",
+   "keepers": "单元中每个人员关联的守护者及其下次唤醒时间。可在此关联、解除、新建或重新安排守护者。",
+   "budget": "单元的每日和每月预算、其子树已花费的金额，以及每项预算的上限。",
+   "rules": "覆盖此单元的变更规则。规则由人编写；此选项卡列出规则并打开规则表单。"
+  },
+  "readOnly": "此视图仅显示组织。请在“设计”选项卡中更改。",
+  "unitOverlay": "显示健康状况、支出和活动的单元。选中后可查看其最近的运行。",
+  "history": {
+   "undo": "发送相反的更改，撤销上一次更改（{{change}}）。",
+   "redo": "再次执行更改：{{change}}。",
+   "nothingToUndo": "还没有可撤销的更改。",
+   "nothingToRedo": "没有可重做的更改。"
+  },
+  "palette": {
+   "title": "此租户的智能体。把一个拖到单元上，或先选中再选择单元。",
+   "search": "按名称筛选智能体。",
+   "agent": "拖到单元上可添加为成员，拖到单元的负责人一行可设为负责人。按 Enter 选中后可用键盘放置。",
+   "newAgent": "打开智能体表单。新智能体会作为成员加入所选单元。",
+   "unit": "所选智能体要去的单元。",
+   "as": "智能体以成员身份加入，还是成为单元负责人。",
+   "leadOff": "此画布不能更换负责人，因此智能体以成员身份加入。",
+   "place": "将所选智能体添加到所选单元。",
+   "cancel": "不放置，放回智能体。"
+  },
+  "structure": {
+   "lead": "领导该单元的智能体。留空表示没有负责人。",
+   "title": "负责人的头衔，例如账单主管。",
+   "setLead": "将此智能体设为单元负责人。成为负责人的成员会离开成员列表。",
+   "parent": "此单元的汇报对象。单元不能向自己或其下级单元汇报。",
+   "move": "将此单元连同其下所有单元移动到所选单元之下。",
+   "sameParent": "此单元已经向该单元汇报。"
+  },
+  "keepers": {
+   "open": "打开守护者页面。",
+   "schedule": "为守护者编写一个使用不同唤醒计划的新修订版。",
+   "detach": "从此职位解除守护者。守护者本身会保留。",
+   "pick": "此智能体的另一个守护者，用于关联到此职位。",
+   "attach": "将所选守护者关联到此职位。",
+   "create": "打开已填好此智能体的守护者表单。新守护者会关联到此职位。"
+  },
+  "budget": {
+   "period": "一个预算周期。其时间窗口每天或每月重新开始。",
+   "amount": "单元子树在此周期内最多可花费的金额（美元）。留空表示没有预算。",
+   "save": "将预算保存到工作树。高于上级预算的金额会被服务器拒绝。",
+   "clear": "移除此预算。",
+   "cap": "此预算的上限：最近一个设有同周期预算的上级单元的预算。"
+  },
+  "rules": {
+   "add": "为此单元打开变更规则表单。规则覆盖该单元及其下所有单元。",
+   "edit": "在变更规则表单中打开此规则。"
+  },
+  "problems": {
+   "title": "发布检查在工作树中发现的问题。每次更改后都会更新。",
+   "show": "在画布上选中此单元。"
+  },
+  "overlay": {
+   "range": "运行次数、上报和成本的统计时间范围。",
+   "unit": "您在组织图中选中的单元。",
+   "runs": "此单元子树中最近运行的样本，与“绩效”页面显示的样本相同。",
+   "openRun": "打开运行。",
+   "openTrail": "打开运行的活动轨迹。"
+  },
+  "chartLayout": {
+   "tree": "以卡片树显示组织图。",
+   "canvas": "在画布上显示组织图，每个单元上显示健康状况、支出和活动。"
+  },
+  "templates": {
+   "open": "新建组织，可以是空组织，也可以基于某个示例组织。",
+   "preview": "以试运行方式执行模板，并列出它会创建或更改的内容。",
+   "previewFirst": "请先查看模板会创建什么。",
+   "apply": "通过清单应用功能应用模板，并打开新组织。",
+   "contents": "模板清单中的资源，按类型和名称列出。",
+   "blank": "一个没有单元的空组织。",
+   "gerbil": "gerbil 示例：一个监视状态页面的守护者，放在只有一个单元的组织中。",
+   "siteReliability": "站点可靠性示例：一名负责人、三个守护者、一名记忆整理员、预算和对等线路。"
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4954,5 +5047,24 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "startTour": "开始{{tour}}导览，带你走一遍 Garrison 这一部分用到的页面。",
   "toc": "跳到本页的{{title}}。",
   "seeDiagram": "打开学习页面，定位到说明此页面在 Garrison 中位置的图示。"
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "会阻止发布的问题。发布修订版前请先修复。",
+   "warnings": "值得查看但不会阻止发布的问题。"
+  }
  }
 });

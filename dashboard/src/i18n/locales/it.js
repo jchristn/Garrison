@@ -9029,6 +9029,195 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "Progettazione",
+    "people": "Persone",
+    "keepers": "Custodi",
+    "budget": "Budget",
+    "rules": "Regole",
+    "label": "Unità {{name}}"
+   },
+   "note": "Le modifiche si salvano subito nell'albero di lavoro. Niente diventa attivo finché non pubblichi una revisione dall'intestazione della pagina.",
+   "empty": "Non ci sono ancora unità. Aggiungi l'unità radice con Aggiungi unità, oppure inizia una nuova organizzazione da un modello.",
+   "narrow": "L'area di disegno richiede uno schermo più largo, quindi le unità sono elencate qui sotto. Ogni modifica si salva comunque nell'albero di lavoro.",
+   "failed": "{{change}} non è andata a buon fine.",
+   "operations": {
+    "AddUnit": "Aggiunta dell'unità",
+    "RemoveUnit": "Rimozione dell'unità",
+    "MoveUnit": "Spostamento dell'unità",
+    "SetLead": "Cambio del capo",
+    "AddUnitMember": "Aggiunta del membro",
+    "RemoveUnitMember": "Rimozione del membro",
+    "ConnectUnits": "Aggiunta della linea tra pari",
+    "DisconnectUnits": "Rimozione della linea tra pari",
+    "SetBudget": "Salvataggio del budget",
+    "AttachMandate": "Assegnazione del custode",
+    "DetachMandate": "Rimozione del custode"
+   },
+   "minimap": "Minimappa dell'organizzazione",
+   "node": {
+    "problems_one": "{{count}} problema",
+    "problems_other": "{{count}} problemi"
+   },
+   "announce": {
+    "leadSet": "{{name}} ora guida {{unit}}."
+   },
+   "keys": {
+    "undo": "Ctrl+Z annulla l'ultima modifica, e Ctrl+Maiusc+Z o Ctrl+Y la ripete (Cmd su Mac).",
+    "place": "Con un agente scelto in Persone, Invio su un'unità lo aggiunge come membro e L lo rende capo."
+   },
+   "history": {
+    "label": "Annulla e ripeti",
+    "undo": "Annulla",
+    "redo": "Ripeti",
+    "undone": "Annullato: {{change}}.",
+    "redone": "Ripetuto: {{change}}.",
+    "methods": {
+     "addUnit": "aggiungi unità",
+     "removeUnit": "rimuovi unità",
+     "moveUnit": "sposta unità",
+     "setLead": "cambia capo",
+     "addMember": "aggiungi membro",
+     "removeMember": "rimuovi membro",
+     "connectUnits": "aggiungi linea tra pari",
+     "disconnectUnits": "rimuovi linea tra pari",
+     "setBudget": "cambia budget",
+     "attachMandate": "assegna custode",
+     "detachMandate": "togli custode"
+    }
+   },
+   "palette": {
+    "title": "Persone",
+    "search": "Cerca agenti",
+    "hint": "Trascina un agente su un'unità per aggiungerlo come membro, o sulla riga del capo per farne il capo. Puoi anche sceglierlo e poi indicare dove va.",
+    "none": "Questo tenant non ha ancora agenti.",
+    "noMatch": "Nessun agente corrisponde alla ricerca.",
+    "inUnit": "in {{unit}}",
+    "newAgent": "Nuovo agente",
+    "newAgentTitle": "Nuovo agente per {{unit}}",
+    "placing": "Posiziona {{name}}:",
+    "unit": "Unità",
+    "as": "Come",
+    "asMember": "Membro",
+    "asLead": "Capo",
+    "place": "Posiziona"
+   },
+   "structure": {
+    "lead": "Capo",
+    "title": "Titolo del capo",
+    "setLead": "Imposta capo",
+    "parent": "Riporta a",
+    "move": "Sposta"
+   },
+   "keepers": {
+    "hint": "Un custode è un compito permanente che un agente svolge secondo un calendario di risveglio. Ogni posizione dell'unità può averne uno.",
+    "noPeople": "Aggiungi prima un capo o un membro. I custodi si assegnano alle persone di un'unità.",
+    "lead": "Capo",
+    "member": "Membro",
+    "none": "Nessun custode assegnato.",
+    "nextWake": "Prossimo risveglio {{when}}",
+    "notScheduled": "Non pianificato",
+    "every": "ogni {{interval}}",
+    "schedule": "Modifica calendario",
+    "detach": "Togli",
+    "pick": "Custode da assegnare",
+    "attach": "Assegna",
+    "create": "Nuovo custode",
+    "createTitle": "Nuovo custode per {{name}}"
+   },
+   "budget": {
+    "hint": "Un budget limita quanto possono spendere l'unità e tutto ciò che sta sotto di essa. La spesa riguarda la finestra corrente della revisione attiva.",
+    "amount": "Budget (USD)",
+    "clear": "Cancella",
+    "noSpend": "Nessuna spesa registrata in questa finestra.",
+    "cap": "Al massimo {{amount}}, il budget {{period}} di {{unit}}.",
+    "noCap": "Nessuna unità sopra questa imposta un budget {{period}}.",
+    "capLeft": "A {{unit}} restano {{left}} in questa finestra."
+   },
+   "rules": {
+    "hint": "Le regole di modifica permettono alle proposte di routine di un dirigente in questo sottoalbero di applicarsi senza una persona. Solo le persone le scrivono.",
+    "add": "Aggiungi regola",
+    "none": "Nessuna regola di modifica copre questa unità.",
+    "here": "Impostata su questa unità.",
+    "above": "Impostata su {{unit}}, sopra questa unità.",
+    "by": "Scritta da {{name}}.",
+    "runToken": "Gli agenti non possono scrivere regole di modifica, quindi un token di esecuzione vede questo elenco in sola lettura."
+   },
+   "problems": {
+    "title_one": "Controlli: {{count}} problema",
+    "title_other": "Controlli: {{count}} problemi",
+    "checking": "Controllo dell'organizzazione...",
+    "none": "Nessun problema trovato.",
+    "failed": "Non è stato possibile eseguire i controlli: {{reason}}",
+    "show": "Mostra {{unit}}",
+    "UnitWithoutLead": "{{unit}} non ha un capo.",
+    "AgentInTwoUnits": "{{agent}} è in più di un'unità, tra cui {{unit}}.",
+    "PeerLineToMissingUnit": "{{unit}} ha una linea tra pari verso un'unità che non fa parte dell'organizzazione.",
+    "BudgetOverParent": "Il budget di {{unit}} supera quello di un'unità sopra di essa.",
+    "KeeperDeploymentMissing": "Il custode {{mandate}} di {{agent}} in {{unit}} non ha una distribuzione attiva.",
+    "UnitDetachedFromRoot": "{{unit}} non ha un percorso fino all'unità radice."
+   },
+   "overlay": {
+    "range": "Periodo di attività",
+    "days_one": "{{count}} giorno",
+    "days_other": "{{count}} giorni",
+    "spend": "{{period}}: {{spent}} su {{amount}}",
+    "spendOnly": "{{period}}: {{spent}} spesi",
+    "activity_one": "{{runs}} esecuzioni, {{escalations}} escalation, {{cost}} nell'ultimo giorno",
+    "activity_other": "{{runs}} esecuzioni, {{escalations}} escalation, {{cost}} negli ultimi {{count}} giorni",
+    "pick": "Seleziona un'unità per vedere le sue esecuzioni recenti.",
+    "noReport": "Nessun rapporto presentato finora.",
+    "noActivity": "Nessuna attività in questo periodo.",
+    "runs": "Esecuzioni recenti",
+    "noRuns": "Nessuna esecuzione in questo periodo.",
+    "openTrail": "Apri percorso"
+   },
+   "chartLayout": {
+    "label": "Visualizzazione dell'organigramma",
+    "tree": "Albero",
+    "canvas": "Area di disegno"
+   },
+   "templates": {
+    "title": "Nuova organizzazione da un modello",
+    "open": "Nuova da modello",
+    "intro": "Parti da zero o applica una delle organizzazioni di esempio. Gli esempi girano sull'harness fittizio, quindi non servono credenziali.",
+    "apply": "Applica modello",
+    "create": "Crea organizzazione",
+    "preview": "Verifica cosa crea",
+    "previewHint": "Verifica cosa crea prima di applicarlo. Il manifesto viene eseguito come prova e elenca cosa verrebbe creato o modificato.",
+    "contents_one": "Questo modello contiene {{count}} risorsa",
+    "contents_other": "Questo modello contiene {{count}} risorse",
+    "ticks": "I custodi di questo modello iniziano a risvegliarsi pochi secondi dopo l'applicazione.",
+    "blank": {
+     "name": "Vuota",
+     "body": "Un'organizzazione vuota. L'unità radice si aggiunge nella scheda Progettazione."
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "Un custode in un'unità. Controlla una pagina di stato e chiede a una persona quando la pagina resta fuori servizio."
+    },
+    "siteReliability": {
+     "name": "Affidabilità del sito",
+     "body": "Un capo e tre custodi che si occupano di un sito pubblico, con linee tra pari, budget e un curatore della memoria."
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9557,6 +9746,40 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
  "components": {
   "explainer": {
    "seeDiagram": "Vedi il diagramma"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "Errori: {{count}}",
+    "errors_other": "Errori: {{count}}",
+    "warnings_one": "Avvisi: {{count}}",
+    "warnings_other": "Avvisi: {{count}}",
+    "warningsOnly": "Restano solo avvisi, quindi l'albero di lavoro si può comunque pubblicare.",
+    "OneRoot": "L'organizzazione ha più di un'unità radice, tra cui {{unit}}.",
+    "Cycle": "{{unit}} si trova sotto se stessa.",
+    "UnitNameTaken": "Due unità si chiamano {{unit}}.",
+    "TooManyUnits": "L'organizzazione ha più unità di quante ne possa contenere.",
+    "TooManyMembers": "{{unit}} ha più membri di quanti un'unità ne possa avere.",
+    "TooManyPeerLines": "{{unit}} ha più linee tra pari di quante un'unità ne possa avere.",
+    "BudgetPeriodTaken": "{{unit}} ha due budget per lo stesso periodo.",
+    "BudgetInvalid": "Un budget di {{unit}} non è un importo valido.",
+    "AgentInactive": "{{agent}} in {{unit}} non è attivo.",
+    "MandateMismatch": "Il custode {{mandate}} in {{unit}} non appartiene a {{agent}}."
+   }
   }
  }
 });

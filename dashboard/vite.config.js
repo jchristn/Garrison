@@ -71,6 +71,9 @@ export default defineConfig({
           // draft's Graph tab opens. The canvas imports from the studio chunk; the studio reaches it by dynamic import.
           if (/node_modules\/(@xyflow|d3-[a-z-]+|zustand|use-sync-external-store|classcat|yaml)\//.test(id)) return 'canvas';
           if (id.includes('/src/components/studio/canvas/') || id.endsWith('/src/utils/studioCanvas.js') || id.endsWith('/src/utils/manifestYaml.js')) return 'canvas';
+          // The organization designer (LP3) shares the canvas; Organization detail and the Organizations page load it by
+          // dynamic import, so the views chunk does not carry React Flow or the template manifests.
+          if (id.includes('/src/components/orgDesigner/') || /\/src\/utils\/(orgCanvasSource|orgTemplates|orgTemplateManifests)\.js$/.test(id)) return 'canvas';
           if (id.includes('/src/components/studio/') || id.endsWith('/src/utils/studio.js') || id.endsWith('/src/hooks/useStudioDraftChannel.js') || id.endsWith('/src/hooks/useChatTranscript.js')) return 'studio';
           if (id.includes('/src/views/')) return 'views';
           return undefined;

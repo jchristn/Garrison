@@ -2085,6 +2085,64 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
   .trail-step-box, .trail-card, .trail-graph .react-flow__viewport { transition: none !important; animation: none !important; }
 }
 
+/* ================= Organization designer (LP3.2 to LP3.10) =================
+   The people palette, drop targets on unit boxes, keeper and problem tags, the Chart overlays, the unit panel tabs,
+   and the template picker. Logical properties throughout, so right-to-left layouts mirror. */
+.org-designer, .org-chart-canvas { display: flex; flex-direction: column; gap: var(--spacing-sm); min-inline-size: 0; }
+.org-design-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); }
+.org-palette { display: flex; flex-direction: column; gap: var(--spacing-xs); border-block-end: 1px solid var(--color-border); padding-block-end: var(--spacing-sm); }
+.org-palette-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; }
+.org-palette input[type='search'] { inline-size: 100%; min-inline-size: 0; }
+.org-palette-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-block-size: 14rem; overflow-y: auto; }
+.org-palette-list li::before { content: none; }
+.org-palette-agent { inline-size: 100%; display: flex; justify-content: space-between; gap: var(--spacing-sm); padding: 4px var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); text-align: start; cursor: grab; font-size: var(--font-size-sm); }
+.org-palette-agent.is-picked { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-soft); }
+.org-palette-agent:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.org-palette-agent[aria-disabled='true'] { cursor: not-allowed; opacity: 0.7; }
+.org-palette-name { overflow-wrap: anywhere; }
+.org-palette-where { font-size: var(--font-size-xs); white-space: nowrap; }
+.org-palette-place { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }
+.org-palette-place select { min-inline-size: 0; max-inline-size: 100%; }
+.studio-canvas-unit.is-drop-target { box-shadow: 0 0 0 3px var(--color-primary); border-style: dashed; }
+.studio-canvas-unit-people li.is-drop-target { outline: 2px dashed var(--color-primary); outline-offset: -2px; }
+.studio-canvas-tag.is-keeper { margin-inline-start: 4px; font-weight: 400; }
+.studio-canvas-tag.is-problem { border-color: var(--color-danger); color: var(--color-text); }
+.studio-canvas-tag.is-health.is-success { border-color: var(--color-success); color: var(--color-text); }
+.studio-canvas-tag.is-health.is-warning { border-color: var(--color-warning); color: var(--color-text); }
+.studio-canvas-tag.is-health.is-danger { border-color: var(--color-danger); color: var(--color-text); }
+.studio-canvas-unit-overlay { list-style: none; margin: 0; padding: 0; font-size: var(--font-size-xs); line-height: 20px; color: var(--color-text-secondary); }
+.studio-canvas-unit-overlay li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.studio-canvas-unit-overlay li::before { content: none; }
+.org-minimap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.org-minimap .react-flow__minimap-mask { fill: color-mix(in srgb, var(--color-surface-alt) 70%, transparent); }
+.org-minimap .react-flow__minimap-node { fill: var(--color-surface-alt); stroke: var(--color-border); }
+.org-problems { display: flex; flex-direction: column; gap: var(--spacing-xs); margin-block-start: var(--spacing-sm); }
+.org-problem-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.org-problem-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); padding: 4px var(--spacing-sm); border-inline-start: 3px solid var(--color-danger); background: color-mix(in srgb, var(--color-danger) 6%, transparent); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.org-problem-list li::before { content: none; }
+.org-design-panel { display: flex; flex-direction: column; gap: var(--spacing-sm); min-inline-size: 0; }
+.org-design-tab { display: flex; flex-direction: column; gap: var(--spacing-sm); min-inline-size: 0; }
+.org-structure { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.org-keeper-list, .org-rule-list, .org-template-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.org-keeper-list li::before, .org-rule-list li::before, .org-template-items li::before { content: none; }
+.org-keeper-row, .org-rule-row { display: flex; flex-direction: column; gap: 4px; padding: var(--spacing-xs) var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.org-keeper-who { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: baseline; }
+.org-keeper-attached { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; }
+.org-keeper-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; }
+.org-keeper-actions select { min-inline-size: 0; max-inline-size: 100%; }
+.org-budget-period { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--spacing-xs) var(--spacing-sm); margin: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); min-inline-size: 0; }
+.org-budget-period legend { font-size: var(--font-size-sm); font-weight: 600; padding: 0 4px; }
+.org-budget-period input[type='number'] { inline-size: 8rem; min-inline-size: 0; }
+.org-template-choices { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--spacing-sm); }
+.org-template-choice { display: flex; gap: var(--spacing-sm); align-items: flex-start; padding: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.org-template-choice > span { display: flex; flex-direction: column; gap: 4px; }
+.org-template-choice.is-chosen { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-soft); }
+.org-template-choice:focus-within { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.org-template-items li { overflow-wrap: anywhere; font-size: var(--font-size-sm); }
+@media (prefers-reduced-motion: reduce) {
+  .org-palette-agent, .org-template-choice, .studio-canvas-unit { transition: none; }
+}
+
 /* ---------------------------------------------------------------------------------------------------------------
    Concept diagrams and the Learn page (LP4.1 to LP4.3). The SVG diagrams take every color from the theme tokens, so
    they follow light and dark. scripts/export-diagrams.mjs embeds the same rules with literal colors
@@ -2145,3 +2203,9 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 .explainer-learn-link { display: inline-block; margin-top: 0.15rem; font-size: var(--font-size-sm); }
 a.sidebar-utility { text-decoration: none; }
 .sidebar-utility.active { background: var(--color-primary-soft); color: var(--color-primary); }
+
+/* Organization designer checks (LP3.7): errors stop a publish, warnings do not. The heading says which, so color is
+   only a second cue. */
+.org-problem-group { display: flex; flex-direction: column; gap: 4px; }
+.org-problem-group-title { font-size: var(--font-size-sm); font-weight: 600; }
+.org-problem-group.is-warnings .org-problem-list li { border-inline-start-color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, transparent); }

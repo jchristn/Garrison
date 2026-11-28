@@ -4932,6 +4932,99 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "Concevoir l'arbre de travail de cette organisation sur un canevas : unités, responsables, membres, lignes transversales, gardiens, budgets et règles de changement applicables.",
+   "people": "Le responsable, les membres et les lignes transversales de l'unité, ainsi que les actions pour ajouter une unité en dessous, commencer une ligne transversale ou la retirer.",
+   "keepers": "Les gardiens rattachés à chaque personne de l'unité, avec leur prochain réveil. Rattachez-les, détachez-les, créez-les ou replanifiez-les ici.",
+   "budget": "Les budgets journalier et mensuel de l'unité, ce que son sous-arbre a dépensé et le montant maximal de chaque budget.",
+   "rules": "Les règles de changement qui couvrent cette unité. Des personnes écrivent les règles ; cet onglet les liste et ouvre le formulaire de règle."
+  },
+  "readOnly": "Cette vue affiche seulement l'organisation. Utilisez l'onglet Conception pour la modifier.",
+  "unitOverlay": "Une unité avec son état, ses dépenses et son activité. Sélectionnez-la pour voir ses exécutions récentes.",
+  "history": {
+   "undo": "Annuler la dernière modification ({{change}}) en envoyant la modification inverse.",
+   "redo": "Refaire la modification : {{change}}.",
+   "nothingToUndo": "Il n'y a encore rien à annuler.",
+   "nothingToRedo": "Il n'y a rien à rétablir."
+  },
+  "palette": {
+   "title": "Les agents de ce locataire. Faites-en glisser un sur une unité, ou choisissez-le puis une unité.",
+   "search": "Filtrer les agents par nom.",
+   "agent": "Faites-le glisser sur une unité pour l'ajouter comme membre, ou sur la ligne du responsable de l'unité pour qu'il la dirige. Appuyez sur Entrée pour le choisir et le placer au clavier.",
+   "newAgent": "Ouvrir le formulaire d'agent. Le nouvel agent rejoint l'unité sélectionnée comme membre.",
+   "unit": "L'unité où va l'agent choisi.",
+   "as": "Si l'agent rejoint l'unité comme membre ou en devient le responsable.",
+   "leadOff": "Ce canevas ne peut pas changer de responsable, l'agent rejoint donc l'unité comme membre.",
+   "place": "Ajouter l'agent choisi à l'unité choisie.",
+   "cancel": "Reposer l'agent sans le placer."
+  },
+  "structure": {
+   "lead": "L'agent qui dirige l'unité. Laissez vide pour aucun responsable.",
+   "title": "Le titre du responsable, par exemple Responsable de la facturation.",
+   "setLead": "Faire de cet agent le responsable de l'unité. Un membre qui devient responsable quitte la liste des membres.",
+   "parent": "L'unité à laquelle celle-ci rend compte. Une unité ne peut pas rendre compte à elle-même ni à une unité située en dessous.",
+   "move": "Déplacer l'unité, avec tout ce qui se trouve en dessous, sous l'unité choisie.",
+   "sameParent": "L'unité rend déjà compte à celle-ci."
+  },
+  "keepers": {
+   "open": "Ouvrir la page du gardien.",
+   "schedule": "Écrire une nouvelle révision du gardien avec un autre calendrier de réveil.",
+   "detach": "Retirer le gardien de ce poste. Le gardien lui-même est conservé.",
+   "pick": "Un autre gardien de cet agent à rattacher au poste.",
+   "attach": "Rattacher le gardien choisi à ce poste.",
+   "create": "Ouvrir le formulaire de gardien avec cet agent déjà renseigné. Le nouveau gardien est rattaché au poste."
+  },
+  "budget": {
+   "period": "Une période de budget. Sa fenêtre recommence chaque jour ou chaque mois.",
+   "amount": "Le montant maximal que le sous-arbre de l'unité peut dépenser sur la période, en dollars américains. Laissez vide pour aucun budget.",
+   "save": "Enregistrer le budget dans l'arbre de travail. Le serveur refuse un budget supérieur à celui du dessus.",
+   "clear": "Supprimer ce budget.",
+   "cap": "Le montant maximal de ce budget : celui de l'unité la plus proche au-dessus qui en a un pour la même période."
+  },
+  "rules": {
+   "add": "Ouvrir le formulaire de règle de changement pour cette unité. Une règle couvre l'unité et tout ce qui se trouve en dessous.",
+   "edit": "Ouvrir cette règle dans le formulaire de règle de changement."
+  },
+  "problems": {
+   "title": "Les problèmes que les vérifications de publication trouvent dans l'arbre de travail. La liste se met à jour après chaque modification.",
+   "show": "Sélectionner l'unité sur le canevas."
+  },
+  "overlay": {
+   "range": "Jusqu'où remontent le nombre d'exécutions, les escalades et le coût.",
+   "unit": "L'unité que vous avez sélectionnée dans l'organigramme.",
+   "runs": "Un échantillon d'exécutions récentes dans le sous-arbre de cette unité, le même que celui de la page Performances.",
+   "openRun": "Ouvrir l'exécution.",
+   "openTrail": "Ouvrir le parcours d'activité de l'exécution."
+  },
+  "chartLayout": {
+   "tree": "Afficher l'organigramme sous forme d'arbre de cartes.",
+   "canvas": "Afficher l'organigramme sur le canevas, avec l'état, les dépenses et l'activité de chaque unité."
+  },
+  "templates": {
+   "open": "Commencer une nouvelle organisation, vide ou à partir de l'une des organisations d'exemple.",
+   "preview": "Exécuter le modèle à blanc et lister ce qu'il créerait ou modifierait.",
+   "previewFirst": "Vérifiez d'abord ce que le modèle crée.",
+   "apply": "Appliquer le modèle par l'application de manifeste et ouvrir la nouvelle organisation.",
+   "contents": "Les ressources du manifeste du modèle, par type et par nom.",
+   "blank": "Une organisation vide, sans unités.",
+   "gerbil": "L'exemple gerbil : un gardien qui surveille une page d'état, dans une organisation d'une seule unité.",
+   "siteReliability": "L'exemple de fiabilité du site : un responsable, trois gardiens, un conservateur de mémoire, des budgets et des lignes transversales."
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4957,5 +5050,24 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "startTour": "Lance la visite {{tour}}, qui parcourt les pages qu'utilise cette partie de Garrison.",
   "toc": "Va à {{title}} sur cette page.",
   "seeDiagram": "Ouvre la page Apprendre sur le schéma qui montre la place de cette page dans Garrison."
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "Les problèmes qui empêchent une publication. Corrigez-les avant de publier une révision.",
+   "warnings": "Les problèmes à examiner qui n'empêchent pas une publication."
+  }
  }
 });

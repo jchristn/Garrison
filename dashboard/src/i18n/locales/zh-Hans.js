@@ -8963,6 +8963,195 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
  }
 });
 
+// The organization designer (LP3.2 to LP3.10): the Design tab, people palette, unit panel tabs, live checks, undo, chart overlays, and templates.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "orgDesigner": {
+   "tabs": {
+    "design": "设计",
+    "people": "人员",
+    "keepers": "守护者",
+    "budget": "预算",
+    "rules": "规则",
+    "label": "单元 {{name}}"
+   },
+   "note": "更改会立即保存到工作树。只有从页面顶部发布修订版后才会生效。",
+   "empty": "还没有单元。用“添加单元”创建根单元，或从模板开始一个新组织。",
+   "narrow": "画布需要更宽的屏幕，所以单元以列表形式显示在下方。每次更改仍会保存到工作树。",
+   "failed": "{{change}}未能完成。",
+   "operations": {
+    "AddUnit": "添加单元",
+    "RemoveUnit": "移除单元",
+    "MoveUnit": "移动单元",
+    "SetLead": "更换负责人",
+    "AddUnitMember": "添加成员",
+    "RemoveUnitMember": "移除成员",
+    "ConnectUnits": "添加对等线路",
+    "DisconnectUnits": "移除对等线路",
+    "SetBudget": "保存预算",
+    "AttachMandate": "关联守护者",
+    "DetachMandate": "解除守护者"
+   },
+   "minimap": "组织小地图",
+   "node": {
+    "problems_one": "{{count}} 个问题",
+    "problems_other": "{{count}} 个问题"
+   },
+   "announce": {
+    "leadSet": "{{name}} 现在负责 {{unit}}。"
+   },
+   "keys": {
+    "undo": "Ctrl+Z 撤销上一次更改，Ctrl+Shift+Z 或 Ctrl+Y 重做（Mac 上用 Cmd）。",
+    "place": "在“人员”中选好智能体后，在单元上按 Enter 将其添加为成员，按 L 将其设为负责人。"
+   },
+   "history": {
+    "label": "撤销和重做",
+    "undo": "撤销",
+    "redo": "重做",
+    "undone": "已撤销：{{change}}。",
+    "redone": "已重做：{{change}}。",
+    "methods": {
+     "addUnit": "添加单元",
+     "removeUnit": "移除单元",
+     "moveUnit": "移动单元",
+     "setLead": "更换负责人",
+     "addMember": "添加成员",
+     "removeMember": "移除成员",
+     "connectUnits": "添加对等线路",
+     "disconnectUnits": "移除对等线路",
+     "setBudget": "更改预算",
+     "attachMandate": "关联守护者",
+     "detachMandate": "解除守护者"
+    }
+   },
+   "palette": {
+    "title": "人员",
+    "search": "搜索智能体",
+    "hint": "把智能体拖到单元上可将其添加为成员，拖到负责人一行可将其设为负责人。也可以先选中智能体，再选择去向。",
+    "none": "此租户还没有智能体。",
+    "noMatch": "没有与搜索匹配的智能体。",
+    "inUnit": "在 {{unit}}",
+    "newAgent": "新建智能体",
+    "newAgentTitle": "为 {{unit}} 新建智能体",
+    "placing": "放置 {{name}}：",
+    "unit": "单元",
+    "as": "身份",
+    "asMember": "成员",
+    "asLead": "负责人",
+    "place": "放置"
+   },
+   "structure": {
+    "lead": "负责人",
+    "title": "负责人头衔",
+    "setLead": "设为负责人",
+    "parent": "汇报对象",
+    "move": "移动"
+   },
+   "keepers": {
+    "hint": "守护者是智能体按唤醒计划持续执行的常设任务。单元中的每个职位可以有一个守护者。",
+    "noPeople": "请先添加负责人或成员。守护者关联到单元中的人员。",
+    "lead": "负责人",
+    "member": "成员",
+    "none": "未关联守护者。",
+    "nextWake": "下次唤醒 {{when}}",
+    "notScheduled": "未安排",
+    "every": "每 {{interval}}",
+    "schedule": "编辑计划",
+    "detach": "解除",
+    "pick": "要关联的守护者",
+    "attach": "关联",
+    "create": "新建守护者",
+    "createTitle": "为 {{name}} 新建守护者"
+   },
+   "budget": {
+    "hint": "预算限制单元及其下所有单元可以花费的金额。支出是当前已发布修订版在当前时间窗口内的数据。",
+    "amount": "预算（USD）",
+    "clear": "清除",
+    "noSpend": "此时间窗口内没有支出记录。",
+    "cap": "最多 {{amount}}，即 {{unit}} 的{{period}}预算。",
+    "noCap": "上级单元没有设置{{period}}预算。",
+    "capLeft": "{{unit}} 在此时间窗口内还剩 {{left}}。"
+   },
+   "rules": {
+    "hint": "变更规则让高管在此子树中的常规提案无需人工即可生效。规则只能由人编写。",
+    "add": "添加规则",
+    "none": "没有覆盖此单元的变更规则。",
+    "here": "设置在此单元上。",
+    "above": "设置在上级单元 {{unit}} 上。",
+    "by": "由 {{name}} 编写。",
+    "runToken": "智能体不能编写变更规则，因此运行令牌只能只读查看此列表。"
+   },
+   "problems": {
+    "title_one": "检查：{{count}} 个问题",
+    "title_other": "检查：{{count}} 个问题",
+    "checking": "正在检查组织...",
+    "none": "未发现问题。",
+    "failed": "无法运行检查：{{reason}}",
+    "show": "显示 {{unit}}",
+    "UnitWithoutLead": "{{unit}} 没有负责人。",
+    "AgentInTwoUnits": "{{agent}} 位于多个单元中，其中包括 {{unit}}。",
+    "PeerLineToMissingUnit": "{{unit}} 有一条对等线路指向不在此组织中的单元。",
+    "BudgetOverParent": "{{unit}} 的预算高于其上级单元的预算。",
+    "KeeperDeploymentMissing": "{{unit}} 中 {{agent}} 的守护者 {{mandate}} 没有可用的部署。",
+    "UnitDetachedFromRoot": "{{unit}} 无法连到根单元。"
+   },
+   "overlay": {
+    "range": "活动时间范围",
+    "days_one": "{{count}} 天",
+    "days_other": "{{count}} 天",
+    "spend": "{{period}}：{{spent}} / {{amount}}",
+    "spendOnly": "{{period}}：已花费 {{spent}}",
+    "activity_one": "最近 {{count}} 天：{{runs}} 次运行，{{escalations}} 次上报，{{cost}}",
+    "activity_other": "最近 {{count}} 天：{{runs}} 次运行，{{escalations}} 次上报，{{cost}}",
+    "pick": "选择一个单元以查看其最近的运行。",
+    "noReport": "尚未提交报告。",
+    "noActivity": "此时间范围内没有活动。",
+    "runs": "最近的运行",
+    "noRuns": "此时间范围内没有运行。",
+    "openTrail": "打开轨迹"
+   },
+   "chartLayout": {
+    "label": "组织图布局",
+    "tree": "树",
+    "canvas": "画布"
+   },
+   "templates": {
+    "title": "从模板新建组织",
+    "open": "从模板新建",
+    "intro": "从空组织开始，或应用一个示例组织。示例在模拟 Harness上运行，因此不需要凭据。",
+    "apply": "应用模板",
+    "create": "创建组织",
+    "preview": "查看会创建什么",
+    "previewHint": "应用前先查看会创建什么。这会以试运行方式执行清单，并列出将要创建或更改的内容。",
+    "contents_one": "此模板包含 {{count}} 个资源",
+    "contents_other": "此模板包含 {{count}} 个资源",
+    "ticks": "此模板中的守护者会在应用后几秒内开始唤醒。",
+    "blank": {
+     "name": "空白",
+     "body": "一个空组织。根单元在“设计”选项卡中添加。"
+    },
+    "gerbil": {
+     "name": "Gerbil",
+     "body": "一个单元里有一个守护者。它监视一个状态页面，页面持续宕机时会询问人员。"
+    },
+    "siteReliability": {
+     "name": "站点可靠性",
+     "body": "一名负责人和三个守护者照看一个公开网站，含对等线路、预算和一名记忆整理员。"
+    }
+   }
+  }
+ }
+});
+
 // LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -9491,6 +9680,60 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
  "components": {
   "explainer": {
    "seeDiagram": "查看图示"
+  }
+ }
+});
+
+// The organization designer's checks (LP3.7): errors and warnings, and every code of the validate route.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "orgDesigner": {
+   "problems": {
+    "errors_one": "错误：{{count}}",
+    "errors_other": "错误：{{count}}",
+    "warnings_one": "警告：{{count}}",
+    "warnings_other": "警告：{{count}}",
+    "warningsOnly": "只剩警告，因此工作树仍可发布。",
+    "OneRoot": "组织有多个根单元，其中包括 {{unit}}。",
+    "Cycle": "{{unit}} 位于自身之下。",
+    "UnitNameTaken": "有两个单元都名为 {{unit}}。",
+    "TooManyUnits": "组织的单元数超过上限。",
+    "TooManyMembers": "{{unit}} 的成员数超过上限。",
+    "TooManyPeerLines": "{{unit}} 的对等线路数超过上限。",
+    "BudgetPeriodTaken": "{{unit}} 有两个同周期的预算。",
+    "BudgetInvalid": "{{unit}} 的某项预算金额无效。",
+    "AgentInactive": "{{unit}} 中的 {{agent}} 未启用。",
+    "MandateMismatch": "{{unit}} 中的守护者 {{mandate}} 不属于 {{agent}}。"
+   }
+  }
+ }
+});
+
+// The organization designer (LP3.9): the one-day activity line, without a count placeholder.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "orgDesigner": {
+   "overlay": {
+    "activity_one": "最近 1 天：{{runs}} 次运行，{{escalations}} 次上报，{{cost}}"
+   }
   }
  }
 });

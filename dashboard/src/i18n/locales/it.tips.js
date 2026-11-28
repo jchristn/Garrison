@@ -4932,6 +4932,99 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
  }
 });
 
+// Tooltips for the organization designer (LP3.2 to LP3.10).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "tabs": {
+   "design": "Progetta l'albero di lavoro di questa organizzazione su un'area di disegno: unità, capi, membri, linee tra pari, custodi, budget e le regole di modifica che si applicano.",
+   "people": "Il capo, i membri e le linee tra pari dell'unità, e le azioni per aggiungere un'unità sotto di essa, iniziare una linea tra pari o rimuoverla.",
+   "keepers": "I custodi assegnati a ogni persona dell'unità, con il prossimo risveglio. Qui puoi assegnarli, toglierli, crearli o ripianificarli.",
+   "budget": "I budget giornaliero e mensile dell'unità, quanto ha speso il suo sottoalbero e il massimo che ciascun budget può raggiungere.",
+   "rules": "Le regole di modifica che coprono questa unità. Le regole le scrivono le persone; questa scheda le elenca e apre il modulo delle regole."
+  },
+  "readOnly": "Questa vista mostra soltanto l'organizzazione. Usa la scheda Progettazione per modificarla.",
+  "unitOverlay": "Un'unità con il suo stato, la spesa e l'attività. Selezionala per vedere le sue esecuzioni recenti.",
+  "history": {
+   "undo": "Annulla l'ultima modifica ({{change}}) inviando la modifica opposta.",
+   "redo": "Ripeti la modifica: {{change}}.",
+   "nothingToUndo": "Non c'è ancora nulla da annullare.",
+   "nothingToRedo": "Non c'è nulla da ripetere."
+  },
+  "palette": {
+   "title": "Gli agenti di questo tenant. Trascinane uno su un'unità, oppure sceglilo e poi scegli un'unità.",
+   "search": "Filtra gli agenti per nome.",
+   "agent": "Trascinalo su un'unità per aggiungerlo come membro, o sulla riga del capo dell'unità per farne il capo. Premi Invio per sceglierlo e posizionarlo con la tastiera.",
+   "newAgent": "Apri il modulo degli agenti. Il nuovo agente entra come membro nell'unità selezionata.",
+   "unit": "L'unità in cui va l'agente scelto.",
+   "as": "Se l'agente entra come membro o diventa il capo dell'unità.",
+   "leadOff": "Quest'area di disegno non può cambiare un capo, quindi l'agente entra come membro.",
+   "place": "Aggiungi l'agente scelto all'unità scelta.",
+   "cancel": "Rimetti a posto l'agente senza posizionarlo."
+  },
+  "structure": {
+   "lead": "L'agente che guida l'unità. Lascia vuoto per nessun capo.",
+   "title": "Il titolo del capo, per esempio Responsabile della fatturazione.",
+   "setLead": "Rendi questo agente il capo dell'unità. Un membro che diventa capo esce dall'elenco dei membri.",
+   "parent": "L'unità a cui questa riporta. Un'unità non può riportare a se stessa né a un'unità sotto di essa.",
+   "move": "Sposta l'unità, con tutto ciò che sta sotto, sotto l'unità scelta.",
+   "sameParent": "L'unità riporta già lì."
+  },
+  "keepers": {
+   "open": "Apri la pagina del custode.",
+   "schedule": "Scrivi una nuova revisione del custode con un calendario di risveglio diverso.",
+   "detach": "Togli il custode da questa posizione. Il custode stesso resta.",
+   "pick": "Un altro custode di questo agente da assegnare alla posizione.",
+   "attach": "Assegna il custode scelto a questa posizione.",
+   "create": "Apri il modulo dei custodi con questo agente già indicato. Il nuovo custode viene assegnato alla posizione."
+  },
+  "budget": {
+   "period": "Un periodo di budget. La sua finestra riparte ogni giorno o ogni mese.",
+   "amount": "Il massimo che il sottoalbero dell'unità può spendere nel periodo, in dollari statunitensi. Lascia vuoto per nessun budget.",
+   "save": "Salva il budget nell'albero di lavoro. Il server rifiuta un budget più alto di quello sopra.",
+   "clear": "Rimuovi questo budget.",
+   "cap": "Il massimo che questo budget può essere: il budget dell'unità più vicina sopra che ne ha uno per lo stesso periodo."
+  },
+  "rules": {
+   "add": "Apri il modulo delle regole di modifica per questa unità. Una regola copre l'unità e tutto ciò che sta sotto.",
+   "edit": "Apri questa regola nel modulo delle regole di modifica."
+  },
+  "problems": {
+   "title": "I problemi che i controlli di pubblicazione trovano nell'albero di lavoro. L'elenco si aggiorna dopo ogni modifica.",
+   "show": "Seleziona l'unità nell'area di disegno."
+  },
+  "overlay": {
+   "range": "Quanto indietro vanno i conteggi delle esecuzioni, le escalation e il costo.",
+   "unit": "L'unità che hai selezionato nell'organigramma.",
+   "runs": "Un campione di esecuzioni recenti nel sottoalbero di questa unità, lo stesso mostrato nella pagina Prestazioni.",
+   "openRun": "Apri l'esecuzione.",
+   "openTrail": "Apri il percorso di attività dell'esecuzione."
+  },
+  "chartLayout": {
+   "tree": "Mostra l'organigramma come un albero di schede.",
+   "canvas": "Mostra l'organigramma nell'area di disegno, con stato, spesa e attività di ogni unità."
+  },
+  "templates": {
+   "open": "Inizia una nuova organizzazione, vuota o da una delle organizzazioni di esempio.",
+   "preview": "Esegui il modello come prova ed elenca cosa creerebbe o modificherebbe.",
+   "previewFirst": "Verifica prima cosa crea il modello.",
+   "apply": "Applica il modello tramite l'applicazione dei manifesti e apri la nuova organizzazione.",
+   "contents": "Le risorse nel manifesto del modello, per tipo e nome.",
+   "blank": "Un'organizzazione vuota, senza unità.",
+   "gerbil": "L'esempio gerbil: un custode che controlla una pagina di stato, in un'organizzazione con una sola unità.",
+   "siteReliability": "L'esempio di affidabilità del sito: un capo, tre custodi, un curatore della memoria, budget e linee tra pari."
+  }
+ }
+});
+
 // LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
 (function mergeCatalog(target, source) {
   for (const [key, value] of Object.entries(source)) {
@@ -4957,5 +5050,24 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "startTour": "Avvia il tour {{tour}}, che percorre le pagine usate da questa parte di Garrison.",
   "toc": "Va a {{title}} in questa pagina.",
   "seeDiagram": "Apre la pagina Impara sul diagramma che mostra dove si colloca questa pagina in Garrison."
+ }
+});
+
+// Tooltips for the organization designer's errors and warnings (LP3.7).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "problems": {
+   "errors": "Problemi che impediscono la pubblicazione. Correggili prima di pubblicare una revisione.",
+   "warnings": "Problemi da controllare che non impediscono la pubblicazione."
+  }
  }
 });

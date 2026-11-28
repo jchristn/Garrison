@@ -105,10 +105,13 @@ export function orgToFlow(graph, organization) {
   };
 }
 
-/** Height of a unit's own part (name, tags, lead, and members), above its child units. */
+/**
+ * Height of a unit's own part (name, tags, lead, and members), above its child units. `extraRows` makes room for the
+ * overlay lines the organization designer's Chart view adds (LP3.9).
+ */
 export function unitHeaderHeight(unit) {
   const L = ORG_LAYOUT;
-  return L.nameHeight + L.rowHeight * (1 + (unit.members?.length || 0)) + L.pad;
+  return L.nameHeight + L.rowHeight * (1 + (unit.members?.length || 0) + (unit.extraRows || 0)) + L.pad;
 }
 
 /**
