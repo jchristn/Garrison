@@ -11,6 +11,10 @@ For organizations there are also [org-scale brakes](#org-scale-brakes): cancel e
 
 All four take effect in the control plane: a refused run is never created and a skipped wake never starts a tick, so the agent has nothing to argue with. Run tokens never hold the Freeze permissions, so an agent cannot lift a freeze on itself or turn the kill switch off.
 
+Every brake that stops new work is checked in the same two places, at run admission and before a keeper wake. The two at the bottom act on work that is already running.
+
+![Freezes, the kill switch, spend caps, and unit budgets feed the admission and wake checks, which refuse new runs and skip wakes; Cancel everything and the automatic freeze stop work already running](images/learn/brakes.svg)
+
 ## Freezes
 
 A freeze names a target:

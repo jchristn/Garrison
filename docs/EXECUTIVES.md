@@ -6,6 +6,10 @@ Executive authority points downward only. An agent that can change the system it
 
 Inside those limits, every executive draft waits for a person by default, like any other draft. People can also write **change rules** that pre-authorize narrow classes of change in part of the tree, such as "keepers in ops may set their minimum wake interval anywhere from 2 to 60 minutes". A draft whose every change a rule covers applies as soon as the executive asks. Either way the apply is recorded as an organization revision, so one rollback undoes it.
 
+The path a proposal takes, from the executive's draft through the hard limits and the change rules to an applied organization revision that one rollback can undo:
+
+![An executive writes a draft; hard limits refuse it or pass it to the change rules, which an eval gate can hold back; a covered draft applies, anything else waits for a person who sees shadow and canary evidence; each apply publishes an organization revision with a revert draft](images/learn/self-revision.svg)
+
 ## Making an executive
 
 Give a deployment of a unit lead `managementAccess: OrgSubtree`:

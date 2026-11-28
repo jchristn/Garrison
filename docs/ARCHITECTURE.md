@@ -48,6 +48,14 @@ The control plane is assembled from four modules, each registering its routes an
 
 ## The life of a run
 
+The same records seen as one tenant uses them: a deployment ties an agent to a harness profile and a node pool, and a worker node in that pool runs each run. The Learn page in the dashboard draws these diagrams with links to each page.
+
+![A tenant's credentials, agents, harness profiles, deployments, and runs, and the shared node pools and worker nodes that run them](images/learn/runtime.svg)
+
+The numbered steps below follow one request through those parts:
+
+![A request goes from the caller through REST, MCP, or A2A to run admission and the queue, is leased to a worker that starts the harness, and comes back as events and a reply](images/learn/request.svg)
+
 1. **Request.** A caller invokes an agent through `POST .../agents/{id}/invoke`, the MCP tool `garrison_invoke_agent`, or the A2A method `SendMessage`. All three go through the same invoker. The caller is authenticated, and Execute on Agent is checked.
 2. **Deployment selection.** For a hosted agent, the invoker picks one of the agent's active deployments, at random by weight unless the caller named one, and validates the run parameters against the deployment's allowed overrides. Delegated calls are checked against the delegation rules here. Remote registrations instead select the RemoteA2A or RemoteMcp executor without creating a hosted deployment; the worker performs bounded health/TTL checks and an outbound call (see [remote agents](REMOTE_AGENTS.md)). A delegated call that waits records the calling run as waiting on the child before the child is created, and fails at once with `DelegationCapacityExhausted` when waiting could leave no capacity to run it.
 3. **Queued.** The run is written as `Queued`, with its requirements (harness type, node pool, node labels) copied from the deployment. If the caller sent an idempotency key that matches a run from the last 24 hours, that run is returned instead.
@@ -155,6 +163,12 @@ Version 0.3.0 lets agents start work on their own, and it does so the same way t
      RunService admission: freezes, unit budgets ---+--> Queued --> lease --> compile (system prompt gains
      (a refused run is never created)                    keeper-system, org-context, executive-system) --> worker
 ```
+
+A keeper's pieces, before the details below: the mandate sets a wake schedule, each due wake is a tick that starts a `Keeper` run, and that run writes memory, files reports, and raises escalations. Mail between agents takes the second picture's path, through the loop guards into a mailbox.
+
+![A keeper holds a mandate whose wake schedule starts ticks; each tick starts a keeper run that writes memory, files reports, and raises escalations, and an answer wakes the keeper again](images/learn/autonomy.svg)
+
+![A message passes the loop guards into the recipient's mailbox or is stored as Rejected; normal mail waits for the next run and urgent mail wakes the recipient](images/learn/teams.svg)
 
 ### The keeper scheduler
 

@@ -20,6 +20,10 @@ Identifiers start with `org_` for organizations, `oun_` for units, and `orv_` fo
 
 For a complete organization to apply and watch, see [examples/autonomous/site-reliability-org](../examples/autonomous/site-reliability-org/README.md): a reliability lead over three keepers and a memory curator, with peer lines, budgets, change rules, and an approved eval set.
 
+The whole shape on one page: the board above the root unit, units joined by reporting and peer lines, and the working tree that goes live only when a revision is published, after which the chain of command reads it.
+
+![The board oversees the root unit, whose lead is the CEO; units below are joined by reporting lines and peer lines; the working tree goes live when a revision is published, and the chain of command reads only the live revision](images/learn/organization.svg)
+
 ## Units
 
 | Field | Meaning |
