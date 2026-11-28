@@ -292,7 +292,6 @@ export default function OrganizationDetailView({ recordId }) {
       </div>
     );
   }
-  if (!org) return <LoadingState />;
 
   const units = org.units || [];
   const retired = org.status === 'Retired';
