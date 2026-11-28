@@ -5147,3 +5147,62 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "elapsed": "Zeit seit der letzten Ausgabe oder dem letzten Werkzeugereignis."
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "Wie die App-Seite aussieht: Texte, Bilder, Farben in Hell und Dunkel, Layout und Einstiegsfragen, mit Live-Vorschau.",
+   "steps": {
+    "appearance": "Texte, Bilder, Farbpalette, Design, Layout und Einstiegsfragen der App-Seite, mit Vorschau in Hell und Dunkel."
+   },
+   "subtitle": "Eine kurze Zeile unter dem App-Namen in der Kopfzeile und auf dem Begrüßungsbildschirm. Leer zeigt keine.",
+   "welcomeTitle": "Die große Überschrift vor der ersten Nachricht. Leer verwendet den Anzeigenamen.",
+   "composerPlaceholder": "Der Hinweis im leeren Eingabefeld, etwa was man fragen kann. Leer verwendet den Standardhinweis.",
+   "agentDisplayName": "Der Autorenname an den Antworten des Agenten, etwa eine Persona. Leer verwendet den Anzeigenamen.",
+   "agentAvatarAssetId": "Ein Bild-Asset, klein und rund neben dem Agentennamen. Wählen Sie eines oder laden Sie es hier hoch.",
+   "paletteId": "Die Vorlage, von der die Farben stammen, oder Eigene Farben nach einer Änderung. Nur ein Vermerk: Die Seite nutzt die Farben darunter.",
+   "themeDefault": "Das Design, mit dem die Seite öffnet. Wie das System folgt der Einstellung des Geräts.",
+   "allowThemeSwitch": "Wenn an, kann man zwischen hell und dunkel wechseln und die Seite merkt es sich. Aus behält das Standarddesign.",
+   "cornerStyle": "Wie rund Schaltflächen, Felder und Nachrichten sind: eckig, abgerundet (Standard) oder in Kapselform.",
+   "density": "Wie viel Platz die Seite um Elemente lässt. Kompakt zeigt mehr auf einmal; Großzügig ist der Standard.",
+   "showFilesPanel": "Aus blendet die Schaltfläche Dateien und die Liste der Dateien des Agenten aus. Dateilinks in Antworten bleiben einfache Links.",
+   "showLanguagePicker": "Aus blendet das Sprachmenü aus. Die Seite folgt weiter der Browsersprache oder einem ?lang=-Link.",
+   "showPoweredBy": "Eine kleine Zeile unter dem Chat und auf der Anmeldeseite mit Link zur Garrison-Website. Aus blendet sie aus.",
+   "starterPrompts": "Bis zu 4 vorgeschlagene Fragen als Schaltflächen in einer neuen Unterhaltung, je bis zu 200 Zeichen."
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "Texte auf der App-Seite: Untertitel, Begrüßungstitel und -text, Hinweis im Eingabefeld und Agentenname.",
+   "images": "Logo, Symbol im Browser-Tab und Avatar des Agenten. Wählen Sie ein vorhandenes Bild-Asset oder laden Sie ein neues hoch.",
+   "colors": "Beginnen Sie mit einer Farbpalette und passen Sie Farben an. Jede Farbe hat einen hellen und einen dunklen Wert; ein leerer dunkler wird aus dem hellen abgeleitet.",
+   "layout": "Das Design beim Öffnen, wie rund die Ecken sind, wie eng die Abstände sind und die Schrift.",
+   "show": "Teile der Seite ausschalten: Design-Schaltfläche, Dateiliste, Sprachmenü und den Hinweis auf die Plattform.",
+   "prompts": "Vorgeschlagene erste Fragen als Schaltflächen in einer neuen Unterhaltung. Ein Klick sendet sie.",
+   "preview": "Eine Skizze der App-Seite in Hell und Dunkel, die sich mit den Feldern ändert. Gespeichert wird erst mit Speichern."
+  },
+  "contrastWarning": "Mancher Text auf dieser Farbe erreicht nur {{ratio}}:1. WCAG AA verlangt 4,5:1; wählen Sie einen helleren oder dunkleren Ton.",
+  "derived": "Keine dunkle Farbe gesetzt, also leitet die App-Seite sie aus der hellen ab: gleicher Farbton, angepasste Helligkeit.",
+  "sameAsLight": "Keine dunkle Farbe und keine Farbpalette: Das dunkle Design behält die helle Farbe, wie vor den Farbpaletten.",
+  "builtIn": "Keine der beiden Farben ist gesetzt, also nutzt das dunkle Design die eigene dunkle Farbe der Seite.",
+  "darkColor": "{{field}} im dunklen Design, als #RGB oder #RRGGBB. Leer lassen, um sie aus der hellen Farbe abzuleiten.",
+  "resetColors": "Alle hellen und dunklen Farben und die Farbpalette leeren, damit die Seite in beiden Designs ihre eingebauten Farben nutzt.",
+  "palette": "Alle hellen und dunklen Farben mit der Palette {{name}} füllen. Danach lässt sich jede Farbe anpassen.",
+  "lightColumn": "Farben für das helle Design. Eine leere behält die eingebaute helle Farbe der Seite.",
+  "darkColumn": "Farben für das dunkle Design. Eine leere wird aus der hellen abgeleitet und daneben gezeigt.",
+  "upload": "Ein Bild von diesem Computer als neues Asset hochladen und als {{field}} verwenden.",
+  "prompt": "Eine Frage, die man mit einem Klick senden kann. Kurz halten; Alt+Pfeil nach oben und unten verschieben sie.",
+  "addPrompt": "Eine leere Einstiegsfrage am Ende der Liste hinzufügen und ihren Text eingeben.",
+  "promptsFull": "Eine App kann höchstens {{max}} Einstiegsfragen haben. Entfernen Sie eine, um eine neue hinzuzufügen."
+ }
+});

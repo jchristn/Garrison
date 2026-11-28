@@ -10085,3 +10085,137 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "Apariencia"
+   },
+   "fields": {
+    "appearance": "Apariencia",
+    "subtitle": "Subtítulo",
+    "welcomeTitle": "Título de bienvenida",
+    "composerPlaceholder": "Texto de ejemplo del cuadro de mensaje",
+    "agentDisplayName": "Nombre del agente en los mensajes",
+    "agentAvatarAssetId": "Avatar del agente",
+    "paletteId": "Paleta",
+    "themeDefault": "Tema predeterminado",
+    "allowThemeSwitch": "Permitir cambiar entre claro y oscuro",
+    "cornerStyle": "Esquinas",
+    "density": "Densidad",
+    "showFilesPanel": "Mostrar la lista de archivos",
+    "showLanguagePicker": "Mostrar el selector de idioma",
+    "showPoweredBy": "Mostrar la línea de crédito de la plataforma",
+    "starterPrompts": "Preguntas iniciales"
+   },
+   "hints": {
+    "subtitle": "Una línea corta bajo el nombre en el encabezado y en la pantalla de bienvenida. Hasta 200 caracteres.",
+    "welcomeTitle": "El título antes del primer mensaje. Si está vacío se muestra el nombre visible. Hasta 120 caracteres.",
+    "composerPlaceholder": "El texto gris del cuadro de mensaje vacío. Hasta 120 caracteres.",
+    "agentDisplayName": "De quién son las respuestas. Si está vacío se muestra el nombre visible. Hasta 80 caracteres.",
+    "agentAvatarAssetId": "Una imagen pequeña y redonda junto al nombre del agente en cada respuesta.",
+    "starterPrompts": "Hasta 4 botones en una conversación nueva. Al pulsar uno se envía como primer mensaje.",
+    "allowThemeSwitch": "Desactivado oculta el botón claro y oscuro e ignora la elección guardada antes."
+   },
+   "noAvatar": "Sin avatar",
+   "placeholders": {
+    "subtitle": "Por ejemplo: Respuestas del equipo de investigación"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "Según el sistema",
+   "Light": "Claro",
+   "Dark": "Oscuro"
+  },
+  "appCornerStyle": {
+   "Sharp": "Rectas",
+   "Rounded": "Redondeadas",
+   "Pill": "Píldora"
+  },
+  "appDensity": {
+   "Compact": "Compacta",
+   "Comfortable": "Cómoda"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "Textos",
+    "images": "Imágenes",
+    "colors": "Colores",
+    "layout": "Tema y diseño",
+    "show": "Qué muestra la página",
+    "prompts": "Preguntas iniciales",
+    "preview": "Vista previa"
+   },
+   "palettes": {
+    "garrison": "Verde azulado Garrison",
+    "slate": "Pizarra",
+    "ocean": "Océano",
+    "forest": "Bosque",
+    "sunset": "Atardecer",
+    "plum": "Ciruela",
+    "graphite": "Grafito",
+    "contrast": "Alto contraste",
+    "custom": "Personalizada",
+    "none": "Colores integrados"
+   },
+   "paletteCurrent": "Paleta: {{name}}",
+   "resetColors": "Usar los colores integrados",
+   "columns": {
+    "role": "Elemento",
+    "light": "Claro",
+    "dark": "Oscuro"
+   },
+   "derived": "Derivado del claro",
+   "sameAsLight": "Igual que el claro",
+   "builtIn": "Color oscuro integrado",
+   "contrastWarning": "Contraste del texto {{ratio}}:1, por debajo del mínimo AA de 4,5:1",
+   "darkLabel": "{{field}}, tema oscuro",
+   "image": {
+    "upload": "Subir imagen",
+    "uploading": "Subiendo...",
+    "uploaded": "Subida como el recurso {{name}}.",
+    "notImage": "Elija un archivo de imagen: PNG, JPEG, GIF, WebP, SVG o ICO.",
+    "assetDescription": "{{role}} de la app {{app}}, subido desde el editor de apps."
+   },
+   "prompts": {
+    "count": "{{count}} de {{max}} preguntas",
+    "chars": "{{count}}/{{max}} caracteres",
+    "label": "Pregunta inicial {{number}}",
+    "placeholder": "Por ejemplo: Resume las novedades de esta semana",
+    "empty": "Aún no hay preguntas iniciales. Se empieza con un cuadro de mensaje vacío.",
+    "keys": "En el cuadro de una pregunta, Alt+Arriba y Alt+Abajo la mueven.",
+    "add": "Añadir pregunta",
+    "moveUp": "Subir la pregunta {{number}}",
+    "moveDown": "Bajar la pregunta {{number}}",
+    "remove": "Quitar la pregunta {{number}}"
+   },
+   "preview": {
+    "appName": "Su app",
+    "welcomeDefault": "Haga una pregunta para empezar.",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "you": "Usted",
+    "question": "¿Qué cambió esta semana?",
+    "answer": "Aquí tiene un breve resumen de los cambios de esta semana.",
+    "placeholder": "Escriba un mensaje",
+    "poweredBy": "Creada con Garrison Agent Studio",
+    "note": "Un boceto de la página de la app que sigue sus cambios. Abra el enlace de la app para ver la página real."
+   }
+  }
+ }
+});

@@ -5147,3 +5147,62 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "elapsed": "Time since the last output or tool event."
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "How the app page looks: text, images, colors in light and dark, layout, and starter prompts, with a live preview.",
+   "steps": {
+    "appearance": "Text, images, palette and colors, theme, layout, and starter prompts of the app page, with a preview in light and dark."
+   },
+   "subtitle": "A short line under the app name in the chat header and on the welcome screen. Empty shows none.",
+   "welcomeTitle": "The large heading people see before their first message. Empty uses the display name.",
+   "composerPlaceholder": "The hint inside the empty message box, for example what to ask. Empty uses the standard hint.",
+   "agentDisplayName": "The author name on the agent's answers, for example a persona. Empty uses the display name.",
+   "agentAvatarAssetId": "An image asset shown as a small round picture beside the agent's name. Pick one or upload it here.",
+   "paletteId": "The preset the colors started from, or Custom once any color was changed. It is only a note: the colors below are what the page uses.",
+   "themeDefault": "The theme the page opens in. Follow the system matches each person's device setting.",
+   "allowThemeSwitch": "When on, people can switch between light and dark and the page remembers it. Off keeps the default theme.",
+   "cornerStyle": "How round buttons, boxes, and messages are: square, rounded (the default), or pill shaped.",
+   "density": "How much space the page leaves around things. Compact fits more on the screen; Comfortable is the default.",
+   "showFilesPanel": "Off hides the Files button and the list of files the agent wrote. Links to files in answers stay plain links.",
+   "showLanguagePicker": "Off hides the language menu. The page still follows the browser language or a ?lang= link.",
+   "showPoweredBy": "A small \"Built with Garrison Agent Studio\" line under the chat and on the sign-in page, linking to the Garrison website. Off hides it.",
+   "starterPrompts": "Up to 4 suggested questions shown as buttons on a new conversation. Each one is up to 200 characters."
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "Words on the app page: subtitle, welcome title and text, the message box hint, and the agent's name.",
+   "images": "The logo, the browser tab icon, and the agent's avatar. Pick an existing image asset or upload a new one.",
+   "colors": "Start from a palette, then adjust any color. Each color has a light and a dark value; a blank dark one is worked out from the light one.",
+   "layout": "The theme the page opens in, how round its corners are, how tight its spacing is, and its typeface.",
+   "show": "Turn parts of the page off: the theme button, the file list, the language menu, and the platform credit line.",
+   "prompts": "Suggested first questions shown as buttons when a conversation is new. Clicking one sends it.",
+   "preview": "A sketch of the app page in light and dark that updates as you change the fields. Nothing is saved until you click Save."
+  },
+  "contrastWarning": "Some text on this color reaches only {{ratio}}:1 against it. WCAG AA asks for 4.5:1, so pick a lighter or darker shade.",
+  "derived": "No dark color is set, so the app page works one out from the light color: same hue, adjusted lightness.",
+  "sameAsLight": "No dark color is set and the app has no palette, so the dark theme keeps the light color, as apps did before palettes.",
+  "builtIn": "Neither color is set, so the dark theme uses the app page's own dark color for this area.",
+  "darkColor": "{{field}} in the dark theme, as #RGB or #RRGGBB. Leave it blank to derive it from the light color.",
+  "resetColors": "Clear every light and dark color and the palette, so the page uses its built-in colors in both themes.",
+  "palette": "Fill every light and dark color with the {{name}} palette. You can adjust any color afterwards.",
+  "lightColumn": "Colors for the light theme. A blank one keeps the page's built-in light color.",
+  "darkColumn": "Colors for the dark theme. A blank one is derived from the light color, shown beside it.",
+  "upload": "Upload an image from this computer as a new asset and use it as the {{field}}.",
+  "prompt": "A question people can send with one click. Keep it short; Alt+Up and Alt+Down move it.",
+  "addPrompt": "Add an empty starter prompt at the end of the list and type its text.",
+  "promptsFull": "An app can have at most {{max}} starter prompts. Remove one to add another."
+ }
+});

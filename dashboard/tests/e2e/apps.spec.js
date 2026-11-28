@@ -155,7 +155,7 @@ test('creates an app, showing server refusals on their fields and catching a cyc
   await page.locator('#ol-0-deploymentId').selectOption('dep_0002');
   await page.locator('#apps-liveEnvironment').selectOption('staging');
 
-  await step(page, 'Branding');
+  await step(page, 'Appearance');
   await page.locator('#apps-primaryColor').fill('#1f6feb');
 
   // The server refuses: each message is translated and shown on its field, on the step that holds it.
@@ -173,7 +173,8 @@ test('creates an app, showing server refusals on their fields and catching a cyc
     environments: [{ environment: 'staging', deploymentId: 'dep_0002' }],
     liveEnvironment: 'staging',
     authMode: 'AppUsers',
-    primaryColor: '#1f6feb'
+    primaryColor: '#1f6feb',
+    paletteId: 'custom'
   });
 
   // A taken slug lands on the slug field.

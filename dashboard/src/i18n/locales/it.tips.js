@@ -5149,3 +5149,62 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "elapsed": "Tempo dall'ultimo output o evento di strumento."
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "L'aspetto della pagina dell'app: testi, immagini, colori in chiaro e scuro, layout e domande iniziali, con anteprima dal vivo.",
+   "steps": {
+    "appearance": "Testi, immagini, tavolozza e colori, tema, layout e domande iniziali della pagina, con anteprima chiara e scura."
+   },
+   "subtitle": "Una riga breve sotto il nome dell'app nell'intestazione e nel benvenuto. Se vuota non appare.",
+   "welcomeTitle": "Il titolo grande che si vede prima del primo messaggio. Se vuoto usa il nome visualizzato.",
+   "composerPlaceholder": "Il suggerimento nella casella vuota, per esempio cosa chiedere. Se vuoto usa quello standard.",
+   "agentDisplayName": "Il nome dell'autore nelle risposte dell'agente, per esempio un personaggio. Se vuoto usa il nome visualizzato.",
+   "agentAvatarAssetId": "Una risorsa immagine, piccola e rotonda, accanto al nome dell'agente. Scegline una o caricala qui.",
+   "paletteId": "La tavolozza da cui partono i colori, o Personalizzata dopo una modifica. È solo una nota: la pagina usa i colori qui sotto.",
+   "themeDefault": "Il tema con cui si apre la pagina. Come il sistema segue l'impostazione di ogni dispositivo.",
+   "allowThemeSwitch": "Se attivo, si può passare tra chiaro e scuro e la pagina lo ricorda. Se disattivo resta il tema predefinito.",
+   "cornerStyle": "Quanto sono arrotondati pulsanti, caselle e messaggi: squadrati, arrotondati (predefinito) o a pillola.",
+   "density": "Quanto spazio lascia la pagina intorno agli elementi. Compatta mostra di più; Comoda è il valore predefinito.",
+   "showFilesPanel": "Se disattivo, nasconde il pulsante File e l'elenco dei file dell'agente. I link ai file restano link semplici.",
+   "showLanguagePicker": "Se disattivo, nasconde il menu della lingua. La pagina segue la lingua del browser o un link ?lang=.",
+   "showPoweredBy": "Una piccola riga sotto la chat e nella pagina di accesso con un link al sito Garrison. Se disattivo la nasconde.",
+   "starterPrompts": "Fino a 4 domande suggerite come pulsanti in una nuova conversazione, ognuna fino a 200 caratteri."
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "I testi della pagina: sottotitolo, titolo e testo di benvenuto, suggerimento della casella e nome dell'agente.",
+   "images": "Il logo, l'icona della scheda e l'avatar dell'agente. Scegli una risorsa immagine o caricane una nuova.",
+   "colors": "Parti da una tavolozza e regola i colori. Ogni colore ha un valore chiaro e uno scuro; uno scuro vuoto deriva da quello chiaro.",
+   "layout": "Il tema all'apertura, quanto sono arrotondati gli angoli, quanto è stretta la spaziatura e il carattere.",
+   "show": "Disattiva parti della pagina: il pulsante del tema, l'elenco dei file, il menu della lingua e la riga sulla piattaforma.",
+   "prompts": "Prime domande suggerite come pulsanti in una nuova conversazione. Un clic la invia.",
+   "preview": "Uno schizzo della pagina in chiaro e scuro che segue i campi. Nulla viene salvato finché non fai clic su Salva."
+  },
+  "contrastWarning": "Parte del testo su questo colore arriva solo a {{ratio}}:1. WCAG AA chiede 4,5:1: scegli una tonalità più chiara o più scura.",
+  "derived": "Nessun colore scuro impostato: la pagina lo ricava da quello chiaro, stessa tinta, luminosità regolata.",
+  "sameAsLight": "Senza colore scuro né tavolozza, il tema scuro mantiene il colore chiaro, come prima delle tavolozze.",
+  "builtIn": "Nessuno dei due colori è impostato: il tema scuro usa il colore scuro proprio della pagina.",
+  "darkColor": "{{field}} nel tema scuro, come #RGB o #RRGGBB. Lascia vuoto per ricavarlo dal colore chiaro.",
+  "resetColors": "Cancella tutti i colori chiari e scuri e la tavolozza, così la pagina usa i colori predefiniti in entrambi i temi.",
+  "palette": "Riempie tutti i colori chiari e scuri con la tavolozza {{name}}. Dopo puoi regolare qualsiasi colore.",
+  "lightColumn": "Colori del tema chiaro. Uno vuoto mantiene il colore chiaro predefinito della pagina.",
+  "darkColumn": "Colori del tema scuro. Uno vuoto deriva dal colore chiaro ed è mostrato accanto.",
+  "upload": "Carica un'immagine da questo computer come nuova risorsa e la usa come {{field}}.",
+  "prompt": "Una domanda da inviare con un clic. Tienila breve; Alt+Su e Alt+Giù la spostano.",
+  "addPrompt": "Aggiunge una domanda iniziale vuota in fondo all'elenco per scriverne il testo.",
+  "promptsFull": "Un'app può avere al massimo {{max}} domande iniziali. Rimuovine una per aggiungerne un'altra."
+ }
+});

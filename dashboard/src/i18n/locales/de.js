@@ -10070,3 +10070,137 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "Erscheinungsbild"
+   },
+   "fields": {
+    "appearance": "Erscheinungsbild",
+    "subtitle": "Untertitel",
+    "welcomeTitle": "Begrüßungstitel",
+    "composerPlaceholder": "Platzhalter im Eingabefeld",
+    "agentDisplayName": "Agentenname an Nachrichten",
+    "agentAvatarAssetId": "Agenten-Avatar",
+    "paletteId": "Farbpalette",
+    "themeDefault": "Standarddesign",
+    "allowThemeSwitch": "Wechsel zwischen hell und dunkel erlauben",
+    "cornerStyle": "Ecken",
+    "density": "Dichte",
+    "showFilesPanel": "Dateiliste anzeigen",
+    "showLanguagePicker": "Sprachauswahl anzeigen",
+    "showPoweredBy": "Hinweis auf die Plattform anzeigen",
+    "starterPrompts": "Einstiegsfragen"
+   },
+   "hints": {
+    "subtitle": "Eine kurze Zeile unter dem Namen in der Kopfzeile und auf dem Begrüßungsbildschirm. Bis zu 200 Zeichen.",
+    "welcomeTitle": "Die Überschrift vor der ersten Nachricht. Leer zeigt den Anzeigenamen. Bis zu 120 Zeichen.",
+    "composerPlaceholder": "Der graue Text im leeren Eingabefeld. Bis zu 120 Zeichen.",
+    "agentDisplayName": "Von wem die Antworten kommen. Leer zeigt den Anzeigenamen. Bis zu 80 Zeichen.",
+    "agentAvatarAssetId": "Ein kleines rundes Bild neben dem Agentennamen an jeder Antwort.",
+    "starterPrompts": "Bis zu 4 Schaltflächen in einer neuen Unterhaltung. Ein Klick sendet die Frage als erste Nachricht.",
+    "allowThemeSwitch": "Aus blendet die Hell-Dunkel-Schaltfläche aus und übergeht eine früher gespeicherte Wahl."
+   },
+   "noAvatar": "Kein Avatar",
+   "placeholders": {
+    "subtitle": "Zum Beispiel: Antworten vom Rechercheteam"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "Wie das System",
+   "Light": "Hell",
+   "Dark": "Dunkel"
+  },
+  "appCornerStyle": {
+   "Sharp": "Eckig",
+   "Rounded": "Abgerundet",
+   "Pill": "Kapselform"
+  },
+  "appDensity": {
+   "Compact": "Kompakt",
+   "Comfortable": "Großzügig"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "Texte",
+    "images": "Bilder",
+    "colors": "Farben",
+    "layout": "Design und Layout",
+    "show": "Was die Seite zeigt",
+    "prompts": "Einstiegsfragen",
+    "preview": "Vorschau"
+   },
+   "palettes": {
+    "garrison": "Garrison-Petrol",
+    "slate": "Schiefer",
+    "ocean": "Ozean",
+    "forest": "Wald",
+    "sunset": "Abendrot",
+    "plum": "Pflaume",
+    "graphite": "Graphit",
+    "contrast": "Hoher Kontrast",
+    "custom": "Eigene Farben",
+    "none": "Eingebaute Farben"
+   },
+   "paletteCurrent": "Farbpalette: {{name}}",
+   "resetColors": "Eingebaute Farben verwenden",
+   "columns": {
+    "role": "Farbe",
+    "light": "Hell",
+    "dark": "Dunkel"
+   },
+   "derived": "Aus Hell abgeleitet",
+   "sameAsLight": "Wie bei Hell",
+   "builtIn": "Eingebaute dunkle Farbe",
+   "contrastWarning": "Textkontrast {{ratio}}:1, unter dem AA-Minimum von 4,5:1",
+   "darkLabel": "{{field}}, dunkles Design",
+   "image": {
+    "upload": "Bild hochladen",
+    "uploading": "Wird hochgeladen...",
+    "uploaded": "Als Asset {{name}} hochgeladen.",
+    "notImage": "Wählen Sie eine Bilddatei: PNG, JPEG, GIF, WebP, SVG oder ICO.",
+    "assetDescription": "{{role}} der App {{app}}, im App-Editor hochgeladen."
+   },
+   "prompts": {
+    "count": "{{count}} von {{max}} Fragen",
+    "chars": "{{count}}/{{max}} Zeichen",
+    "label": "Einstiegsfrage {{number}}",
+    "placeholder": "Zum Beispiel: Fasse die Neuigkeiten dieser Woche zusammen",
+    "empty": "Noch keine Einstiegsfragen. Man beginnt mit einem leeren Eingabefeld.",
+    "keys": "Im Feld einer Frage verschieben Alt+Pfeil nach oben und Alt+Pfeil nach unten sie.",
+    "add": "Frage hinzufügen",
+    "moveUp": "Frage {{number}} nach oben",
+    "moveDown": "Frage {{number}} nach unten",
+    "remove": "Frage {{number}} entfernen"
+   },
+   "preview": {
+    "appName": "Ihre App",
+    "welcomeDefault": "Stellen Sie eine Frage, um zu beginnen.",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "you": "Sie",
+    "question": "Was hat sich diese Woche geändert?",
+    "answer": "Hier ist eine kurze Zusammenfassung der Änderungen dieser Woche.",
+    "placeholder": "Nachricht eingeben",
+    "poweredBy": "Erstellt mit Garrison Agent Studio",
+    "note": "Eine Skizze der App-Seite, die Ihren Änderungen folgt. Öffnen Sie den App-Link, um die echte Seite zu sehen."
+   }
+  }
+ }
+});

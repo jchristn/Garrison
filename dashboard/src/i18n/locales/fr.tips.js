@@ -5149,3 +5149,62 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "elapsed": "Temps écoulé depuis la dernière sortie ou le dernier événement d'outil."
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "L'apparence de la page de l'app : textes, visuels, couleurs en clair et en sombre, mise en page et questions de départ, avec un aperçu en direct.",
+   "steps": {
+    "appearance": "Textes, visuels, palette et couleurs, thème, mise en page et questions de départ de la page, avec un aperçu clair et sombre."
+   },
+   "subtitle": "Une ligne courte sous le nom de l'app, dans l'en-tête et sur l'accueil. Vide, rien ne s'affiche.",
+   "welcomeTitle": "Le grand titre visible avant le premier message. Vide, le nom affiché est utilisé.",
+   "composerPlaceholder": "L'indication dans la zone de message vide, par exemple quoi demander. Vide, l'indication standard s'affiche.",
+   "agentDisplayName": "Le nom d'auteur des réponses de l'agent, par exemple un personnage. Vide, le nom affiché est utilisé.",
+   "agentAvatarAssetId": "Une ressource image, petite et ronde, à côté du nom de l'agent. Choisissez-en une ou envoyez-la ici.",
+   "paletteId": "Le modèle d'origine des couleurs, ou Personnalisée dès qu'une couleur change. Simple mention : la page utilise les couleurs ci-dessous.",
+   "themeDefault": "Le thème à l'ouverture de la page. Comme le système suit le réglage de chaque appareil.",
+   "allowThemeSwitch": "Activé, on peut passer du clair au sombre et la page s'en souvient. Désactivé, le thème par défaut reste.",
+   "cornerStyle": "L'arrondi des boutons, zones et messages : carrés, arrondis (par défaut) ou en pastille.",
+   "density": "L'espace laissé autour des éléments. Compacte en montre davantage ; Confortable est la valeur par défaut.",
+   "showFilesPanel": "Désactivé, le bouton Fichiers et la liste des fichiers de l'agent disparaissent. Les liens vers des fichiers restent de simples liens.",
+   "showLanguagePicker": "Désactivé, le menu des langues disparaît. La page suit toujours la langue du navigateur ou un lien ?lang=.",
+   "showPoweredBy": "Une petite ligne sous la conversation et sur la page de connexion, avec un lien vers le site Garrison. Désactivé, elle disparaît.",
+   "starterPrompts": "Jusqu'à 4 questions suggérées, en boutons dans une nouvelle conversation, de 200 caractères au plus chacune."
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "Les textes de la page : sous-titre, titre et texte d'accueil, indication de la zone de message et nom de l'agent.",
+   "images": "Le logo, l'icône d'onglet et l'avatar de l'agent. Choisissez une ressource image existante ou envoyez-en une.",
+   "colors": "Partez d'une palette, puis ajustez les couleurs. Chacune a une valeur claire et une sombre ; une sombre vide est déduite de la claire.",
+   "layout": "Le thème à l'ouverture, l'arrondi des coins, le resserrement des espacements et la police.",
+   "show": "Masquez des parties de la page : le bouton de thème, la liste des fichiers, le menu des langues et la mention de la plateforme.",
+   "prompts": "Premières questions suggérées, en boutons dans une nouvelle conversation. Un clic l'envoie.",
+   "preview": "Une esquisse de la page en clair et en sombre qui suit vos champs. Rien n'est enregistré avant Enregistrer."
+  },
+  "contrastWarning": "Une partie du texte sur cette couleur n'atteint que {{ratio}}:1. WCAG AA demande 4,5:1 : choisissez une teinte plus claire ou plus foncée.",
+  "derived": "Aucune couleur sombre n'est définie : la page la déduit de la claire, même teinte, luminosité ajustée.",
+  "sameAsLight": "Sans couleur sombre ni palette, le thème sombre garde la couleur claire, comme avant les palettes.",
+  "builtIn": "Aucune des deux couleurs n'est définie : le thème sombre utilise la couleur sombre propre à la page.",
+  "darkColor": "{{field}} dans le thème sombre, en #RGB ou #RRGGBB. Laissez vide pour la déduire de la couleur claire.",
+  "resetColors": "Efface toutes les couleurs claires et sombres et la palette : la page reprend ses couleurs intégrées dans les deux thèmes.",
+  "palette": "Remplit toutes les couleurs claires et sombres avec la palette {{name}}. Vous pourrez ensuite ajuster chaque couleur.",
+  "lightColumn": "Couleurs du thème clair. Une couleur vide garde la couleur claire intégrée de la page.",
+  "darkColumn": "Couleurs du thème sombre. Une couleur vide est déduite de la claire et affichée à côté.",
+  "upload": "Envoie une image de cet ordinateur comme nouvelle ressource et l'utilise comme {{field}}.",
+  "prompt": "Une question envoyée en un clic. Restez bref ; Alt+Haut et Alt+Bas la déplacent.",
+  "addPrompt": "Ajoute une question de départ vide en fin de liste pour en saisir le texte.",
+  "promptsFull": "Une app accepte au plus {{max}} questions de départ. Retirez-en une pour en ajouter une autre."
+ }
+});

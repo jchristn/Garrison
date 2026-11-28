@@ -10055,3 +10055,137 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "Appearance"
+   },
+   "fields": {
+    "appearance": "Appearance",
+    "subtitle": "Subtitle",
+    "welcomeTitle": "Welcome title",
+    "composerPlaceholder": "Message box placeholder",
+    "agentDisplayName": "Agent name on messages",
+    "agentAvatarAssetId": "Agent avatar",
+    "paletteId": "Palette",
+    "themeDefault": "Default theme",
+    "allowThemeSwitch": "Let people switch between light and dark",
+    "cornerStyle": "Corners",
+    "density": "Density",
+    "showFilesPanel": "Show the file list",
+    "showLanguagePicker": "Show the language picker",
+    "showPoweredBy": "Show the platform credit line",
+    "starterPrompts": "Starter prompts"
+   },
+   "hints": {
+    "subtitle": "A short line under the name in the header and on the welcome screen. Up to 200 characters.",
+    "welcomeTitle": "The heading before the first message. Empty shows the display name. Up to 120 characters.",
+    "composerPlaceholder": "The grey text in the empty message box. Up to 120 characters.",
+    "agentDisplayName": "Who the answers are from. Empty shows the display name. Up to 80 characters.",
+    "agentAvatarAssetId": "A small round image beside the agent's name on each answer.",
+    "starterPrompts": "Up to 4 buttons on a new conversation. Clicking one sends it as the first message.",
+    "allowThemeSwitch": "Off hides the light and dark button and ignores a choice someone saved earlier."
+   },
+   "noAvatar": "No avatar",
+   "placeholders": {
+    "subtitle": "For example: Answers from the research team"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "Follow the system",
+   "Light": "Light",
+   "Dark": "Dark"
+  },
+  "appCornerStyle": {
+   "Sharp": "Square",
+   "Rounded": "Rounded",
+   "Pill": "Pill"
+  },
+  "appDensity": {
+   "Compact": "Compact",
+   "Comfortable": "Comfortable"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "Text",
+    "images": "Images",
+    "colors": "Colors",
+    "layout": "Theme and layout",
+    "show": "What the page shows",
+    "prompts": "Starter prompts",
+    "preview": "Preview"
+   },
+   "palettes": {
+    "garrison": "Garrison teal",
+    "slate": "Slate",
+    "ocean": "Ocean",
+    "forest": "Forest",
+    "sunset": "Sunset",
+    "plum": "Plum",
+    "graphite": "Graphite",
+    "contrast": "High contrast",
+    "custom": "Custom",
+    "none": "Built-in colors"
+   },
+   "paletteCurrent": "Palette: {{name}}",
+   "resetColors": "Use built-in colors",
+   "columns": {
+    "role": "Color",
+    "light": "Light",
+    "dark": "Dark"
+   },
+   "derived": "Derived from light",
+   "sameAsLight": "Same as light",
+   "builtIn": "Built-in dark color",
+   "contrastWarning": "Text contrast {{ratio}}:1, under the 4.5:1 AA minimum",
+   "darkLabel": "{{field}}, dark theme",
+   "image": {
+    "upload": "Upload image",
+    "uploading": "Uploading...",
+    "uploaded": "Uploaded as the asset {{name}}.",
+    "notImage": "Choose an image file: PNG, JPEG, GIF, WebP, SVG, or ICO.",
+    "assetDescription": "{{role}} of the app {{app}}, uploaded from the app editor."
+   },
+   "prompts": {
+    "count": "{{count}} of {{max}} prompts",
+    "chars": "{{count}}/{{max}} characters",
+    "label": "Starter prompt {{number}}",
+    "placeholder": "For example: Summarize this week's updates",
+    "empty": "No starter prompts yet. People start from an empty message box.",
+    "keys": "In a prompt's box, Alt+Up and Alt+Down move it.",
+    "add": "Add prompt",
+    "moveUp": "Move prompt {{number}} up",
+    "moveDown": "Move prompt {{number}} down",
+    "remove": "Remove prompt {{number}}"
+   },
+   "preview": {
+    "appName": "Your app",
+    "welcomeDefault": "Ask a question to get started.",
+    "light": "Light",
+    "dark": "Dark",
+    "you": "You",
+    "question": "What changed this week?",
+    "answer": "Here is a short summary of this week's changes.",
+    "placeholder": "Type a message",
+    "poweredBy": "Built with Garrison Agent Studio",
+    "note": "A sketch of the app page that follows your changes. Open the app link to see the real page."
+   }
+  }
+ }
+});

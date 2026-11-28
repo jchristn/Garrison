@@ -5149,3 +5149,62 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "elapsed": "Tiempo desde la última salida o evento de herramienta."
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "Cómo se ve la página de la app: textos, imágenes, colores en claro y oscuro, diseño y preguntas iniciales, con vista previa en vivo.",
+   "steps": {
+    "appearance": "Textos, imágenes, paleta y colores, tema, diseño y preguntas iniciales de la página, con vista previa en claro y oscuro."
+   },
+   "subtitle": "Una línea corta bajo el nombre de la app en el encabezado y en la bienvenida. Si está vacía no se muestra.",
+   "welcomeTitle": "El título grande que se ve antes del primer mensaje. Si está vacío usa el nombre visible.",
+   "composerPlaceholder": "La pista dentro del cuadro de mensaje vacío, por ejemplo qué preguntar. Si está vacía usa la habitual.",
+   "agentDisplayName": "El nombre del autor en las respuestas del agente, por ejemplo un personaje. Si está vacío usa el nombre visible.",
+   "agentAvatarAssetId": "Un recurso de imagen que aparece pequeño y redondo junto al nombre del agente. Elija uno o súbalo aquí.",
+   "paletteId": "La paleta de la que partieron los colores, o Personalizada tras cambiar alguno. Es solo una nota: la página usa los colores de abajo.",
+   "themeDefault": "El tema con el que se abre la página. Según el sistema sigue el ajuste de cada dispositivo.",
+   "allowThemeSwitch": "Si está activado, se puede cambiar entre claro y oscuro y la página lo recuerda. Desactivado mantiene el tema predeterminado.",
+   "cornerStyle": "Lo redondeados que son botones, cuadros y mensajes: rectos, redondeados (predeterminado) o en píldora.",
+   "density": "Cuánto espacio deja la página alrededor de los elementos. Compacta muestra más; Cómoda es la predeterminada.",
+   "showFilesPanel": "Desactivado oculta el botón Archivos y la lista de archivos del agente. Los enlaces a archivos quedan como enlaces simples.",
+   "showLanguagePicker": "Desactivado oculta el menú de idioma. La página sigue el idioma del navegador o un enlace ?lang=.",
+   "showPoweredBy": "Una línea pequeña bajo el chat y en el inicio de sesión que enlaza al sitio de Garrison. Desactivado la oculta.",
+   "starterPrompts": "Hasta 4 preguntas sugeridas como botones en una conversación nueva, de hasta 200 caracteres cada una."
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "Los textos de la página: subtítulo, título y texto de bienvenida, la pista del cuadro de mensaje y el nombre del agente.",
+   "images": "El logotipo, el icono de la pestaña y el avatar del agente. Elija un recurso de imagen o suba uno nuevo.",
+   "colors": "Parta de una paleta y ajuste cualquier color. Cada color tiene un valor claro y uno oscuro; un oscuro vacío se calcula a partir del claro.",
+   "layout": "El tema al abrir, lo redondeadas que son las esquinas, lo ajustado del espaciado y la tipografía.",
+   "show": "Desactive partes de la página: el botón de tema, la lista de archivos, el menú de idioma y la línea de crédito de la plataforma.",
+   "prompts": "Primeras preguntas sugeridas como botones en una conversación nueva. Al pulsar una se envía.",
+   "preview": "Un boceto de la página en claro y oscuro que cambia con los campos. No se guarda nada hasta pulsar Guardar."
+  },
+  "contrastWarning": "Parte del texto sobre este color solo llega a {{ratio}}:1. WCAG AA pide 4,5:1; elija un tono más claro o más oscuro.",
+  "derived": "No hay color oscuro, así que la página lo calcula a partir del claro: mismo tono, luminosidad ajustada.",
+  "sameAsLight": "Sin color oscuro ni paleta, el tema oscuro mantiene el color claro, como antes de las paletas.",
+  "builtIn": "Ningún color está definido, así que el tema oscuro usa el color oscuro propio de la página.",
+  "darkColor": "{{field}} en el tema oscuro, como #RGB o #RRGGBB. Déjelo vacío para derivarlo del color claro.",
+  "resetColors": "Borra todos los colores claros y oscuros y la paleta, para que la página use sus colores integrados en ambos temas.",
+  "palette": "Rellena todos los colores claros y oscuros con la paleta {{name}}. Después puede ajustar cualquier color.",
+  "lightColumn": "Colores del tema claro. Uno vacío mantiene el color claro integrado de la página.",
+  "darkColumn": "Colores del tema oscuro. Uno vacío se deriva del color claro y se muestra al lado.",
+  "upload": "Sube una imagen de este equipo como recurso nuevo y la usa como {{field}}.",
+  "prompt": "Una pregunta que se envía con un clic. Manténgala corta; Alt+Arriba y Alt+Abajo la mueven.",
+  "addPrompt": "Añade una pregunta inicial vacía al final de la lista para escribir su texto.",
+  "promptsFull": "Una app admite como máximo {{max}} preguntas iniciales. Quite una para añadir otra."
+ }
+});

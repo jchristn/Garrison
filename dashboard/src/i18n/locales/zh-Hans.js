@@ -10035,3 +10035,137 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "外观"
+   },
+   "fields": {
+    "appearance": "外观",
+    "subtitle": "副标题",
+    "welcomeTitle": "欢迎标题",
+    "composerPlaceholder": "消息框占位文字",
+    "agentDisplayName": "消息上显示的代理名称",
+    "agentAvatarAssetId": "代理头像",
+    "paletteId": "调色板",
+    "themeDefault": "默认主题",
+    "allowThemeSwitch": "允许用户切换浅色和深色",
+    "cornerStyle": "圆角样式",
+    "density": "密度",
+    "showFilesPanel": "显示文件列表",
+    "showLanguagePicker": "显示语言选择",
+    "showPoweredBy": "显示平台署名",
+    "starterPrompts": "开场问题"
+   },
+   "hints": {
+    "subtitle": "页眉和欢迎屏幕中名称下方的一行短文字，最多 200 个字符。",
+    "welcomeTitle": "第一条消息之前的标题。留空则显示显示名称，最多 120 个字符。",
+    "composerPlaceholder": "空消息框中的灰色文字，最多 120 个字符。",
+    "agentDisplayName": "回复显示的发送者。留空则显示显示名称，最多 80 个字符。",
+    "agentAvatarAssetId": "每条回复中代理名称旁边的小圆形图片。",
+    "starterPrompts": "新对话中最多显示 4 个按钮，点击即作为第一条消息发送。",
+    "allowThemeSwitch": "关闭后会隐藏浅色深色按钮，并忽略之前保存的选择。"
+   },
+   "noAvatar": "无头像",
+   "placeholders": {
+    "subtitle": "例如：研究团队为你解答"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "跟随系统",
+   "Light": "浅色",
+   "Dark": "深色"
+  },
+  "appCornerStyle": {
+   "Sharp": "方角",
+   "Rounded": "圆角",
+   "Pill": "胶囊形"
+  },
+  "appDensity": {
+   "Compact": "紧凑",
+   "Comfortable": "宽松"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "文字",
+    "images": "图片",
+    "colors": "颜色",
+    "layout": "主题和布局",
+    "show": "页面显示的内容",
+    "prompts": "开场问题",
+    "preview": "预览"
+   },
+   "palettes": {
+    "garrison": "Garrison 青绿",
+    "slate": "石板",
+    "ocean": "海洋",
+    "forest": "森林",
+    "sunset": "日落",
+    "plum": "梅紫",
+    "graphite": "石墨",
+    "contrast": "高对比度",
+    "custom": "自定义",
+    "none": "内置颜色"
+   },
+   "paletteCurrent": "调色板：{{name}}",
+   "resetColors": "使用内置颜色",
+   "columns": {
+    "role": "颜色",
+    "light": "浅色",
+    "dark": "深色"
+   },
+   "derived": "由浅色推算",
+   "sameAsLight": "与浅色相同",
+   "builtIn": "内置深色",
+   "contrastWarning": "文字对比度 {{ratio}}:1，低于 AA 最低要求 4.5:1",
+   "darkLabel": "{{field}}（深色主题）",
+   "image": {
+    "upload": "上传图片",
+    "uploading": "正在上传...",
+    "uploaded": "已上传为资产 {{name}}。",
+    "notImage": "请选择图片文件：PNG、JPEG、GIF、WebP、SVG 或 ICO。",
+    "assetDescription": "应用 {{app}} 的{{role}}，从应用编辑器上传。"
+   },
+   "prompts": {
+    "count": "{{count}} / {{max}} 个问题",
+    "chars": "{{count}}/{{max}} 个字符",
+    "label": "开场问题 {{number}}",
+    "placeholder": "例如：总结一下本周的更新",
+    "empty": "还没有开场问题，用户将从空白消息框开始。",
+    "keys": "在问题框中按 Alt+上 和 Alt+下 可移动它。",
+    "add": "添加问题",
+    "moveUp": "将问题 {{number}} 上移",
+    "moveDown": "将问题 {{number}} 下移",
+    "remove": "移除问题 {{number}}"
+   },
+   "preview": {
+    "appName": "你的应用",
+    "welcomeDefault": "提个问题就可以开始。",
+    "light": "浅色",
+    "dark": "深色",
+    "you": "你",
+    "question": "本周有什么变化？",
+    "answer": "这是本周变化的简短摘要。",
+    "placeholder": "输入消息",
+    "poweredBy": "使用 Garrison Agent Studio 构建",
+    "note": "随你的修改更新的应用页面草图。打开应用链接即可查看真实页面。"
+   }
+  }
+ }
+});

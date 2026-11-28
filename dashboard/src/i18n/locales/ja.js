@@ -10034,3 +10034,137 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "外観"
+   },
+   "fields": {
+    "appearance": "外観",
+    "subtitle": "サブタイトル",
+    "welcomeTitle": "ようこそのタイトル",
+    "composerPlaceholder": "メッセージ欄のプレースホルダー",
+    "agentDisplayName": "メッセージに表示するエージェント名",
+    "agentAvatarAssetId": "エージェントのアバター",
+    "paletteId": "パレット",
+    "themeDefault": "既定のテーマ",
+    "allowThemeSwitch": "ライトとダークの切り替えを許可",
+    "cornerStyle": "角の形",
+    "density": "表示密度",
+    "showFilesPanel": "ファイル一覧を表示",
+    "showLanguagePicker": "言語の選択を表示",
+    "showPoweredBy": "プラットフォームの表記を表示",
+    "starterPrompts": "最初の質問の候補"
+   },
+   "hints": {
+    "subtitle": "ヘッダーとようこそ画面で名前の下に出る短い一行です。200 文字まで。",
+    "welcomeTitle": "最初のメッセージの前に出る見出しです。空なら表示名を使います。120 文字まで。",
+    "composerPlaceholder": "空のメッセージ欄に出る灰色の文字です。120 文字まで。",
+    "agentDisplayName": "回答の送り主として出る名前です。空なら表示名を使います。80 文字まで。",
+    "agentAvatarAssetId": "各回答のエージェント名の横に出る小さな丸い画像です。",
+    "starterPrompts": "新しい会話に最大 4 つのボタンとして出ます。クリックすると最初のメッセージとして送信されます。",
+    "allowThemeSwitch": "オフにするとライトとダークのボタンが消え、以前保存された選択も無視されます。"
+   },
+   "noAvatar": "アバターなし",
+   "placeholders": {
+    "subtitle": "例: 調査チームがお答えします"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "システムに合わせる",
+   "Light": "ライト",
+   "Dark": "ダーク"
+  },
+  "appCornerStyle": {
+   "Sharp": "四角",
+   "Rounded": "角丸",
+   "Pill": "ピル型"
+  },
+  "appDensity": {
+   "Compact": "コンパクト",
+   "Comfortable": "ゆったり"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "テキスト",
+    "images": "画像",
+    "colors": "色",
+    "layout": "テーマとレイアウト",
+    "show": "ページに表示するもの",
+    "prompts": "最初の質問の候補",
+    "preview": "プレビュー"
+   },
+   "palettes": {
+    "garrison": "Garrison ティール",
+    "slate": "スレート",
+    "ocean": "オーシャン",
+    "forest": "フォレスト",
+    "sunset": "サンセット",
+    "plum": "プラム",
+    "graphite": "グラファイト",
+    "contrast": "ハイコントラスト",
+    "custom": "カスタム",
+    "none": "組み込みの色"
+   },
+   "paletteCurrent": "パレット: {{name}}",
+   "resetColors": "組み込みの色に戻す",
+   "columns": {
+    "role": "色",
+    "light": "ライト",
+    "dark": "ダーク"
+   },
+   "derived": "ライトから算出",
+   "sameAsLight": "ライトと同じ",
+   "builtIn": "組み込みのダークの色",
+   "contrastWarning": "文字のコントラスト {{ratio}}:1、AA の最低 4.5:1 を下回ります",
+   "darkLabel": "{{field}}（ダークテーマ）",
+   "image": {
+    "upload": "画像をアップロード",
+    "uploading": "アップロード中...",
+    "uploaded": "アセット {{name}} としてアップロードしました。",
+    "notImage": "画像ファイル (PNG、JPEG、GIF、WebP、SVG、ICO) を選んでください。",
+    "assetDescription": "アプリ {{app}} の{{role}}。アプリエディターからアップロード。"
+   },
+   "prompts": {
+    "count": "{{max}} 件中 {{count}} 件",
+    "chars": "{{count}}/{{max}} 文字",
+    "label": "質問の候補 {{number}}",
+    "placeholder": "例: 今週の更新をまとめて",
+    "empty": "質問の候補はまだありません。空のメッセージ欄から始まります。",
+    "keys": "質問の欄で Alt+上 と Alt+下 を押すと移動します。",
+    "add": "質問を追加",
+    "moveUp": "質問 {{number}} を上へ",
+    "moveDown": "質問 {{number}} を下へ",
+    "remove": "質問 {{number}} を削除"
+   },
+   "preview": {
+    "appName": "あなたのアプリ",
+    "welcomeDefault": "質問して始めましょう。",
+    "light": "ライト",
+    "dark": "ダーク",
+    "you": "あなた",
+    "question": "今週は何が変わりましたか?",
+    "answer": "今週の変更を短くまとめました。",
+    "placeholder": "メッセージを入力",
+    "poweredBy": "Garrison Agent Studio で構築",
+    "note": "変更に合わせて動くアプリページの略図です。実際のページはアプリのリンクで確認してください。"
+   }
+  }
+ }
+});

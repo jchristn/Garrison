@@ -10081,3 +10081,137 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "Aspetto"
+   },
+   "fields": {
+    "appearance": "Aspetto",
+    "subtitle": "Sottotitolo",
+    "welcomeTitle": "Titolo di benvenuto",
+    "composerPlaceholder": "Testo segnaposto della casella del messaggio",
+    "agentDisplayName": "Nome dell'agente nei messaggi",
+    "agentAvatarAssetId": "Avatar dell'agente",
+    "paletteId": "Tavolozza",
+    "themeDefault": "Tema predefinito",
+    "allowThemeSwitch": "Consenti di passare tra chiaro e scuro",
+    "cornerStyle": "Angoli",
+    "density": "Densità",
+    "showFilesPanel": "Mostra l'elenco dei file",
+    "showLanguagePicker": "Mostra la scelta della lingua",
+    "showPoweredBy": "Mostra la riga sulla piattaforma",
+    "starterPrompts": "Domande iniziali"
+   },
+   "hints": {
+    "subtitle": "Una riga breve sotto il nome nell'intestazione e nella schermata di benvenuto. Fino a 200 caratteri.",
+    "welcomeTitle": "Il titolo prima del primo messaggio. Se vuoto mostra il nome visualizzato. Fino a 120 caratteri.",
+    "composerPlaceholder": "Il testo grigio nella casella del messaggio vuota. Fino a 120 caratteri.",
+    "agentDisplayName": "Chi firma le risposte. Se vuoto mostra il nome visualizzato. Fino a 80 caratteri.",
+    "agentAvatarAssetId": "Una piccola immagine rotonda accanto al nome dell'agente in ogni risposta.",
+    "starterPrompts": "Fino a 4 pulsanti in una nuova conversazione. Un clic invia la domanda come primo messaggio.",
+    "allowThemeSwitch": "Se disattivato, nasconde il pulsante chiaro e scuro e ignora una scelta salvata in precedenza."
+   },
+   "noAvatar": "Nessun avatar",
+   "placeholders": {
+    "subtitle": "Per esempio: Risposte dal team di ricerca"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "Come il sistema",
+   "Light": "Chiaro",
+   "Dark": "Scuro"
+  },
+  "appCornerStyle": {
+   "Sharp": "Squadrati",
+   "Rounded": "Arrotondati",
+   "Pill": "Pillola"
+  },
+  "appDensity": {
+   "Compact": "Compatta",
+   "Comfortable": "Comoda"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "Testi",
+    "images": "Immagini",
+    "colors": "Colori",
+    "layout": "Tema e layout",
+    "show": "Cosa mostra la pagina",
+    "prompts": "Domande iniziali",
+    "preview": "Anteprima"
+   },
+   "palettes": {
+    "garrison": "Verde acqua Garrison",
+    "slate": "Ardesia",
+    "ocean": "Oceano",
+    "forest": "Foresta",
+    "sunset": "Tramonto",
+    "plum": "Prugna",
+    "graphite": "Grafite",
+    "contrast": "Contrasto elevato",
+    "custom": "Personalizzata",
+    "none": "Colori predefiniti"
+   },
+   "paletteCurrent": "Tavolozza: {{name}}",
+   "resetColors": "Usa i colori predefiniti",
+   "columns": {
+    "role": "Colore",
+    "light": "Chiaro",
+    "dark": "Scuro"
+   },
+   "derived": "Derivato dal chiaro",
+   "sameAsLight": "Uguale al chiaro",
+   "builtIn": "Colore scuro predefinito",
+   "contrastWarning": "Contrasto del testo {{ratio}}:1, sotto il minimo AA di 4,5:1",
+   "darkLabel": "{{field}}, tema scuro",
+   "image": {
+    "upload": "Carica immagine",
+    "uploading": "Caricamento...",
+    "uploaded": "Caricata come risorsa {{name}}.",
+    "notImage": "Scegli un file immagine: PNG, JPEG, GIF, WebP, SVG o ICO.",
+    "assetDescription": "{{role}} dell'app {{app}}, caricato dall'editor delle app."
+   },
+   "prompts": {
+    "count": "{{count}} di {{max}} domande",
+    "chars": "{{count}}/{{max}} caratteri",
+    "label": "Domanda iniziale {{number}}",
+    "placeholder": "Per esempio: Riassumi le novità di questa settimana",
+    "empty": "Nessuna domanda iniziale. Si parte da una casella del messaggio vuota.",
+    "keys": "Nella casella di una domanda, Alt+Su e Alt+Giù la spostano.",
+    "add": "Aggiungi domanda",
+    "moveUp": "Sposta su la domanda {{number}}",
+    "moveDown": "Sposta giù la domanda {{number}}",
+    "remove": "Rimuovi la domanda {{number}}"
+   },
+   "preview": {
+    "appName": "La tua app",
+    "welcomeDefault": "Fai una domanda per iniziare.",
+    "light": "Chiaro",
+    "dark": "Scuro",
+    "you": "Tu",
+    "question": "Cosa è cambiato questa settimana?",
+    "answer": "Ecco un breve riepilogo delle modifiche di questa settimana.",
+    "placeholder": "Scrivi un messaggio",
+    "poweredBy": "Realizzata con Garrison Agent Studio",
+    "note": "Uno schizzo della pagina dell'app che segue le tue modifiche. Apri il link dell'app per vedere la pagina reale."
+   }
+  }
+ }
+});

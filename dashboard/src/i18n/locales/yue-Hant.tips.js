@@ -5147,3 +5147,62 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   "elapsed": "距離上一次輸出或者工具事件嘅時間。"
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "App 頁面嘅外觀：文字、圖片、淺色同深色嘅顏色、版面同開場問題，仲有即時預覽。",
+   "steps": {
+    "appearance": "App 頁面嘅文字、圖片、調色盤同顏色、主題、版面同開場問題，附淺色同深色預覽。"
+   },
+   "subtitle": "喺頁首同歡迎畫面 App 名稱下面嘅一行短文字。留空就唔顯示。",
+   "welcomeTitle": "第一條訊息之前見到嘅大標題。留空就用顯示名稱。",
+   "composerPlaceholder": "空白訊息框入面嘅提示，例如可以問咩。留空就用標準提示。",
+   "agentDisplayName": "代理回覆上面嘅作者名，例如一個角色名。留空就用顯示名稱。",
+   "agentAvatarAssetId": "喺代理名稱旁邊以細圓形顯示嘅圖片資產。揀一個或者喺度上載。",
+   "paletteId": "顏色最初用嘅預設，或者改過顏色之後就係自訂。只係記錄，頁面用下面嘅顏色。",
+   "themeDefault": "頁面打開時用嘅主題。跟隨系統就會跟每部裝置嘅設定。",
+   "allowThemeSwitch": "開咗就可以切換淺色同深色，頁面會記住。關咗就維持預設主題。",
+   "cornerStyle": "按鈕、輸入框同訊息嘅圓角程度：方角、圓角（預設）或者膠囊形。",
+   "density": "頁面喺元素周圍留幾多空間。緊湊可以顯示多啲；寬鬆係預設。",
+   "showFilesPanel": "關咗就會收埋檔案按鈕同代理寫嘅檔案清單。回覆入面嘅檔案連結就變返普通連結。",
+   "showLanguagePicker": "關咗就會收埋語言選單。頁面仍然跟瀏覽器語言或者 ?lang= 連結。",
+   "showPoweredBy": "喺對話下面同登入頁面嘅一行細字，連去 Garrison 網站。關咗就收埋。",
+   "starterPrompts": "新對話入面以按鈕顯示嘅建議問題，最多 4 個，每個最多 200 個字元。"
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "App 頁面上嘅文字：副標題、歡迎標題同內文、訊息框提示同代理名稱。",
+   "images": "Logo、瀏覽器分頁圖示同代理頭像。揀現有圖片資產或者上載新嘅。",
+   "colors": "由調色盤開始，再調整任何顏色。每個顏色都有淺色同深色值；深色留空就由淺色推算。",
+   "layout": "打開時嘅主題、圓角程度、間距鬆緊同字體。",
+   "show": "關閉頁面部分內容：主題按鈕、檔案清單、語言選單同平台署名。",
+   "prompts": "新對話時以按鈕顯示嘅建議第一個問題，撳一下就傳送。",
+   "preview": "跟住欄位改動更新嘅淺色同深色頁面草圖。撳儲存之前乜都唔會儲存。"
+  },
+  "contrastWarning": "呢個顏色上面有啲文字對比度得 {{ratio}}:1。WCAG AA 要求 4.5:1，請揀淺啲或者深啲嘅色。",
+  "derived": "未設深色，所以頁面會由淺色推算：色相一樣，光暗調整過。",
+  "sameAsLight": "未設深色亦冇調色盤，所以深色主題沿用淺色，同有調色盤之前一樣。",
+  "builtIn": "兩個顏色都未設，所以深色主題用頁面本身嘅深色。",
+  "darkColor": "深色主題嘅{{field}}，用 #RGB 或者 #RRGGBB。留空就由淺色推算。",
+  "resetColors": "清除所有淺色同深色顏色同調色盤，頁面兩個主題都用內置顏色。",
+  "palette": "用{{name}}調色盤填滿所有淺色同深色顏色，之後可以再調整任何顏色。",
+  "lightColumn": "淺色主題嘅顏色。留空就維持頁面內置嘅淺色。",
+  "darkColumn": "深色主題嘅顏色。留空就由淺色推算，喺旁邊顯示。",
+  "upload": "由呢部電腦上載一張圖片做新資產，再用嚟做{{field}}。",
+  "prompt": "用戶撳一下就傳送嘅問題，盡量簡短；Alt+上 同 Alt+下 可以移動。",
+  "addPrompt": "喺清單最後加一個空白開場問題，再輸入內容。",
+  "promptsFull": "一個 App 最多可以有 {{max}} 個開場問題。要加新嘅請先移除一個。"
+ }
+});

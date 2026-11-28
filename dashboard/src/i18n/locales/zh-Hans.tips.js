@@ -5146,3 +5146,62 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "elapsed": "距上一次输出或工具事件的时间。"
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "resources": {
+  "apps": {
+   "appearance": "应用页面的外观：文字、图片、浅色和深色的颜色、布局和开场问题，并带有实时预览。",
+   "steps": {
+    "appearance": "应用页面的文字、图片、调色板和颜色、主题、布局和开场问题，附浅色和深色预览。"
+   },
+   "subtitle": "页眉和欢迎屏幕中应用名称下方的一行短文字。留空则不显示。",
+   "welcomeTitle": "第一条消息之前看到的大标题。留空则使用显示名称。",
+   "composerPlaceholder": "空消息框中的提示，例如可以问什么。留空则使用标准提示。",
+   "agentDisplayName": "代理回复上的作者名称，例如一个角色名。留空则使用显示名称。",
+   "agentAvatarAssetId": "在代理名称旁边以小圆形显示的图片资产。选择一个或在此上传。",
+   "paletteId": "颜色最初使用的预设，修改任何颜色后即为自定义。仅作记录，页面使用下面的颜色。",
+   "themeDefault": "页面打开时使用的主题。跟随系统则按每台设备的设置。",
+   "allowThemeSwitch": "开启后可切换浅色和深色，页面会记住。关闭则保持默认主题。",
+   "cornerStyle": "按钮、输入框和消息的圆角程度：方角、圆角（默认）或胶囊形。",
+   "density": "页面在元素周围留出的空间。紧凑可显示更多；宽松为默认。",
+   "showFilesPanel": "关闭后隐藏文件按钮和代理写入的文件列表。回复中的文件链接变为普通链接。",
+   "showLanguagePicker": "关闭后隐藏语言菜单。页面仍按浏览器语言或 ?lang= 链接显示。",
+   "showPoweredBy": "聊天下方和登录页面上指向 Garrison 网站的一行小字。关闭即隐藏。",
+   "starterPrompts": "新对话中以按钮显示的建议问题，最多 4 个，每个最多 200 个字符。"
+  }
+ },
+ "appAppearance": {
+  "sections": {
+   "text": "应用页面上的文字：副标题、欢迎标题和正文、消息框提示和代理名称。",
+   "images": "徽标、浏览器标签页图标和代理头像。选择现有图片资产或上传新的。",
+   "colors": "从调色板开始，再调整任意颜色。每种颜色都有浅色和深色值；深色留空则由浅色推算。",
+   "layout": "打开时的主题、圆角程度、间距松紧和字体。",
+   "show": "关闭页面的部分内容：主题按钮、文件列表、语言菜单和平台署名。",
+   "prompts": "新对话时以按钮显示的建议首个问题，点击即发送。",
+   "preview": "随字段修改更新的浅色和深色页面草图。点击保存之前不会保存任何内容。"
+  },
+  "contrastWarning": "此颜色上的部分文字对比度只有 {{ratio}}:1。WCAG AA 要求 4.5:1，请选择更浅或更深的颜色。",
+  "derived": "未设置深色，页面会由浅色推算：色相相同，亮度调整。",
+  "sameAsLight": "未设置深色也没有调色板，深色主题沿用浅色，与调色板出现之前相同。",
+  "builtIn": "两种颜色都未设置，深色主题使用页面自带的深色。",
+  "darkColor": "深色主题中的{{field}}，使用 #RGB 或 #RRGGBB。留空则由浅色推算。",
+  "resetColors": "清除所有浅色和深色颜色以及调色板，页面在两种主题中都使用内置颜色。",
+  "palette": "用{{name}}调色板填充所有浅色和深色颜色，之后可以调整任意颜色。",
+  "lightColumn": "浅色主题的颜色。留空则保持页面内置的浅色。",
+  "darkColumn": "深色主题的颜色。留空则由浅色推算，显示在旁边。",
+  "upload": "从这台电脑上传一张图片作为新资产，并用作{{field}}。",
+  "prompt": "用户一键即可发送的问题，请保持简短；Alt+上 和 Alt+下 可移动它。",
+  "addPrompt": "在列表末尾添加一个空白开场问题，然后输入内容。",
+  "promptsFull": "一个应用最多可有 {{max}} 个开场问题。要添加新的请先移除一个。"
+ }
+});

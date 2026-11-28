@@ -12,11 +12,83 @@ export const APP_NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/;
 /** URL slug: 2 to 63 lowercase letters, digits, and hyphens, starting with a letter or digit. */
 export const APP_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
-/** Branding color: #RRGGBB. */
-export const APP_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+/** Branding color: #RGB or #RRGGBB (the server accepts both, LP8). */
+export const APP_COLOR_PATTERN = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+
+/** Dark branding color: #RGB or #RRGGBB (LP8). */
+export const APP_DARK_COLOR_PATTERN = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
 /** Limits the server enforces on an app. */
-export const APP_LIMITS = { members: 100, description: 4000, displayName: 128, welcomeText: 4000, role: 256, changeNote: 2000 };
+export const APP_LIMITS = {
+  members: 100,
+  description: 4000,
+  displayName: 128,
+  welcomeText: 4000,
+  role: 256,
+  changeNote: 2000,
+  subtitle: 200,
+  welcomeTitle: 120,
+  composerPlaceholder: 120,
+  agentDisplayName: 80,
+  starterPrompts: 4,
+  starterPrompt: 200
+};
+
+/** The app page's default theme (AppThemeDefaultEnum). System follows the browser. */
+export const APP_THEME_DEFAULTS = ['System', 'Light', 'Dark'];
+
+/** Corner style of the app page (AppCornerStyleEnum). */
+export const APP_CORNER_STYLES = ['Sharp', 'Rounded', 'Pill'];
+
+/** Spacing of the app page (AppDensityEnum). */
+export const APP_DENSITIES = ['Compact', 'Comfortable'];
+
+/** Optional appearance text fields (LP8) and their limits, in the order the form shows them. */
+export const APP_APPEARANCE_TEXT_FIELDS = ['subtitle', 'welcomeTitle', 'composerPlaceholder', 'agentDisplayName'];
+
+/** The dark counterpart of each branding color, in the same order as APP_COLOR_FIELDS. */
+export const APP_DARK_COLOR_FIELDS = ['darkPrimaryColor', 'darkAccentColor', 'darkHeaderColor', 'darkBackgroundColor', 'darkAgentBubbleColor', 'darkConversationListColor', 'darkComposerColor', 'darkFilesColor'];
+
+/** Every form key the appearance step edits, so a field error on any of them opens this step. */
+export const APP_APPEARANCE_KEYS = [
+  'subtitle',
+  'welcomeTitle',
+  'welcomeText',
+  'composerPlaceholder',
+  'agentDisplayName',
+  'logoAssetId',
+  'faviconAssetId',
+  'agentAvatarAssetId',
+  'paletteId',
+  'primaryColor',
+  'accentColor',
+  'backgroundColor',
+  'headerColor',
+  'agentBubbleColor',
+  'conversationListColor',
+  'composerColor',
+  'filesColor',
+  'darkPrimaryColor',
+  'darkAccentColor',
+  'darkBackgroundColor',
+  'darkHeaderColor',
+  'darkAgentBubbleColor',
+  'darkConversationListColor',
+  'darkComposerColor',
+  'darkFilesColor',
+  'fontFamily',
+  'themeDefault',
+  'allowThemeSwitch',
+  'cornerStyle',
+  'density',
+  'showFilesPanel',
+  'showLanguagePicker',
+  'showPoweredBy',
+  'starterPrompts'
+];
+
+/** Appearance switches that default to on (LP8). */
+export const APP_APPEARANCE_SWITCHES = ['allowThemeSwitch', 'showFilesPanel', 'showLanguagePicker', 'showPoweredBy'];
 
 /** Validation field codes the server sends for apps, translated under common.fieldCodes. */
 export const APP_FIELD_CODES = [
@@ -35,7 +107,9 @@ export const APP_FIELD_CODES = [
   'InvalidColor',
   'UnknownAsset',
   'Required',
-  'TooMany'
+  'TooMany',
+  'TooLong',
+  'InvalidValue'
 ];
 
 /** The URL of an app's chat UI, served next to the dashboard: {origin}/apps/{slug}/. '' without a slug. */
@@ -105,6 +179,22 @@ export function blankApp() {
     fontFamily: 'System',
     faviconAssetId: '',
     welcomeText: '',
+    // Appearance (LP8). Every default matches how the app page looked before these fields existed.
+    subtitle: '',
+    welcomeTitle: '',
+    composerPlaceholder: '',
+    agentDisplayName: '',
+    agentAvatarAssetId: '',
+    paletteId: '',
+    ...Object.fromEntries(APP_DARK_COLOR_FIELDS.map((k) => [k, ''])),
+    themeDefault: 'System',
+    allowThemeSwitch: true,
+    cornerStyle: 'Rounded',
+    density: 'Comfortable',
+    showFilesPanel: true,
+    showLanguagePicker: true,
+    showPoweredBy: true,
+    starterPrompts: [],
     active: true
   };
 }
@@ -132,6 +222,12 @@ export function appToForm(app) {
     fontFamily: a.fontFamily || 'System',
     faviconAssetId: text(a.faviconAssetId),
     welcomeText: text(a.welcomeText),
+    ...Object.fromEntries([...APP_APPEARANCE_TEXT_FIELDS, 'agentAvatarAssetId', 'paletteId', ...APP_DARK_COLOR_FIELDS].map((k) => [k, text(a[k])])),
+    themeDefault: APP_THEME_DEFAULTS.includes(a.themeDefault) ? a.themeDefault : 'System',
+    cornerStyle: APP_CORNER_STYLES.includes(a.cornerStyle) ? a.cornerStyle : 'Rounded',
+    density: APP_DENSITIES.includes(a.density) ? a.density : 'Comfortable',
+    ...Object.fromEntries(APP_APPEARANCE_SWITCHES.map((k) => [k, a[k] !== false])),
+    starterPrompts: (Array.isArray(a.starterPrompts) ? a.starterPrompts : []).map((p) => text(p)),
     liveEnvironment: a.liveEnvironment || 'dev',
     authMode: a.authMode || 'AppUsers',
     anonymousEnabled: !!a.anonymousEnabled,
@@ -184,6 +280,15 @@ export function appToBody(form) {
     fontFamily: APP_FONTS.includes(d.fontFamily) && d.fontFamily !== 'System' ? d.fontFamily : null,
     faviconAssetId: optional(d.faviconAssetId),
     welcomeText: d.welcomeText && String(d.welcomeText).trim() ? String(d.welcomeText) : null,
+    ...Object.fromEntries([...APP_APPEARANCE_TEXT_FIELDS, 'agentAvatarAssetId', 'paletteId', ...APP_DARK_COLOR_FIELDS].map((k) => [k, optional(d[k])])),
+    themeDefault: APP_THEME_DEFAULTS.includes(d.themeDefault) ? d.themeDefault : 'System',
+    allowThemeSwitch: d.allowThemeSwitch !== false,
+    cornerStyle: APP_CORNER_STYLES.includes(d.cornerStyle) ? d.cornerStyle : 'Rounded',
+    density: APP_DENSITIES.includes(d.density) ? d.density : 'Comfortable',
+    showFilesPanel: d.showFilesPanel !== false,
+    showLanguagePicker: d.showLanguagePicker !== false,
+    showPoweredBy: d.showPoweredBy !== false,
+    starterPrompts: (d.starterPrompts || []).map((p) => trim(p)).filter(Boolean),
     active: d.active !== false
   };
 }
@@ -260,6 +365,16 @@ export function appErrors(form, t, nameOf = (id) => id) {
     const v = String(d[key] || '').trim();
     if (v && !APP_COLOR_PATTERN.test(v)) code(key, 'InvalidColor');
   }
+  for (const key of APP_DARK_COLOR_FIELDS) {
+    const v = String(d[key] || '').trim();
+    if (v && !APP_DARK_COLOR_PATTERN.test(v)) code(key, 'InvalidColor');
+  }
+  for (const key of APP_APPEARANCE_TEXT_FIELDS) if (String(d[key] || '').length > APP_LIMITS[key]) code(key, 'TooLong');
+  const prompts = (d.starterPrompts || []).filter((p) => String(p || '').trim());
+  if (prompts.length > APP_LIMITS.starterPrompts) code('starterPrompts', 'TooMany');
+  (d.starterPrompts || []).forEach((p, i) => {
+    if (String(p || '').trim().length > APP_LIMITS.starterPrompt) e[`starterPrompts[${i}]`] = t('common.fieldCodes.TooLong');
+  });
 
   const members = d.members || [];
   if (!members.some((m) => m.agentId)) code('members', 'Required');

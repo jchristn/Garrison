@@ -10035,3 +10035,137 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// App appearance (LP8.4): the appearance step, palettes, starter prompts, and the preview.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "resources": {
+  "apps": {
+   "steps": {
+    "appearance": "外觀"
+   },
+   "fields": {
+    "appearance": "外觀",
+    "subtitle": "副標題",
+    "welcomeTitle": "歡迎標題",
+    "composerPlaceholder": "訊息框提示文字",
+    "agentDisplayName": "訊息上顯示的代理名稱",
+    "agentAvatarAssetId": "代理頭像",
+    "paletteId": "調色盤",
+    "themeDefault": "預設主題",
+    "allowThemeSwitch": "允許使用者切換淺色和深色",
+    "cornerStyle": "圓角樣式",
+    "density": "密度",
+    "showFilesPanel": "顯示檔案清單",
+    "showLanguagePicker": "顯示語言選擇",
+    "showPoweredBy": "顯示平台署名",
+    "starterPrompts": "開場問題"
+   },
+   "hints": {
+    "subtitle": "頁首和歡迎畫面中名稱下方的一行短文字，最多 200 個字元。",
+    "welcomeTitle": "第一則訊息之前的標題。留空則顯示顯示名稱，最多 120 個字元。",
+    "composerPlaceholder": "空白訊息框中的灰色文字，最多 120 個字元。",
+    "agentDisplayName": "回覆顯示的發送者。留空則顯示顯示名稱，最多 80 個字元。",
+    "agentAvatarAssetId": "每則回覆中代理名稱旁邊的小圓形圖片。",
+    "starterPrompts": "新對話中最多顯示 4 個按鈕，點一下即作為第一則訊息傳送。",
+    "allowThemeSwitch": "關閉後會隱藏淺色深色按鈕，並忽略先前儲存的選擇。"
+   },
+   "noAvatar": "無頭像",
+   "placeholders": {
+    "subtitle": "例如：研究團隊為你解答"
+   }
+  }
+ },
+ "enums": {
+  "appThemeDefault": {
+   "System": "跟隨系統",
+   "Light": "淺色",
+   "Dark": "深色"
+  },
+  "appCornerStyle": {
+   "Sharp": "方角",
+   "Rounded": "圓角",
+   "Pill": "膠囊形"
+  },
+  "appDensity": {
+   "Compact": "緊湊",
+   "Comfortable": "寬鬆"
+  }
+ },
+ "components": {
+  "appAppearance": {
+   "sections": {
+    "text": "文字",
+    "images": "圖片",
+    "colors": "顏色",
+    "layout": "主題和版面",
+    "show": "頁面顯示的內容",
+    "prompts": "開場問題",
+    "preview": "預覽"
+   },
+   "palettes": {
+    "garrison": "Garrison 藍綠",
+    "slate": "石板",
+    "ocean": "海洋",
+    "forest": "森林",
+    "sunset": "日落",
+    "plum": "梅紫",
+    "graphite": "石墨",
+    "contrast": "高對比",
+    "custom": "自訂",
+    "none": "內建顏色"
+   },
+   "paletteCurrent": "調色盤：{{name}}",
+   "resetColors": "使用內建顏色",
+   "columns": {
+    "role": "顏色",
+    "light": "淺色",
+    "dark": "深色"
+   },
+   "derived": "由淺色推算",
+   "sameAsLight": "與淺色相同",
+   "builtIn": "內建深色",
+   "contrastWarning": "文字對比度 {{ratio}}:1，低於 AA 最低要求 4.5:1",
+   "darkLabel": "{{field}}（深色主題）",
+   "image": {
+    "upload": "上傳圖片",
+    "uploading": "正在上傳...",
+    "uploaded": "已上傳為資產 {{name}}。",
+    "notImage": "請選擇圖片檔：PNG、JPEG、GIF、WebP、SVG 或 ICO。",
+    "assetDescription": "應用程式 {{app}} 的{{role}}，從應用程式編輯器上傳。"
+   },
+   "prompts": {
+    "count": "{{count}} / {{max}} 個問題",
+    "chars": "{{count}}/{{max}} 個字元",
+    "label": "開場問題 {{number}}",
+    "placeholder": "例如：總結一下本週的更新",
+    "empty": "還沒有開場問題，使用者會從空白訊息框開始。",
+    "keys": "在問題框中按 Alt+上 和 Alt+下 可移動它。",
+    "add": "新增問題",
+    "moveUp": "將問題 {{number}} 上移",
+    "moveDown": "將問題 {{number}} 下移",
+    "remove": "移除問題 {{number}}"
+   },
+   "preview": {
+    "appName": "你的應用程式",
+    "welcomeDefault": "提個問題就可以開始。",
+    "light": "淺色",
+    "dark": "深色",
+    "you": "你",
+    "question": "本週有什麼變化？",
+    "answer": "這是本週變化的簡短摘要。",
+    "placeholder": "輸入訊息",
+    "poweredBy": "使用 Garrison Agent Studio 建置",
+    "note": "隨你的修改更新的應用程式頁面草圖。開啟應用程式連結即可查看真實頁面。"
+   }
+  }
+ }
+});

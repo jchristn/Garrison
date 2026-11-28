@@ -10,11 +10,12 @@ import AgenticAppShare from '../components/AgenticAppShare';
 import AgenticAppDelegationModal from '../components/AgenticAppDelegationModal';
 import AgenticAppRevisionsModal from '../components/AgenticAppRevisionsModal';
 import AgenticAppReleaseModal from '../components/AgenticAppReleaseModal';
+import AgenticAppAppearance from '../components/AgenticAppAppearance';
 import { formatDateTime, formatNumber, formatRelativeTime, truncate } from '../i18n/formatters';
 import { resourceTip, enumTip, optionalText } from '../utils/tips';
 import { enumLabel, enumOptions } from '../utils/enums';
 import { environmentNames } from '../utils/revisions';
-import { APP_AUTH_MODES, APP_COLOR_FIELDS, APP_DEFAULT_COLORS, APP_FONTS, appDuplicate, appErrors, appToBody, appToForm, blankApp, entryDeployments, holds, memberIds, unreachableNames } from '../utils/apps';
+import { APP_APPEARANCE_KEYS, APP_AUTH_MODES, appDuplicate, appErrors, appToBody, appToForm, blankApp, entryDeployments, holds, memberIds, unreachableNames } from '../utils/apps';
 import FrozenListBanner from '../components/FrozenListBanner';
 import { FREEZES_CHANGED_EVENT } from '../utils/freezes';
 import { freezeLookups, freezeRowActions } from './freezeConfigs';
@@ -75,7 +76,8 @@ function memberOptions(d, nameOf) {
 /**
  * Agentic apps (AD6): a group of agents behind one chat UI at /apps/{slug}/. The editor has five steps: the app,
  * members and the call graph (with a read-only graph), environments and the live one, who may use the app (with the
- * shareable URL), and branding. Row actions show the delegation the graph implies and the app's revisions, from which
+ * shareable URL), and appearance (LP8: text, images, palette and colors, theme and layout, starter prompts, with a
+ * live preview in light and dark). Row actions show the delegation the graph implies and the app's revisions, from which
  * revisions are taken, published, and promoted, and the app's environments (pins and overrides per environment, the
  * difference between two, Promote, and the promotion history with Rollback, AD9.6). Actions the caller lacks the permission for stay visible but disabled,
  * with the missing permission in the tooltip.
@@ -91,7 +93,7 @@ export const appsConfig = {
     update: (c, tenant, id, b) => c.updateApp(tenant, id, b),
     remove: (c, tenant, id) => c.deleteApp(tenant, id)
   },
-  steps: ['general', 'members', 'environments', 'access', 'branding'],
+  steps: ['general', 'members', 'environments', 'access', 'appearance'],
   defaultSort: 'name',
   defaultSortDir: 'asc',
   loadLookups: appLookups,
@@ -99,7 +101,7 @@ export const appsConfig = {
   // AA3.8: the frozen apps, with Lift.
   intro: () => <FrozenListBanner targetKind="App" />,
   // Pick lists: agents for members, deployments for the entry deployment per environment, the tenant's environments,
-  // and agent assets for the logo.
+  // and agent assets for the logo, favicon, and agent avatar.
   loadOptions: async ({ apiClient, tenantId }) => {
     const page = { pageNumber: 1, pageSize: 1000 };
     const [agents, deployments, assets, environments] = await Promise.all([
@@ -156,7 +158,7 @@ export const appsConfig = {
       col(t, 'createdUtc', (r) => when(r.createdUtc, lng), { sortable: true, cellClass: 'nowrap', csv: (r) => r.createdUtc || '' })
     ];
   },
-  fields: (d, { t, options = {} }) => {
+  fields: (d, { t, options = {}, reloadOptions = null }) => {
     const data = d || {};
     const agents = options.agents || [];
     const known = Object.fromEntries(agents.map((a) => [a.id, a.name]));
@@ -225,26 +227,11 @@ export const appsConfig = {
           </div>
         )
       },
-      field(t, 'logoAssetId', 'select', {
-        step: 4,
-        noneLabel: t('resources.apps.noLogo'),
-        options: [
-          ...(options.assets || []).map((a) => ({ value: a.id, label: a.name })),
-          ...(data.logoAssetId && !(options.assets || []).some((a) => a.id === data.logoAssetId) ? [{ value: data.logoAssetId, label: data.logoAssetId }] : [])
-        ]
-      }),
-      field(t, 'faviconAssetId', 'select', {
-        step: 4,
-        noneLabel: t('resources.apps.faviconFromLogo'),
-        options: [
-          ...(options.assets || []).map((a) => ({ value: a.id, label: a.name })),
-          ...(data.faviconAssetId && !(options.assets || []).some((a) => a.id === data.faviconAssetId) ? [{ value: data.faviconAssetId, label: data.faviconAssetId }] : [])
-        ]
-      }),
-      // Each color shows the one the chat uses when it is left empty, so the swatch matches what people see.
-      ...APP_COLOR_FIELDS.map((key) => field(t, key, 'color', { step: 4, defaultColor: APP_DEFAULT_COLORS[key], placeholder: t('resources.apps.defaultColor', { color: APP_DEFAULT_COLORS[key] }) })),
-      field(t, 'fontFamily', 'select', { step: 4, options: enumOptions(t, 'appFont', APP_FONTS) }),
-      field(t, 'welcomeText', 'textarea', { step: 4, rows: 3 })
+      // One panel for the whole appearance step, so the preview can sit beside the fields it shows.
+      {
+        ...field(t, 'appearance', 'custom', { step: 4, errorKeys: APP_APPEARANCE_KEYS }),
+        render: (current, { onChange, errors, disabled }) => <AgenticAppAppearance data={current} onChange={onChange} errors={errors} disabled={disabled} assets={options.assets || []} reloadOptions={reloadOptions} />
+      }
     ];
   },
   // The view dialog leads with the graph and the shareable URL.

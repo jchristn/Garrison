@@ -346,11 +346,11 @@ describe('Apps page configuration', () => {
   });
 
   it('spreads the editor over five steps and names agents in the member, entry, and call pickers', () => {
-    expect(appsConfig.steps).toEqual(['general', 'members', 'environments', 'access', 'branding']);
+    expect(appsConfig.steps).toEqual(['general', 'members', 'environments', 'access', 'appearance']);
     const options = { agents: [{ id: 'agt_0001', name: 'echo-agent' }, { id: 'agt_0002', name: 'agent-2' }, { id: 'agt_0003', name: 'agent-3' }], deployments: [{ id: 'dep_0001', name: 'deployment-1', agentId: 'agt_0001', environment: 'dev' }, { id: 'dep_0002', name: 'deployment-2', agentId: 'agt_0001', environment: 'staging' }], assets: [{ id: 'aas_0001', name: 'style-guide' }], environments: ENVIRONMENTS.environments };
     const fields = appsConfig.fields(form(), { ...ctx, mode: 'edit', options });
     const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
-    expect(Object.keys(byName)).toEqual(expect.arrayContaining(['name', 'slug', 'members', 'entryAgentId', 'edges', 'graph', 'environments', 'liveEnvironment', 'authMode', 'anonymousEnabled', 'showOperatorDetail', 'share', 'displayName', 'logoAssetId', 'primaryColor', 'accentColor', 'welcomeText']));
+    expect(Object.keys(byName)).toEqual(expect.arrayContaining(['name', 'slug', 'members', 'entryAgentId', 'edges', 'graph', 'environments', 'liveEnvironment', 'authMode', 'anonymousEnabled', 'showOperatorDetail', 'share', 'displayName', 'appearance']));
     expect(byName.entryAgentId.options.map((o) => o.label)).toEqual(['echo-agent', 'agent-2', 'agent-3']);
     const callee = byName.edges.fields.find((f) => f.name === 'calleeAgentId');
     expect(callee.options({}).map((o) => o.label)).toEqual(['echo-agent', 'agent-2', 'agent-3']);
@@ -358,8 +358,10 @@ describe('Apps page configuration', () => {
     expect(deployment.options({ environment: 'dev' }).map((o) => o.value)).toEqual(['dep_0001']);
     expect(deployment.options({ environment: 'staging' }).map((o) => o.value)).toEqual(['dep_0002']);
     expect(byName.authMode.options.map((o) => o.label)).toEqual(['Tenant users', 'App users', 'Anonymous']);
-    expect(byName.logoAssetId.options).toEqual([{ value: 'aas_0001', label: 'style-guide' }]);
-    expect(byName.primaryColor.type).toBe('color');
+    // The appearance step is one panel (LP8.4) that claims the errors of every field it edits.
+    expect(byName.appearance.type).toBe('custom');
+    expect(byName.appearance.step).toBe(4);
+    expect(byName.appearance.errorKeys).toEqual(expect.arrayContaining(['logoAssetId', 'primaryColor', 'darkPrimaryColor', 'welcomeText', 'starterPrompts']));
     // New calls allow fan-out by default; edited ones keep their value.
     const adjust = byName.edges.rowAdjust;
     expect(adjust({ callerAgentId: '', fanOutAllowed: false }, null).fanOutAllowed).toBe(true);
