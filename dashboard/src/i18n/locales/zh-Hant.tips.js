@@ -5279,3 +5279,71 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "在畫布上顯示 {{name}} 下方的 {{count}} 個單位。",
+   "expand_other": "在畫布上顯示 {{name}} 下方的 {{count}} 個單位。",
+   "collapse_one": "隱藏 {{name}} 下方的 {{count}} 個單位。在焦點所在的單位上按減號 (-) 效果相同。",
+   "collapse_other": "隱藏 {{name}} 下方的 {{count}} 個單位。在焦點所在的單位上按減號 (-) 效果相同。",
+   "expandAll": "顯示組織的所有單位。大型組織會比畫布更寬，可以拖曳平移，或使用小地圖。",
+   "collapseAll": "顯示根單位與直接向它匯報的單位，並隱藏更下方的層級。展開某個單位即可看到向它匯報的單位。",
+   "hidden": "已收合單位下方的單位不會繪製。請展開該單位，或使用「全部展開」。"
+  },
+  "outlineUnits": "每個單位一句話：它向誰匯報、由誰帶領。螢幕閱讀器讀到的是相同的文字。",
+  "editAll": "開啟完整的單位表單：名稱、描述、負責人與職稱、含職稱與守護者的成員、應用程式、同級連線以及預算。"
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "這個單位有未處理的升級或預算上限在等人處理。健康狀態只來自單位的報告，所以在等待期間也可能顯示「未知」或「健康」。"
+  },
+  "attention": {
+   "repeated_one": "同一個代理問了這個問題 {{count}} 次。",
+   "repeated_other": "同一個代理問了這個問題 {{count}} 次。連結會開啟最新的一則，「升級」頁面會逐則列出。"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "列出組織圖這一層的更多單位。",
+   "expandAll": "展開組織圖的所有單位。",
+   "collapseAll": "顯示根單位與直接向它匯報的單位，並收合更下方的層級。開啟某個單位即可看到向它匯報的單位。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "開啟「設計」分頁，在那裡新增與移除單位、安排人員、關聯守護者、設定預算並查看檢查結果。"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "顯示草稿中的組織：單位依匯報關係排成樹，並顯示負責人、成員與同級連線。"
+   }
+  }
+ }
+});

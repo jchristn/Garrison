@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Background, MiniMap, ReactFlow, applyNodeChanges, useReactFlow } from '@xyflow/react';
+import { Badge } from '../../StatusBadge';
 import ConfirmModal from '../../ConfirmModal';
 import { PlusIcon } from '../../Icons';
 import { tip } from '../../Tooltip';
 import { readStored, writeStored } from '../../../utils/studio';
-import { absoluteX, layoutOrg, orgSummary, parsePeerId, peerId, unitHeaderHeight, unitLabel } from '../../../utils/orgCanvas';
+import { absoluteX, ancestorsOf, defaultCollapsed, descendantCount, layoutOrg, orgSummary, parsePeerId, peerId, unitHeaderHeight, unitLabel } from '../../../utils/orgCanvas';
 import { ORG_HISTORY_LIMIT, draftOrgSource, inverseSteps } from '../../../utils/orgCanvasSource';
 import CanvasUnitNode from './CanvasUnitNode';
 import OrgUnitPanel from './OrgUnitPanel';
@@ -18,6 +19,13 @@ const denied = (reason) => (reason ? { 'aria-disabled': 'true', 'data-denied': '
 
 /** More units than this show a minimap (LP3.10). */
 export const MINIMAP_ABOVE_UNITS = 12;
+
+/**
+ * Zoom bounds of Fit to screen (UXP1-V002): a tree that fits at FIT_MIN_ZOOM or more is fitted whole (never above
+ * FIT_MAX_ZOOM); a larger one opens at FIT_MIN_ZOOM with the root at the top center, and the rest is a pan away.
+ */
+export const FIT_MIN_ZOOM = 0.85;
+export const FIT_MAX_ZOOM = 1.25;
 
 function orgStorageKey(scope) {
   return `garrison.studio.canvasOrg.${scope}`;
@@ -57,10 +65,15 @@ function reducedMotion() {
  * - `readOnly`: no editing at all (the Chart tab's overlays), with selection kept so a unit can be inspected;
  * - a minimap above MINIMAP_ABOVE_UNITS units, and Fit to screen without animation under prefers-reduced-motion;
  * - `initialUnit`: a unit name to select once it is on the canvas (the Design tab's `?unit=`, used by the tours).
+ *
+ * UXP1-V002: the units are cards in a top-down tree with reporting lines, so names keep the same size at any number of
+ * units. A unit with units below it collapses and expands (its button, or - and + on the focused unit; Expand all and
+ * Collapse in the toolbar); an organization of more than COLLAPSE_ABOVE_UNITS units opens collapsed below the first
+ * level. Fit to screen keeps the zoom between FIT_MIN_ZOOM and FIT_MAX_ZOOM and otherwise shows the top of the tree.
  */
 export default function OrgCanvas({ draft, graph, source = null, scopeId = '', blocked = '', readOnly = false, palette = false, decorations = null, renderPanel = null, onNewAgent = null, agents = [], runOperation, say, initialUnit = '' }) {
   const { t } = useTranslation();
-  const { fitView } = useReactFlow();
+  const { fitView, setViewport } = useReactFlow();
   const scope = scopeId || draft?.id || 'org';
   const [chosen, setChosen] = useState(() => readStored(orgStorageKey(scope)));
   const [selection, setSelection] = useState(null);
@@ -80,7 +93,25 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
     () => (decorations ? { ...baseFlow, units: baseFlow.units.map((u) => ({ ...u, extraRows: decorations[u.name]?.overlay?.lines?.length || 0 })) } : baseFlow),
     [baseFlow, decorations]
   );
-  const layout = useMemo(() => layoutOrg(flow), [flow]);
+  // Collapsed units, per organization; null until the person changes it, so the default follows the tree's size.
+  const [collapsedBy, setCollapsedBy] = useState({});
+  const collapsedList = useMemo(() => {
+    const own = collapsedBy[organization];
+    const names = new Set(flow.units.map((u) => u.name));
+    return (own || defaultCollapsed(flow)).filter((n) => names.has(n));
+  }, [collapsedBy, organization, flow]);
+  const collapsedSet = useMemo(() => new Set(collapsedList), [collapsedList]);
+  const setCollapsed = useCallback((update) => setCollapsedBy((prev) => ({ ...prev, [organization]: update(prev[organization] || defaultCollapsed(flow)) })), [organization, flow]);
+  const toggleUnit = useCallback((name) => setCollapsed((list) => (list.includes(name) ? list.filter((n) => n !== name) : [...list, name])), [setCollapsed]);
+  // Open every unit above one, so a unit picked from a list or a link is on the canvas.
+  const reveal = useCallback(
+    (name) => {
+      const above = ancestorsOf(flow, name);
+      if (above.some((n) => collapsedSet.has(n))) setCollapsed((list) => list.filter((n) => !above.includes(n)));
+    },
+    [flow, collapsedSet, setCollapsed]
+  );
+  const layout = useMemo(() => layoutOrg(flow, collapsedList), [flow, collapsedList]);
   const choices = useMemo(() => src.choices(agents), [src, agents]);
   const flowRef = useRef(flow);
   useEffect(() => {
@@ -182,8 +213,9 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
   useEffect(() => {
     if (!initialUnit || initialDone.current === initialUnit || !byName.has(initialUnit)) return;
     initialDone.current = initialUnit;
+    reveal(initialUnit);
     setSelection({ type: 'unit', id: initialUnit });
-  }, [initialUnit, byName]);
+  }, [initialUnit, byName, reveal]);
   const selectedId = selection?.type === 'unit' ? selection.id : null;
   const problemCounts = useMemo(() => {
     const counts = {};
@@ -208,18 +240,19 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
 
   const wanted = useMemo(
     () =>
-      layout.boxes.map((box) => {
+      layout.boxes.filter((box) => !box.hidden).map((box) => {
         const unit = byName.get(box.id);
         const deco = decorations?.[box.id] || null;
         return {
           id: box.id,
           type: 'unit',
           position: { x: box.x, y: box.y },
-          parentId: box.parent || undefined,
-          style: { width: box.width, height: box.height },
+          style: { width: box.width },
           width: box.width,
-          height: box.height,
           data: {
+            below: descendantCount(flow, box.id),
+            collapsed: collapsedSet.has(box.id),
+            onToggle: toggleUnit,
             unit,
             header: unitHeaderHeight(unit),
             connecting: connectFrom === box.id,
@@ -241,7 +274,7 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
           }
         };
       }),
-    [layout, byName, connectFrom, selectedId, blocked, readOnly, editBlocked, problemCounts, decorations, palette, onDropAgent, src, t]
+    [layout, byName, flow, collapsedSet, toggleUnit, connectFrom, selectedId, blocked, readOnly, editBlocked, problemCounts, decorations, palette, onDropAgent, src, t]
   );
   // React Flow measures nodes into this state; a new layout replaces the nodes and keeps what it measured.
   const [rfNodes, setRfNodes] = useState([]);
@@ -253,10 +286,28 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
   }, [wanted]);
   // A peer line has no direction, so it runs from the unit further left to the other one and never crosses its own box.
   const left = (a, b) => (absoluteX(layout, a) <= absoluteX(layout, b) ? [a, b] : [b, a]);
-  const edges = flow.peers.map((p) => ({
+  const shownIds = new Set(layout.boxes.filter((b) => !b.hidden).map((b) => b.id));
+  // Reporting lines (UXP1-V002): from the bottom of each unit to the top of each unit that reports to it.
+  const treeEdges = layout.boxes
+    .filter((b) => !b.hidden && b.parent && shownIds.has(b.parent))
+    .map((b) => ({
+      id: `tree:${b.parent}>${b.id}`,
+      source: b.parent,
+      sourceHandle: 'tree-out',
+      target: b.id,
+      targetHandle: 'tree-in',
+      type: 'smoothstep',
+      className: 'studio-canvas-edge is-report',
+      selectable: false,
+      deletable: false,
+      focusable: false
+    }));
+  const peerEdges = flow.peers.filter((p) => shownIds.has(p.from) && shownIds.has(p.to)).map((p) => ({
     id: p.id,
     source: left(p.from, p.to)[0],
+    sourceHandle: 'peer-out',
     target: left(p.from, p.to)[1],
+    targetHandle: 'peer-in',
     className: 'studio-canvas-edge is-peer',
     selected: selection?.type === 'peer' && selection.id === p.id,
     deletable: false,
@@ -268,6 +319,43 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
     }),
     domAttributes: { 'data-peer': p.id }
   }));
+  const edges = [...treeEdges, ...peerEdges];
+
+  // Fit to screen (UXP1-V002): the whole tree when it fits at FIT_MIN_ZOOM or more, else the top of the tree at
+  // FIT_MIN_ZOOM, so text never shrinks past reading size; the rest is a pan (or the minimap) away.
+  const fitTree = useCallback(
+    (animate = true) => {
+      const el = wrapperRef.current;
+      const duration = animate && !reducedMotion() ? 200 : 0;
+      const w = el?.clientWidth || 0;
+      const h = el?.clientHeight || 0;
+      if (!w || !h || !layout.width) {
+        fitView({ padding: 0.15, minZoom: FIT_MIN_ZOOM, maxZoom: FIT_MAX_ZOOM, duration });
+        return;
+      }
+      const whole = Math.min(w / layout.width, h / layout.height);
+      if (whole >= FIT_MIN_ZOOM) {
+        fitView({ padding: 0.15, minZoom: FIT_MIN_ZOOM, maxZoom: FIT_MAX_ZOOM, duration });
+        return;
+      }
+      const top = layout.boxes.find((b) => !b.hidden && !b.parent) || layout.boxes.find((b) => !b.hidden);
+      const z = FIT_MIN_ZOOM;
+      const cx = top ? top.x + top.width / 2 : layout.width / 2;
+      setViewport({ x: w / 2 - cx * z, y: 16 - (top ? top.y : 0) * z + 8, zoom: z }, { duration });
+    },
+    [layout, fitView, setViewport]
+  );
+  // Fit again when the set of shown units changes (a unit added, removed, collapsed, or expanded).
+  const shownKey = [...shownIds].join('\u0000');
+  const fitted = useRef('');
+  useEffect(() => {
+    if (!rfNodes.length || fitted.current === `${organization}|${shownKey}`) return undefined;
+    const first = !fitted.current.startsWith(`${organization}|`);
+    fitted.current = `${organization}|${shownKey}`;
+    const id = setTimeout(() => fitTree(!first), 0);
+    return () => clearTimeout(id);
+  }, [rfNodes.length, shownKey, organization, fitTree]);
+  const nested = flow.units.some((u) => u.children.length > 0);
 
   // Focus a unit the person just added, so the keyboard flow continues from it.
   useEffect(() => {
@@ -282,6 +370,7 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
   });
 
   const showUnit = (name) => {
+    reveal(name);
     setSelection({ type: 'unit', id: name });
     focusNext.current = name;
   };
@@ -414,6 +503,14 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
     if ((key === 'n' || key === 'N') && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
       event.preventDefault();
       addRef.current?.focus();
+      return;
+    }
+    if (id && (key === '-' || key === '+' || key === '=') && !event.ctrlKey && !event.metaKey) {
+      const isClosed = collapsedSet.has(id);
+      if (descendantCount(flow, id) > 0 && (key === '-' ? !isClosed : isClosed)) {
+        event.preventDefault();
+        toggleUnit(id);
+      }
       return;
     }
     if (id && readOnly && (key === 'Enter' || key === ' ')) {
@@ -600,17 +697,40 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
           )}
           {!readOnly && (
             <div className="flex gap-sm items-center" role="group" aria-label={t('components.orgDesigner.history.label')}>
-              <button type="button" className="button-ghost button-sm" onClick={undo} data-testid="org-undo" {...denied(blocked || (lastUndo?.inverse.length ? '' : 'none'))} {...tip(undoTip)}>
+              <button type="button" className="button-secondary button-sm" onClick={undo} data-testid="org-undo" {...denied(blocked || (lastUndo?.inverse.length ? '' : 'none'))} {...tip(undoTip)}>
                 {t('components.orgDesigner.history.undo')}
               </button>
-              <button type="button" className="button-ghost button-sm" onClick={redo} data-testid="org-redo" {...denied(blocked || (lastRedo ? '' : 'none'))} {...tip(redoTip)}>
+              <button type="button" className="button-secondary button-sm" onClick={redo} data-testid="org-redo" {...denied(blocked || (lastRedo ? '' : 'none'))} {...tip(redoTip)}>
                 {t('components.orgDesigner.history.redo')}
               </button>
             </div>
           )}
-          <button type="button" className="button-ghost button-sm" onClick={() => fitView({ padding: 0.2, duration: reducedMotion() ? 0 : 200 })} data-testid="studio-org-fit" {...tip(t('tips.studio.canvas.fit'))}>
-            {t('components.studio.canvas.toolbar.fit')}
-          </button>
+          <div className="flex gap-sm items-center org-canvas-view-tools" role="group" aria-label={t('components.orgDesigner.collapse.label')}>
+            <button type="button" className="button-secondary button-sm" onClick={() => fitTree(true)} data-testid="studio-org-fit" {...tip(t('tips.studio.canvas.fit'))}>
+              {t('components.studio.canvas.toolbar.fit')}
+            </button>
+            {nested && (
+              <>
+                <button type="button" className="button-secondary button-sm" onClick={() => setCollapsed(() => [])} data-testid="org-expand-all" {...denied(collapsedList.length ? '' : 'none')} {...tip(t('tips.orgDesigner.collapse.expandAll'))}>
+                  {t('components.orgDesigner.collapse.expandAll')}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary button-sm"
+                  onClick={() => setCollapsed(() => flow.units.filter((u) => u.depth >= 1 && u.children.length > 0).map((u) => u.name))}
+                  data-testid="org-collapse-all"
+                  {...tip(t('tips.orgDesigner.collapse.collapseAll'))}
+                >
+                  {t('components.orgDesigner.collapse.collapseAll')}
+                </button>
+              </>
+            )}
+            {collapsedList.length > 0 && (
+              <Badge tone="neutral" tip={t('tips.orgDesigner.collapse.hidden')}>
+                {t('components.orgDesigner.collapse.hidden', { count: layout.boxes.filter((b) => b.hidden).length })}
+              </Badge>
+            )}
+          </div>
         </div>
         {connectFrom && (
           <div className="info-banner studio-canvas-connect" data-testid="studio-org-connect-bar">
@@ -651,6 +771,7 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
               <li key={k}>{t(`components.studio.canvas.org.keys.${k}`)}</li>
             ))}
             {!readOnly && <li>{t('components.orgDesigner.keys.undo')}</li>}
+            {nested && <li>{t('components.orgDesigner.keys.collapse')}</li>}
             {palette && !readOnly && <li>{t('components.orgDesigner.keys.place')}</li>}
           </ul>
         </details>
@@ -704,8 +825,6 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
                 nodesFocusable
                 edgesFocusable={false}
                 deleteKeyCode={null}
-                fitView
-                fitViewOptions={{ padding: 0.2 }}
                 minZoom={0.2}
                 maxZoom={2}
                 proOptions={{ hideAttribution: true }}
@@ -724,13 +843,26 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
               <p id={summaryId} className="studio-canvas-summary" data-testid="studio-org-summary">
                 {summary.overview}
               </p>
-              <ul className="studio-list" data-testid="studio-org-units">
-                {summary.units.map((line, i) => (
-                  <li key={flow.units[i].name} data-unit-line={flow.units[i].name}>
-                    {line}
-                  </li>
-                ))}
-              </ul>
+              {(() => {
+                const list = (
+                  <ul className="studio-list" data-testid="studio-org-units">
+                    {summary.units.map((line, i) => (
+                      <li key={flow.units[i].name} data-unit-line={flow.units[i].name}>
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                );
+                // A long organization keeps its sentences one click away instead of pushing the checks down the page.
+                return flow.units.length > MINIMAP_ABOVE_UNITS ? (
+                  <details className="org-outline-units" data-testid="studio-org-units-details">
+                    <summary {...tip(t('tips.orgDesigner.outlineUnits'))}>{t('components.orgDesigner.outlineUnits', { count: flow.units.length })}</summary>
+                    {list}
+                  </details>
+                ) : (
+                  list
+                );
+              })()}
               <div className="form-section-title" id={`${summaryId}-peers`} {...tip(t('tips.studio.canvas.org.peers'))}>
                 {t('components.studio.canvas.org.peerList', {
                   total: flow.peers.length
@@ -765,7 +897,7 @@ export default function OrgCanvas({ draft, graph, source = null, scopeId = '', b
                   })}
                 </ul>
               )}
-              {!readOnly && <OrgProblemsList result={check.result} checking={check.checking} onShowUnit={showUnit} idPrefix={`${summaryId}-problems`} />}
+              {!readOnly && <OrgProblemsList result={check.result} checking={check.checking} onShowUnit={showUnit} idPrefix={`${summaryId}-problems`} unitCount={flow.units.length} />}
             </div>
           </div>
           <aside className="studio-canvas-side" aria-label={t('components.studio.canvas.panel.label')} data-testid="studio-org-panel-side">

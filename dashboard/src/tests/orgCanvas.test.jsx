@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 import i18n from '../i18n';
 import OrgUnitPanel from '../components/studio/canvas/OrgUnitPanel';
 import { operationBody } from '../utils/studioCanvas';
-import { ORG_LAYOUT, absoluteX, UNIT_OPERATIONS, canvasOrganizations, defaultOrganization, layoutOrg, orgSummary, orgToFlow, parsePeerId, peerId, unitAgentChoices, unitHeaderHeight, unitLabel } from '../utils/orgCanvas';
+import { COLLAPSE_ABOVE_UNITS, ORG_LAYOUT, absoluteX, ancestorsOf, defaultCollapsed, descendantCount, shownMembers, UNIT_OPERATIONS, canvasOrganizations, defaultOrganization, layoutOrg, orgSummary, orgToFlow, parsePeerId, peerId, unitAgentChoices, unitHeaderHeight, unitLabel } from '../utils/orgCanvas';
 import { graphOf, orgCanvasState } from '../../tests/e2e/canvasMocks.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -61,21 +61,47 @@ describe('organization graph', () => {
     expect(parsePeerId('nothing')).toEqual({ from: '', to: '' });
   });
 
-  it('lays units out inside their parents, children side by side under the header', () => {
+  it('lays the tree out top down, each unit a card of one width centered over the units below it (UXP1-V002)', () => {
     const flow = orgToFlow(graph(), 'research-org');
-    const { boxes } = layoutOrg(flow);
-    const [lead, publishing, research] = boxes;
+    const layout = layoutOrg(flow);
+    const [lead, publishing, research] = layout.boxes;
     const L = ORG_LAYOUT;
-    expect(lead).toMatchObject({ id: 'Leadership', parent: null, x: L.margin, y: L.margin });
-    expect(publishing).toMatchObject({ id: 'Publishing', parent: 'Leadership', x: L.pad, y: unitHeaderHeight(flow.units[0]) });
-    expect(research.x).toBe(L.pad + publishing.width + L.gap);
-    expect(research.height).toBe(unitHeaderHeight(flow.units[2]));
+    expect(lead).toMatchObject({ id: 'Leadership', parent: null, depth: 0, y: L.margin, width: L.nodeWidth, hidden: false });
+    expect(publishing).toMatchObject({ id: 'Publishing', parent: 'Leadership', depth: 1, x: L.margin, width: L.nodeWidth });
+    expect(research.x).toBe(L.margin + L.nodeWidth + L.siblingGap);
+    expect(publishing.y).toBe(research.y);
+    expect(publishing.y).toBe(L.margin + unitHeaderHeight(flow.units[0]) + L.levelGap);
+    expect(lead.x).toBe((publishing.x + research.x) / 2);
     expect(unitHeaderHeight(flow.units[2])).toBe(L.nameHeight + 2 * L.rowHeight + L.pad);
-    // The parent is wide and tall enough for both children.
-    expect(lead.width).toBe(2 * L.pad + research.width + L.gap + publishing.width);
-    expect(absoluteX(layoutOrg(flow), 'Research')).toBe(lead.x + research.x);
-    expect(absoluteX(layoutOrg(flow), 'gone')).toBe(0);
-    expect(lead.height).toBe(unitHeaderHeight(flow.units[0]) + Math.max(research.height, publishing.height) + L.pad);
+    expect(absoluteX(layout, 'Research')).toBe(research.x);
+    expect(absoluteX(layout, 'gone')).toBe(0);
+    expect(layout.width).toBe(research.x + L.nodeWidth + L.margin);
+    // A collapsed unit hides what is below it, and the parent then sits alone.
+    const closed = layoutOrg(flow, ['Leadership']);
+    expect(closed.boxes.filter((b) => b.hidden).map((b) => b.id)).toEqual(['Publishing', 'Research']);
+    expect(closed.boxes[0].x).toBe(L.margin);
+  });
+
+  it('caps the members a card lists, collapses large organizations below the first level, and finds ancestors', () => {
+    const units = [{ name: 'root', parent: null, depth: 0, children: [], members: [] }];
+    for (let i = 0; i < 4; i += 1) {
+      units[0].children.push(`d1-${i}`);
+      const kids = [0, 1, 2, 3].map((j) => `d2-${i}-${j}`);
+      units.push({ name: `d1-${i}`, parent: 'root', depth: 1, children: kids, members: [] });
+      for (const k of kids) units.push({ name: k, parent: `d1-${i}`, depth: 2, children: [], members: [] });
+    }
+    const flow = { units, roots: ['root'], peers: [] };
+    expect(units.length).toBeGreaterThan(COLLAPSE_ABOVE_UNITS);
+    expect(defaultCollapsed(flow)).toEqual(['d1-0', 'd1-1', 'd1-2', 'd1-3']);
+    expect(defaultCollapsed({ units: units.slice(0, 3), roots: ['root'] })).toEqual([]);
+    expect(descendantCount(flow, 'root')).toBe(20);
+    expect(descendantCount(flow, 'd1-2')).toBe(4);
+    expect(ancestorsOf(flow, 'd2-1-3')).toEqual(['d1-1', 'root']);
+    const layout = layoutOrg(flow, defaultCollapsed(flow));
+    expect(layout.boxes.filter((b) => !b.hidden)).toHaveLength(5);
+    const many = { members: ['a', 'b', 'c', 'd', 'e', 'f'] };
+    expect(shownMembers(many)).toEqual({ list: ['a', 'b', 'c', 'd'], more: 2 });
+    expect(unitHeaderHeight(many)).toBe(ORG_LAYOUT.nameHeight + ORG_LAYOUT.rowHeight * 6 + ORG_LAYOUT.pad);
   });
 
   it('describes the organization and each unit in words', () => {

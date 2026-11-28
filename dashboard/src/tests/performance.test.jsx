@@ -264,7 +264,8 @@ describe('cancel everything in a unit', () => {
     const api = client();
     mount(<BoardView recordId="org_0001" />, { apiClient: api });
     await flush();
-    expect(qa('[data-testid="board-chart"] [data-testid="org-unit-cancel-all"]')).toHaveLength(3);
+    // UXP1-V002: each card keeps Cancel everything in its menu.
+    expect(qa('[data-testid="board-chart"] [data-testid="org-unit-menu"]')).toHaveLength(3);
     const button = q('[data-testid="board-cancel-all"]');
     expect(button.getAttribute('aria-disabled')).toBe('true');
     act(() => choose(q('[data-testid="board-freeze-unit"]'), 'oun_0002'));

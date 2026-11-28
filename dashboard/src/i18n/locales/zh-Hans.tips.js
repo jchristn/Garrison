@@ -5279,3 +5279,71 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "在画布上显示 {{name}} 下面的 {{count}} 个单元。",
+   "expand_other": "在画布上显示 {{name}} 下面的 {{count}} 个单元。",
+   "collapse_one": "隐藏 {{name}} 下面的 {{count}} 个单元。在获得焦点的单元上按减号 (-) 效果相同。",
+   "collapse_other": "隐藏 {{name}} 下面的 {{count}} 个单元。在获得焦点的单元上按减号 (-) 效果相同。",
+   "expandAll": "显示组织的所有单元。大型组织会比画布更宽，可以拖动平移，或使用小地图。",
+   "collapseAll": "显示根单元和直接向它汇报的单元，并隐藏更下面的层级。展开某个单元即可看到向它汇报的单元。",
+   "hidden": "已折叠单元下面的单元不会绘制。展开该单元，或使用“全部展开”。"
+  },
+  "outlineUnits": "每个单元一句话：它向谁汇报、由谁领导。屏幕阅读器读到的是同样的文字。",
+  "editAll": "打开完整的单元表单：名称、描述、负责人和职位、带职位和守护者的成员、应用、同级连线以及预算。"
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "这个单元有未处理的升级或预算上限在等人处理。健康状况只来自单元的报告，所以在等待期间也可能显示“未知”或“健康”。"
+  },
+  "attention": {
+   "repeated_one": "同一个代理问了这个问题 {{count}} 次。",
+   "repeated_other": "同一个代理问了这个问题 {{count}} 次。链接打开最新的一条，“升级”页面会逐条列出。"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "列出组织图这一层的更多单元。",
+   "expandAll": "展开组织图的所有单元。",
+   "collapseAll": "显示根单元和直接向它汇报的单元，并折叠更下面的层级。打开某个单元即可看到向它汇报的单元。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "打开“设计”标签页，在那里添加和移除单元、安排人员、关联守护者、设置预算并查看检查结果。"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "显示草稿中的组织：单元按汇报关系排成树，并显示负责人、成员和同级连线。"
+   }
+  }
+ }
+});

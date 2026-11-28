@@ -25,11 +25,12 @@ vi.mock('@xyflow/react', async () => {
   const React = await import('react');
   return {
     Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
+    Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
+    useStore: (selector) => selector({ transform: [0, 0, 1] }),
     Background: () => null,
     MiniMap: () => React.createElement('div', { 'data-testid': 'minimap' }),
     ReactFlowProvider: ({ children }) => children,
-    useReactFlow: () => ({ fitView: () => {} }),
+    useReactFlow: () => ({ fitView: () => {}, setViewport: () => {} }),
     applyNodeChanges: (_changes, list) => list,
     ReactFlow: ({ nodes, nodeTypes, children, onNodeClick }) =>
       React.createElement(
@@ -436,6 +437,18 @@ describe('unit box drop targets', () => {
     expect(c.querySelector('[data-keeper-badge="clerk"]').textContent).toBe('Next wake in 5 minutes');
     expect(c.querySelector('[data-unit-problems]').textContent).toBe('2 problems');
   });
+
+  it('lists four members then how many more, and collapses the units below it (UXP1-V002)', () => {
+    const onToggle = vi.fn();
+    const unit = { name: 'Support', parent: 'Leadership', lead: 'lead', members: ['a', 'b', 'c', 'd', 'e', 'f'], inDraft: false };
+    const c = mount(<CanvasUnitNode data={{ unit, header: 100, below: 3, collapsed: true, onToggle }} selected={false} />);
+    expect([...c.querySelectorAll('[data-unit-people="Support"] li')].map((li) => li.textContent)).toEqual(['Lead: lead', 'a', 'b', 'c', 'd', 'and 2 more']);
+    const toggle = c.querySelector('[data-testid="org-unit-collapse-Support"]');
+    expect(toggle.textContent).toBe('Show 3 units below');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    click(toggle);
+    expect(onToggle).toHaveBeenCalledWith('Support');
+  });
 });
 
 describe('unit panel tabs', () => {
@@ -525,6 +538,11 @@ describe('unit panel tabs', () => {
     expect(clean.querySelector('[data-testid="org-problems-none"]').textContent).toBe('No problems found.');
     const failed = mount(<OrgProblemsList result={{ valid: null, problems: [], error: new ApiError(500, { code: 'InternalError', message: 'Boom' }) }} />);
     expect(failed.querySelector('[data-testid="org-problems-error"]')).not.toBeNull();
+    // UXP1-S016: no units yet says how to start, not that there is more than one root.
+    const empty = mount(<OrgProblemsList result={{ valid: false, problems: [{ code: 'OneRoot', severity: 'Error', unitId: null, unit: '' }] }} unitCount={0} />);
+    expect(empty.querySelector('[data-testid="org-problems-no-units"]').textContent).toContain('No units yet.');
+    expect(empty.textContent).not.toContain('more than one root');
+    expect(empty.querySelector('[data-problem]')).toBeNull();
   });
 });
 

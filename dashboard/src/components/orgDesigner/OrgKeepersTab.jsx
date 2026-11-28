@@ -12,7 +12,7 @@ import { deniedProps } from '../../utils/permissions';
 
 /** The next wake of a keeper in words: relative time while it is active, else its status. */
 export function nextWakeText(t, mandate, lng) {
-  if (!mandate) return '';
+  if (!mandate || !mandate.status) return '';
   if (mandate.status === 'Active' && mandate.nextWakeUtc) return t('components.orgDesigner.keepers.nextWake', { when: formatRelativeTime(mandate.nextWakeUtc, lng) });
   return t('components.orgDesigner.keepers.notScheduled');
 }

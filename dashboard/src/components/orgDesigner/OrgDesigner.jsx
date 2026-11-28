@@ -31,9 +31,11 @@ const asList = (r) => (Array.isArray(r) ? r : r?.items || []);
  * organization: GET /organizations/{id} (with units). options: { agents, mandates }. spend: GET /spend rows.
  * blocked: the reason editing is off (no Update permission, or a retired organization), or ''. forms: the ResourceView
  * configurations of the existing agent, keeper, and change rule forms ({ agents, keepers, changeRules }); the page
- * passes them in so this chunk does not import the views.
+ * passes them in so this chunk does not import the views. onEditUnit(unitId), when given, adds Edit all fields to the
+ * unit panel, which opens the full unit form (description, app, titles) now that the Chart tab only shows the tree
+ * (UXP1-S015).
  */
-export default function OrgDesigner({ organization, options = {}, spend = [], permissions = null, blocked = '', forms = {}, onReload, initialUnit = '' }) {
+export default function OrgDesigner({ organization, options = {}, spend = [], permissions = null, blocked = '', forms = {}, onReload, initialUnit = '', initialPanel = '', onEditUnit = null }) {
   const { t, i18n } = useTranslation();
   const lng = i18n.language;
   const { apiClient, principal } = useAuth();
@@ -44,6 +46,9 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
   const [deployments, setDeployments] = useState(null);
   const [rules, setRules] = useState({ items: [], loading: true });
   const [modal, setModal] = useState(null);
+  // Keepers created here after the page loaded its list (UXP1-S017): the created record, read again from the server,
+  // so the inspector and the canvas chip show the keeper's name, status, and next wake without a reload.
+  const [fresh, setFresh] = useState({});
   const queue = useRef(Promise.resolve());
   const lastError = useRef(null);
 
@@ -79,7 +84,11 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
   }, [apiClient, tenantId]);
 
   const agents = useMemo(() => options.agents || [], [options.agents]);
-  const mandates = useMemo(() => options.mandates || [], [options.mandates]);
+  const mandates = useMemo(() => {
+    const listed = options.mandates || [];
+    const extra = Object.values(fresh).filter((m) => !listed.some((x) => x.id === m.id));
+    return [...listed.map((m) => fresh[m.id] || m), ...extra];
+  }, [options.mandates, fresh]);
   const source = useMemo(
     () =>
       workingTreeOrgSource({
@@ -128,6 +137,12 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
 
   const renderPanel = ({ key, flow, organization: orgName, unit, perform, panelProps }) => {
     const structure = unit ? (
+      <>
+      {onEditUnit && unit.unitId && (
+        <button type="button" className="button-secondary button-sm org-edit-all" onClick={() => !blocked && onEditUnit(unit.unitId)} aria-disabled={blocked ? 'true' : undefined} data-testid="org-design-edit-unit" {...tip(blocked || t('tips.orgDesigner.editAll'))}>
+          {t('components.orgDesigner.editAll')}
+        </button>
+      )}
       <OrgUnitStructure
         key={`structure-${unit.name}-${unit.lead}-${unit.parent}`}
         flow={flow}
@@ -139,6 +154,7 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
         onSetLead={(agent, role) => perform('setLead', { organization: orgName, unit: unit.name, agent, role })}
         onMove={(parent) => perform('moveUnit', { organization: orgName, unit: unit.name, parent })}
       />
+      </>
     ) : null;
     const extraTabs = unit
       ? [
@@ -200,7 +216,7 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
           }
         ]
       : [];
-    return <OrgDesignPanel key={key} {...panelProps} structure={structure} extraTabs={extraTabs} />;
+    return <OrgDesignPanel key={key} {...panelProps} structure={structure} extraTabs={extraTabs} initialTab={unit && unit.name === initialUnit ? initialPanel : ''} />;
   };
 
   return (
@@ -243,6 +259,14 @@ export default function OrgDesigner({ organization, options = {}, spend = [], pe
           onSaved={async (created) => {
             const pending = modal;
             setModal(null);
+            if (created?.id) {
+              setFresh((f) => ({ ...f, [created.id]: created }));
+              if (apiClient?.getMandate)
+                apiClient
+                  .getMandate(tenantId, created.id)
+                  .then((m) => m?.id && setFresh((f) => ({ ...f, [m.id]: m })))
+                  .catch(() => {});
+            }
             if (created?.id) await pending.perform('attachMandate', { organization: pending.organization, unit: pending.unit, agent: pending.person.name, mandateId: created.id });
             else onReload?.();
           }}

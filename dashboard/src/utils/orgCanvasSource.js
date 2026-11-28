@@ -487,6 +487,9 @@ export function rulesForUnit(rules, units, unitId) {
 
 /** A problem in words, with its unit, agent, and keeper named; an unknown code shows the server's message. */
 export function problemText(t, p) {
+  // UXP1-S016: the validate route answers OneRoot without a unit for an empty tree (or one with no root at all), which
+  // the "more than one root" wording does not fit.
+  if (p?.code === 'OneRoot' && !p.unit && !p.unitId) return t('components.orgDesigner.problems.OneRootMissing');
   if (ORG_PROBLEM_CODES.includes(p?.code)) {
     return t(`components.orgDesigner.problems.${p.code}`, { unit: p.unit || p.unitId || '-', agent: p.agent || p.agentId || '-', mandate: p.mandate || p.mandateId || '-' });
   }

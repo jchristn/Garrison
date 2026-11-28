@@ -5282,3 +5282,71 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "Affiche sur le canevas l’unité ({{count}}) sous {{name}}.",
+   "expand_other": "Affiche sur le canevas les {{count}} unités sous {{name}}.",
+   "collapse_one": "Masque l’unité ({{count}}) sous {{name}}. Moins (-) sur l’unité sélectionnée fait de même.",
+   "collapse_other": "Masque les {{count}} unités sous {{name}}. Moins (-) sur l’unité sélectionnée fait de même.",
+   "expandAll": "Affiche toutes les unités de l’organisation. Une grande organisation dépasse alors le canevas : faites glisser pour vous déplacer ou utilisez la mini-carte.",
+   "collapseAll": "Affiche la racine et les unités qui lui rendent compte, et masque les niveaux inférieurs. Dépliez une unité pour voir qui lui rend compte.",
+   "hidden": "Les unités sous une unité repliée ne sont pas dessinées. Dépliez l’unité ou utilisez Tout déplier."
+  },
+  "outlineUnits": "Une phrase par unité : à qui elle rend compte et qui la dirige. Les lecteurs d’écran reçoivent le même texte.",
+  "editAll": "Ouvre le formulaire complet de l’unité : nom, description, responsable et titre, membres avec titres et keepers, app, liens entre pairs et budgets."
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "Des escalades ouvertes ou un plafond de budget attendent une personne dans cette unité. L’état vient seulement des rapports de l’unité ; il peut donc afficher Inconnu ou Sain pendant cette attente."
+  },
+  "attention": {
+   "repeated_one": "Le même agent a posé cette question {{count}} fois.",
+   "repeated_other": "Le même agent a posé cette question {{count}} fois. Le lien ouvre la plus récente ; la page Escalades les liste toutes."
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "Liste d’autres unités à ce niveau de l’organigramme.",
+   "expandAll": "Déplie toutes les unités de l’organigramme.",
+   "collapseAll": "Affiche la racine et les unités qui lui rendent compte, et replie les niveaux inférieurs. Ouvrez une unité pour voir qui lui rend compte."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Ouvre l’onglet Conception, où vous ajoutez et supprimez des unités, placez des personnes, rattachez des keepers, fixez des budgets et voyez les vérifications."
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "Affiche les organisations du brouillon : un arbre d’unités sous l’unité à laquelle elles rendent compte, avec responsables, membres et liens entre pairs."
+   }
+  }
+ }
+});

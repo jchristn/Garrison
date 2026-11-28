@@ -5280,3 +5280,71 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "{{name}} の配下の組織単位 {{count}} 件をキャンバスに表示します。",
+   "expand_other": "{{name}} の配下の組織単位 {{count}} 件をキャンバスに表示します。",
+   "collapse_one": "{{name}} の配下の組織単位 {{count}} 件を隠します。フォーカス中の組織単位でマイナス (-) を押しても同じです。",
+   "collapse_other": "{{name}} の配下の組織単位 {{count}} 件を隠します。フォーカス中の組織単位でマイナス (-) を押しても同じです。",
+   "expandAll": "組織のすべての組織単位を表示します。大きな組織はキャンバスより広くなるので、ドラッグで移動するかミニマップを使ってください。",
+   "collapseAll": "ルートと直属の組織単位を表示し、その下の階層を隠します。組織単位を展開すると、その配下が見えます。",
+   "hidden": "折りたたんだ組織単位の配下は描画されません。その組織単位を展開するか、「すべて展開」を使ってください。"
+  },
+  "outlineUnits": "組織単位ごとに 1 文で、どこに報告し誰が率いるかを示します。スクリーンリーダーにも同じ文が渡ります。",
+  "editAll": "組織単位の完全なフォームを開きます。名前、説明、リーダーと肩書き、肩書きとキーパー付きのメンバー、アプリ、ピアライン、予算を編集できます。"
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "この組織単位では、未解決のエスカレーションか予算上限が人の対応を待っています。健全性は組織単位のレポートだけから決まるため、待っている間も「不明」や「健全」と表示されることがあります。"
+  },
+  "attention": {
+   "repeated_one": "同じエージェントがこの質問を {{count}} 回しました。",
+   "repeated_other": "同じエージェントがこの質問を {{count}} 回しました。リンクは最新のものを開きます。エスカレーションのページですべてを確認できます。"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "組織図のこの階層にある組織単位をさらに表示します。",
+   "expandAll": "組織図のすべての組織単位を開きます。",
+   "collapseAll": "ルートと直属の組織単位を表示し、その下の階層を折りたたみます。組織単位を開くと、その配下が見えます。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "「設計」タブを開きます。組織単位の追加と削除、人の配置、キーパーの割り当て、予算の設定、チェックの確認はそこで行います。"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "下書きの組織を表示します。組織単位は報告先の下にツリーで並び、リーダー、メンバー、ピアラインも表示されます。"
+   }
+  }
+ }
+});

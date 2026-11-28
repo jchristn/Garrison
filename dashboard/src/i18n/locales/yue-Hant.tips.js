@@ -5280,3 +5280,71 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "喺畫布顯示 {{name}} 下面嘅 {{count}} 個單位。",
+   "expand_other": "喺畫布顯示 {{name}} 下面嘅 {{count}} 個單位。",
+   "collapse_one": "收埋 {{name}} 下面嘅 {{count}} 個單位。喺焦點所在嘅單位撳減號 (-) 都一樣。",
+   "collapse_other": "收埋 {{name}} 下面嘅 {{count}} 個單位。喺焦點所在嘅單位撳減號 (-) 都一樣。",
+   "expandAll": "顯示組織嘅所有單位。大嘅組織會闊過畫布，可以拖動嚟移，或者用小地圖。",
+   "collapseAll": "顯示根單位同直接向佢匯報嘅單位，收埋再下面嘅層。展開一個單位就睇到邊個向佢匯報。",
+   "hidden": "收埋咗嘅單位下面嘅單位唔會畫出嚟。展開嗰個單位，或者用「全部展開」。"
+  },
+  "outlineUnits": "每個單位一句：佢向邊個匯報、由邊個帶領。螢幕閱讀器會讀到同樣嘅文字。",
+  "editAll": "打開完整嘅單位表單：名稱、描述、負責人同職銜、連職銜同守護者嘅成員、應用程式、同級連線同預算。"
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "呢個單位有未處理嘅升級或者預算上限等緊人處理。健康狀況淨係由單位嘅報告決定，所以等緊嘅時候都可能顯示「未知」或者「健康」。"
+  },
+  "attention": {
+   "repeated_one": "同一個代理問咗呢條問題 {{count}} 次。",
+   "repeated_other": "同一個代理問咗呢條問題 {{count}} 次。連結會打開最新嗰條，「升級」頁會逐條列出。"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "列出組織圖呢一層更多單位。",
+   "expandAll": "打開組織圖所有單位。",
+   "collapseAll": "顯示根單位同直接向佢匯報嘅單位，收埋再下面嘅層。打開一個單位就睇到邊個向佢匯報。"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "打開「設計」分頁，喺嗰度新增同移除單位、安排人手、掛上守護者、設定預算同睇檢查結果。"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "顯示草稿嘅組織：單位按匯報關係排成樹，連負責人、成員同同級連線。"
+   }
+  }
+ }
+});

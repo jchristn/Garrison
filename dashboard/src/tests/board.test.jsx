@@ -17,7 +17,7 @@ import { PAGE_VIEWS, DETAIL_VIEWS } from '../views/hubs/hubPanels';
 import { findPage, pathFor } from '../config/navConfig';
 import { ENUMS } from '../utils/constants';
 import ApiClient from '../utils/api';
-import { BOARD_ERROR_CODES, attentionCount, capHits, ceoUnavailable, directionBody, directionErrors, healthMap, messageBody, organizationFreeze, proposalPending, spendByUnit } from '../utils/board';
+import { BOARD_ERROR_CODES, attentionCount, capHits, ceoUnavailable, directionBody, directionErrors, groupEscalations, healthMap, messageBody, organizationFreeze, proposalPending, spendByUnit, unitAttention } from '../utils/board';
 import { board, boardConversations, orgProposal, organization } from '../../tests/e2e/mocks.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -274,16 +274,43 @@ describe('BoardView', () => {
     expect(q('[data-testid="board-picker"]').textContent).not.toContain(en.board.picker.emptyTitle);
   });
 
-  it('styles Cancel everything in this unit as a danger button (UT-17)', async () => {
+  it('keeps Cancel everything in this unit in each card menu, marked as dangerous (UT-17, UXP1-V002)', async () => {
     mount(<BoardView recordId="org_0001" />, { apiClient: client() });
     await flush();
     await flush();
-    const buttons = qa('[data-testid="org-unit-cancel-all"]');
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const b of buttons) {
-      expect(b.classList.contains('button-danger')).toBe(true);
-      expect(b.classList.contains('button-ghost')).toBe(false);
-    }
+    const menus = qa('[data-testid="board-chart"] [data-testid="org-unit-menu"]');
+    expect(menus.length).toBeGreaterThan(0);
+    expect(qa('[data-testid="org-unit-cancel-all"]')).toHaveLength(0);
+    await click(menus[0]);
+    const item = q('[data-testid="org-unit-cancel-all"]');
+    expect(item.classList.contains('danger')).toBe(true);
+    expect(item.getAttribute('role')).toBe('menuitem');
+  });
+
+  it('marks a unit that waits on a person, says which reports are listed, and groups repeated questions (UXP1-S013)', () => {
+    const b = {
+      unitHealth: [
+        { unitId: 'u1', unitName: 'uptime', health: 'Unknown', openEscalations: 5 },
+        { unitId: 'u2', unitName: 'billing', health: 'Degraded', openEscalations: 0 },
+        { unitId: 'u3', unitName: 'quiet', health: 'Unknown', openEscalations: 0 },
+        { unitId: 'u4', unitName: 'capped', health: 'Healthy', overBudget: true }
+      ]
+    };
+    const h = healthMap(b);
+    expect(Object.keys(h)).toEqual(['u1', 'u2', 'u4']);
+    expect(h.u1).toMatchObject({ health: null, attention: { escalations: 5, capped: false, needs: true } });
+    expect(h.u4.attention.needs).toBe(true);
+    expect(unitAttention(b.unitHealth[2]).needs).toBe(false);
+    expect(t('board.attention.reports', { count: 3 })).toBe('3 degraded or unhealthy reports');
+    const groups = groupEscalations([
+      { id: 'e1', agentId: 'a1', question: 'Is the probe down?', createdUtc: '2026-11-28T01:00:00Z' },
+      { id: 'e2', agentId: 'a1', question: 'Is the probe down? ', createdUtc: '2026-11-28T03:00:00Z' },
+      { id: 'e3', agentId: 'a2', question: 'Is the probe down?', createdUtc: '2026-11-28T02:00:00Z' }
+    ]);
+    expect(groups.map((g) => [g.latest.id, g.count])).toEqual([
+      ['e2', 2],
+      ['e3', 1]
+    ]);
   });
 });
 

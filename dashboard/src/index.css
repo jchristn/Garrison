@@ -2507,3 +2507,46 @@ a.sidebar-utility { text-decoration: none; }
 .run-hop-link { font-size: var(--font-size-xs); white-space: nowrap; }
 /* LP5.5 (UXP1-V010): a run opened on a named tab keeps room below the tab bar so the bar can scroll to the top. */
 .run-tab-panel-tall { min-block-size: calc(100vh - var(--header-height) - 4rem); }
+
+/* ---------------------------------------------------------------------------------------------------------------
+   LP5.5 organizations, the org designer, the board, and keepers (UXP1-V002, S013, S015, S025). The organization
+   canvas draws a top-down tree of cards with reporting lines; zoomed out, a card shows only its name, drawn larger. The
+   chart tree collapses and pages, its indent stops growing after three levels, and Cancel everything sits in each
+   unit's menu.
+   --------------------------------------------------------------------------------------------------------------- */
+.studio-org-canvas .studio-canvas-unit { block-size: auto; min-block-size: 0; background: var(--color-surface); border-color: color-mix(in srgb, var(--color-text-muted) 45%, var(--color-border)); }
+.studio-org-canvas .studio-canvas-unit.is-root { border-color: var(--color-primary); }
+.studio-org-canvas .studio-canvas-unit.is-selected { border-color: var(--color-primary); }
+.studio-org-canvas .studio-canvas-unit-head { block-size: auto; border-block-end: 0; border-radius: var(--radius-md); overflow: visible; }
+.studio-org-canvas .studio-canvas-node-name { font-size: var(--font-size-sm); font-weight: 600; }
+.studio-org-canvas .studio-canvas-unit-people li.org-unit-more { font-style: italic; }
+.studio-org-canvas .studio-canvas-unit-overlay li { white-space: normal; overflow-wrap: anywhere; line-height: 18px; }
+.studio-org-canvas .studio-canvas-unit.is-compact .studio-canvas-node-name { font-size: 28px; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; }
+.studio-org-canvas .studio-canvas-unit.is-compact .studio-canvas-node-tags { font-size: 18px; }
+.studio-org-canvas .studio-canvas-unit.is-compact .org-unit-collapse { font-size: 18px; }
+.org-unit-collapse { margin-block-start: 4px; inline-size: 100%; justify-content: center; border: 1px dashed var(--color-border); }
+.studio-org-canvas .react-flow__handle.org-tree-handle { opacity: 0; pointer-events: none; inline-size: 1px; block-size: 1px; min-inline-size: 0; min-block-size: 0; border: 0; }
+.studio-canvas-flow .react-flow__edge.is-report .react-flow__edge-path { stroke: color-mix(in srgb, var(--color-text-muted) 70%, var(--color-border)); stroke-width: 1.5; }
+.studio-org-canvas .studio-canvas-tools { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; }
+.studio-org-canvas .studio-org-add { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); align-items: center; flex: 1 1 100%; min-inline-size: 0; }
+.studio-org-canvas .studio-org-add > input, .studio-org-canvas .studio-org-add > select { flex: 1 1 9rem; inline-size: auto; min-inline-size: 7rem; max-inline-size: none; }
+.studio-org-canvas .studio-org-add > button { flex: 0 0 auto; }
+.org-canvas-view-tools { flex-wrap: wrap; }
+.org-outline-units > summary { cursor: pointer; font-size: var(--font-size-sm); }
+.org-edit-all { align-self: flex-start; }
+.org-tree-tools { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-block-end: var(--spacing-sm); }
+.org-tree-level.is-deep .org-tree-level { padding-inline-start: var(--spacing-xs); }
+.org-tree-more::before { content: none; }
+.org-unit-head { flex-wrap: wrap; }
+.org-unit-below { font-size: var(--font-size-xs); }
+.org-unit-menu { margin-inline-start: auto; }
+.org-diff-facts { margin: 4px 0 0; padding-inline-start: var(--spacing-md); display: grid; gap: 2px; font-size: var(--font-size-sm); }
+.org-diff-fact { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
+.org-diff-fact dt { color: var(--color-text-muted); }
+.org-diff-fact dt::after { content: ":"; }
+.org-diff-fact dd { margin: 0; overflow-wrap: anywhere; }
+.org-publish-checks { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.org-publish-checks .org-problem-list li[data-severity="Warning"] { border-inline-start-color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, transparent); }
+.org-publish-checks-blocked { color: var(--color-danger); font-weight: 600; }
+/* LP5.5 (UXP1-S015): the Design tab's full-form Add unit sits above the canvas. */
+.org-design-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-block-end: var(--spacing-sm); }

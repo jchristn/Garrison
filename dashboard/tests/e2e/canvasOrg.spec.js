@@ -1,6 +1,6 @@
 // Organizations on the studio canvas (AA7.10) against the stateful mock of drf_0001 (tests/e2e/canvasMocks.js), here
 // holding the research-org organization as well as the research app: the Apps and Organizations switch, units drawn
-// nested inside the unit they report to with their leads, members, and peer lines, a unit added from the toolbar that
+// as a top-down tree below the unit they report to with their leads, members, and peer lines, a unit added from the toolbar that
 // then shows in the draft's diff, a second root refused with the field code's text, members added and removed and a
 // peer line drawn and removed from the keyboard, a unit removed after a confirmation, and an accessibility scan with no
 // horizontal page scroll at desktop and phone widths in both themes. No native dialog is ever used.
@@ -48,13 +48,11 @@ test('adds a unit on the canvas and sees it in the draft diff', async ({ page })
   await expect(page.locator('[data-unit-line="Research"]')).toHaveText('Research reports to Leadership and is led by researcher.');
   await expect(page.locator('[data-unit-people="Research"]')).toContainText('writer');
   await expect(page.locator('.react-flow__edge[data-peer="Research~Publishing"]')).toHaveCount(1);
-  // Research and Publishing sit inside Leadership's box.
+  // UXP1-V002: Research and Publishing sit on the level below Leadership, joined to it by reporting lines.
   const outer = await unit(page, 'Leadership').boundingBox();
   const inner = await unit(page, 'Research').boundingBox();
-  expect(inner.x).toBeGreaterThan(outer.x);
-  expect(inner.y).toBeGreaterThan(outer.y);
-  expect(inner.x + inner.width).toBeLessThan(outer.x + outer.width);
-  expect(inner.y + inner.height).toBeLessThan(outer.y + outer.height);
+  expect(inner.y).toBeGreaterThan(outer.y + outer.height);
+  await expect(page.locator('.react-flow__edge.is-report')).toHaveCount(2);
 
   await page.getByTestId('studio-org-add-unit').fill('Archive');
   await page.getByTestId('studio-org-add-parent').selectOption('Research');

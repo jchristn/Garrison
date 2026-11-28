@@ -273,8 +273,9 @@ export function unitFacts(unit, unitNames = {}, names = {}) {
 
 /**
  * Compare two sets of units (a revision snapshot against the live one, or the working tree against live). Units match
- * by ID, which snapshots keep, and then by name. Answers { added, removed, changed, unchanged }: added and removed list
- * unit names; changed lists { id, name, fields: [{ field, before, after }] } with fields in ORG_DIFF_FIELDS order.
+ * by ID, which snapshots keep, and then by name. Answers { added, addedUnits, removed, changed, unchanged }: added and
+ * removed list unit names; addedUnits lists { name, fields: [{ field, after }] } with each added unit's non-empty facts
+ * (UXP1-S025); changed lists { id, name, fields: [{ field, before, after }] } with fields in ORG_DIFF_FIELDS order.
  */
 export function diffOrgUnits(before, after, names = {}) {
   const a = Array.isArray(before) ? before : [];
@@ -285,11 +286,15 @@ export function diffOrgUnits(before, after, names = {}) {
   const matched = new Set();
   const changed = [];
   const added = [];
+  const addedUnits = [];
   let unchanged = 0;
   for (const unit of b) {
     const old = a.find((u) => !matched.has(u) && u.id && u.id === unit.id) || a.find((u) => !matched.has(u) && u.name === unit.name);
     if (!old) {
       added.push(unit.name);
+      // UXP1-S025: what an added unit brings with it (lead, members, keepers, budgets), not only its name.
+      const facts = unitFacts(unit, afterNames, names);
+      addedUnits.push({ name: unit.name, fields: ORG_DIFF_FIELDS.filter((f) => f !== 'name' && facts[f]).map((f) => ({ field: f, after: facts[f] })) });
       continue;
     }
     matched.add(old);
@@ -300,7 +305,7 @@ export function diffOrgUnits(before, after, names = {}) {
     else unchanged += 1;
   }
   const removed = a.filter((u) => !matched.has(u)).map((u) => u.name);
-  return { added, removed, changed, unchanged };
+  return { added, addedUnits, removed, changed, unchanged };
 }
 
 /** True when a diff found nothing added, removed, or changed. */

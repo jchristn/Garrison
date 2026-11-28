@@ -5282,3 +5282,71 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "Muestra en el lienzo la {{count}} unidad que depende de {{name}}.",
+   "expand_other": "Muestra en el lienzo las {{count}} unidades que dependen de {{name}}.",
+   "collapse_one": "Oculta la {{count}} unidad que depende de {{name}}. Menos (-) en la unidad enfocada hace lo mismo.",
+   "collapse_other": "Oculta las {{count}} unidades que dependen de {{name}}. Menos (-) en la unidad enfocada hace lo mismo.",
+   "expandAll": "Muestra todas las unidades de la organización. Una grande queda más ancha que el lienzo: arrastra para desplazarte o usa el minimapa.",
+   "collapseAll": "Muestra la raíz y las unidades que le reportan, y oculta los niveles inferiores. Expande una unidad para ver quién le reporta.",
+   "hidden": "Las unidades bajo una unidad contraída no se dibujan. Expande la unidad o usa Expandir todo."
+  },
+  "outlineUnits": "Una frase por unidad: a quién reporta y quién la dirige. Los lectores de pantalla reciben el mismo texto.",
+  "editAll": "Abre el formulario completo de la unidad: nombre, descripción, responsable y cargo, miembros con cargos y keepers, app, líneas entre pares y presupuestos."
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "En esta unidad hay escalaciones abiertas o un tope de presupuesto que esperan a una persona. La salud solo sale de los informes de la unidad, así que puede decir Desconocido o Saludable mientras esto espera."
+  },
+  "attention": {
+   "repeated_one": "El mismo agente hizo esta pregunta {{count}} vez.",
+   "repeated_other": "El mismo agente hizo esta pregunta {{count}} veces. El enlace abre la más reciente; la página Escalaciones las lista todas."
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "Muestra más unidades de este nivel del organigrama.",
+   "expandAll": "Abre todas las unidades del organigrama.",
+   "collapseAll": "Muestra la raíz y las unidades que le reportan, y pliega los niveles inferiores. Abre una unidad para ver quién le reporta."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Abre la pestaña Diseño, donde añades y quitas unidades, colocas personas, asignas keepers, fijas presupuestos y ves las comprobaciones."
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "Muestra las organizaciones del borrador: un árbol de unidades bajo la unidad a la que reportan, con responsables, miembros y líneas entre pares."
+   }
+  }
+ }
+});

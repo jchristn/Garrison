@@ -10304,3 +10304,131 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S002, S013, S015, S016, S017, S025): the organization canvas tree, the read-only chart, board
+// attention, the empty organization checks, the publish checks, and what the keeper budgets enforce.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "orgDesigner": {
+   "node": {
+    "moreMembers_one": "and {{count}} more",
+    "moreMembers_other": "and {{count}} more"
+   },
+   "collapse": {
+    "label": "Tree view",
+    "expand_one": "Show {{count}} unit below",
+    "expand_other": "Show {{count}} units below",
+    "collapse_one": "Hide {{count}} unit below",
+    "collapse_other": "Hide {{count}} units below",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse to two levels",
+    "hidden_one": "{{count}} unit hidden",
+    "hidden_other": "{{count}} units hidden"
+   },
+   "keys": {
+    "collapse": "Minus (-) collapses the focused unit and plus (+) expands it."
+   },
+   "outlineUnits_one": "The {{count}} unit in words",
+   "outlineUnits_other": "All {{count}} units in words",
+   "problems": {
+    "OneRootMissing": "Add the root unit. An organization needs one unit without a parent before it can be published.",
+    "titleEmpty": "Checks",
+    "noUnits": "No units yet. Add the root unit with Add unit above, then the units below it. The checks run once there is a unit."
+   },
+   "editAll": "Edit all fields"
+  }
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "Needs a person",
+   "noReport": "No report"
+  },
+  "attention": {
+   "reports_one": "{{count}} degraded or unhealthy report",
+   "reports_other": "{{count}} degraded or unhealthy reports",
+   "repeated_one": "Asked {{count}} time",
+   "repeated_other": "Asked {{count}} times"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "below_one": "{{count}} unit below",
+   "below_other": "{{count}} units below",
+   "showMore_one": "Show {{count}} more ({{total}} not shown)",
+   "showMore_other": "Show {{count}} more ({{total}} not shown)",
+   "toolsLabel": "Chart view",
+   "expandAll": "Expand all",
+   "collapseAll": "Collapse to two levels"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Edit on the Design tab",
+   "chartReadOnlyNote": "The working tree as a chart, for reading. Add, change, and remove units on the Design tab.",
+   "noUnitsBodyDesign": "Add the root unit on the Design tab, led by the agent at the top, then add the units below it.",
+   "publishChecks": "Checks",
+   "publishChecksSummary": "Errors: {{errors}}. Warnings: {{warnings}}. An error stops the publish; a warning does not."
+  }
+ },
+ "resources": {
+  "keepers": {
+   "sectionHints": {
+    "budgets": "Both dollar budgets are enforced. A tick with nothing left is refused, and a spent day pauses the keeper until the next UTC day and escalates to you. Most tokens per tick is stored but not enforced yet."
+   },
+   "hints": {
+    "budgetPerTickUsd": "Enforced. A tick may spend only what is left, and is refused when nothing is. Empty means no limit.",
+    "budgetPerDayUsd": "Enforced. A spent day moves the keeper to Budget reached until the next UTC day and raises an urgent escalation. Empty means no limit.",
+    "maxTokensPerTick": "Input plus output tokens. Stored and checked, but not enforced yet. Empty means no limit."
+   }
+  }
+ }
+});
+
+// LP5.5 (UXP1-S015): the full unit form opens from the Design tab.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "views": {
+  "organizationDetail": {
+   "addUnitFull": "Add unit with all fields"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "org": {
+     "orgHint": "Select a unit to edit its members and peer lines. Units sit below the unit they report to, joined by a line."
+    }
+   }
+  }
+ }
+});

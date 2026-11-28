@@ -12,6 +12,8 @@ import AppContext from '../context/AppContext';
 import ToastContext from '../context/ToastContext';
 import OrganizationDetailView from '../views/OrganizationDetailView';
 import OrgUnitModal from '../components/OrgUnitModal';
+import OrgChartTree, { TREE_COLLAPSE_ABOVE_UNITS, TREE_PAGE_SIZE } from '../components/OrgChartTree';
+import { problemText } from '../utils/orgCanvasSource';
 import { organizationsConfig } from '../views/resourceConfigs';
 import { PAGE_VIEWS, DETAIL_VIEWS } from '../views/hubs/hubPanels';
 import { findPage, pathFor } from '../config/navConfig';
@@ -155,7 +157,7 @@ describe('organization helpers', () => {
   it('diffs two trees by unit, field by field', () => {
     const names = { mandates: { mdt_0001: 'inbox-keeper' } };
     const working = diffOrgUnits(orgUnits(2), orgUnits('working'), names);
-    expect(working).toEqual({ added: [], removed: [], changed: [{ id: 'oun_0003', name: 'Support', fields: [{ field: 'leadTitle', before: '', after: 'Head of support' }] }], unchanged: 2 });
+    expect(working).toEqual({ added: [], addedUnits: [], removed: [], changed: [{ id: 'oun_0003', name: 'Support', fields: [{ field: 'leadTitle', before: '', after: 'Head of support' }] }], unchanged: 2 });
     const grown = diffOrgUnits(orgUnits(1), orgUnits(2), names);
     expect(grown.added).toEqual(['Support']);
     expect(grown.changed).toEqual([{ id: 'oun_0002', name: 'Billing', fields: [{ field: 'peers', before: '', after: 'Support' }] }]);
@@ -331,15 +333,23 @@ describe('organization page', () => {
   });
 
   it('shows why a unit with children cannot be removed', async () => {
+    // Below 768px the Design tab edits units in the tree.
+    const saved = window.matchMedia;
+    window.matchMedia = () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} });
     const apiClient = orgApi();
     mount(<OrganizationDetailView recordId="org_0001" />, { apiClient });
     await flush();
+    await flush();
+    // UXP1-S015: the Chart tab only shows the tree; units are edited on Design (the tree editor below 768px).
+    expect(qa('[data-testid="org-unit-remove"]')).toHaveLength(0);
+    await click(q('[data-testid="org-chart-open-design"]'));
     await flush();
     await click(qa('[data-testid="org-unit-remove"]')[0]);
     await click(q('[data-testid="confirm-button"]'));
     await flush();
     expect(apiClient.deleteOrgUnit).toHaveBeenCalledWith('default', 'org_0001', 'oun_0001');
     expect(q('.modal').textContent).toContain('Remove or move the units below this one first. Unit Leadership has units below it.');
+    window.matchMedia = saved;
   });
 
   it('locks editing on a retired organization and offers to bring it back', async () => {
@@ -353,6 +363,69 @@ describe('organization page', () => {
     await click(q('[data-testid="org-reactivate"]'));
     await flush();
     expect(apiClient.updateOrganization).toHaveBeenCalledWith('default', 'org_0001', { name: 'Refund operations', description: 'Runs refunds end to end.', mission: 'Pay every valid refund within a day.', budgetFreezeMarginPercent: 10, status: 'Active' });
+  });
+});
+
+describe('large charts and the publish summary (UXP1-V002, S015, S016, S025)', () => {
+  const big = () => {
+    const units = [{ id: 'u0', name: 'root', parentUnitId: null, members: [], peerLines: [], budgets: [] }];
+    // 3 units under the root, each with 2 below it, and one wide level of 30 under the first.
+    for (let i = 1; i <= 3; i += 1) units.push({ id: `u${i}`, name: `d1-${i}`, parentUnitId: 'u0', members: [], peerLines: [], budgets: [] });
+    for (let i = 1; i <= 3; i += 1) for (let j = 1; j <= 2; j += 1) units.push({ id: `u${i}-${j}`, name: `d2-${i}-${j}`, parentUnitId: `u${i}`, members: [], peerLines: [], budgets: [] });
+    for (let k = 1; k <= 30; k += 1) units.push({ id: `w${k}`, name: `wide-${k}`, parentUnitId: 'u0', members: [], peerLines: [], budgets: [] });
+    return units;
+  };
+
+  it('opens a large chart collapsed below the first level, pages a wide level, and keeps Cancel everything in a menu', async () => {
+    const units = big();
+    expect(units.length).toBeGreaterThan(TREE_COLLAPSE_ABOVE_UNITS);
+    const onCancelAll = vi.fn();
+    mount(<OrgChartTree units={units} t={t} lng="en" onCancelAll={onCancelAll} />);
+    // The root and the first page of its 33 children; nothing from depth 2.
+    expect(qa('[data-testid="org-unit"]')).toHaveLength(1 + TREE_PAGE_SIZE);
+    expect(q('[data-unit="d2-1-1"]')).toBeNull();
+    expect(q('[data-unit="d1-1"]').textContent).toContain('2 units below');
+    await click(q('[data-testid="org-tree-more"]'));
+    expect(qa('[data-testid="org-unit"]')).toHaveLength(1 + 33);
+    await click(q('[data-testid="org-tree-expand-all"]'));
+    expect(q('[data-unit="d2-1-1"]')).not.toBeNull();
+    await click(q('[data-testid="org-tree-collapse-all"]'));
+    expect(q('[data-unit="d2-1-1"]')).toBeNull();
+    // No red button on every card: Cancel everything is an item of the card's menu.
+    expect(qa('.button-danger')).toHaveLength(0);
+    await click(q('[data-unit="d1-2"] [data-testid="org-unit-menu"]'));
+    await click(q('[data-testid="org-unit-cancel-all"]'));
+    expect(onCancelAll).toHaveBeenCalledWith(expect.objectContaining({ id: 'u2' }));
+  });
+
+  it('explains an empty organization instead of a second root, and lists what an added unit brings', () => {
+    expect(problemText(t, { code: 'OneRoot', unit: '', unitId: null })).toBe('Add the root unit. An organization needs one unit without a parent before it can be published.');
+    expect(problemText(t, { code: 'OneRoot', unit: 'rogue', unitId: 'u9' })).toContain('more than one root unit, including rogue');
+    const diff = diffOrgUnits([], [{ id: 'u1', name: 'support', leadAgentId: 'agt_1', leadAgentName: 'lead-agent', leadMandateId: 'mdt_1', leadMandateName: 'inbox-keeper', members: [{ agentId: 'agt_2', agentName: 'helper' }], peerLines: [], budgets: [{ period: 'Day', amountUsd: 5 }] }]);
+    expect(diff.added).toEqual(['support']);
+    expect(diff.addedUnits[0].fields.map((f) => f.field)).toEqual(['lead', 'leadMandate', 'members', 'budgets']);
+  });
+
+  it('shows the full change and the check results when publishing', async () => {
+    const apiClient = orgApi({ validateOrganization: vi.fn(() => Promise.resolve({ valid: true, problems: [{ code: 'UnitWithoutLead', severity: 'Warning', unitId: 'oun_0003' }] })) });
+    mount(<OrganizationDetailView recordId="org_0001" />, { apiClient });
+    await flush();
+    await flush();
+    await click(q('[data-testid="org-publish"]'));
+    await flush();
+    expect(apiClient.validateOrganization).toHaveBeenCalledWith('default', 'org_0001');
+    expect(q('[data-testid="org-publish-checks-summary"]').textContent).toBe('Errors: 0. Warnings: 1. An error stops the publish; a warning does not.');
+    expect(q('[data-testid="org-publish-checks"] [data-problem="UnitWithoutLead"]')).not.toBeNull();
+  });
+
+  it('makes the Chart tab read only, with a way to the Design tab', async () => {
+    mount(<OrganizationDetailView recordId="org_0001" />, { apiClient: orgApi() });
+    await flush();
+    await flush();
+    expect(q('[data-testid="org-add-unit"]')).toBeNull();
+    expect(qa('[data-testid="org-chart-panel"] [data-testid="org-unit-edit"]')).toHaveLength(0);
+    await click(q('[data-testid="org-chart-open-design"]'));
+    expect(q('[data-testid="org-design-panel-section"]')).not.toBeNull();
   });
 });
 

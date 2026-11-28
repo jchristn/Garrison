@@ -122,7 +122,9 @@ test('cascade-cancels a unit from the organization chart unit menu', async ({ pa
   await login(page);
   await page.goto('/dashboard/organizations/org_0001');
   const support = page.getByTestId('org-chart').locator('[data-unit="Support"]');
-  await support.getByTestId('org-unit-cancel-all').click();
+  // UXP1-V002: Cancel everything sits in the card's menu.
+  await support.getByTestId('org-unit-menu').click();
+  await page.getByTestId('org-unit-cancel-all').click();
   await expect(page.getByRole('dialog')).toContainText('Cancel everything in Support');
   await page.getByTestId('cascade-cancel-confirm').click();
   await expect(page.getByTestId('cascade-cancel-result')).toContainText('Everything in Support has stopped');

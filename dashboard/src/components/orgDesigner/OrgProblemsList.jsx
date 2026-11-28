@@ -7,10 +7,23 @@ import { problemText, publishable } from '../../utils/orgCanvasSource';
  * The live checks of the organization canvas (LP3.7): after each change the source validates the organization and
  * this lists what it found, errors (which stop a publish) apart from warnings (which do not), each problem with a
  * button that selects and focuses its unit on the canvas. result:
- * { valid, problems, error } from source.validate, or null before the first check.
+ * { valid, problems, error } from source.validate, or null before the first check. unitCount 0 (an organization with no
+ * units yet) shows how to start instead of the checks, which have nothing to say about an empty tree (UXP1-S016).
  */
-export default function OrgProblemsList({ result, checking = false, onShowUnit, idPrefix = 'org-problems' }) {
+export default function OrgProblemsList({ result, checking = false, onShowUnit, idPrefix = 'org-problems', unitCount = null }) {
   const { t } = useTranslation();
+  if (unitCount === 0) {
+    return (
+      <section className="org-problems" aria-labelledby={`${idPrefix}-title`} data-testid="org-problems">
+        <div className="form-section-title" id={`${idPrefix}-title`} {...tip(t('tips.orgDesigner.problems.title'))}>
+          {t('components.orgDesigner.problems.titleEmpty')}
+        </div>
+        <p className="text-muted" data-testid="org-problems-no-units">
+          {t('components.orgDesigner.problems.noUnits')}
+        </p>
+      </section>
+    );
+  }
   const problems = result?.problems || [];
   return (
     <section className="org-problems" aria-labelledby={`${idPrefix}-title`} aria-busy={checking ? 'true' : undefined} data-testid="org-problems">

@@ -10337,3 +10337,131 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S002, S013, S015, S016, S017, S025): the organization canvas tree, the read-only chart, board
+// attention, the empty organization checks, the publish checks, and what the keeper budgets enforce.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "orgDesigner": {
+   "node": {
+    "moreMembers_one": "und {{count}} weiteres",
+    "moreMembers_other": "und {{count}} weitere"
+   },
+   "collapse": {
+    "label": "Baumansicht",
+    "expand_one": "{{count}} Einheit darunter zeigen",
+    "expand_other": "{{count}} Einheiten darunter zeigen",
+    "collapse_one": "{{count}} Einheit darunter ausblenden",
+    "collapse_other": "{{count}} Einheiten darunter ausblenden",
+    "expandAll": "Alle aufklappen",
+    "collapseAll": "Auf zwei Ebenen zuklappen",
+    "hidden_one": "{{count}} Einheit ausgeblendet",
+    "hidden_other": "{{count}} Einheiten ausgeblendet"
+   },
+   "keys": {
+    "collapse": "Minus (-) klappt die fokussierte Einheit zu, Plus (+) klappt sie auf."
+   },
+   "outlineUnits_one": "Die {{count}} Einheit in Worten",
+   "outlineUnits_other": "Alle {{count}} Einheiten in Worten",
+   "problems": {
+    "OneRootMissing": "Fügen Sie die Stammeinheit hinzu. Eine Organisation braucht eine Einheit ohne übergeordnete Einheit, bevor sie veröffentlicht werden kann.",
+    "titleEmpty": "Prüfungen",
+    "noUnits": "Noch keine Einheiten. Fügen Sie oben mit Einheit hinzufügen die Stammeinheit hinzu, dann die Einheiten darunter. Die Prüfungen laufen, sobald es eine Einheit gibt."
+   },
+   "editAll": "Alle Felder bearbeiten"
+  }
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "Braucht einen Menschen",
+   "noReport": "Kein Bericht"
+  },
+  "attention": {
+   "reports_one": "{{count}} beeinträchtigter oder fehlerhafter Bericht",
+   "reports_other": "{{count}} beeinträchtigte oder fehlerhafte Berichte",
+   "repeated_one": "{{count}}-mal gefragt",
+   "repeated_other": "{{count}}-mal gefragt"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "below_one": "{{count}} Einheit darunter",
+   "below_other": "{{count}} Einheiten darunter",
+   "showMore_one": "{{count}} weitere zeigen ({{total}} nicht angezeigt)",
+   "showMore_other": "{{count}} weitere zeigen ({{total}} nicht angezeigt)",
+   "toolsLabel": "Diagrammansicht",
+   "expandAll": "Alle aufklappen",
+   "collapseAll": "Auf zwei Ebenen zuklappen"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Im Tab Entwurf bearbeiten",
+   "chartReadOnlyNote": "Der Arbeitsstand als Diagramm, zum Lesen. Einheiten fügen Sie im Tab Entwurf hinzu, ändern und entfernen sie dort.",
+   "noUnitsBodyDesign": "Fügen Sie im Tab Entwurf die Stammeinheit hinzu, geleitet vom obersten Agenten, und dann die Einheiten darunter.",
+   "publishChecks": "Prüfungen",
+   "publishChecksSummary": "Fehler: {{errors}}. Warnungen: {{warnings}}. Ein Fehler verhindert die Veröffentlichung, eine Warnung nicht."
+  }
+ },
+ "resources": {
+  "keepers": {
+   "sectionHints": {
+    "budgets": "Beide Dollar-Budgets werden durchgesetzt. Ein Zyklus ohne Restbudget wird abgelehnt, und ein aufgebrauchter Tag pausiert den Keeper bis zum nächsten UTC-Tag und eskaliert an Sie. Die Token-Grenze pro Zyklus wird gespeichert, aber noch nicht durchgesetzt."
+   },
+   "hints": {
+    "budgetPerTickUsd": "Wird durchgesetzt. Ein Zyklus darf nur ausgeben, was übrig ist, und wird abgelehnt, wenn nichts übrig ist. Leer bedeutet kein Limit.",
+    "budgetPerDayUsd": "Wird durchgesetzt. Ein aufgebrauchter Tag setzt den Keeper bis zum nächsten UTC-Tag auf Budget erreicht und löst eine dringende Eskalation aus. Leer bedeutet kein Limit.",
+    "maxTokensPerTick": "Eingabe- plus Ausgabetokens. Wird gespeichert und geprüft, aber noch nicht durchgesetzt. Leer bedeutet kein Limit."
+   }
+  }
+ }
+});
+
+// LP5.5 (UXP1-S015): the full unit form opens from the Design tab.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "views": {
+  "organizationDetail": {
+   "addUnitFull": "Einheit mit allen Feldern hinzufügen"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "org": {
+     "orgHint": "Wählen Sie eine Einheit, um ihre Mitglieder und Querverbindungen zu bearbeiten. Einheiten stehen unter der Einheit, der sie unterstehen, mit einer Linie verbunden."
+    }
+   }
+  }
+ }
+});

@@ -10330,3 +10330,131 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S002, S013, S015, S016, S017, S025): the organization canvas tree, the read-only chart, board
+// attention, the empty organization checks, the publish checks, and what the keeper budgets enforce.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "orgDesigner": {
+   "node": {
+    "moreMembers_one": "e {{count}} altro",
+    "moreMembers_other": "e altri {{count}}"
+   },
+   "collapse": {
+    "label": "Vista ad albero",
+    "expand_one": "Mostra {{count}} unità sotto",
+    "expand_other": "Mostra {{count}} unità sotto",
+    "collapse_one": "Nascondi {{count}} unità sotto",
+    "collapse_other": "Nascondi {{count}} unità sotto",
+    "expandAll": "Espandi tutto",
+    "collapseAll": "Comprimi a due livelli",
+    "hidden_one": "{{count}} unità nascosta",
+    "hidden_other": "{{count}} unità nascoste"
+   },
+   "keys": {
+    "collapse": "Meno (-) comprime l’unità selezionata e più (+) la espande."
+   },
+   "outlineUnits_one": "L’unità ({{count}}) a parole",
+   "outlineUnits_other": "Tutte le {{count}} unità a parole",
+   "problems": {
+    "OneRootMissing": "Aggiungi l’unità radice. Un’organizzazione ha bisogno di un’unità senza unità superiore prima di poter essere pubblicata.",
+    "titleEmpty": "Controlli",
+    "noUnits": "Ancora nessuna unità. Aggiungi l’unità radice con Aggiungi unità, qui sopra, poi le unità sotto di essa. I controlli partono appena c’è un’unità."
+   },
+   "editAll": "Modifica tutti i campi"
+  }
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "Serve una persona",
+   "noReport": "Nessun report"
+  },
+  "attention": {
+   "reports_one": "{{count}} report degradato o non sano",
+   "reports_other": "{{count}} report degradati o non sani",
+   "repeated_one": "Chiesto {{count}} volta",
+   "repeated_other": "Chiesto {{count}} volte"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "below_one": "{{count}} unità sotto",
+   "below_other": "{{count}} unità sotto",
+   "showMore_one": "Mostra altre {{count}} ({{total}} non mostrate)",
+   "showMore_other": "Mostra altre {{count}} ({{total}} non mostrate)",
+   "toolsLabel": "Vista dell’organigramma",
+   "expandAll": "Espandi tutto",
+   "collapseAll": "Comprimi a due livelli"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Modifica nella scheda Progettazione",
+   "chartReadOnlyNote": "L’albero di lavoro come organigramma, in sola lettura. Le unità si aggiungono, si modificano e si rimuovono nella scheda Progettazione.",
+   "noUnitsBodyDesign": "Aggiungi l’unità radice nella scheda Progettazione, guidata dall’agente al vertice, poi le unità sotto di essa.",
+   "publishChecks": "Controlli",
+   "publishChecksSummary": "Errori: {{errors}}. Avvisi: {{warnings}}. Un errore blocca la pubblicazione, un avviso no."
+  }
+ },
+ "resources": {
+  "keepers": {
+   "sectionHints": {
+    "budgets": "Entrambi i budget in dollari vengono applicati. Un ciclo senza residuo viene rifiutato, e una giornata esaurita mette in pausa il keeper fino al giorno UTC successivo e apre un’escalation verso di te. Il massimo di token per ciclo viene salvato, ma non è ancora applicato."
+   },
+   "hints": {
+    "budgetPerTickUsd": "Applicato. Un ciclo può spendere solo ciò che resta e viene rifiutato quando non resta nulla. Vuoto significa nessun limite.",
+    "budgetPerDayUsd": "Applicato. Una giornata esaurita porta il keeper a Budget raggiunto fino al giorno UTC successivo e apre un’escalation urgente. Vuoto significa nessun limite.",
+    "maxTokensPerTick": "Token di input più output. Salvato e controllato, ma non ancora applicato. Vuoto significa nessun limite."
+   }
+  }
+ }
+});
+
+// LP5.5 (UXP1-S015): the full unit form opens from the Design tab.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "views": {
+  "organizationDetail": {
+   "addUnitFull": "Aggiungi unità con tutti i campi"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "org": {
+     "orgHint": "Seleziona un’unità per modificarne i membri e i collegamenti tra pari. Le unità stanno sotto l’unità a cui riportano, unite da una linea."
+    }
+   }
+  }
+ }
+});

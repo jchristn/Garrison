@@ -5280,3 +5280,71 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "Zeigt die {{count}} Einheit unter {{name}} auf der Arbeitsfläche.",
+   "expand_other": "Zeigt die {{count}} Einheiten unter {{name}} auf der Arbeitsfläche.",
+   "collapse_one": "Blendet die {{count}} Einheit unter {{name}} aus. Minus (-) auf der fokussierten Einheit tut dasselbe.",
+   "collapse_other": "Blendet die {{count}} Einheiten unter {{name}} aus. Minus (-) auf der fokussierten Einheit tut dasselbe.",
+   "expandAll": "Zeigt alle Einheiten der Organisation. Eine große ist dann breiter als die Arbeitsfläche: Ziehen Sie zum Verschieben oder nutzen Sie die Minikarte.",
+   "collapseAll": "Zeigt die Stammeinheit und die Einheiten, die an sie berichten, und blendet die Ebenen darunter aus. Klappen Sie eine Einheit auf, um zu sehen, wer an sie berichtet.",
+   "hidden": "Einheiten unter einer zugeklappten Einheit werden nicht gezeichnet. Klappen Sie die Einheit auf oder nutzen Sie Alle aufklappen."
+  },
+  "outlineUnits": "Ein Satz pro Einheit: an wen sie berichtet und wer sie leitet. Screenreader erhalten denselben Text.",
+  "editAll": "Öffnet das vollständige Einheitenformular: Name, Beschreibung, Leitung und Titel, Mitglieder mit Titeln und Keepern, App, Querverbindungen und Budgets."
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "In dieser Einheit warten offene Eskalationen oder eine Budgetgrenze auf einen Menschen. Der Zustand kommt nur aus den Berichten der Einheit und kann daher Unbekannt oder Gesund zeigen, während das wartet."
+  },
+  "attention": {
+   "repeated_one": "Derselbe Agent hat diese Frage {{count}}-mal gestellt.",
+   "repeated_other": "Derselbe Agent hat diese Frage {{count}}-mal gestellt. Der Link öffnet die neueste; die Seite Eskalationen listet jede einzeln."
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "Listet weitere Einheiten auf dieser Ebene des Diagramms.",
+   "expandAll": "Klappt alle Einheiten des Diagramms auf.",
+   "collapseAll": "Zeigt die Stammeinheit und die Einheiten, die an sie berichten, und klappt die Ebenen darunter zu. Öffnen Sie eine Einheit, um zu sehen, wer an sie berichtet."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Öffnet den Tab Entwurf. Dort fügen Sie Einheiten hinzu und entfernen sie, setzen Personen ein, hängen Keeper an, legen Budgets fest und sehen die Prüfungen."
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "Zeigt die Organisationen des Entwurfs: ein Baum von Einheiten unter der Einheit, der sie unterstehen, mit Leitungen, Mitgliedern und Querverbindungen."
+   }
+  }
+ }
+});

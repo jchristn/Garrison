@@ -3,8 +3,9 @@ import { diffIsEmpty } from '../utils/organizations';
 import { EmptyNote } from './States';
 
 /**
- * What changed between two trees of units (AA7.14), from diffOrgUnits: units added and removed, and for each changed
- * unit the fields with their value before and after. Values are plain text.
+ * What changed between two trees of units (AA7.14), from diffOrgUnits: units added (with their lead, members, keepers,
+ * and budgets, UXP1-S025) and removed, and for each changed unit the fields with their value before and after. Values
+ * are plain text.
  */
 export default function OrgRevisionDiff({ diff, t, beforeLabel, afterLabel }) {
   if (diffIsEmpty(diff)) {
@@ -22,11 +23,24 @@ export default function OrgRevisionDiff({ diff, t, beforeLabel, afterLabel }) {
         <div className="org-diff-group" data-testid="org-diff-added">
           <h4 className="org-diff-title" {...tip(t('tips.organizations.diff.added'))}>{t('organizations.diff.added', { count: diff.added.length })}</h4>
           <ul className="org-diff-list">
-            {diff.added.map((name) => (
-              <li key={`a-${name}`} className="org-diff-added">
-                + {name}
-              </li>
-            ))}
+            {diff.added.map((name, i) => {
+              const facts = diff.addedUnits?.[i]?.name === name ? diff.addedUnits[i].fields : [];
+              return (
+                <li key={`a-${name}`} className="org-diff-added" data-added-unit={name}>
+                  + {name}
+                  {facts.length > 0 && (
+                    <dl className="org-diff-facts">
+                      {facts.map((f) => (
+                        <div key={f.field} className="org-diff-fact" data-field={f.field}>
+                          <dt>{t(`organizations.diff.fields.${f.field}`)}</dt>
+                          <dd className="org-diff-value">{f.after}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -10283,3 +10283,131 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S002, S013, S015, S016, S017, S025): the organization canvas tree, the read-only chart, board
+// attention, the empty organization checks, the publish checks, and what the keeper budgets enforce.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "orgDesigner": {
+   "node": {
+    "moreMembers_one": "ほか {{count}} 名",
+    "moreMembers_other": "ほか {{count}} 名"
+   },
+   "collapse": {
+    "label": "ツリー表示",
+    "expand_one": "配下の組織単位 {{count}} 件を表示",
+    "expand_other": "配下の組織単位 {{count}} 件を表示",
+    "collapse_one": "配下の組織単位 {{count}} 件を隠す",
+    "collapse_other": "配下の組織単位 {{count}} 件を隠す",
+    "expandAll": "すべて展開",
+    "collapseAll": "2 階層まで折りたたむ",
+    "hidden_one": "組織単位 {{count}} 件を非表示中",
+    "hidden_other": "組織単位 {{count}} 件を非表示中"
+   },
+   "keys": {
+    "collapse": "マイナス (-) でフォーカス中の組織単位を折りたたみ、プラス (+) で展開します。"
+   },
+   "outlineUnits_one": "組織単位 {{count}} 件の説明文",
+   "outlineUnits_other": "全 {{count}} 件の組織単位の説明文",
+   "problems": {
+    "OneRootMissing": "ルート組織単位を追加してください。公開するには、親を持たない組織単位が 1 つ必要です。",
+    "titleEmpty": "チェック",
+    "noUnits": "まだ組織単位がありません。上の「組織単位を追加」でルート組織単位を追加し、その下に組織単位を追加してください。組織単位ができるとチェックが動きます。"
+   },
+   "editAll": "すべての項目を編集"
+  }
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "人の対応が必要",
+   "noReport": "レポートなし"
+  },
+  "attention": {
+   "reports_one": "低下または不健全なレポート {{count}} 件",
+   "reports_other": "低下または不健全なレポート {{count}} 件",
+   "repeated_one": "{{count}} 回質問",
+   "repeated_other": "{{count}} 回質問"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "below_one": "配下に組織単位 {{count}} 件",
+   "below_other": "配下に組織単位 {{count}} 件",
+   "showMore_one": "さらに {{count}} 件表示 (未表示 {{total}} 件)",
+   "showMore_other": "さらに {{count}} 件表示 (未表示 {{total}} 件)",
+   "toolsLabel": "組織図の表示",
+   "expandAll": "すべて展開",
+   "collapseAll": "2 階層まで折りたたむ"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "「設計」タブで編集",
+   "chartReadOnlyNote": "作業中のツリーを組織図として表示します (閲覧用)。組織単位の追加、変更、削除は「設計」タブで行います。",
+   "noUnitsBodyDesign": "「設計」タブで、最上位のエージェントが率いるルート組織単位を追加し、その下に組織単位を追加してください。",
+   "publishChecks": "チェック",
+   "publishChecksSummary": "エラー: {{errors}}。警告: {{warnings}}。エラーがあると公開できません。警告だけなら公開できます。"
+  }
+ },
+ "resources": {
+  "keepers": {
+   "sectionHints": {
+    "budgets": "2 つのドル予算はどちらも適用されます。残りのないティックは拒否され、1 日の予算を使い切るとキーパーは次の UTC 日まで停止し、あなたにエスカレーションします。ティックあたりの最大トークン数は保存されますが、まだ適用されません。"
+   },
+   "hints": {
+    "budgetPerTickUsd": "適用されます。ティックは残りの範囲でしか使えず、残りがなければ拒否されます。空欄なら上限なしです。",
+    "budgetPerDayUsd": "適用されます。1 日の予算を使い切るとキーパーは次の UTC 日まで「予算上限に到達」になり、緊急のエスカレーションを出します。空欄なら上限なしです。",
+    "maxTokensPerTick": "入力と出力のトークンの合計です。保存と検証はされますが、まだ適用されません。空欄なら上限なしです。"
+   }
+  }
+ }
+});
+
+// LP5.5 (UXP1-S015): the full unit form opens from the Design tab.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "views": {
+  "organizationDetail": {
+   "addUnitFull": "すべての項目を入力して組織単位を追加"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "org": {
+     "orgHint": "組織単位を選択すると、メンバーとピアラインを編集できます。組織単位は報告先の組織単位の下に、線でつないで配置されます。"
+    }
+   }
+  }
+ }
+});

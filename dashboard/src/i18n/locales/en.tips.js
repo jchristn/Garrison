@@ -5280,3 +5280,71 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "Shows the {{count}} unit below {{name}} on the canvas.",
+   "expand_other": "Shows the {{count}} units below {{name}} on the canvas.",
+   "collapse_one": "Hides the {{count}} unit below {{name}}. Minus (-) on the focused unit does the same.",
+   "collapse_other": "Hides the {{count}} units below {{name}}. Minus (-) on the focused unit does the same.",
+   "expandAll": "Shows every unit of the organization. A large one is then wider than the canvas: drag to pan, or use the minimap.",
+   "collapseAll": "Shows the root and the units that report to it, and hides the levels below. Expand a unit to see what reports to it.",
+   "hidden": "Units below a collapsed unit are not drawn. Expand the unit, or use Expand all."
+  },
+  "outlineUnits": "One sentence per unit: who it reports to and who leads it. Screen readers get the same text.",
+  "editAll": "Opens the full unit form: name, description, lead and title, members with titles and keepers, app, peer lines, and budgets."
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "Open escalations or a budget cap wait for a person in this unit. Health comes only from the unit's reports, so it can read Unknown or Healthy while this waits."
+  },
+  "attention": {
+   "repeated_one": "The same agent asked this question {{count}} time.",
+   "repeated_other": "The same agent asked this question {{count}} times. The link opens the newest; the Escalations page lists each one."
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "Lists more units at this level of the chart.",
+   "expandAll": "Opens every unit of the chart.",
+   "collapseAll": "Shows the root and the units that report to it, and folds the levels below. Open a unit to see what reports to it."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Opens the Design tab, where you add and remove units, place people, attach keepers, set budgets, and see the checks."
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "Show the draft's organizations: a tree of units below the unit they report to, with leads, members, and peer lines."
+   }
+  }
+ }
+});

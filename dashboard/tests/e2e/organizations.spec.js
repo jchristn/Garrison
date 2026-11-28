@@ -30,6 +30,8 @@ async function useStore(page) {
 }
 
 const cards = (page) => page.getByTestId('org-unit');
+// UXP1-S015: units are edited on the Design tab, and the Chart tab only shows the tree.
+const openTab = (page, name) => page.getByRole('tab', { name, exact: true }).click();
 
 async function addUnit(page, open, { name, lead, title, day }) {
   await open();
@@ -63,9 +65,13 @@ test('creates an organization with two units and publishes it', async ({ page })
   await expect(page.getByTestId('org-summary')).toContainText('Draft');
   await expect(page.getByTestId('org-mission')).toContainText('Pay every valid refund within a day.');
 
+  // A new organization with no units opens on Design.
+  await expect(page.getByTestId('org-design-panel-section')).toBeVisible();
   await addUnit(page, () => page.getByTestId('org-add-unit').click(), { name: 'Leadership', lead: 'agt_0001', title: 'Chief executive', day: 50 });
   await expect(page.locator('.modal')).toHaveCount(0);
+  await openTab(page, 'Chart');
   await expect(cards(page)).toHaveCount(1);
+  await openTab(page, 'Design');
 
   // A second unit without a parent is refused, and the reason stays in the editor.
   await page.getByTestId('org-add-unit').click();
@@ -75,7 +81,9 @@ test('creates an organization with two units and publishes it', async ({ page })
   await expect(page.getByTestId('org-unit-error')).toContainText('An organization has exactly one root unit');
   await page.locator('.modal').getByRole('button', { name: 'Cancel' }).click();
 
-  await addUnit(page, () => page.locator('[data-unit="Leadership"]').getByTestId('org-unit-add-child').click(), { name: 'Billing', lead: 'agt_0002', title: 'Head of billing', day: 20 });
+  // The full form puts a new unit under the root by default.
+  await addUnit(page, () => page.getByTestId('org-add-unit').click(), { name: 'Billing', lead: 'agt_0002', title: 'Head of billing', day: 20 });
+  await openTab(page, 'Chart');
   await expect(cards(page)).toHaveCount(2);
   await expect(cards(page).nth(1)).toContainText('agent-2');
   await expect(cards(page).nth(1)).toContainText('Head of billing');
@@ -122,7 +130,11 @@ test('passes an accessibility scan and lays out the chart and unit editor at des
       expect(await overflow(), `${mode} ${name} chart`).toBeLessThanOrEqual(1);
       await page.screenshot({ path: testInfo.outputPath(`organization-chart-${mode}-${name}.png`), fullPage: true });
 
-      await page.locator('[data-unit="Billing"]').getByTestId('org-unit-edit').click();
+      // The unit editor opens from Design: the unit panel on a desktop, the tree below 768px.
+      await page.goto('/dashboard/organizations/org_0001?tab=design&unit=Billing');
+      await theme(mode);
+      if (name === 'desktop') await page.getByTestId('org-design-edit-unit').click();
+      else await page.locator('[data-unit="Billing"]').getByTestId('org-unit-edit').click();
       await expect(page.getByTestId('org-unit-form')).toBeVisible();
       await scan(`${mode} ${name} unit editor`);
       expect(await overflow(), `${mode} ${name} unit editor`).toBeLessThanOrEqual(1);

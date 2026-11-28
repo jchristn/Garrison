@@ -10283,3 +10283,131 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S002, S013, S015, S016, S017, S025): the organization canvas tree, the read-only chart, board
+// attention, the empty organization checks, the publish checks, and what the keeper budgets enforce.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "orgDesigner": {
+   "node": {
+    "moreMembers_one": "仲有 {{count}} 個",
+    "moreMembers_other": "仲有 {{count}} 個"
+   },
+   "collapse": {
+    "label": "樹狀檢視",
+    "expand_one": "顯示下面 {{count}} 個單位",
+    "expand_other": "顯示下面 {{count}} 個單位",
+    "collapse_one": "收埋下面 {{count}} 個單位",
+    "collapse_other": "收埋下面 {{count}} 個單位",
+    "expandAll": "全部展開",
+    "collapseAll": "收到得兩層",
+    "hidden_one": "收埋咗 {{count}} 個單位",
+    "hidden_other": "收埋咗 {{count}} 個單位"
+   },
+   "keys": {
+    "collapse": "減號 (-) 收埋焦點所在嘅單位，加號 (+) 展開佢。"
+   },
+   "outlineUnits_one": "用文字講 {{count}} 個單位",
+   "outlineUnits_other": "用文字講全部 {{count}} 個單位",
+   "problems": {
+    "OneRootMissing": "加返個根單位。組織要有一個冇上級嘅單位先可以發佈。",
+    "titleEmpty": "檢查",
+    "noUnits": "仲未有單位。用上面嘅「新增單位」加根單位，再加佢下面嘅單位。有單位之後就會開始檢查。"
+   },
+   "editAll": "編輯所有欄位"
+  }
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "要人處理",
+   "noReport": "冇報告"
+  },
+  "attention": {
+   "reports_one": "{{count}} 份轉差或者唔健康嘅報告",
+   "reports_other": "{{count}} 份轉差或者唔健康嘅報告",
+   "repeated_one": "問咗 {{count}} 次",
+   "repeated_other": "問咗 {{count}} 次"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "below_one": "下面有 {{count}} 個單位",
+   "below_other": "下面有 {{count}} 個單位",
+   "showMore_one": "再顯示 {{count}} 個（仲有 {{total}} 個未顯示）",
+   "showMore_other": "再顯示 {{count}} 個（仲有 {{total}} 個未顯示）",
+   "toolsLabel": "組織圖檢視",
+   "expandAll": "全部展開",
+   "collapseAll": "收到得兩層"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "去「設計」分頁編輯",
+   "chartReadOnlyNote": "呢度用組織圖顯示工作中嘅樹，淨係睇。要新增、修改或者移除單位，就去「設計」分頁。",
+   "noUnitsBodyDesign": "喺「設計」分頁加根單位，由最高嗰個代理帶領，再加佢下面嘅單位。",
+   "publishChecks": "檢查",
+   "publishChecksSummary": "錯誤：{{errors}}。警告：{{warnings}}。有錯誤就發佈唔到，淨係警告就得。"
+  }
+ },
+ "resources": {
+  "keepers": {
+   "sectionHints": {
+    "budgets": "兩個美元預算都會執行。冇剩嘅巡檢會被拒絕，一日預算用晒，守護者會暫停到下一個 UTC 日，同時向你升級。每次巡檢最多 token 數會儲存，但暫時未執行。"
+   },
+   "hints": {
+    "budgetPerTickUsd": "會執行。每次巡檢只可以用剩低嘅部分，冇剩就會被拒絕。留空代表冇上限。",
+    "budgetPerDayUsd": "會執行。一日預算用晒，守護者會變成「已用盡預算」直到下一個 UTC 日，並發出緊急升級。留空代表冇上限。",
+    "maxTokensPerTick": "輸入加輸出 token。會儲存同檢查，但暫時未執行。留空代表冇上限。"
+   }
+  }
+ }
+});
+
+// LP5.5 (UXP1-S015): the full unit form opens from the Design tab.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "views": {
+  "organizationDetail": {
+   "addUnitFull": "用完整欄位新增單位"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "org": {
+     "orgHint": "揀一個單位就可以編輯佢嘅成員同同級連線。單位會擺喺佢匯報嘅單位下面，用線連住。"
+    }
+   }
+  }
+ }
+});

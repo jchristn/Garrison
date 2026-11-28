@@ -10284,3 +10284,131 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S002, S013, S015, S016, S017, S025): the organization canvas tree, the read-only chart, board
+// attention, the empty organization checks, the publish checks, and what the keeper budgets enforce.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "orgDesigner": {
+   "node": {
+    "moreMembers_one": "还有 {{count}} 个",
+    "moreMembers_other": "还有 {{count}} 个"
+   },
+   "collapse": {
+    "label": "树状视图",
+    "expand_one": "显示下面 {{count}} 个单元",
+    "expand_other": "显示下面 {{count}} 个单元",
+    "collapse_one": "隐藏下面 {{count}} 个单元",
+    "collapse_other": "隐藏下面 {{count}} 个单元",
+    "expandAll": "全部展开",
+    "collapseAll": "折叠到两层",
+    "hidden_one": "已隐藏 {{count}} 个单元",
+    "hidden_other": "已隐藏 {{count}} 个单元"
+   },
+   "keys": {
+    "collapse": "减号 (-) 折叠获得焦点的单元，加号 (+) 展开它。"
+   },
+   "outlineUnits_one": "用文字描述 {{count}} 个单元",
+   "outlineUnits_other": "用文字描述全部 {{count}} 个单元",
+   "problems": {
+    "OneRootMissing": "请添加根单元。组织需要一个没有上级的单元才能发布。",
+    "titleEmpty": "检查",
+    "noUnits": "还没有单元。用上方的“添加单元”添加根单元，再添加它下面的单元。有了单元后检查就会运行。"
+   },
+   "editAll": "编辑所有字段"
+  }
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "需要人处理",
+   "noReport": "没有报告"
+  },
+  "attention": {
+   "reports_one": "{{count}} 份降级或不健康的报告",
+   "reports_other": "{{count}} 份降级或不健康的报告",
+   "repeated_one": "问了 {{count}} 次",
+   "repeated_other": "问了 {{count}} 次"
+  }
+ },
+ "organizations": {
+  "chart": {
+   "below_one": "下面有 {{count}} 个单元",
+   "below_other": "下面有 {{count}} 个单元",
+   "showMore_one": "再显示 {{count}} 个（还有 {{total}} 个未显示）",
+   "showMore_other": "再显示 {{count}} 个（还有 {{total}} 个未显示）",
+   "toolsLabel": "组织图视图",
+   "expandAll": "全部展开",
+   "collapseAll": "折叠到两层"
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "在“设计”标签页中编辑",
+   "chartReadOnlyNote": "以组织图显示工作树，仅供查看。单元的添加、修改和移除在“设计”标签页中进行。",
+   "noUnitsBodyDesign": "在“设计”标签页中添加根单元，由最上层的代理领导，再添加它下面的单元。",
+   "publishChecks": "检查",
+   "publishChecksSummary": "错误：{{errors}}。警告：{{warnings}}。有错误时无法发布，只有警告时可以发布。"
+  }
+ },
+ "resources": {
+  "keepers": {
+   "sectionHints": {
+    "budgets": "两项美元预算都会执行。没有余额的巡检会被拒绝，当天预算用完后守护者会暂停到下一个 UTC 日，并向你升级。每次巡检的最多 token 数会保存，但尚未执行。"
+   },
+   "hints": {
+    "budgetPerTickUsd": "会执行。每次巡检只能花费剩余的额度，没有剩余时会被拒绝。留空表示不设上限。",
+    "budgetPerDayUsd": "会执行。当天预算用完后，守护者会变为“已达预算上限”直到下一个 UTC 日，并发起紧急升级。留空表示不设上限。",
+    "maxTokensPerTick": "输入加输出 token。会保存并校验，但尚未执行。留空表示不设上限。"
+   }
+  }
+ }
+});
+
+// LP5.5 (UXP1-S015): the full unit form opens from the Design tab.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "views": {
+  "organizationDetail": {
+   "addUnitFull": "填写全部字段添加单元"
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "studio": {
+   "canvas": {
+    "org": {
+     "orgHint": "选择一个单元即可编辑它的成员和同级连线。单元位于它所汇报的单元下方，以连线相连。"
+    }
+   }
+  }
+ }
+});

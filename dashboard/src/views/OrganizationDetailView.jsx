@@ -36,6 +36,8 @@ import { pathFor } from '../config/navConfig';
 import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { upsertProposal } from '../utils/changeRules';
 import { cascadeDenied } from '../utils/performance';
+import { isMissingEndpoint } from '../utils/errors';
+import { normalizeProblems, problemText, publishable, workingTreeProblems } from '../utils/orgCanvasSource';
 import { budgetOf, chartToUnits, diffIsEmpty, diffOrgUnits, orgDenied, orgErrorMessage, organizationFormErrors, organizationFormToBody, organizationToForm, spendOf, statusBody, treeOrder } from '../utils/organizations';
 import RowActions from '../components/RowActions';
 
@@ -100,6 +102,14 @@ export default function OrganizationDetailView({ recordId }) {
   useEffect(() => {
     if (DETAIL_TABS.includes(requestedTab)) setTab(requestedTab);
   }, [requestedTab, recordId]);
+  // UXP1-S015: an organization with no units yet (a new one) opens on Design, where units are added, unless a link
+  // asked for a tab.
+  const emptyChecked = useRef('');
+  useEffect(() => {
+    if (!org || emptyChecked.current === org.id) return;
+    emptyChecked.current = org.id;
+    if (!DETAIL_TABS.includes(searchParams.get('tab')) && (org.units || []).length === 0) setTab('design');
+  }, [org, searchParams]);
   const [view, setView] = useState('working');
   const [unitEditor, setUnitEditor] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -110,6 +120,8 @@ export default function OrganizationDetailView({ recordId }) {
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishNote, setPublishNote] = useState('');
   const [publishError, setPublishError] = useState('');
+  // UXP1-S025: the publish checks, run when the publish dialog opens ({ checking, result }).
+  const [publishCheck, setPublishCheck] = useState(null);
   const [diff, setDiff] = useState(null);
   const [details, setDetails] = useState(null);
   const [detailsErrors, setDetailsErrors] = useState({});
@@ -363,6 +375,19 @@ export default function OrganizationDetailView({ recordId }) {
     }
   };
 
+  const openPublish = async () => {
+    setPublishError('');
+    setPublishOpen(true);
+    setPublishCheck({ checking: true, result: null });
+    let result;
+    try {
+      result = apiClient.validateOrganization ? normalizeProblems(await apiClient.validateOrganization(tenantId, org.id), units, options.agents, options.mandates) : workingTreeProblems(units, { agents: options.agents, mandates: options.mandates });
+    } catch (e) {
+      result = isMissingEndpoint(e) ? workingTreeProblems(units, { agents: options.agents, mandates: options.mandates }) : { valid: null, problems: [], error: e };
+    }
+    if (!unmounted.current) setPublishCheck({ checking: false, result });
+  };
+
   const publishDraft = (revision) => run(() => apiClient.publishOrgRevision(tenantId, org.id, revision.id), t('organizations.toasts.published', { number: revision.number }));
 
   const compare = async (revision) => {
@@ -474,10 +499,7 @@ export default function OrganizationDetailView({ recordId }) {
               : actionButton('retire', t('views.organizationDetail.retire'), t('tips.views.organizationDetail.retire'), () => setConfirm({ kind: 'retire' }), {
                   denied: updateDenied || (org.status === 'Frozen' ? t('tips.views.organizationDetail.frozenRetire') : '')
                 })}
-            {actionButton('publish', t('views.organizationDetail.publish'), t('tips.views.organizationDetail.publish'), () => {
-              setPublishError('');
-              setPublishOpen(true);
-            }, { className: 'button-primary', denied: editBlocked || (units.length === 0 ? t('tips.views.organizationDetail.publishEmpty') : '') })}
+            {actionButton('publish', t('views.organizationDetail.publish'), t('tips.views.organizationDetail.publish'), openPublish, { className: 'button-primary', denied: editBlocked || (units.length === 0 ? t('tips.views.organizationDetail.publishEmpty') : '') })}
             {actionButton('delete', t('common.actions.delete'), t('tips.views.organizationDetail.delete'), () => setConfirm({ kind: 'delete' }), { className: 'button-danger', denied: deleteDenied, icon: <TrashIcon size={14} /> })}
           </>
         }
@@ -586,15 +608,14 @@ export default function OrganizationDetailView({ recordId }) {
                 ))}
               </div>
             )}
-            {view === 'working' &&
-              actionButton('add-unit', units.length ? t('views.organizationDetail.addUnit') : t('views.organizationDetail.addRoot'), t('tips.views.organizationDetail.addUnit'), () => setUnitEditor({ unit: null, parentUnitId: units.find((u) => !u.parentUnitId)?.id || null }), {
-                denied: editBlocked,
-                icon: <PlusIcon size={14} />
-              })}
+            {/* UXP1-S015: the Chart tab only shows the tree; units are edited on Design. */}
+            <button type="button" className="button-secondary" onClick={() => setTab('design')} data-testid="org-chart-open-design" data-tour="org-chart-open-design" {...tip(t('tips.views.organizationDetail.editOnDesign'))}>
+              {t('views.organizationDetail.editOnDesign')}
+            </button>
           </div>
-          <p className="text-muted org-chart-note">{view === 'live' ? t('views.organizationDetail.liveNote') : t('views.organizationDetail.workingNote')}</p>
+          <p className="text-muted org-chart-note">{view === 'live' ? t('views.organizationDetail.liveNote') : t('views.organizationDetail.chartReadOnlyNote')}</p>
           {shownUnits.length === 0 ? (
-            <EmptyState title={t('views.organizationDetail.noUnitsTitle')} body={t('views.organizationDetail.noUnitsBody')} />
+            <EmptyState title={t('views.organizationDetail.noUnitsTitle')} body={t('views.organizationDetail.noUnitsBodyDesign')} />
           ) : wide && chartLayout === 'canvas' ? (
             <Suspense fallback={<LoadingState />}>
               <OrgChartCanvas organization={org} units={shownUnits} agents={options.agents} spend={spend} health={health} />
@@ -607,13 +628,6 @@ export default function OrganizationDetailView({ recordId }) {
               names={names}
               spend={spend}
               health={health}
-              editable={view === 'working' && editable}
-              onEdit={(unit) => setUnitEditor({ unit, parentUnitId: null })}
-              onAdd={(unit) => setUnitEditor({ unit: null, parentUnitId: unit.id })}
-              onRemove={(unit) => {
-                setConfirmError(null);
-                setConfirm({ kind: 'removeUnit', unit });
-              }}
               onCancelAll={published ? (unit) => setCascade(unit) : undefined}
               cancelAllDenied={cancelAllDenied}
             />
@@ -634,7 +648,17 @@ export default function OrganizationDetailView({ recordId }) {
           )}
           {wide ? (
             <Suspense fallback={<LoadingState />}>
-              <OrgDesigner organization={org} options={options} spend={spend} permissions={permissions} blocked={editBlocked} forms={DESIGNER_FORMS} onReload={reloadAll} initialUnit={searchParams.get('unit') || ''} />
+              {/* UXP1-S015: the full unit form (description, app, titles, budgets) opens from Design, the one place to edit units. */}
+              <div className="org-design-actions">
+                {actionButton('add-unit', units.length ? t('views.organizationDetail.addUnitFull') : t('views.organizationDetail.addRoot'), t('tips.views.organizationDetail.addUnit'), () => setUnitEditor({ unit: null, parentUnitId: units.find((u) => !u.parentUnitId)?.id || null }), {
+                  denied: editBlocked,
+                  icon: <PlusIcon size={14} />
+                })}
+              </div>
+              <OrgDesigner organization={org} options={options} spend={spend} permissions={permissions} blocked={editBlocked} forms={DESIGNER_FORMS} onReload={reloadAll} initialUnit={searchParams.get('unit') || ''} initialPanel={searchParams.get('panel') || ''} onEditUnit={(unitId) => {
+                const unit = units.find((u) => u.id === unitId);
+                if (unit) setUnitEditor({ unit, parentUnitId: null });
+              }} />
             </Suspense>
           ) : (
             <>
@@ -856,6 +880,37 @@ export default function OrganizationDetailView({ recordId }) {
           <div className="flex-col gap-md" data-testid="org-publish">
             <p className="text-muted">{t('views.organizationDetail.publishIntro')}</p>
             {pending && published && <OrgRevisionDiff diff={pending} t={t} beforeLabel={t('organizations.revisions.label', { number: org.currentRevisionNumber })} afterLabel={t('organizations.diff.working')} />}
+            {!published && <OrgRevisionDiff diff={diffOrgUnits([], units, names)} t={t} beforeLabel={t('organizations.diff.nothingLive')} afterLabel={t('organizations.diff.working')} />}
+            <div className="org-publish-checks" data-testid="org-publish-checks" role="status" aria-live="polite">
+              <div className="form-section-title" {...tip(t('tips.orgDesigner.problems.title'))}>
+                {t('views.organizationDetail.publishChecks')}
+              </div>
+              {!publishCheck || publishCheck.checking ? (
+                <p className="text-muted">{t('components.orgDesigner.problems.checking')}</p>
+              ) : publishCheck.result?.error ? (
+                <p className="text-muted">{t('components.orgDesigner.problems.failed', { reason: orgErrorMessage(t, publishCheck.result.error) })}</p>
+              ) : (publishCheck.result?.problems || []).length === 0 ? (
+                <p className="text-muted" data-testid="org-publish-checks-none">
+                  {t('components.orgDesigner.problems.none')}
+                </p>
+              ) : (
+                <>
+                  <p className={publishable(publishCheck.result.problems) ? 'text-muted' : 'org-publish-checks-blocked'} data-testid="org-publish-checks-summary">
+                    {t('views.organizationDetail.publishChecksSummary', {
+                      errors: publishCheck.result.problems.filter((p) => (p.severity || 'Error') === 'Error').length,
+                      warnings: publishCheck.result.problems.filter((p) => p.severity === 'Warning').length
+                    })}
+                  </p>
+                  <ul className="org-problem-list">
+                    {publishCheck.result.problems.map((p, i) => (
+                      <li key={`${p.code}-${p.unitId || p.unit}-${i}`} data-problem={p.code} data-severity={p.severity || 'Error'}>
+                        {problemText(t, p)}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
             <div className="field">
               <label htmlFor="org-publish-note" {...tip(t('tips.views.organizationDetail.note'))}>
                 {t('views.organizationDetail.note')}

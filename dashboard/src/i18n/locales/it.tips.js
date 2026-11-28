@@ -5282,3 +5282,71 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   }
  }
 });
+
+// LP5.5 (UXP1-V002, S013, S015, S025): tooltips of the organization canvas tree, the read-only chart, and board
+// attention.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "orgDesigner": {
+  "collapse": {
+   "expand_one": "Mostra sulla tela l’unità ({{count}}) sotto {{name}}.",
+   "expand_other": "Mostra sulla tela le {{count}} unità sotto {{name}}.",
+   "collapse_one": "Nasconde l’unità ({{count}}) sotto {{name}}. Meno (-) sull’unità selezionata fa lo stesso.",
+   "collapse_other": "Nasconde le {{count}} unità sotto {{name}}. Meno (-) sull’unità selezionata fa lo stesso.",
+   "expandAll": "Mostra tutte le unità dell’organizzazione. Una grande diventa più larga della tela: trascina per spostarti o usa la minimappa.",
+   "collapseAll": "Mostra la radice e le unità che le riportano, e nasconde i livelli sotto. Espandi un’unità per vedere chi le riporta.",
+   "hidden": "Le unità sotto un’unità compressa non vengono disegnate. Espandi l’unità o usa Espandi tutto."
+  },
+  "outlineUnits": "Una frase per unità: a chi riporta e chi la guida. Gli screen reader ricevono lo stesso testo.",
+  "editAll": "Apre il modulo completo dell’unità: nome, descrizione, responsabile e titolo, membri con titoli e keeper, app, collegamenti tra pari e budget."
+ },
+ "board": {
+  "chart": {
+   "needsPerson": "In questa unità escalation aperte o un tetto di budget aspettano una persona. Lo stato viene solo dai report dell’unità, quindi può risultare Sconosciuto o Sano mentre questo aspetta."
+  },
+  "attention": {
+   "repeated_one": "Lo stesso agente ha fatto questa domanda {{count}} volta.",
+   "repeated_other": "Lo stesso agente ha fatto questa domanda {{count}} volte. Il link apre la più recente; la pagina Escalation le elenca tutte."
+  }
+ },
+ "organizations": {
+  "chart": {
+   "showMore": "Elenca altre unità a questo livello dell’organigramma.",
+   "expandAll": "Apre tutte le unità dell’organigramma.",
+   "collapseAll": "Mostra la radice e le unità che le riportano, e comprime i livelli sotto. Apri un’unità per vedere chi le riporta."
+  }
+ },
+ "views": {
+  "organizationDetail": {
+   "editOnDesign": "Apre la scheda Progettazione, dove aggiungi e rimuovi unità, assegni persone, colleghi keeper, imposti budget e vedi i controlli."
+  }
+ }
+});
+
+// LP5.5 (UXP1-V002): the organization canvas is a tree, not nested boxes.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "studio": {
+  "canvas": {
+   "view": {
+    "organizations": "Mostra le organizzazioni della bozza: un albero di unità sotto l’unità a cui riportano, con responsabili, membri e collegamenti tra pari."
+   }
+  }
+ }
+});
