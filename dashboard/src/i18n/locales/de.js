@@ -10257,3 +10257,83 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "trail": {
+  "moreLanes": "{{count}} Bahnen: seitlich scrollen, um alle zu sehen",
+  "moreSteps": "Weitere Schritte darunter: nach unten scrollen",
+  "narrowGraph": "Der Graph braucht einen Bildschirm von mindestens 768 Pixeln Breite, daher zeigt die Liste hier dieselben Schritte.",
+  "narrowSequence": "Die Sequenzansicht braucht einen Bildschirm von mindestens 768 Pixeln Breite, daher zeigt die Liste hier dieselben Schritte.",
+  "replyTo": "Antwort an {{name}}",
+  "replyToCaller": "Antwort an den Aufrufer",
+  "replyFinished": "(Wurzellauf beendet)",
+  "drawer": {
+   "texts": {
+    "reply": "Antwort, die der Aufrufer erhielt"
+   },
+   "fields": {
+    "caller": "Aufrufer",
+    "outcome": "Ergebnis",
+    "exitCode": "Exit-Code"
+   },
+   "failureTitle": "Warum dieser Schritt fehlschlug",
+   "noErrorMessage": "Der Server hat für diesen Lauf keine Fehlermeldung gespeichert. Öffnen Sie den Lauf für Protokoll und stderr.",
+   "replyNote": "{{name}} erhielt diese Antwort, als der Wurzellauf endete. Die danach aufgeführten Schritte liefen weiter, ohne dass der Aufrufer wartete.",
+   "openReplyingRun": "Wurzellauf öffnen"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "Warum dieser Lauf fehlschlug",
+    "titleOutcome": "Warum dieser Lauf fehlschlug: {{outcome}}",
+    "errorEvent": "Letzter Fehler im Protokoll (Ereignis #{{sequence}})",
+    "serverError": "Vom Server gespeicherter Fehler",
+    "noError": "Es wurde keine Fehlermeldung gespeichert. Protokoll und stderr sagen vielleicht mehr.",
+    "exitCode": "Der Harness wurde mit Code {{code}} beendet.",
+    "stderrLines_one": "Stderr enthält {{count}} Zeile.",
+    "stderrLines_other": "Stderr enthält {{count}} Zeilen.",
+    "noStderr": "Es wurde kein stderr erfasst.",
+    "showError": "Fehler im Protokoll zeigen",
+    "showStderr": "Stderr öffnen",
+    "openDeployment": "Bereitstellung öffnen"
+   },
+   "templatesCount_one": "{{count}} Vorlage",
+   "templatesCount_other": "{{count}} Vorlagen",
+   "telemetryToggle": "Zeiten, Tokens und Kosten ({{duration}}, {{cost}})",
+   "resultRaw": "Rohtext zeigen",
+   "resultFormatted": "Formatiert zeigen"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "Aufrufer"
+   },
+   "hops": {
+    "message": "Nachrichtensprung",
+    "fanOut": "Fan-out-Mitglied",
+    "child": "Kindlauf"
+   },
+   "callerMessage": "Eine Nachricht"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "eine Anfrage, die mehrere Agenten durchlief"
+   },
+   "trailsLater": "Die Verlaufsschritte brauchen eine Anfrage, die mehrere Agenten durchlief. Im Beispiel schreibt der Latenz-Keeper dem Abhängigkeits-Keeper bei seinem ersten Tick, wenige Sekunden nach dem Anwenden."
+  }
+ }
+});

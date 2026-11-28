@@ -10203,3 +10203,83 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "trail": {
+  "moreLanes": "{{count}} 本のレーン: 横にスクロールするとすべて表示されます",
+  "moreSteps": "この下にもステップがあります: 下にスクロールしてください",
+  "narrowGraph": "グラフには幅 768 ピクセル以上の画面が必要なため、ここでは同じステップを一覧で表示しています。",
+  "narrowSequence": "シーケンス表示には幅 768 ピクセル以上の画面が必要なため、ここでは同じステップを一覧で表示しています。",
+  "replyTo": "{{name}} への応答",
+  "replyToCaller": "呼び出し元への応答",
+  "replyFinished": "(ルート実行が終了)",
+  "drawer": {
+   "texts": {
+    "reply": "呼び出し元が受け取った応答"
+   },
+   "fields": {
+    "caller": "呼び出し元",
+    "outcome": "結果",
+    "exitCode": "終了コード"
+   },
+   "failureTitle": "このステップが失敗した理由",
+   "noErrorMessage": "サーバーはこの実行のエラーメッセージを記録していません。実行を開いて記録と標準エラーを確認してください。",
+   "replyNote": "{{name}} はルート実行が終了した時点でこの応答を受け取りました。その後に並ぶステップは、呼び出し元を待たせずに続きました。",
+   "openReplyingRun": "ルート実行を開く"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "この実行が失敗した理由",
+    "titleOutcome": "この実行が失敗した理由: {{outcome}}",
+    "errorEvent": "記録内の最後のエラー (イベント #{{sequence}})",
+    "serverError": "サーバーが記録したエラー",
+    "noError": "エラーメッセージは記録されていません。記録と標準エラーに手がかりがあるかもしれません。",
+    "exitCode": "ハーネスはコード {{code}} で終了しました。",
+    "stderrLines_one": "標準エラーには {{count}} 行あります。",
+    "stderrLines_other": "標準エラーには {{count}} 行あります。",
+    "noStderr": "標準エラーは取得されていません。",
+    "showError": "記録内のエラーを表示",
+    "showStderr": "標準エラーを開く",
+    "openDeployment": "デプロイメントを開く"
+   },
+   "templatesCount_one": "テンプレート {{count}} 件",
+   "templatesCount_other": "テンプレート {{count}} 件",
+   "telemetryToggle": "時間、トークン、コスト ({{duration}}、{{cost}})",
+   "resultRaw": "生のテキストを表示",
+   "resultFormatted": "整形して表示"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "呼び出し元"
+   },
+   "hops": {
+    "message": "メッセージによるホップ",
+    "fanOut": "ファンアウトのメンバー",
+    "child": "子の実行"
+   },
+   "callerMessage": "メッセージ"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "複数のエージェントを経由したリクエスト"
+   },
+   "trailsLater": "トレイルのステップには、複数のエージェントを経由したリクエストが必要です。この例では、適用の数秒後の最初のティックで、レイテンシのキーパーが依存関係のキーパーにメッセージを送ります。"
+  }
+ }
+});

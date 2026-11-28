@@ -5226,3 +5226,56 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "图形大于可见区域。滚动或拖动背景以查看其余部分。",
+  "replyFinished": "调用方在根运行结束时收到了回复。此行之后的步骤自行继续运行。",
+  "drawer": {
+   "fields": {
+    "caller": "发送请求并收到回复的人员、应用或系统。",
+    "outcome": "Garrison 对运行结束方式的分类。",
+    "exitCode": "Harness 进程的退出码。0 表示正常退出。"
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "此运行对话记录中的最后一个 Error 事件，由 Harness 或 Garrison 写入。",
+    "serverError": "运行结束时 Garrison 保存的错误消息。",
+    "showError": "打开筛选为 Error 事件的对话记录标签页。",
+    "showStderr": "打开 Stderr 标签页：Harness 写入标准错误的最后几行。",
+    "openDeployment": "在部署列表中打开此运行的部署，检查其 Harness、连接和设置。"
+   },
+   "templatesCount": "编译此运行时使用的提示模板。展开可查看每个名称和版本；输入标签页中也有列表。",
+   "telemetryToggle": "显示或隐藏运行的耗时阶段、令牌数和费用。页面会记住你的选择。",
+   "resultRaw": "在格式化结果（JSON 已缩进）和 Harness 返回的原始文本之间切换。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "谁启动了此运行：人员、API 密钥、应用，或另一个智能体的消息。",
+   "hops": {
+    "message": "另一个智能体的消息唤醒了此运行。打开它所属请求的轨迹。",
+    "fanOut": "此运行是一次扇出的成员。打开它所属请求的轨迹。",
+    "child": "另一个运行启动了此运行。打开它所属请求的轨迹。"
+   },
+   "callerMessage": "由消息 {{id}} 唤醒。",
+   "filters": {
+    "agentId": "只显示一个智能体的运行。",
+    "outcome": "只显示以某种结果结束的运行，例如 Harness 失败。"
+   }
+  }
+ }
+});

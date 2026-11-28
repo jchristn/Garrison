@@ -153,6 +153,13 @@ export default function RunTrailPanel({ runId }) {
         </div>
       </div>
 
+      {narrow && (
+        // The sequence and graph views need room; below 768 pixels the list stands in, and says so (UXP1-V040).
+        <p className="info-banner trail-narrow-note" role="note" data-testid="trail-narrow-note">
+          {view === 'graph' ? t('trail.narrowGraph') : t('trail.narrowSequence')}
+        </p>
+      )}
+
       <dl className="trail-summary" data-testid="trail-summary" data-tour="trail-summary">
         <SummaryItem label={t('trail.summary.agents')} tipText={t('tips.trail.summary.agents')} value={formatNumber(summary.agents, {}, lng)} testId="trail-summary-agents" />
         <SummaryItem label={t('trail.summary.hops')} tipText={t('tips.trail.summary.hops')} value={formatNumber(summary.hops, {}, lng)} testId="trail-summary-hops" />
@@ -187,7 +194,7 @@ export default function RunTrailPanel({ runId }) {
         <EmptyState title={t('trail.singleTitle')} body={t('trail.singleBody')} />
       )}
 
-      <div className={`trail-body ${openNode ? 'has-drawer' : ''}`}>
+      <div className={`trail-body view-${shownView} ${openNode ? 'has-drawer' : ''}`.trim()}>
         <div className="trail-views" data-tour="trail-steps">
           {shownView === 'sequence' && <TrailSequence trail={trail} selectedId={selectedId} onSelect={setSelectedId} onOpen={open} />}
           {shownView === 'graph' && (

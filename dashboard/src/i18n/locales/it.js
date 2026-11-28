@@ -10250,3 +10250,83 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "trail": {
+  "moreLanes": "{{count}} corsie: scorri in orizzontale per vederle tutte",
+  "moreSteps": "Altri passi più in basso: scorri verso il basso",
+  "narrowGraph": "Il grafo richiede uno schermo largo almeno 768 pixel, quindi qui l'elenco mostra gli stessi passi.",
+  "narrowSequence": "La vista sequenza richiede uno schermo largo almeno 768 pixel, quindi qui l'elenco mostra gli stessi passi.",
+  "replyTo": "Risposta a {{name}}",
+  "replyToCaller": "Risposta al chiamante",
+  "replyFinished": "(esecuzione radice terminata)",
+  "drawer": {
+   "texts": {
+    "reply": "Risposta ricevuta dal chiamante"
+   },
+   "fields": {
+    "caller": "Chiamante",
+    "outcome": "Esito",
+    "exitCode": "Codice di uscita"
+   },
+   "failureTitle": "Perché questo passo è fallito",
+   "noErrorMessage": "Il server non ha registrato alcun messaggio di errore per questa esecuzione. Apri l'esecuzione per la trascrizione e lo stderr.",
+   "replyNote": "{{name}} ha ricevuto questa risposta quando l'esecuzione radice è terminata. I passi elencati dopo sono andati avanti senza che il chiamante aspettasse.",
+   "openReplyingRun": "Apri l'esecuzione radice"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "Perché questa esecuzione è fallita",
+    "titleOutcome": "Perché questa esecuzione è fallita: {{outcome}}",
+    "errorEvent": "Ultimo errore nella trascrizione (evento n. {{sequence}})",
+    "serverError": "Errore registrato dal server",
+    "noError": "Non è stato registrato alcun messaggio di errore. La trascrizione e lo stderr potrebbero dire di più.",
+    "exitCode": "L'harness è uscito con codice {{code}}.",
+    "stderrLines_one": "Lo stderr contiene {{count}} riga.",
+    "stderrLines_other": "Lo stderr contiene {{count}} righe.",
+    "noStderr": "Nessuno stderr acquisito.",
+    "showError": "Mostra l'errore nella trascrizione",
+    "showStderr": "Apri Stderr",
+    "openDeployment": "Apri la distribuzione"
+   },
+   "templatesCount_one": "{{count}} modello",
+   "templatesCount_other": "{{count}} modelli",
+   "telemetryToggle": "Tempi, token e costo ({{duration}}, {{cost}})",
+   "resultRaw": "Mostra il testo grezzo",
+   "resultFormatted": "Mostra formattato"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "Chiamante"
+   },
+   "hops": {
+    "message": "Salto via messaggio",
+    "fanOut": "Membro di fan-out",
+    "child": "Esecuzione figlia"
+   },
+   "callerMessage": "Un messaggio"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "una richiesta passata per più agenti"
+   },
+   "trailsLater": "I passi del percorso richiedono una richiesta passata per più agenti. Nell'esempio, il keeper della latenza scrive al keeper delle dipendenze al primo tick, pochi secondi dopo l'applicazione."
+  }
+ }
+});

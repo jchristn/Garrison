@@ -10203,3 +10203,83 @@ yueHant.explainers.secrets.p1 = "密鑰係一個加密嘅值，例如 API 金鑰
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "trail": {
+  "moreLanes": "{{count}} 條泳道：橫向捲動就睇到晒",
+  "moreSteps": "下面仲有步驟：向下捲動",
+  "narrowGraph": "圖形檢視要至少 768 像素闊嘅螢幕，所以呢度用清單顯示同樣嘅步驟。",
+  "narrowSequence": "序列檢視要至少 768 像素闊嘅螢幕，所以呢度用清單顯示同樣嘅步驟。",
+  "replyTo": "回覆畀 {{name}}",
+  "replyToCaller": "回覆畀呼叫端",
+  "replyFinished": "（根執行已經完成）",
+  "drawer": {
+   "texts": {
+    "reply": "呼叫端收到嘅回覆"
+   },
+   "fields": {
+    "caller": "呼叫端",
+    "outcome": "結果",
+    "exitCode": "結束代碼"
+   },
+   "failureTitle": "呢個步驟點解失敗",
+   "noErrorMessage": "伺服器冇為呢次執行記錄錯誤訊息。打開呢次執行睇對話記錄同 stderr。",
+   "replyNote": "{{name}} 喺根執行完成嗰陣收到呢個回覆。排喺後面嘅步驟繼續行，呼叫端唔使等。",
+   "openReplyingRun": "打開根執行"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "呢次執行點解失敗",
+    "titleOutcome": "呢次執行點解失敗：{{outcome}}",
+    "errorEvent": "對話記錄入面最後一個錯誤（事件 #{{sequence}}）",
+    "serverError": "伺服器記錄嘅錯誤",
+    "noError": "冇記錄錯誤訊息。對話記錄同 stderr 可能有更多資料。",
+    "exitCode": "Harness 以代碼 {{code}} 結束。",
+    "stderrLines_one": "Stderr 有 {{count}} 行。",
+    "stderrLines_other": "Stderr 有 {{count}} 行。",
+    "noStderr": "冇擷取到 stderr。",
+    "showError": "喺對話記錄顯示錯誤",
+    "showStderr": "打開 Stderr",
+    "openDeployment": "打開部署"
+   },
+   "templatesCount_one": "{{count}} 個範本",
+   "templatesCount_other": "{{count}} 個範本",
+   "telemetryToggle": "耗時、權杖同費用（{{duration}}，{{cost}}）",
+   "resultRaw": "顯示原始文字",
+   "resultFormatted": "顯示格式化內容"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "呼叫端"
+   },
+   "hops": {
+    "message": "訊息跳轉",
+    "fanOut": "扇出成員",
+    "child": "子執行"
+   },
+   "callerMessage": "一則訊息"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "經過幾個代理嘅請求"
+   },
+   "trailsLater": "軌跡步驟要一個經過幾個代理嘅請求。喺呢個例子入面，延遲守護者會喺套用後幾秒嘅第一次執行，傳訊息畀相依性守護者。"
+  }
+ }
+});

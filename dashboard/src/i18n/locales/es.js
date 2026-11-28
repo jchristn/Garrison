@@ -10254,3 +10254,83 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "trail": {
+  "moreLanes": "{{count}} carriles: desplázate en horizontal para verlos todos",
+  "moreSteps": "Más pasos debajo: desplázate hacia abajo",
+  "narrowGraph": "El grafo necesita una pantalla de al menos 768 píxeles de ancho, así que la lista muestra aquí los mismos pasos.",
+  "narrowSequence": "La vista de secuencia necesita una pantalla de al menos 768 píxeles de ancho, así que la lista muestra aquí los mismos pasos.",
+  "replyTo": "Respuesta a {{name}}",
+  "replyToCaller": "Respuesta al llamante",
+  "replyFinished": "(ejecución raíz terminada)",
+  "drawer": {
+   "texts": {
+    "reply": "Respuesta que recibió el llamante"
+   },
+   "fields": {
+    "caller": "Llamante",
+    "outcome": "Resultado",
+    "exitCode": "Código de salida"
+   },
+   "failureTitle": "Por qué falló este paso",
+   "noErrorMessage": "El servidor no registró ningún mensaje de error para esta ejecución. Abre la ejecución para ver su transcripción y stderr.",
+   "replyNote": "{{name}} recibió esta respuesta cuando terminó la ejecución raíz. Los pasos que aparecen después siguieron sin que el llamante esperara.",
+   "openReplyingRun": "Abrir la ejecución raíz"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "Por qué falló esta ejecución",
+    "titleOutcome": "Por qué falló esta ejecución: {{outcome}}",
+    "errorEvent": "Último error en la transcripción (evento #{{sequence}})",
+    "serverError": "Error que registró el servidor",
+    "noError": "No se registró ningún mensaje de error. La transcripción y stderr pueden decir más.",
+    "exitCode": "El harness terminó con el código {{code}}.",
+    "stderrLines_one": "Stderr contiene {{count}} línea.",
+    "stderrLines_other": "Stderr contiene {{count}} líneas.",
+    "noStderr": "No se capturó stderr.",
+    "showError": "Mostrar el error en la transcripción",
+    "showStderr": "Abrir Stderr",
+    "openDeployment": "Abrir el despliegue"
+   },
+   "templatesCount_one": "{{count}} plantilla",
+   "templatesCount_other": "{{count}} plantillas",
+   "telemetryToggle": "Tiempos, tokens y coste ({{duration}}, {{cost}})",
+   "resultRaw": "Mostrar texto sin formato",
+   "resultFormatted": "Mostrar con formato"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "Llamante"
+   },
+   "hops": {
+    "message": "Salto por mensaje",
+    "fanOut": "Miembro de fan-out",
+    "child": "Ejecución hija"
+   },
+   "callerMessage": "Un mensaje"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "una solicitud que pasó por varios agentes"
+   },
+   "trailsLater": "Los pasos del recorrido necesitan una solicitud que pasara por varios agentes. En el ejemplo, el keeper de latencia escribe al keeper de dependencias en su primer tick, unos segundos después de aplicarlo."
+  }
+ }
+});

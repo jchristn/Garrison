@@ -10204,3 +10204,83 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "trail": {
+  "moreLanes": "{{count}} 条泳道：横向滚动可查看全部",
+  "moreSteps": "下方还有步骤：向下滚动",
+  "narrowGraph": "图视图需要至少 768 像素宽的屏幕，因此这里用列表显示相同的步骤。",
+  "narrowSequence": "序列视图需要至少 768 像素宽的屏幕，因此这里用列表显示相同的步骤。",
+  "replyTo": "回复给 {{name}}",
+  "replyToCaller": "回复给调用方",
+  "replyFinished": "（根运行已结束）",
+  "drawer": {
+   "texts": {
+    "reply": "调用方收到的回复"
+   },
+   "fields": {
+    "caller": "调用方",
+    "outcome": "结果",
+    "exitCode": "退出码"
+   },
+   "failureTitle": "此步骤失败的原因",
+   "noErrorMessage": "服务器没有为此运行记录错误消息。打开该运行查看对话记录和 stderr。",
+   "replyNote": "{{name}} 在根运行结束时收到了此回复。列在其后的步骤继续进行，调用方无需等待。",
+   "openReplyingRun": "打开根运行"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "此运行失败的原因",
+    "titleOutcome": "此运行失败的原因：{{outcome}}",
+    "errorEvent": "对话记录中的最后一个错误（事件 #{{sequence}}）",
+    "serverError": "服务器记录的错误",
+    "noError": "没有记录错误消息。对话记录和 stderr 可能有更多信息。",
+    "exitCode": "Harness 以代码 {{code}} 退出。",
+    "stderrLines_one": "Stderr 有 {{count}} 行。",
+    "stderrLines_other": "Stderr 有 {{count}} 行。",
+    "noStderr": "未捕获到 stderr。",
+    "showError": "在对话记录中显示错误",
+    "showStderr": "打开 Stderr",
+    "openDeployment": "打开部署"
+   },
+   "templatesCount_one": "{{count}} 个模板",
+   "templatesCount_other": "{{count}} 个模板",
+   "telemetryToggle": "耗时、令牌和费用（{{duration}}，{{cost}}）",
+   "resultRaw": "显示原始文本",
+   "resultFormatted": "显示格式化内容"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "调用方"
+   },
+   "hops": {
+    "message": "消息跳转",
+    "fanOut": "扇出成员",
+    "child": "子运行"
+   },
+   "callerMessage": "一条消息"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "经过多个智能体的请求"
+   },
+   "trailsLater": "轨迹步骤需要一个经过多个智能体的请求。在此示例中，延迟守护者会在应用后几秒的第一次运行时给依赖守护者发送消息。"
+  }
+ }
+});

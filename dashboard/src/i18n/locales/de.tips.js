@@ -5227,3 +5227,56 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "Die Zeichnung ist größer als der sichtbare Bereich. Scrollen Sie oder ziehen Sie den Hintergrund, um den Rest zu sehen.",
+  "replyFinished": "Der Aufrufer erhielt seine Antwort, als der Wurzellauf endete. Die Schritte nach dieser Zeile liefen von selbst weiter.",
+  "drawer": {
+   "fields": {
+    "caller": "Die Person, App oder das System, das die Anfrage sandte und die Antwort erhielt.",
+    "outcome": "Wie der Lauf endete, so wie Garrison es eingeordnet hat.",
+    "exitCode": "Der Exit-Code des Harness-Prozesses. Null bedeutet ein normales Ende."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "Das letzte Error-Ereignis im Protokoll dieses Laufs, so wie der Harness oder Garrison es schrieb.",
+    "serverError": "Die Fehlermeldung, die Garrison beim Ende des Laufs gespeichert hat.",
+    "showError": "Öffnet den Tab Protokoll, gefiltert auf Error-Ereignisse.",
+    "showStderr": "Öffnet den Tab Stderr: die letzten Zeilen, die der Harness auf die Standardfehlerausgabe schrieb.",
+    "openDeployment": "Öffnet die Liste der Bereitstellungen bei der Bereitstellung dieses Laufs, um Harness, Verbindung und Einstellungen zu prüfen."
+   },
+   "templatesCount": "Die Prompt-Vorlagen, mit denen dieser Lauf kompiliert wurde. Aufklappen zeigt Name und Version; der Tab Eingabe listet sie ebenfalls.",
+   "telemetryToggle": "Zeigt oder verbirgt Zeitphasen, Tokenzahlen und Kosten des Laufs. Die Seite merkt sich Ihre Wahl.",
+   "resultRaw": "Wechselt zwischen dem formatierten Ergebnis mit eingerücktem JSON und dem Rohtext, den der Harness zurückgab."
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "Wer den Lauf gestartet hat: eine Person, ein API-Schlüssel, eine App oder eine Nachricht eines anderen Agenten.",
+   "hops": {
+    "message": "Eine Nachricht eines anderen Agenten hat diesen Lauf geweckt. Öffnet den Verlauf der Anfrage, zu der er gehört.",
+    "fanOut": "Dieser Lauf ist ein Mitglied eines Fan-outs. Öffnet den Verlauf der Anfrage, zu der er gehört.",
+    "child": "Ein anderer Lauf hat diesen gestartet. Öffnet den Verlauf der Anfrage, zu der er gehört."
+   },
+   "callerMessage": "Geweckt von Nachricht {{id}}.",
+   "filters": {
+    "agentId": "Nur die Läufe eines Agenten zeigen.",
+    "outcome": "Nur die Läufe mit einem bestimmten Ergebnis zeigen, etwa Harness fehlgeschlagen."
+   }
+  }
+ }
+});

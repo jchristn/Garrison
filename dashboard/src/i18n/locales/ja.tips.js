@@ -5227,3 +5227,56 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "図が表示領域より大きくなっています。スクロールするか背景をドラッグして残りを表示してください。",
+  "replyFinished": "呼び出し元はルート実行の終了時に応答を受け取りました。この行より後のステップはそのまま独自に続きました。",
+  "drawer": {
+   "fields": {
+    "caller": "リクエストを送り、応答を受け取った人、アプリ、またはシステム。",
+    "outcome": "Garrison が分類した、実行の終わり方。",
+    "exitCode": "ハーネスプロセスの終了コード。0 は正常終了を意味します。"
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "この実行の記録にある最後の Error イベント。ハーネスまたは Garrison が書いたものです。",
+    "serverError": "実行の終了時に Garrison が保存したエラーメッセージ。",
+    "showError": "Error イベントに絞り込んだ記録タブを開きます。",
+    "showStderr": "標準エラータブを開きます。ハーネスが標準エラー出力に書いた最後の行です。",
+    "openDeployment": "この実行のデプロイメントを指定してデプロイメント一覧を開き、ハーネス、接続、設定を確認します。"
+   },
+   "templatesCount": "この実行のコンパイルに使ったプロンプトテンプレート。開くと各名前とバージョンが表示されます。入力タブにも一覧があります。",
+   "telemetryToggle": "実行の時間フェーズ、トークン数、コストを表示または非表示にします。ページは選択を記憶します。",
+   "resultRaw": "JSON を整形した結果と、ハーネスが返した生のテキストを切り替えます。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "実行を開始した主体: 人、API キー、アプリ、または別のエージェントからのメッセージ。",
+   "hops": {
+    "message": "別のエージェントからのメッセージがこの実行を起こしました。属するリクエストのトレイルを開きます。",
+    "fanOut": "この実行はファンアウトのメンバーの一つです。属するリクエストのトレイルを開きます。",
+    "child": "別の実行がこの実行を開始しました。属するリクエストのトレイルを開きます。"
+   },
+   "callerMessage": "メッセージ {{id}} によって起動されました。",
+   "filters": {
+    "agentId": "一つのエージェントの実行だけを表示します。",
+    "outcome": "ハーネス失敗など、特定の結果で終わった実行だけを表示します。"
+   }
+  }
+ }
+});

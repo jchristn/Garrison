@@ -5229,3 +5229,56 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "Le dessin dépasse la zone visible. Faites défiler, ou faites glisser le fond, pour voir le reste.",
+  "replyFinished": "L'appelant a reçu sa réponse à la fin de l'exécution racine. Les étapes après cette ligne ont continué d'elles-mêmes.",
+  "drawer": {
+   "fields": {
+    "caller": "La personne, l'app ou le système qui a envoyé la requête et reçu la réponse.",
+    "outcome": "Comment l'exécution s'est terminée, selon le classement de Garrison.",
+    "exitCode": "Le code de sortie du processus du harness. Zéro signifie une fin normale."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "Le dernier événement Error de la transcription de cette exécution, tel que le harness ou Garrison l'a écrit.",
+    "serverError": "Le message d'erreur que Garrison a stocké sur l'exécution à sa fin.",
+    "showError": "Ouvre l'onglet Transcription, filtré sur les événements Error.",
+    "showStderr": "Ouvre l'onglet Stderr : les dernières lignes que le harness a écrites sur la sortie d'erreur standard.",
+    "openDeployment": "Ouvre la liste des déploiements sur celui de cette exécution, pour vérifier son harness, sa connexion et ses réglages."
+   },
+   "templatesCount": "Les modèles de prompt avec lesquels cette exécution a été compilée. Dépliez pour voir chaque nom et version ; l'onglet Entrée les liste aussi.",
+   "telemetryToggle": "Affiche ou masque les phases de durée, les nombres de jetons et le coût de l'exécution. La page retient votre choix.",
+   "resultRaw": "Bascule entre le résultat mis en forme, avec le JSON indenté, et le texte brut renvoyé par le harness."
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "Qui a lancé l'exécution : une personne, une clé d'API, une app ou un message d'un autre agent.",
+   "hops": {
+    "message": "Un message d'un autre agent a réveillé cette exécution. Ouvre le parcours de la requête dont elle fait partie.",
+    "fanOut": "Cette exécution est un membre d'un fan-out. Ouvre le parcours de la requête dont elle fait partie.",
+    "child": "Une autre exécution a lancé celle-ci. Ouvre le parcours de la requête dont elle fait partie."
+   },
+   "callerMessage": "Réveillée par le message {{id}}.",
+   "filters": {
+    "agentId": "N'afficher que les exécutions d'un agent.",
+    "outcome": "N'afficher que les exécutions terminées avec un résultat donné, comme Échec du harness."
+   }
+  }
+ }
+});

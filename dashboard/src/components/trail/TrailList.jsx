@@ -44,6 +44,12 @@ export default function TrailList({ trail, selectedId, onOpen, onRefresh }) {
       render: (n) => (
         <span className={n.kind === 'Redacted' ? 'trail-list-redacted' : ''} {...tip(kindTip(t, n.kind))}>
           {stepTitle(t, n)}
+          {n.kind === 'Reply' && (
+            <span className="text-muted trail-reply-when" {...tip(t('tips.trail.replyFinished'))}>
+              {' '}
+              {t('trail.replyFinished')}
+            </span>
+          )}
         </span>
       ),
       csv: (n) => n.kind

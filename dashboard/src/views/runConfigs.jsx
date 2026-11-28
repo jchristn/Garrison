@@ -5,6 +5,7 @@ import { Badge } from '../components/StatusBadge';
 import { ENUMS, TERMINAL_RUN_STATUSES, runStatusTone, nodeStatusTone } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { trailPath } from '../components/trail/trailParts';
+import { runHasHops } from '../utils/trailLayout';
 import { formatDateTime, formatNumber, formatRelativeTime, formatUptime } from '../i18n/formatters';
 import ControlNodeDetail from '../components/ControlNodeDetail';
 import { ControlNodeStatus, LeaderBadge, HeartbeatAge } from '../components/ControlNodeBadges';
@@ -153,6 +154,45 @@ export const conversationsConfig = {
   ]
 };
 
+/** Why a run is a hop of a longer request: 'message', 'fanOut', or 'child'; null for a run that is not (UXP1-S001). */
+export function runHopKind(run) {
+  if (!runHasHops(run)) return null;
+  if (run.kind === 'Message') return 'message';
+  if (run.fanOutGroupId) return 'fanOut';
+  return 'child';
+}
+
+/** How a run joined a longer request, as a link to that request's trail; '-' for a run that did not. */
+function RunRequestCell({ run, t, navigate }) {
+  const hop = runHopKind(run);
+  if (!hop) return '-';
+  const href = trailPath(run.id);
+  return (
+    <a
+      href={href}
+      className="run-hop-link"
+      data-run-hop={hop}
+      {...tip(t(`tips.resources.runs.hops.${hop}`))}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        navigate(href);
+      }}
+    >
+      {t(`resources.runs.hops.${hop}`)}
+    </a>
+  );
+}
+
+/** Who started a run. A run woken by a message names its caller "message:<id>", shown as "A message" with the ID as tip. */
+function RunCaller({ run, t }) {
+  const name = run.callerName || run.callerId || '';
+  if (!name) return '-';
+  if (name.startsWith('message:')) return <span {...tip(t('tips.resources.runs.callerMessage', { id: name.slice(8) }))}>{t('resources.runs.callerMessage')}</span>;
+  return <span>{name}</span>;
+}
+
 export const runsConfig = {
   id: 'runs',
   explainer: 'runs',
@@ -163,7 +203,18 @@ export const runsConfig = {
       {t('resources.runs.emptyAction')}
     </button>
   ),
-  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId'],
+  // The server's run list has no text search, so the page offers an agent filter instead of a search box that would
+  // do nothing (UXP1-S001).
+  search: false,
+  urlFilters: ['status', 'agentId', 'outcome', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'rootRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId', 'callerId'],
+  // Agent names for the agent filter; an agent named in the URL stays selectable even before the names load.
+  loadLookups: async ({ apiClient, tenantId }) => {
+    const agents = await apiClient
+      .listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })
+      .then((r) => r.items || [])
+      .catch(() => []);
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])) };
+  },
   api: {
     list: (c, tenant, p) => c.listRuns(tenant, p),
     create: null,
@@ -171,7 +222,16 @@ export const runsConfig = {
     remove: (c, tenant, id) => c.deleteRun(tenant, id)
   },
   filters: [
+    {
+      name: 'agentId',
+      label: (t) => t('resources.runs.columns.agentName'),
+      tip: (t) => t('tips.resources.runs.filters.agentId'),
+      options: (lookups, filters) =>
+        [...new Set([...Object.keys(lookups?.agents || {}), ...(filters?.agentId ? [filters.agentId] : [])])].sort((a, b) => String(lookups?.agents?.[a] || a).localeCompare(String(lookups?.agents?.[b] || b))),
+      optionLabel: (o, _t, lookups) => lookups?.agents?.[o] || o
+    },
     { name: 'status', label: (t) => t('resources.runs.columns.status'), options: ENUMS.runStatus, enumGroup: 'runStatus' },
+    { name: 'outcome', label: (t) => t('resources.runs.columns.outcome'), tip: (t) => t('tips.resources.runs.filters.outcome'), options: ENUMS.runOutcome.filter((o) => o !== 'None'), enumGroup: 'runOutcome' },
     { name: 'harnessType', label: (t) => t('resources.runs.columns.harnessType'), options: ENUMS.harnessType, enumGroup: 'harnessType' },
     { name: 'fromUtc', type: 'datetime', label: (t) => t('components.filters.from') },
     { name: 'toUtc', type: 'datetime', label: (t) => t('components.filters.to') }
@@ -181,6 +241,15 @@ export const runsConfig = {
   columns: ({ t, i18n, navigate }) => [
     col('runs', t, 'id', (r) => <CopyableId value={r.id} />, { pinned: true, cellClass: 'cell-id' }),
     col('runs', t, 'agentName', (r) => <strong>{r.agentName}</strong>, { sortable: true, serverSort: false }),
+    // Run kind, caller, and how the run joined a longer request show by default, so a request that crossed several
+    // agents can be found from this list (UXP1-S001).
+    col('runs', t, 'kind', (r) => (
+      <span className="run-kind-cell">
+        <span {...tip(enumTip(t, 'runKind', r.kind))}>{enumLabel(t, 'runKind', r.kind || 'Invoke')}</span>
+        {runHopKind(r) && <RunRequestCell run={r} t={t} navigate={navigate} />}
+      </span>
+    ), { csv: (r) => r.kind || '' }),
+    col('runs', t, 'callerName', (r) => <RunCaller run={r} t={t} />, { csv: (r) => r.callerName || r.callerId || '' }),
     col('runs', t, 'status', (r) => (
       <>
         <RunStatus status={r.status} t={t} />
@@ -193,7 +262,8 @@ export const runsConfig = {
     { defaultHidden: true }),
     col('runs', t, 'harnessType', (r) => t(`enums.harnessType.${r.harnessType}`, { defaultValue: r.harnessType }), { defaultHidden: true }),
     col('runs', t, 'leaseNodeName', (r) => r.leaseNodeName || '-', { defaultHidden: true }),
-    telemetryCol(t, i18n, 'timeToFirstTokenMs', formatMs),
+    // Hidden by default so Run kind and Caller fit at 1366 pixels (UXP1-S001); the Columns control turns it back on.
+    telemetryCol(t, i18n, 'timeToFirstTokenMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'timeToFirstTokenExcludingDelegationMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'delegationWaitMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'approvalWaitMs', formatMs, { defaultHidden: true }),
@@ -263,7 +333,6 @@ export const runsConfig = {
         '-'
       ),
     { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.mandateId || '' }),
-    col('runs', t, 'kind', (r) => <span {...tip(enumTip(t, 'runKind', r.kind))}>{enumLabel(t, 'runKind', r.kind || 'Invoke')}</span>, { defaultHidden: true, csv: (r) => r.kind || '' }),
     col('runs', t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true })
   ],
   fields: () => [],

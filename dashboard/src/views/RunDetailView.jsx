@@ -43,6 +43,137 @@ import { errorDetail } from '../utils/errors';
 import RunChildrenTree from '../components/RunChildrenTree';
 import { jsonToText } from '../utils/jsonFields';
 import RunTrailPanel from '../components/trail/RunTrailPanel';
+import { resultSegments } from '../utils/runResult';
+
+/** Run outcomes that are not failures: nothing happened yet, it succeeded, or someone cancelled it. */
+const NOT_FAILED_OUTCOMES = ['None', 'Succeeded', 'Cancelled'];
+
+/** True when a finished run failed, by its status or its outcome. Guard outcomes have their own notice. */
+function runHasFailed(run) {
+  if (!run || guardOutcome(run)) return false;
+  if (['Failed', 'TimedOut'].includes(run.status)) return true;
+  return TERMINAL_RUN_STATUSES.includes(run.status) && !!run.outcome && !NOT_FAILED_OUTCOMES.includes(run.outcome);
+}
+
+/** The last event of a type in a transcript, or null. */
+function lastEvent(events, type) {
+  for (let i = events.length - 1; i >= 0; i -= 1) if (events[i]?.eventType === type) return events[i];
+  return null;
+}
+
+/**
+ * Why a run failed (UXP1-S006), near the top of the page: the outcome and what it means, the last Error event of the
+ * transcript (or the error the server recorded), how the harness exited, whether stderr holds anything, and the next
+ * steps (the error in the transcript, Stderr, the deployment). Everything shown comes from the run and its events.
+ */
+function RunFailureSummary({ run, events, t, onShowError, onShowStderr, navigate }) {
+  const outcome = run.outcome && run.outcome !== 'None' ? run.outcome : null;
+  const error = lastEvent(events, 'Error');
+  const exited = [...events].reverse().find((e) => e?.code === 'HarnessExited') || null;
+  const stderr = (run.stderrTail || '').trim();
+  const stderrLines = stderr ? stderr.split('\n').length : 0;
+  const deploymentHref = run.deploymentId ? pathFor('deployments', null, { search: run.deploymentName || run.deploymentId }) : null;
+  return (
+    <section className="run-failure" role="region" aria-labelledby="run-failure-title" data-testid="run-failure">
+      <h2 id="run-failure-title" className="run-failure-title">
+        {outcome ? t('views.runDetail.failure.titleOutcome', { outcome: enumLabel(t, 'runOutcome', outcome) }) : t('views.runDetail.failure.title')}
+      </h2>
+      {outcome && <p className="run-failure-meaning" data-testid="run-failure-meaning">{enumTip(t, 'runOutcome', outcome)}</p>}
+      {error?.text ? (
+        <div className="run-failure-error">
+          <div className="run-failure-label" {...tip(t('tips.views.runDetail.failure.errorEvent'))}>
+            {t('views.runDetail.failure.errorEvent', { sequence: error.sequence })}
+          </div>
+          <pre data-testid="run-failure-error">{translateServerText(t, error.text)}</pre>
+        </div>
+      ) : run.errorMessage ? (
+        <div className="run-failure-error">
+          <div className="run-failure-label" {...tip(t('tips.views.runDetail.failure.serverError'))}>
+            {t('views.runDetail.failure.serverError')}
+          </div>
+          <pre data-testid="run-failure-error">{translateServerText(t, run.errorMessage)}</pre>
+        </div>
+      ) : (
+        <p className="text-muted" data-testid="run-failure-no-error">{t('views.runDetail.failure.noError')}</p>
+      )}
+      <ul className="run-failure-facts">
+        {exited?.text && <li data-testid="run-failure-exit">{translateServerText(t, exited.text)}</li>}
+        {!exited && run.exitCode != null && <li data-testid="run-failure-exit">{t('views.runDetail.failure.exitCode', { code: run.exitCode })}</li>}
+        <li data-testid="run-failure-stderr">{stderrLines ? t('views.runDetail.failure.stderrLines', { count: stderrLines }) : t('views.runDetail.failure.noStderr')}</li>
+      </ul>
+      <div className="run-failure-actions">
+        {error && (
+          <button type="button" className="button-secondary button-sm" onClick={onShowError} data-testid="run-failure-show-error" {...tip(t('tips.views.runDetail.failure.showError'))}>
+            {t('views.runDetail.failure.showError')}
+          </button>
+        )}
+        {stderrLines > 0 && (
+          <button type="button" className="button-secondary button-sm" onClick={onShowStderr} data-testid="run-failure-show-stderr" {...tip(t('tips.views.runDetail.failure.showStderr'))}>
+            {t('views.runDetail.failure.showStderr')}
+          </button>
+        )}
+        {deploymentHref && (
+          <a
+            href={deploymentHref}
+            className="button-secondary button-sm"
+            data-testid="run-failure-deployment"
+            {...tip(t('tips.views.runDetail.failure.openDeployment'))}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+              e.preventDefault();
+              navigate(deploymentHref);
+            }}
+          >
+            {t('views.runDetail.failure.openDeployment')}
+          </a>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The Result tab's text (UXP1-V037). A result that is or carries JSON shows the JSON pretty-printed in mono blocks
+ * between the prose lines, with a switch to the raw text; any other result keeps the Markdown view.
+ */
+function RunResult({ text, emptyText, t }) {
+  const segments = resultSegments(text);
+  const [raw, setRaw] = useState(false);
+  if (!segments) return <MarkdownView text={text} rawToggle testId="run-result" emptyText={emptyText} />;
+  return (
+    <div className="run-result-json" data-testid="run-result" data-format="json">
+      <div className="run-result-toolbar">
+        <button type="button" className="button-secondary button-sm" aria-pressed={raw} onClick={() => setRaw((v) => !v)} data-testid="run-result-raw-toggle" {...tip(t('tips.views.runDetail.resultRaw'))}>
+          {raw ? t('views.runDetail.resultFormatted') : t('views.runDetail.resultRaw')}
+        </button>
+      </div>
+      {raw ? (
+        <CodeBlock value={text} wrap />
+      ) : (
+        segments.map((seg, i) =>
+          seg.type === 'json' ? (
+            <CodeBlock key={i} value={seg.text} prettyJson />
+          ) : (
+            <p key={i} className="run-result-prose">
+              {seg.text}
+            </p>
+          )
+        )
+      )}
+    </div>
+  );
+}
+
+/** Where the telemetry disclosure remembers whether it is open (UXP1-V010). */
+const TELEMETRY_OPEN_KEY = 'garrison.runDetail.telemetryOpen';
+
+function readTelemetryOpen() {
+  try {
+    return window.localStorage.getItem(TELEMETRY_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Tabs of the page; `?tab=children&group={fanOutGroupId}` opens the run tree at one fan-out group (AD5.8), and
@@ -108,6 +239,9 @@ export default function RunDetailView({ recordId }) {
   const [deciding, setDeciding] = useState(null);
   const lastSeq = useRef(0);
   const grafana = useGrafana();
+  const [telemetryOpen, setTelemetryOpen] = useState(readTelemetryOpen);
+  const tabsRef = useRef(null);
+  const scrolledToTab = useRef(false);
 
   const loadRun = useCallback(() => {
     if (!apiClient || !recordId) return Promise.resolve(null);
@@ -162,6 +296,16 @@ export default function RunDetailView({ recordId }) {
   }, [requestedTab, recordId]);
 
   const terminal = run && TERMINAL_RUN_STATUSES.includes(run.status);
+
+  // A link that names a tab (?tab=trail, a tour step) brings the tab bar to the top of the screen once, so the chosen
+  // tab's content starts on the first screen (UXP1-V010).
+  const runLoaded = !!run;
+  useEffect(() => {
+    if (!runLoaded || scrolledToTab.current || !requestedTab || requestedTab === 'transcript' || !TAB_KEYS.includes(requestedTab)) return;
+    scrolledToTab.current = true;
+    const el = tabsRef.current;
+    if (el && typeof el.scrollIntoView === 'function') requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }));
+  }, [runLoaded, requestedTab]);
 
   // Permission approvals of this run (P12.3), reloaded whenever the run's pending count or status changes.
   const loadApprovals = useCallback(() => {
@@ -316,6 +460,24 @@ export default function RunDetailView({ recordId }) {
         </div>
       )}
 
+      {runHasFailed(run) && (
+        <RunFailureSummary
+          run={run}
+          events={events}
+          t={t}
+          navigate={navigate}
+          onShowError={() => {
+            setFilter('Error');
+            setTab('transcript');
+            requestAnimationFrame(() => tabsRef.current?.scrollIntoView?.({ block: 'start' }));
+          }}
+          onShowStderr={() => {
+            setTab('stderr');
+            requestAnimationFrame(() => tabsRef.current?.scrollIntoView?.({ block: 'start' }));
+          }}
+        />
+      )}
+
       <div className="panel detail-grid run-summary">
         <Detail label={t('resources.runs.columns.outcome')} tip={t('tips.resources.runs.outcome')}>
           {run.outcome && run.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', run.outcome))}>{t(`enums.runOutcome.${run.outcome}`, { defaultValue: run.outcome })}</span> : '-'}
@@ -332,7 +494,15 @@ export default function RunDetailView({ recordId }) {
           {run.deploymentId ? <NamedId id={run.deploymentId} name={run.deploymentName || deployment?.name || (deployment?.deleted ? run.deploymentId : null)} deleted={!!deployment?.deleted} /> : '-'}
         </Detail>
         <Detail label={t('views.runDetail.templatesUsed')} tip={t('tips.views.runDetail.templatesUsed')}>
-          {(run.templateVersions || []).length ? <TemplateVersionLinks versions={run.templateVersions} t={t} navigate={navigate} /> : '-'}
+          {(run.templateVersions || []).length ? (
+            // A count that opens to the list, so a long list of template names does not push the tabs down (UXP1-V010).
+            <details className="run-templates" data-testid="run-templates">
+              <summary {...tip(t('tips.views.runDetail.templatesCount'))}>{t('views.runDetail.templatesCount', { count: run.templateVersions.length })}</summary>
+              <TemplateVersionLinks versions={run.templateVersions} t={t} navigate={navigate} list />
+            </details>
+          ) : (
+            '-'
+          )}
         </Detail>
         <Detail label={t('views.runDetail.model')} tip={t('tips.views.runDetail.model')}>{run.servedModel || '-'}</Detail>
         <Detail label={t('resources.runs.columns.executionMs')} tip={t('tips.telemetry.executionMs')}>{formatMs(tel.executionMs, i18n.language, na)}</Detail>
@@ -495,10 +665,28 @@ export default function RunDetailView({ recordId }) {
         <Detail label={t('views.runDetail.traceId')} tip={t('tips.views.runDetail.traceId')}>{run.traceId ? <span data-testid="run-trace-id"><CopyableId value={run.traceId} max={40} /></span> : null}</Detail>
       </div>
 
-      <RunTelemetryPanel run={run} />
+      <details
+        className="run-telemetry-disclosure"
+        open={telemetryOpen}
+        onToggle={(e) => {
+          const open = e.currentTarget.open;
+          setTelemetryOpen(open);
+          try {
+            window.localStorage.setItem(TELEMETRY_OPEN_KEY, open ? '1' : '0');
+          } catch {
+            // The choice is a convenience; without storage the disclosure starts closed next time.
+          }
+        }}
+      >
+        <summary data-testid="run-telemetry-toggle" {...tip(t('tips.views.runDetail.telemetryToggle'))}>
+          {t('views.runDetail.telemetryToggle', { duration: formatMs(tel.totalMs ?? tel.executionMs, i18n.language, na), cost: formatUsd(tel.costUsd, i18n.language, na) })}
+        </summary>
+        <RunTelemetryPanel run={run} />
+      </details>
 
-      {run.errorMessage && !guardOutcome(run) && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
+      {run.errorMessage && !guardOutcome(run) && !runHasFailed(run) && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
 
+      <div className="run-detail-tabs" ref={tabsRef} data-testid="run-detail-tabs">
       <Tabs
         label={t('views.runDetail.title')}
         active={tab}
@@ -514,8 +702,10 @@ export default function RunDetailView({ recordId }) {
           { id: 'trail', label: t('trail.tab'), tip: t('tips.trail.tab'), tour: 'run-tab-trail' }
         ]}
       />
+      </div>
 
-      <div className="panel">
+      {/* Opened on a named tab, the panel is at least a screen tall, so the tab bar can scroll to the top (UXP1-V010). */}
+      <div className={requestedTab && requestedTab !== 'transcript' ? 'panel run-tab-panel-tall' : 'panel'}>
         {tab === 'artifacts' && <ArtifactsView runId={recordId} />}
         {tab === 'transcript' && (
           <>
@@ -552,7 +742,7 @@ export default function RunDetailView({ recordId }) {
         )}
         {tab === 'result' && (
           <div className="flex-col gap-md">
-            <MarkdownView text={run.resultText} rawToggle testId="run-result" emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
+            <RunResult text={run.resultText} t={t} emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
             {run.structuredOutput !== undefined && run.structuredOutput !== null && (
               <>
                 <h3 className="section-title">{t('views.runDetail.structuredOutput')}</h3>

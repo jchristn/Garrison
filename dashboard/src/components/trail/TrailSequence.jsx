@@ -4,7 +4,7 @@ import { tip } from '../Tooltip';
 import { isRtl } from '../../utils/direction';
 import { formatDuration } from '../../i18n/formatters';
 import { enumLabel } from '../../utils/enums';
-import { layoutSequence, stateTone, stepNeighbor } from '../../utils/trailLayout';
+import { buildLanes, charsThatFit, fitSequenceGeometry, layoutSequence, stateTone, stepNeighbor } from '../../utils/trailLayout';
 import { ToneIcon, edgeLabel, laneName, stepAriaLabel, stepDetail, stepTitle } from './trailParts';
 
 const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2];
@@ -32,14 +32,44 @@ export default function TrailSequence({ trail, selectedId, onSelect, onOpen }) {
   const uid = useId().replace(/[^A-Za-z0-9_-]/g, '');
   const markerId = `trail-arrow-${uid}`;
   const hatchId = `trail-hatch-${uid}`;
-  const layout = useMemo(() => layoutSequence(trail, { rtl }), [trail, rtl]);
-  const [zoom, setZoom] = useState(1);
   const scrollRef = useRef(null);
+  const [available, setAvailable] = useState(0);
+  const [overflow, setOverflow] = useState({ end: false, bottom: false });
+  const laneCount = useMemo(() => buildLanes(trail).length, [trail]);
+  // Lanes share the width of the canvas (UXP1-V011), measured once it is on the page and again when it resizes.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const measure = () => setAvailable(el.clientWidth || 0);
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const fitted = useMemo(() => fitSequenceGeometry(laneCount, available), [laneCount, available]);
+  const layout = useMemo(() => layoutSequence(trail, { rtl, geometry: fitted }), [trail, rtl, fitted]);
+  const [zoom, setZoom] = useState(1);
   const svgRef = useRef(null);
   const drag = useRef(null);
   const focusId = layout.nodes.find((n) => n.isFocus)?.id || layout.nodes[0]?.id || null;
   const activeId = layout.nodes.some((n) => n.id === selectedId) ? selectedId : focusId;
   const g = layout.geometry;
+  const titleChars = charsThatFit(g.nodeWidth - 16, 7);
+  const detailChars = charsThatFit(g.nodeWidth - 32, 6.2);
+  const laneChars = charsThatFit(g.laneWidth - 16, 7.6);
+
+  // A fade and a note on the side where the drawing continues past the visible area (UXP1-V011).
+  const updateOverflow = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const maxLeft = el.scrollWidth - el.clientWidth;
+    const left = Math.abs(el.scrollLeft);
+    const end = maxLeft > 2 && left < maxLeft - 2;
+    const bottom = el.scrollHeight - el.clientHeight - el.scrollTop > 2;
+    setOverflow((o) => (o.end === end && o.bottom === bottom ? o : { end, bottom }));
+  };
+  useEffect(() => updateOverflow(), [layout, zoom, available]);
 
   // Bring the focus run into view once per trail.
   const scrolledFor = useRef(null);
@@ -111,10 +141,17 @@ export default function TrailSequence({ trail, selectedId, onSelect, onOpen }) {
         <span className="text-muted trail-keys-hint" {...tip(t('tips.trail.keysHint'))}>
           {t('trail.keysHint')}
         </span>
+        {(overflow.end || overflow.bottom) && (
+          <span className="trail-more-hint" data-testid="trail-more-hint" {...tip(t('tips.trail.moreHint'))}>
+            {overflow.end ? t('trail.moreLanes', { count: layout.lanes.length }) : t('trail.moreSteps')}
+          </span>
+        )}
       </div>
+      <div className={`trail-sequence-frame ${overflow.end ? 'fade-end' : ''} ${overflow.bottom ? 'fade-bottom' : ''}`.trim()}>
       <div
         className="trail-sequence-scroll"
         ref={scrollRef}
+        onScroll={updateOverflow}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
@@ -149,11 +186,11 @@ export default function TrailSequence({ trail, selectedId, onSelect, onOpen }) {
                 <line x1={lane.center} y1={g.headerHeight + g.pad - 6} x2={lane.center} y2={layout.height - g.pad} className="trail-lifeline" />
                 <text x={lane.center} y={g.pad + 18} textAnchor="middle" className="trail-lane-name">
                   <title>{[name, lane.unitName].filter(Boolean).join(', ')}</title>
-                  {short(name, 22)}
+                  {short(name, laneChars)}
                 </text>
                 {lane.unitName && (
                   <text x={lane.center} y={g.pad + 33} textAnchor="middle" className="trail-lane-unit">
-                    {short(lane.unitName, 26)}
+                    {short(lane.unitName, laneChars + 4)}
                   </text>
                 )}
                 {marked.length > 0 && (
@@ -209,15 +246,20 @@ export default function TrailSequence({ trail, selectedId, onSelect, onOpen }) {
                   if (!active) onSelect?.(node.id);
                 }}
               >
+                {(node.isFocus || active) && (
+                  // Focus and selection are rings outside the box, so the box keeps its state color (UXP1-V012).
+                  <rect x={node.x - 4} y={node.y - 4} width={node.width + 8} height={node.height + 8} rx="9" className={`trail-step-ring ${active ? 'is-selected-ring' : 'is-focus-ring'}`} data-testid="trail-step-ring" />
+                )}
                 <rect x={node.x} y={node.y} width={node.width} height={node.height} rx="6" className="trail-step-box" fill={redacted ? `url(#${hatchId})` : undefined} />
                 <text x={textX} y={node.y + 16} textAnchor={anchor} className="trail-step-title">
-                  {short(stepTitle(t, node), 20)}
+                  {stepTitle(t, node).length > titleChars && <title>{stepTitle(t, node)}</title>}
+                  {short(stepTitle(t, node), titleChars)}
                 </text>
                 {!redacted && (
                   <>
                     <ToneIcon tone={tone} x={iconX} y={node.y + 23} />
                     <text x={detailX} y={node.y + 33} textAnchor={anchor} className="trail-step-detail">
-                      {short(stepDetail(t, node, lng), 22)}
+                      {short(stepDetail(t, node, lng), detailChars)}
                     </text>
                   </>
                 )}
@@ -225,6 +267,7 @@ export default function TrailSequence({ trail, selectedId, onSelect, onOpen }) {
             );
           })}
         </svg>
+      </div>
       </div>
     </div>
   );

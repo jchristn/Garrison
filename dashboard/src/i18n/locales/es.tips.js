@@ -5229,3 +5229,56 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "El dibujo es más grande que el área visible. Desplázate o arrastra el fondo para ver el resto.",
+  "replyFinished": "El llamante recibió su respuesta cuando terminó la ejecución raíz. Los pasos posteriores a esta fila siguieron por su cuenta.",
+  "drawer": {
+   "fields": {
+    "caller": "La persona, app o sistema que envió la solicitud y recibió la respuesta.",
+    "outcome": "Cómo terminó la ejecución, según la clasificó Garrison.",
+    "exitCode": "El código de salida del proceso del harness. Cero significa que terminó con normalidad."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "El último evento Error de la transcripción de esta ejecución, tal como lo escribió el harness o Garrison.",
+    "serverError": "El mensaje de error que Garrison guardó en la ejecución al terminar.",
+    "showError": "Abre la pestaña Transcripción filtrada por eventos Error.",
+    "showStderr": "Abre la pestaña Stderr: las últimas líneas que el harness escribió en la salida de error estándar.",
+    "openDeployment": "Abre la lista de despliegues en el de esta ejecución, para revisar su harness, conexión y ajustes."
+   },
+   "templatesCount": "Las plantillas de prompt con las que se compiló esta ejecución. Despliégalo para ver cada nombre y versión; la pestaña Entrada también las lista.",
+   "telemetryToggle": "Muestra u oculta las fases de tiempo, los recuentos de tokens y el coste de la ejecución. La página recuerda tu elección.",
+   "resultRaw": "Alterna entre el resultado con formato, con el JSON indentado, y el texto sin formato que devolvió el harness."
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "Quién inició la ejecución: una persona, una clave de API, una app o un mensaje de otro agente.",
+   "hops": {
+    "message": "Un mensaje de otro agente despertó esta ejecución. Abre el recorrido de la solicitud a la que pertenece.",
+    "fanOut": "Esta ejecución es un miembro de un fan-out. Abre el recorrido de la solicitud a la que pertenece.",
+    "child": "Otra ejecución inició esta. Abre el recorrido de la solicitud a la que pertenece."
+   },
+   "callerMessage": "Despertada por el mensaje {{id}}.",
+   "filters": {
+    "agentId": "Muestra solo las ejecuciones de un agente.",
+    "outcome": "Muestra solo las ejecuciones que terminaron con un resultado concreto, como Fallo del harness."
+   }
+  }
+ }
+});

@@ -3,11 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/base.css';
 import { isRtl } from '../../utils/direction';
-import { graphLayers, stateTone } from '../../utils/trailLayout';
+import { graphFocusIds, graphLayers, stateTone } from '../../utils/trailLayout';
 import { ToneIcon, edgeLabel, stepAriaLabel, stepDetail, stepTitle } from './trailParts';
 
 /** Graph geometry: the width of a layer column, the height of a slot, and the size of a node card. */
-export const TRAIL_GRAPH_GEOMETRY = { layerWidth: 220, slotHeight: 84, nodeWidth: 168 };
+export const TRAIL_GRAPH_GEOMETRY = { layerWidth: 268, slotHeight: 96, nodeWidth: 176 };
+
+/**
+ * The zoom the graph opens at (UXP1-V001): it fits the steps around the focus run, never below 0.8 so card text stays
+ * about 11 pixels or more, and never above 1. A larger trail opens on its focus and the rest is a pan away.
+ */
+export const TRAIL_GRAPH_FIT = { minZoom: 0.8, maxZoom: 1, padding: 0.15 };
 
 /** Above this many steps the graph shows a minimap (LP2.4). */
 export const TRAIL_MINIMAP_THRESHOLD = 25;
@@ -68,6 +74,9 @@ export function trailToFlow(t, trail, { rtl = false, selectedId = null, lng = 'e
       source: e.fromId,
       target: e.toId,
       label: edgeLabel(t, e.kind),
+      labelShowBg: true,
+      labelBgPadding: [4, 2],
+      labelBgBorderRadius: 3,
       className: `trail-graph-edge kind-${e.kind}`,
       markerEnd: { type: MarkerType.ArrowClosed },
       focusable: false
@@ -80,6 +89,8 @@ function TrailGraphCanvas({ trail, selectedId, onSelect, onOpen }) {
   const rtl = isRtl();
   const flow = useMemo(() => trailToFlow(t, trail, { rtl, selectedId, lng: i18n.language }), [t, trail, rtl, selectedId, i18n.language]);
   const big = flow.nodes.length > TRAIL_MINIMAP_THRESHOLD;
+  const fitIds = useMemo(() => graphFocusIds(trail), [trail]);
+  const fitViewOptions = useMemo(() => ({ ...TRAIL_GRAPH_FIT, nodes: fitIds.map((id) => ({ id })) }), [fitIds]);
   return (
     <div
       className="trail-graph"
@@ -103,6 +114,7 @@ function TrailGraphCanvas({ trail, selectedId, onSelect, onOpen }) {
         nodesConnectable={false}
         elementsSelectable
         fitView
+        fitViewOptions={fitViewOptions}
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
@@ -114,7 +126,7 @@ function TrailGraphCanvas({ trail, selectedId, onSelect, onOpen }) {
       >
         <Background gap={24} />
         <Controls showInteractive={false} />
-        {big && <MiniMap pannable zoomable data-testid="trail-graph-minimap" />}
+        {big && <MiniMap pannable zoomable className="trail-graph-minimap" nodeClassName={(n) => `trail-minimap-node tone-${stateTone(n.data?.node?.state)}`} data-testid="trail-graph-minimap" />}
       </ReactFlow>
     </div>
   );
@@ -122,8 +134,8 @@ function TrailGraphCanvas({ trail, selectedId, onSelect, onOpen }) {
 
 /**
  * The graph view of an activity trail (LP2.4) on React Flow: each step one layer after what caused it, edges labeled
- * with their kind, cards styled like the sequence view's steps (state as an icon and a label). A minimap appears above
- * 25 steps. React Flow's own keyboard support moves between nodes; Enter on a focused node opens the drawer.
+ * with their kind, cards styled like the sequence view's steps (state as an icon and a label). It opens on the focus
+ * run at a readable zoom (TRAIL_GRAPH_FIT) and a minimap appears above 25 steps. React Flow's own keyboard support moves between nodes; Enter on a focused node opens the drawer.
  */
 export default function TrailGraph(props) {
   return (

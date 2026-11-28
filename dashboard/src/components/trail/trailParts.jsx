@@ -53,7 +53,9 @@ export function stepTitle(t, node) {
   if (node.kind === 'Redacted') return t('trail.redactedTitle', { kind: kindLabel(t, node.redactedKind || 'Redacted') });
   if (node.kind === 'Run' && node.runKind && node.runKind !== 'Invoke') return t('trail.runOfKind', { kind: enumLabel(t, 'runKind', node.runKind) });
   if (node.kind === 'Effect' && node.toolName) return node.toolName;
-  if ((node.kind === 'Caller' || node.kind === 'Reply') && node.callerName) return `${kindLabel(t, node.kind)}: ${node.callerName}`;
+  // A reply names who received it (UXP1-S024): "Reply to admin@garrison", not "Reply: admin@garrison".
+  if (node.kind === 'Reply') return node.callerName ? t('trail.replyTo', { name: node.callerName }) : t('trail.replyToCaller');
+  if (node.kind === 'Caller' && node.callerName) return `${kindLabel(t, node.kind)}: ${node.callerName}`;
   return kindLabel(t, node.kind);
 }
 

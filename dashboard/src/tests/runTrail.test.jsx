@@ -471,3 +471,89 @@ describe('Open trail on record pages (LP2.8)', () => {
     expect(trailLinks()).toEqual(expected);
   });
 });
+
+// LP5.5 (UX pass 1): failed and reply steps, rings, narrow note, the graph's opening zoom, and the Runs list's hops.
+describe('LP5.5 trail fixes', () => {
+  it('keeps a failed focus step red and marks focus and selection with a ring (UXP1-V012)', () => {
+    const trail = { ...fixture, focusRunId: 'run_c4', nodes: fixture.nodes.map((n) => ({ ...n, isFocus: n.id === 'run_c4' })) };
+    mount(<TrailSequence trail={trail} selectedId="run_c4" />);
+    const failed = step('run_c4');
+    expect(failed.getAttribute('class')).toContain('tone-danger');
+    expect(failed.getAttribute('class')).toContain('is-focus');
+    expect(failed.querySelector('[data-testid="trail-step-ring"]')).not.toBeNull();
+    expect(step('run_a1').querySelector('[data-testid="trail-step-ring"]')).toBeNull();
+  });
+
+  it('shows why a failed run step failed, from its run record (UXP1-S006)', async () => {
+    const apiClient = { getRun: vi.fn(async () => ({ id: 'run_c4', status: 'Failed', outcome: 'HarnessFailed', exitCode: 1, errorMessage: 'The tool <b>broke</b>.' })) };
+    mount(<TrailStepDrawer trail={fixture} node={node('run_c4')} onClose={() => {}} />, { apiClient });
+    await flush();
+    const box = q('[data-testid="trail-drawer-failure"]');
+    expect(box.textContent).toContain('Harness failed');
+    expect(box.textContent).toContain('1');
+    expect(q('[data-testid="trail-drawer-error"]').textContent).toBe('The tool <b>broke</b>.');
+    expect(box.querySelector('b')).toBeNull();
+  });
+
+  it('shows no failure box for a run that succeeded', async () => {
+    const apiClient = { getRun: vi.fn(async () => ({ id: 'run_a1', status: 'Succeeded', outcome: 'Succeeded', exitCode: 0 })) };
+    mount(<TrailStepDrawer trail={fixture} node={node('run_a1')} onClose={() => {}} />, { apiClient });
+    await flush();
+    expect(q('[data-testid="trail-drawer-failure"]')).toBeNull();
+  });
+
+  it('names the reply by who received it and shows the reply text from the run that replied (UXP1-S024)', async () => {
+    const reply = node('rep_run_a1');
+    const apiClient = { getRun: vi.fn(async () => ({ id: 'run_a1', agentName: 'Incident lead', resultText: 'All clear.' })) };
+    mount(<TrailStepDrawer trail={fixture} node={reply} onClose={() => {}} />, { apiClient });
+    await flush();
+    expect(apiClient.getRun).toHaveBeenCalledWith('default', 'run_a1');
+    expect(q('.trail-drawer-title').textContent).toBe('Reply to operator@example.com');
+    expect(q('[data-testid="trail-drawer"]').textContent).toContain('Caller');
+    expect(q('[data-testid="trail-drawer-reply-note"]').textContent).toContain('root run finished');
+    expect(q('[data-text-key="reply"]').textContent).toContain('All clear.');
+    expect(q('[data-testid="trail-drawer-open-record"]').textContent).toBe('Open the root run');
+  });
+
+  it('says why the list stands in for the diagrams below 768px (UXP1-V040)', async () => {
+    narrowScreen(true);
+    const apiClient = { getRunTrail: vi.fn(async () => fixture) };
+    mount(<RunTrailPanel runId="run_b2" />, { apiClient });
+    await flush();
+    expect(q('[data-testid="trail-narrow-note"]').textContent).toContain('768 pixels');
+  });
+
+  it('shows no narrow note on a wide screen', async () => {
+    narrowScreen(false);
+    const apiClient = { getRunTrail: vi.fn(async () => fixture) };
+    mount(<RunTrailPanel runId="run_b2" />, { apiClient });
+    await flush();
+    expect(q('[data-testid="trail-narrow-note"]')).toBeNull();
+  });
+
+  it('labels graph edges on a background (UXP1-V001)', () => {
+    const flow = trailToFlow(t, fixture);
+    expect(flow.edges.every((e) => e.labelShowBg)).toBe(true);
+  });
+
+  it('shows Run kind and Caller by default and links a hop run to its trail (UXP1-S001)', () => {
+    const cols = runsConfig.columns({ t, i18n, navigate: () => {} });
+    const kind = cols.find((c) => c.key === 'kind');
+    const caller = cols.find((c) => c.key === 'callerName');
+    expect(kind.defaultHidden).toBeFalsy();
+    expect(caller.defaultHidden).toBeFalsy();
+    expect(runsConfig.search).toBe(false);
+    expect(runsConfig.filters.map((f) => f.name)).toEqual(expect.arrayContaining(['agentId', 'outcome']));
+    mount(<div>{kind.render({ id: 'run_x', kind: 'Message', callerName: 'message:amg_1' })}{caller.render({ id: 'run_x', kind: 'Message', callerName: 'message:amg_1' })}</div>);
+    const link = q('[data-run-hop="message"]');
+    expect(link.getAttribute('href')).toBe(trailPath('run_x'));
+    expect(document.body.textContent).toContain('A message');
+    act(() => {
+      mounted.forEach(({ root }) => root.unmount());
+    });
+    mounted.forEach(({ container }) => container.remove());
+    mounted = [];
+    mount(<div>{kind.render({ id: 'run_y', kind: 'Invoke' })}</div>);
+    expect(q('[data-run-hop]')).toBeNull();
+  });
+});

@@ -10224,3 +10224,83 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "trail": {
+  "moreLanes": "{{count}} lanes: scroll sideways to see them all",
+  "moreSteps": "More steps below: scroll down",
+  "narrowGraph": "The graph needs a screen at least 768 pixels wide, so the list shows the same steps here.",
+  "narrowSequence": "The sequence view needs a screen at least 768 pixels wide, so the list shows the same steps here.",
+  "replyTo": "Reply to {{name}}",
+  "replyToCaller": "Reply to the caller",
+  "replyFinished": "(root run finished)",
+  "drawer": {
+   "texts": {
+    "reply": "Reply the caller received"
+   },
+   "fields": {
+    "caller": "Caller",
+    "outcome": "Outcome",
+    "exitCode": "Exit code"
+   },
+   "failureTitle": "Why this step failed",
+   "noErrorMessage": "The server recorded no error message for this run. Open the run for its transcript and stderr.",
+   "replyNote": "{{name}} received this reply when the root run finished. Steps listed after it kept going without the caller waiting.",
+   "openReplyingRun": "Open the root run"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "Why this run failed",
+    "titleOutcome": "Why this run failed: {{outcome}}",
+    "errorEvent": "Last error in the transcript (event #{{sequence}})",
+    "serverError": "Error the server recorded",
+    "noError": "No error message was recorded. The transcript and stderr may say more.",
+    "exitCode": "The harness exited with code {{code}}.",
+    "stderrLines_one": "Stderr holds {{count}} line.",
+    "stderrLines_other": "Stderr holds {{count}} lines.",
+    "noStderr": "No stderr was captured.",
+    "showError": "Show the error in the transcript",
+    "showStderr": "Open Stderr",
+    "openDeployment": "Open the deployment"
+   },
+   "templatesCount_one": "{{count}} template",
+   "templatesCount_other": "{{count}} templates",
+   "telemetryToggle": "Timing, tokens, and cost ({{duration}}, {{cost}})",
+   "resultRaw": "Show raw text",
+   "resultFormatted": "Show formatted"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "Caller"
+   },
+   "hops": {
+    "message": "Message hop",
+    "fanOut": "Fan-out member",
+    "child": "Child run"
+   },
+   "callerMessage": "A message"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "a request that crossed several agents"
+   },
+   "trailsLater": "The trail steps need a request that crossed agents. In the example, the latency keeper messages the dependency keeper on its first tick, a few seconds after the apply."
+  }
+ }
+});

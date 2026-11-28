@@ -5227,3 +5227,56 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "The drawing is larger than the visible area. Scroll, or drag the background, to see the rest.",
+  "replyFinished": "The caller got its answer when the root run finished. Steps after this row kept running on their own.",
+  "drawer": {
+   "fields": {
+    "caller": "The person, app, or system that sent the request and received the reply.",
+    "outcome": "How the run ended, as Garrison classified it.",
+    "exitCode": "The exit code of the harness process. Zero means it exited normally."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "The last Error event in this run's transcript, as the harness or Garrison wrote it.",
+    "serverError": "The error message Garrison stored on the run when it ended.",
+    "showError": "Open the Transcript tab, filtered to Error events.",
+    "showStderr": "Open the Stderr tab: the last lines the harness wrote to standard error.",
+    "openDeployment": "Open the deployments list at this run's deployment, to check its harness, connection, and settings."
+   },
+   "templatesCount": "The prompt templates this run was compiled with. Open it to see each name and version; the Input tab lists them too.",
+   "telemetryToggle": "Show or hide the run's timing phases, token counts, and cost. The page remembers your choice.",
+   "resultRaw": "Switch between the formatted result, with JSON pretty-printed, and the raw text the harness returned."
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "Who started the run: a person, an API key, an app, or a message from another agent.",
+   "hops": {
+    "message": "A message from another agent woke this run. Open the trail of the request it belongs to.",
+    "fanOut": "This run is one member of a fan-out. Open the trail of the request it belongs to.",
+    "child": "Another run started this one. Open the trail of the request it belongs to."
+   },
+   "callerMessage": "Woken by message {{id}}.",
+   "filters": {
+    "agentId": "Show only the runs of one agent.",
+    "outcome": "Show only the runs that ended with one outcome, such as Harness failed."
+   }
+  }
+ }
+});

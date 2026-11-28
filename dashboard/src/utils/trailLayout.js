@@ -111,6 +111,8 @@ export const SEQUENCE_GEOMETRY = {
   rowGap: 22,
   gapHeight: 26,
   pad: 12,
+  // Room past the last lane on the inline-end side, so the bow and label of an edge within that lane are not cut off.
+  endPad: 72,
   // Idle time longer than this between two rows is drawn as a collapsed gap with its length (one minute).
   collapseMs: 60000
 };
@@ -149,7 +151,7 @@ export function layoutSequence(trail, { rtl = false, geometry = {} } = {}) {
   const g = { ...SEQUENCE_GEOMETRY, ...geometry };
   const lanes = buildLanes(trail);
   const rows = buildRows(trail, g.collapseMs);
-  const width = g.pad * 2 + Math.max(1, lanes.length) * g.laneWidth;
+  const width = g.pad * 2 + g.endPad + Math.max(1, lanes.length) * g.laneWidth;
   const laneIndex = new Map(lanes.map((l, i) => [l.id, i]));
   const laneX = (i) => (rtl ? width - g.pad - (i + 1) * g.laneWidth : g.pad + i * g.laneWidth);
   const placedLanes = lanes.map((l, i) => ({ ...l, index: i, x: laneX(i), center: laneX(i) + g.laneWidth / 2 }));
@@ -177,35 +179,67 @@ export function layoutSequence(trail, { rtl = false, geometry = {} } = {}) {
   });
   const byId = new Map(nodes.map((n) => [n.id, n]));
 
+  // Edges within one lane bundle on its inline-end side; each one in a lane bows a little further out than the last,
+  // so their lines and labels do not sit on top of each other (UXP1-V011).
+  const bundled = new Map();
   const edges = (trail?.edges || [])
     .map((e, i) => {
       const a = byId.get(e.fromId);
       const b = byId.get(e.toId);
       if (!a || !b) return null;
-      return { ...e, key: `${e.fromId}>${e.toId}>${e.kind}>${i}`, ...edgeGeometry(a, b, rtl, g) };
+      let bundle = 0;
+      if (a.laneIndex === b.laneIndex) {
+        bundle = bundled.get(a.laneIndex) || 0;
+        bundled.set(a.laneIndex, bundle + 1);
+      }
+      return { ...e, key: `${e.fromId}>${e.toId}>${e.kind}>${i}`, ...edgeGeometry(a, b, rtl, g, bundle) };
     })
     .filter(Boolean);
 
   return { lanes: placedLanes, rows, nodes, edges, gaps, width, height, geometry: g, rtl };
 }
 
-function edgeGeometry(a, b, rtl, g) {
+function edgeGeometry(a, b, rtl, g, bundle = 0) {
   const back = b.row < a.row;
   const ay = a.y + a.height / 2;
   const by = b.y + b.height / 2;
   if (a.laneIndex === b.laneIndex) {
-    // Same lane: bow out past the boxes on the inline-end side (right in LTR, left in RTL).
+    // Same lane: bow out past the boxes on the inline-end side (right in LTR, left in RTL), each further edge of the
+    // same lane a step further out (up to four steps), with its label just past its own bow.
     const side = rtl ? -1 : 1;
     const x1 = rtl ? a.x : a.x + a.width;
     const x2 = rtl ? b.x : b.x + b.width;
-    const bow = x1 + side * Math.min(28, (g.laneWidth - g.nodeWidth) / 2 + 6);
-    return { back, same: true, path: `M ${x1} ${ay} C ${bow} ${ay}, ${bow} ${by}, ${x2 + side * 2} ${by}`, labelX: bow + side * 2, labelY: (ay + by) / 2, anchor: rtl ? 'end' : 'start' };
+    const bow = x1 + side * (Math.min(28, (g.laneWidth - g.nodeWidth) / 2 + 6) + (bundle % 4) * 10);
+    // The bezier's control points sit at the bow, so the curve itself reaches three quarters of the way there.
+    const peak = x1 + (bow - x1) * 0.75;
+    return { back, same: true, path: `M ${x1} ${ay} C ${bow} ${ay}, ${bow} ${by}, ${x2 + side * 2} ${by}`, labelX: peak + side * 3, labelY: (ay + by) / 2 + 3, anchor: rtl ? 'end' : 'start' };
   }
   const toRight = b.x > a.x;
   const x1 = toRight ? a.x + a.width : a.x;
   const x2 = toRight ? b.x - 2 : b.x + b.width + 2;
   const mid = (x1 + x2) / 2;
-  return { back, same: false, path: `M ${x1} ${ay} C ${mid} ${ay}, ${mid} ${by}, ${x2} ${by}`, labelX: mid, labelY: (ay + by) / 2 - 4, anchor: 'middle' };
+  // The label sits above the level start of the curve, next to its source, so it is never drawn across the line.
+  return { back, same: false, path: `M ${x1} ${ay} C ${mid} ${ay}, ${mid} ${by}, ${x2} ${by}`, labelX: toRight ? x1 + 6 : x1 - 6, labelY: ay - 6, anchor: toRight ? 'start' : 'end' };
+}
+
+/**
+ * Sequence geometry sized to the space available (UXP1-V011): lanes share the visible width between them, at least
+ * the default 176 units and at most `maxLaneWidth` (320) each, so a trail with few agents fills the canvas and a trail
+ * with many keeps readable lanes and scrolls sideways. Boxes are the lane width less 32. `availableWidth` 0 or less
+ * keeps the defaults.
+ */
+export function fitSequenceGeometry(laneCount, availableWidth, { maxLaneWidth = 320 } = {}) {
+  const g = SEQUENCE_GEOMETRY;
+  const lanes = Math.max(1, laneCount || 0);
+  if (!(availableWidth > 0)) return {};
+  const share = Math.floor((availableWidth - g.pad * 2 - g.endPad) / lanes);
+  const laneWidth = Math.max(g.laneWidth, Math.min(maxLaneWidth, share));
+  return { laneWidth, nodeWidth: laneWidth - 32 };
+}
+
+/** How many characters of text fit in `width` SVG units at about `perChar` units each (at least 6). */
+export function charsThatFit(width, perChar = 6.6) {
+  return Math.max(6, Math.floor(width / perChar));
 }
 
 /**
@@ -339,4 +373,33 @@ export function resultingRunId(trail, nodeId) {
 /** Filter the list view's rows by kind, agent (lane), and state tone or state; '' means any. */
 export function filterTrailNodes(nodes, { kind = '', agent = '', state = '' } = {}) {
   return (nodes || []).filter((n) => (!kind || n.kind === kind) && (!agent || laneOf(n) === agent) && (!state || n.state === state));
+}
+
+/**
+ * True when a run is a hop of a longer request (UXP1-S001, S010): it was woken by a message, delegated, fanned out,
+ * or started by another run. Its trail then crosses more than one agent. The run list cannot tell an origin run that
+ * later sent messages from one that did not; the trail itself can.
+ */
+export function runHasHops(run) {
+  if (!run) return false;
+  return run.kind === 'Message' || run.kind === 'Delegated' || !!run.parentRunId || !!run.fanOutGroupId || (Number(run.depth) || 0) > 0;
+}
+
+/** The newest run of a list that is a hop of a longer request, or null (runs come newest first). */
+export function pickHopRun(runs) {
+  return (runs || []).find((r) => runHasHops(r)) || null;
+}
+
+/**
+ * The nodes the graph view opens on (UXP1-V001): the focus run (or the origin) and its neighbours one layer back and
+ * up to three layers on, at most eight slots deep, so the first render is readable and the rest is a pan away.
+ * Returns the node IDs, or every ID when the whole trail is that small.
+ */
+export function graphFocusIds(trail, { before = 1, after = 3, slots = 8 } = {}) {
+  const layers = graphLayers(trail);
+  if (!layers.length) return [];
+  const focusId = trail?.focusRunId && layers.some((l) => l.id === trail.focusRunId) ? trail.focusRunId : trail?.originId;
+  const at = layers.find((l) => l.id === focusId) || layers[0];
+  const picked = layers.filter((l) => l.layer >= at.layer - before && l.layer <= at.layer + after && Math.abs(l.slot - at.slot) < slots);
+  return picked.map((l) => l.id);
 }

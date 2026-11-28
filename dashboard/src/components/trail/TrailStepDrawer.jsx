@@ -8,6 +8,8 @@ import { tip } from '../Tooltip';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { errorMessage } from '../../utils/errors';
+import { enumTip } from '../../utils/tips';
+import { translateServerText } from '../../utils/serverText';
 import { enumLabel } from '../../utils/enums';
 import { jsonToText } from '../../utils/jsonFields';
 import { formatDateTime, formatNumber } from '../../i18n/formatters';
@@ -17,12 +19,18 @@ import { TrailState, entrySurfaceLabel, entrySurfaceTip, kindLabel, kindTip, sta
 
 /**
  * Load the record behind a step from its existing detail route (LP-002: the trail itself carries no agent text).
- * Steps without a record of their own (caller, reply, trigger, keeper tick, pipeline run, redacted) load nothing.
+ * A reply loads the run that replied. Steps without a record (caller, trigger, keeper tick, pipeline run, redacted)
+ * load nothing.
  */
 export async function loadStepRecord(apiClient, tenantId, trail, node) {
   switch (node.kind) {
     case 'Run':
       return apiClient.getRun(tenantId, node.id);
+    case 'Reply': {
+      // A reply has no record of its own: the drawer shows the run that replied, whose result the caller received.
+      const run = owningRunId(trail, node.id);
+      return run ? apiClient.getRun(tenantId, run) : null;
+    }
     case 'Message':
       return apiClient.getMessage(tenantId, node.id);
     case 'Report':
@@ -59,6 +67,9 @@ export function stepTexts(t, node, record) {
     case 'Run':
       add('result', t('trail.drawer.texts.result'), record.resultText, record.agentName || node.agentName, true, record.id);
       break;
+    case 'Reply':
+      add('reply', t('trail.drawer.texts.reply'), record.resultText, record.agentName, true, record.id);
+      break;
     case 'Message': {
       const agent = !!record.senderAgentId;
       const author = record.senderAgentName || record.senderName || record.senderPrincipalId;
@@ -86,6 +97,40 @@ export function stepTexts(t, node, record) {
       break;
   }
   return out;
+}
+
+/** True when a run record ended in failure: a failed state, or an outcome other than Succeeded. */
+export function runFailed(record) {
+  if (!record) return false;
+  if (['Failed', 'TimedOut'].includes(record.status)) return true;
+  return !!record.outcome && !['None', 'Succeeded'].includes(record.outcome);
+}
+
+/**
+ * Why a failed run step failed (UXP1-S006), from the run record the drawer already loaded: its outcome with what that
+ * outcome means, its exit code, and the error message the server recorded. Nothing here is guessed.
+ */
+function RunFailure({ t, record }) {
+  const outcome = record.outcome && record.outcome !== 'None' ? record.outcome : null;
+  return (
+    <div className="trail-drawer-failure" role="note" data-testid="trail-drawer-failure">
+      <div className="trail-drawer-failure-title">{t('trail.drawer.failureTitle')}</div>
+      <dl className="trail-drawer-fields">
+        {outcome && (
+          <Field label={t('trail.drawer.fields.outcome')} tipText={t('tips.trail.drawer.fields.outcome')}>
+            <span {...tip(enumTip(t, 'runOutcome', outcome))}>{enumLabel(t, 'runOutcome', outcome)}</span>
+          </Field>
+        )}
+        {record.exitCode != null && <Field label={t('trail.drawer.fields.exitCode')} tipText={t('tips.trail.drawer.fields.exitCode')}>{String(record.exitCode)}</Field>}
+      </dl>
+      {outcome && <p className="trail-drawer-failure-meaning">{enumTip(t, 'runOutcome', outcome)}</p>}
+      {record.errorMessage ? (
+        <pre className="trail-drawer-failure-error" data-testid="trail-drawer-error">{translateServerText(t, record.errorMessage)}</pre>
+      ) : (
+        <p className="text-muted trail-drawer-failure-meaning">{t('trail.drawer.noErrorMessage')}</p>
+      )}
+    </div>
+  );
 }
 
 /** One piece of agent-written text, shown as data: a marked block with its provenance, escaped, never as markup. */
@@ -201,7 +246,11 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
           <dl className="trail-drawer-fields">
             <Field label={t('trail.drawer.fields.kind')} tipText={t('tips.trail.drawer.fields.kind')}><span {...tip(kindTip(t, node.kind))}>{kindLabel(t, node.kind)}</span></Field>
             <Field label={t('trail.drawer.fields.state')} tipText={t('tips.trail.drawer.fields.state')}><span {...tip(stateTip(t, node.state))}><TrailState t={t} state={node.state} /></span></Field>
-            {(node.agentName || node.callerName) && <Field label={t('trail.drawer.fields.agent')} tipText={t('tips.trail.drawer.fields.agent')}>{node.agentName || node.callerName}</Field>}
+            {(node.kind === 'Caller' || node.kind === 'Reply') && node.callerName ? (
+              <Field label={t('trail.drawer.fields.caller')} tipText={t('tips.trail.drawer.fields.caller')}>{node.callerName}</Field>
+            ) : (
+              (node.agentName || node.callerName) && <Field label={t('trail.drawer.fields.agent')} tipText={t('tips.trail.drawer.fields.agent')}>{node.agentName || node.callerName}</Field>
+            )}
             {node.entrySurface && (
               <Field label={t('trail.drawer.fields.entrySurface')} tipText={t('tips.trail.drawer.fields.entrySurface')}>
                 <span {...tip(entrySurfaceTip(t, node.entrySurface))}>{entrySurfaceLabel(t, node.entrySurface)}</span>
@@ -224,6 +273,12 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
             )}
           </dl>
 
+          {node.kind === 'Reply' && (
+            <p className="trail-drawer-reply-note" data-testid="trail-drawer-reply-note">
+              {t('trail.drawer.replyNote', { name: node.callerName || t('trail.callerLane') })}
+            </p>
+          )}
+          {node.kind === 'Run' && runFailed(record) && <RunFailure t={t} record={record} />}
           {state.loading && <LoadingState label={t('trail.drawer.loading')} />}
           {state.error && <ErrorBanner message={state.error?.status === 404 ? t('trail.drawer.recordGone') : errorMessage(t, state.error)} />}
           {texts.length > 0 && (
@@ -250,7 +305,7 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
                   navigate(href);
                 }}
               >
-                {t('trail.drawer.openRecord')}
+                {node.kind === 'Reply' ? t('trail.drawer.openReplyingRun') : t('trail.drawer.openRecord')}
               </a>
             </div>
           )}

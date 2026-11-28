@@ -10250,3 +10250,83 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, V037, V040, S001, S006, S010, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "trail": {
+  "moreLanes": "{{count}} couloirs : faites défiler horizontalement pour tous les voir",
+  "moreSteps": "D'autres étapes plus bas : faites défiler vers le bas",
+  "narrowGraph": "Le graphe demande un écran d'au moins 768 pixels de large, la liste montre donc ici les mêmes étapes.",
+  "narrowSequence": "La vue séquence demande un écran d'au moins 768 pixels de large, la liste montre donc ici les mêmes étapes.",
+  "replyTo": "Réponse à {{name}}",
+  "replyToCaller": "Réponse à l'appelant",
+  "replyFinished": "(exécution racine terminée)",
+  "drawer": {
+   "texts": {
+    "reply": "Réponse reçue par l'appelant"
+   },
+   "fields": {
+    "caller": "Appelant",
+    "outcome": "Résultat",
+    "exitCode": "Code de sortie"
+   },
+   "failureTitle": "Pourquoi cette étape a échoué",
+   "noErrorMessage": "Le serveur n'a enregistré aucun message d'erreur pour cette exécution. Ouvrez l'exécution pour sa transcription et son stderr.",
+   "replyNote": "{{name}} a reçu cette réponse à la fin de l'exécution racine. Les étapes listées après ont continué sans que l'appelant attende.",
+   "openReplyingRun": "Ouvrir l'exécution racine"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "title": "Pourquoi cette exécution a échoué",
+    "titleOutcome": "Pourquoi cette exécution a échoué : {{outcome}}",
+    "errorEvent": "Dernière erreur de la transcription (événement n° {{sequence}})",
+    "serverError": "Erreur enregistrée par le serveur",
+    "noError": "Aucun message d'erreur n'a été enregistré. La transcription et stderr en disent peut-être plus.",
+    "exitCode": "Le harness a quitté avec le code {{code}}.",
+    "stderrLines_one": "Stderr contient {{count}} ligne.",
+    "stderrLines_other": "Stderr contient {{count}} lignes.",
+    "noStderr": "Aucun stderr n'a été capturé.",
+    "showError": "Afficher l'erreur dans la transcription",
+    "showStderr": "Ouvrir Stderr",
+    "openDeployment": "Ouvrir le déploiement"
+   },
+   "templatesCount_one": "{{count}} modèle",
+   "templatesCount_other": "{{count}} modèles",
+   "telemetryToggle": "Durées, jetons et coût ({{duration}}, {{cost}})",
+   "resultRaw": "Afficher le texte brut",
+   "resultFormatted": "Afficher la mise en forme"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "callerName": "Appelant"
+   },
+   "hops": {
+    "message": "Saut par message",
+    "fanOut": "Membre de fan-out",
+    "child": "Exécution enfant"
+   },
+   "callerMessage": "Un message"
+  }
+ },
+ "tours": {
+  "sample": {
+   "needs": {
+    "trails": "une requête passée par plusieurs agents"
+   },
+   "trailsLater": "Les étapes du parcours demandent une requête passée par plusieurs agents. Dans l'exemple, le keeper de latence écrit au keeper des dépendances dès son premier tick, quelques secondes après l'application."
+  }
+ }
+});

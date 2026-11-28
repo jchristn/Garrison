@@ -3,7 +3,7 @@
 // right-to-left mirroring, keyboard order, graph layers, and the summary strip.
 import { describe, it, expect } from 'vitest';
 import fixture from './fixtures/runTrail.json';
-import { CALLER_LANE, buildLanes, buildRows, filterTrailNodes, graphLayers, isSingleRunTrail, isTrailLive, layoutSequence, owningRunId, resultingRunId, stateTone, stepNeighbor, stepOrder, trailSummary } from '../utils/trailLayout';
+import { CALLER_LANE, buildLanes, buildRows, filterTrailNodes, fitSequenceGeometry, graphFocusIds, graphLayers, pickHopRun, runHasHops, isSingleRunTrail, isTrailLive, layoutSequence, owningRunId, resultingRunId, stateTone, stepNeighbor, stepOrder, trailSummary } from '../utils/trailLayout';
 
 const node = (id, lane, at, extra = {}) => ({ id, kind: 'Run', state: 'Succeeded', agentId: lane === 'caller' ? null : lane, agentName: lane, lane, startedUtc: at, endedUtc: null, ...extra });
 const edge = (fromId, toId, kind, atUtc = null) => ({ fromId, toId, kind, atUtc });
@@ -143,5 +143,50 @@ describe('trail summary and helpers', () => {
     expect(stateTone(null)).toBe('none');
     expect(filterTrailNodes(fixture.nodes, { kind: 'Message' }).map((n) => n.id)).toEqual(['msg_1', 'msg_2']);
     expect(filterTrailNodes(fixture.nodes, { agent: 'agt_metrics', state: 'Failed' }).map((n) => n.id)).toEqual(['run_c4']);
+  });
+});
+
+// LP5.5 (UX pass 1): lanes sized to the canvas, bundled edges spread out, the graph's opening nodes, and hop runs.
+describe('LP5.5 layout fixes', () => {
+  it('shares the visible width between lanes within the limits (UXP1-V011)', () => {
+    expect(fitSequenceGeometry(2, 1040)).toEqual({ laneWidth: 320, nodeWidth: 288 });
+    expect(fitSequenceGeometry(5, 1040).laneWidth).toBe(Math.floor((1040 - 24 - 72) / 5));
+    expect(fitSequenceGeometry(12, 1040)).toEqual({ laneWidth: 176, nodeWidth: 144 });
+    expect(fitSequenceGeometry(3, 0)).toEqual({});
+  });
+
+  it('bows each further edge within one lane a step further out (UXP1-V011)', () => {
+    const trail = {
+      nodes: [
+        { id: 'a', kind: 'Run', agentId: 'x', startedUtc: '2026-01-01T00:00:00Z' },
+        { id: 'b', kind: 'Effect', agentId: 'x', startedUtc: '2026-01-01T00:00:01Z' },
+        { id: 'c', kind: 'Effect', agentId: 'x', startedUtc: '2026-01-01T00:00:02Z' }
+      ],
+      edges: [
+        { fromId: 'a', toId: 'b', kind: 'Performed' },
+        { fromId: 'a', toId: 'c', kind: 'Performed' }
+      ]
+    };
+    const layout = layoutSequence(trail);
+    const [first, second] = layout.edges;
+    expect(second.labelX).toBeGreaterThan(first.labelX);
+    expect(layout.width).toBeGreaterThan(layout.lanes[0].x + layout.geometry.laneWidth + 40);
+  });
+
+  it('opens the graph on the focus run and its neighbours (UXP1-V001)', () => {
+    const ids = graphFocusIds(fixture);
+    expect(ids).toContain(fixture.focusRunId);
+    expect(ids.length).toBeLessThanOrEqual(fixture.nodes.length);
+    const chain = { originId: 'n0', nodes: Array.from({ length: 200 }, (_, i) => ({ id: `n${i}`, kind: 'Run', startedUtc: new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString() })), edges: Array.from({ length: 199 }, (_, i) => ({ fromId: `n${i}`, toId: `n${i + 1}`, kind: 'Started' })) };
+    expect(graphFocusIds(chain)).toEqual(['n0', 'n1', 'n2', 'n3']);
+  });
+
+  it('tells a hop of a longer request from a run that started on its own (UXP1-S001, S010)', () => {
+    expect(runHasHops({ kind: 'Message' })).toBe(true);
+    expect(runHasHops({ kind: 'Invoke', parentRunId: 'run_p' })).toBe(true);
+    expect(runHasHops({ kind: 'Invoke', fanOutGroupId: 'fog_1' })).toBe(true);
+    expect(runHasHops({ kind: 'Keeper', depth: 0 })).toBe(false);
+    expect(pickHopRun([{ id: 'r1', kind: 'Keeper' }, { id: 'r2', kind: 'Message' }, { id: 'r3', kind: 'Delegated' }])?.id).toBe('r2');
+    expect(pickHopRun([{ id: 'r1', kind: 'Keeper' }])).toBeNull();
   });
 });

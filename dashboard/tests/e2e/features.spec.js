@@ -49,6 +49,8 @@ test('runs table shows telemetry columns with defaults and the column picker', a
 test('run detail shows every telemetry field with an explanation', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/runs/run_0001');
+  // Telemetry is folded under a disclosure so the tabs start on the first screen (UXP1-V010).
+  await page.getByTestId('run-telemetry-toggle').click();
   const panel = page.getByTestId('run-telemetry');
   await expect(panel).toBeVisible();
   for (const key of ['timeToFirstTokenMs', 'timeToFirstTokenExcludingDelegationMs', 'delegationWaitMs', 'streamingMs', 'executionMs', 'queueMs', 'totalMs', 'outputTokensPerSecond', 'inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens', 'toolCallCount', 'costUsd', 'firstTokenUtc', 'lastTokenUtc']) {

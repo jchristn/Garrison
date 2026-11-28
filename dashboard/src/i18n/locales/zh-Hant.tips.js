@@ -5226,3 +5226,56 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   }
  }
 });
+
+// LP5.5 trail and runs fixes (UXP1-V010, V011, S001, S006, S024).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "trail": {
+  "moreHint": "圖形大於可見區域。捲動或拖曳背景以檢視其餘部分。",
+  "replyFinished": "呼叫端在根執行結束時收到了回覆。此列之後的步驟自行繼續執行。",
+  "drawer": {
+   "fields": {
+    "caller": "傳送請求並收到回覆的人員、應用程式或系統。",
+    "outcome": "Garrison 對執行結束方式的分類。",
+    "exitCode": "Harness 程序的結束代碼。0 表示正常結束。"
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "failure": {
+    "errorEvent": "此執行對話紀錄中的最後一個 Error 事件，由 Harness 或 Garrison 寫入。",
+    "serverError": "執行結束時 Garrison 儲存的錯誤訊息。",
+    "showError": "開啟篩選為 Error 事件的對話紀錄分頁。",
+    "showStderr": "開啟 Stderr 分頁：Harness 寫入標準錯誤的最後幾行。",
+    "openDeployment": "在部署清單中開啟此執行的部署，檢查其 Harness、連線和設定。"
+   },
+   "templatesCount": "編譯此執行時使用的提示範本。展開可檢視每個名稱和版本；輸入分頁中也有清單。",
+   "telemetryToggle": "顯示或隱藏執行的耗時階段、權杖數和費用。頁面會記住你的選擇。",
+   "resultRaw": "在格式化結果（JSON 已縮排）和 Harness 傳回的原始文字之間切換。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "callerName": "誰啟動了此執行：人員、API 金鑰、應用程式，或另一個代理程式的訊息。",
+   "hops": {
+    "message": "另一個代理程式的訊息喚醒了此執行。開啟它所屬請求的軌跡。",
+    "fanOut": "此執行是一次扇出的成員。開啟它所屬請求的軌跡。",
+    "child": "另一個執行啟動了此執行。開啟它所屬請求的軌跡。"
+   },
+   "callerMessage": "由訊息 {{id}} 喚醒。",
+   "filters": {
+    "agentId": "只顯示一個代理程式的執行。",
+    "outcome": "只顯示以某種結果結束的執行，例如 Harness 失敗。"
+   }
+  }
+ }
+});
