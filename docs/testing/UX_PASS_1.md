@@ -52,3 +52,11 @@ node tests/audit/capture.mjs --out "$SCRATCH/uxpass1" --routes 'detail-runs-*,tr
 ## Sense-making review (LP5.3)
 
 ## Triage (LP5.4)
+
+## Triage (LP5.4)
+
+The findings are in two files: [ux-pass-1-visual.md](ux-pass-1-visual.md) (UXP1-V001 to V040: 5 High, 20 Medium, 15 Low) and [ux-pass-1-sense.md](ux-pass-1-sense.md) (UXP1-S001 to S028: 3 High, 15 Medium, 10 Low).
+
+On 2026-11-28 the user decided to fix every finding, all 68 including the Low ones, before UX pass 2. They also asked for a seventh guided tour, "Agents on their own", covering keepers, ticks, messages, memory, and escalations, to become the Autonomy hub's tour. That tour resolves UXP1-S009. Nothing is deferred or declined.
+
+Each fix and its before and after evidence is recorded in a `ux-pass-1-fixes-<area>.md` file next to this one.
