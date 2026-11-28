@@ -10,7 +10,8 @@ import (
 // RunTrailNode is one step of an activity trail. The server leaves out properties that are null, so optional fields are
 // pointers. Lane is "caller" for Caller, Trigger, and Reply steps and the agent identifier otherwise. A Redacted
 // placeholder carries RedactedKind, the kind of the step you may not read. ToolName names an Effect's tool, never its
-// arguments.
+// arguments. EntrySurface says how the work came in, on the Caller node and on Run nodes that start a leg of
+// the work.
 type RunTrailNode struct {
 	ID           string   `json:"id"`
 	Kind         string   `json:"kind"`
@@ -33,6 +34,7 @@ type RunTrailNode struct {
 	CallerName   *string  `json:"callerName,omitempty"`
 	ToolName     *string  `json:"toolName,omitempty"`
 	RedactedKind *string  `json:"redactedKind,omitempty"`
+	EntrySurface *string  `json:"entrySurface,omitempty"`
 }
 
 // RunTrailEdge links two trail steps, from cause to effect. Kind is one of the RunTrailEdge* constants.
@@ -56,6 +58,23 @@ type RunTrail struct {
 	HopCount     int            `json:"hopCount"`
 	GeneratedUTC string         `json:"generatedUtc"`
 }
+
+// Entry surfaces: how a run came in (Run.EntrySurface and RunTrailNode.EntrySurface). The dashboard calls the REST
+// API, so its runs are Rest; Dashboard is reserved.
+const (
+	EntrySurfaceRest       = "Rest"
+	EntrySurfaceMcp        = "Mcp"
+	EntrySurfaceA2a        = "A2a"
+	EntrySurfaceApp        = "App"
+	EntrySurfaceDashboard  = "Dashboard"
+	EntrySurfaceTrigger    = "Trigger"
+	EntrySurfaceKeeper     = "Keeper"
+	EntrySurfaceMessage    = "Message"
+	EntrySurfaceEscalation = "Escalation"
+	EntrySurfaceEval       = "Eval"
+	EntrySurfaceShadow     = "Shadow"
+	EntrySurfaceInternal   = "Internal"
+)
 
 // Activity trail node kinds.
 const (

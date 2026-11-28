@@ -247,6 +247,8 @@ The activity trail of a run shows how the work moved: where it started (a person
 
 `client.runs.getRunTrail(runId, { includeEffects })` resolves with a `RunTrail`: `originId`, `focusRunId`, `nodes` (`RunTrailNode`, `kind` a `RunTrailNodeKind`), `edges` (`RunTrailEdge`, `kind` a `RunTrailEdgeKind`), `truncation` (a `RunTrailTruncation`), `nodeCount`, `hopCount`, and `generatedUtc`. `RUN_TRAIL_NODE_KINDS`, `RUN_TRAIL_EDGE_KINDS`, and `RUN_TRAIL_TRUNCATIONS` list the values. The server leaves out null properties, so optional ones may be `undefined`. Pass `includeEffects: false` to leave out effect journal entries; leaving it out uses the `RunTrail.IncludeEffects` setting (default true).
 
+`Run.entrySurface` and `RunTrailNode.entrySurface` (an `EntrySurface`; `ENTRY_SURFACES` lists them) say how the work came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`. The trail sets it on the `Caller` node and on runs that start a leg of the work. Runs the dashboard starts are `Rest`.
+
 ```ts
 const trail = await client.runs.getRunTrail(run.id);
 for (const node of trail.nodes) console.log(node.kind, node.id, node.agentName ?? node.callerName, node.state);

@@ -305,6 +305,7 @@ namespace Garrison.Server.Runtime
                 }
 
                 origin.Node = CallerNode(current.CallerType, current.CallerId, current.CallerName, current.Id, current.CreatedUtc);
+                origin.Node.EntrySurface = current.EntrySurface;
                 origin.Roots.Add(current);
                 return origin;
             }
@@ -634,6 +635,8 @@ namespace Garrison.Server.Runtime
             node.RunKind = run.Kind;
             node.IsFocus = run.Id == focusId;
             node.Lane = run.AgentId;
+            // A run that starts a leg of the work says how it came in (LP-013); children and retries follow their parent.
+            if (String.IsNullOrEmpty(run.ParentRunId) && String.IsNullOrEmpty(run.RetryOfRunId)) node.EntrySurface = run.EntrySurface;
             return node;
         }
 

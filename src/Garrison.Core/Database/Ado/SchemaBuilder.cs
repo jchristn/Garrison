@@ -453,6 +453,11 @@ namespace Garrison.Core.Database.Ado
             v61.BuildVersion61();
             migrations.Add(new SchemaMigration(61, "Activity trail lineage indexes", v61._Statements, v61._Columns));
 
+            // LP1.12: how each run came in (LP-013), for the activity trail's Caller node.
+            SchemaBuilder v62 = new SchemaBuilder(catalog, dialect);
+            v62.BuildVersion62();
+            migrations.Add(new SchemaMigration(62, "Run entry surface", v62._Statements, v62._Columns));
+
             return migrations;
         }
 
@@ -522,6 +527,11 @@ namespace Garrison.Core.Database.Ado
         {
             SqlDialect d = _Dialect;
             Column("organizations", "budgetfreezemarginpercent", d.TypeInt);
+        }
+
+        private void BuildVersion62()
+        {
+            Column("runs", "entrysurface", "VARCHAR(32)");
         }
 
         private void BuildVersion61()

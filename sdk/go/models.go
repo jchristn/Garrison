@@ -720,6 +720,9 @@ type Run struct {
 	EvalRunID *string `json:"evalRunId,omitempty"`
 	// ShadowTrialID is the shadow trial this run is a copy for (Kind Shadow); nil otherwise.
 	ShadowTrialID *string `json:"shadowTrialId,omitempty"`
+	// EntrySurface is how the run came in (one of the EntrySurface* constants); nil for runs created before the server
+	// recorded it.
+	EntrySurface *string `json:"entrySurface,omitempty"`
 }
 
 // Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness

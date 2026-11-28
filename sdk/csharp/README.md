@@ -292,6 +292,8 @@ The activity trail of a run shows how the work moved: where it started (a person
 
 `Runs.GetRunTrailAsync(runId, includeEffects)` returns a `RunTrail` with `OriginId`, `FocusRunId`, `Nodes` (`RunTrailNode`, with `Kind` a `RunTrailNodeKindEnum`), `Edges` (`RunTrailEdge`, with `Kind` a `RunTrailEdgeKindEnum`), `Truncation` (`RunTrailTruncationEnum`), `NodeCount`, `HopCount`, and `GeneratedUtc`. Pass `includeEffects` as `false` to leave out effect journal entries; `null` uses the `RunTrail.IncludeEffects` setting (default true).
 
+`Run.EntrySurface` and `RunTrailNode.EntrySurface` (`EntrySurfaceEnum`) say how the work came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`. The trail sets it on the `Caller` node and on runs that start a leg of the work. Runs the dashboard starts are `Rest`.
+
 ```csharp
 RunTrail trail = await client.Runs.GetRunTrailAsync(run.Id);
 foreach (RunTrailNode node in trail.Nodes)

@@ -10,6 +10,7 @@ namespace Test.Shared.Suites
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Database.Ado;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Organizations;
@@ -42,6 +43,7 @@ namespace Test.Shared.Suites
             List<TestCaseDescriptor> unit = new List<TestCaseDescriptor>();
             unit.Add(new TestCaseDescriptor("run-trail-unit", "fixture-shape", "A serialized RunTrail has exactly the property names of dashboard/src/tests/fixtures/runTrail.json, camelCase with enums as strings", FixtureShapeAsync));
             unit.Add(new TestCaseDescriptor("run-trail-unit", "settings", "RunTrailSettings clamp MaxNodes 10 to 5000, MaxMessageHops 0 to 50, MaxSpanHours 1 to 720", SettingsAsync));
+            unit.Add(new TestCaseDescriptor("run-trail-unit", "entry-surface-map", "Every run creation surface label maps to its EntrySurfaceEnum value (rest and playground are Rest, pipeline and unknown labels are Internal)", EntrySurfaceMapAsync));
             unit.Add(new TestCaseDescriptor("run-trail-unit", "org-inspect", "OrgTreeValidator.Inspect lists every tree problem Validate refuses, with codes, and nothing for a valid tree", InspectAsync));
             suites.Add(new TestSuiteDescriptor("run-trail-unit", "Activity trail: shape, settings, and organization inspection", unit));
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
@@ -61,6 +63,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "redaction", "A person with Run read but no AgentMessage read sees messages as Redacted placeholders that name only the kind and time (" + provider + ")", ct => RedactionAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "routes", "GET /runs/{id}/trail answers 404 for a missing or cross-tenant run, 400 for a bad includeEffects, 403 to a run token, and is in the scope map (" + provider + ")", ct => RoutesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp", "garrison_get_run_trail is listed for a person and returns the trail as structured content; it is absent and refused for a run token (" + provider + ")", ct => McpAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "entry-surface", "Runs record how they came in: REST invoke Rest, MCP start Mcp, a manual trigger fire Trigger, and a person's urgent message Message; the trail's Caller node and leg-starting Run nodes carry it (" + provider + ")", ct => EntrySurfaceAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "org-validate", "POST /organizations/{id}/validate lists warnings and errors with codes and unit identifiers, writes nothing, and answers 404 across tenants (" + provider + ")", ct => OrgValidateAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Activity trail (" + provider + ")", cases));
             }
@@ -83,7 +86,8 @@ namespace Test.Shared.Suites
             {
                 Id = "run_x", Kind = RunTrailNodeKindEnum.Run, State = "Succeeded", AgentId = "agt_x", AgentName = "x", UnitId = "unt_x", UnitName = "x", DeploymentId = "dep_x",
                 StartedUtc = DateTime.UtcNow, EndedUtc = DateTime.UtcNow, DurationMs = 1, InputTokens = 1, OutputTokens = 1, CostUsd = 0.1, RunKind = RunKindEnum.Invoke,
-                IsFocus = true, Lane = "agt_x", CallerType = PrincipalTypeEnum.User, CallerName = "x", ToolName = "t", RedactedKind = RunTrailNodeKindEnum.Message
+                IsFocus = true, Lane = "agt_x", CallerType = PrincipalTypeEnum.User, CallerName = "x", ToolName = "t", RedactedKind = RunTrailNodeKindEnum.Message,
+                EntrySurface = EntrySurfaceEnum.Rest
             };
             RunTrail trail = new RunTrail { OriginId = "usr_x", FocusRunId = "run_x", Nodes = new List<RunTrailNode> { full }, Edges = new List<RunTrailEdge> { new RunTrailEdge { FromId = "usr_x", ToId = "run_x", Kind = RunTrailEdgeKindEnum.Started } }, NodeCount = 1 };
             string json = Serializer.Serialize(trail);
@@ -98,6 +102,10 @@ namespace Test.Shared.Suites
             foreach (Dictionary<string, object?> node in Objects(fixture["nodes"]))
             {
                 Assert.True(Enum.TryParse(Convert.ToString(node["kind"]), out RunTrailNodeKindEnum _), "Node kind " + node["kind"] + " is a RunTrailNodeKindEnum value");
+                if (node.TryGetValue("entrySurface", out object? surface) && surface != null)
+                {
+                    Assert.True(Enum.TryParse(Convert.ToString(surface), out EntrySurfaceEnum _), "Entry surface " + surface + " is an EntrySurfaceEnum value");
+                }
             }
             foreach (Dictionary<string, object?> edge in Objects(fixture["edges"]))
             {
@@ -105,7 +113,94 @@ namespace Test.Shared.Suites
             }
             RunTrail parsed = Serializer.Deserialize<RunTrail>(File.ReadAllText(path)) ?? throw new TestAssertionException("The fixture does not deserialize as RunTrail.");
             Assert.True(parsed.Nodes.Count == 15 && parsed.Edges.Count == 15 && parsed.Nodes.Single(n => n.IsFocus).Id == "run_b2", "The fixture deserializes as a RunTrail");
+            Assert.True(parsed.Nodes.Single(n => n.Id == "usr_operator1").EntrySurface == EntrySurfaceEnum.Rest && parsed.Nodes.Single(n => n.Id == "run_b2").EntrySurface == EntrySurfaceEnum.Message, "The fixture's entry surfaces deserialize");
             return Task.CompletedTask;
+        }
+
+        private static Task EntrySurfaceMapAsync(CancellationToken token)
+        {
+            Dictionary<string, EntrySurfaceEnum> expected = new Dictionary<string, EntrySurfaceEnum>
+            {
+                { "rest", EntrySurfaceEnum.Rest }, { "playground", EntrySurfaceEnum.Rest }, { "mcp", EntrySurfaceEnum.Mcp }, { "a2a", EntrySurfaceEnum.A2a },
+                { "app", EntrySurfaceEnum.App }, { "trigger", EntrySurfaceEnum.Trigger }, { "keeper", EntrySurfaceEnum.Keeper }, { "message", EntrySurfaceEnum.Message },
+                { "escalation", EntrySurfaceEnum.Escalation }, { "eval", EntrySurfaceEnum.Eval }, { "shadow", EntrySurfaceEnum.Shadow }, { "pipeline", EntrySurfaceEnum.Internal },
+                { "MCP", EntrySurfaceEnum.Mcp }, { "", EntrySurfaceEnum.Internal }, { "carrier-pigeon", EntrySurfaceEnum.Internal }
+            };
+            foreach (KeyValuePair<string, EntrySurfaceEnum> pair in expected)
+            {
+                Assert.Equal(pair.Value, EntrySurfaces.FromSurface(pair.Key), "Surface label '" + pair.Key + "'");
+            }
+            Assert.Equal(EntrySurfaceEnum.Internal, EntrySurfaces.FromSurface(null), "No label");
+            Assert.Equal(EntrySurfaceEnum.Rest, EntrySurfaces.FromSurface(new RunCreateContext().Surface), "The creation default is Rest");
+            return Task.CompletedTask;
+        }
+
+        private static async Task EntrySurfaceAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                DatabaseDriverBase db = host.Server.Context.Database;
+                Agent agent = await OrganizationSuite.AgentAsync(host, "trail-entry", token).ConfigureAwait(false);
+                await OrganizationSuite.DeploymentAsync(host, agent, token).ConfigureAwait(false);
+
+                Run rest = await HttpTestHelpers.SendAsync<Run>(host.AdminClient, HttpMethod.Post, T(host) + "/agents/" + agent.Id + "/invoke", new InvokeRequest { Input = "entry over rest", Wait = false }, 202, token).ConfigureAwait(false);
+                Run restStored = Assert.NotNull(await db.Runs.ReadAsync(host.TenantId, rest.Id, token).ConfigureAwait(false), "The REST run");
+                Assert.Equal(EntrySurfaceEnum.Rest, restStored.EntrySurface, "A REST invoke is Rest");
+
+                using (TestMcpClient person = new TestMcpClient())
+                {
+                    await person.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    ProviderToolResult started = await person.CallResultAsync("garrison_start_run", new { agent = agent.Name, input = "entry over mcp" }, token).ConfigureAwait(false);
+                    Assert.True(!started.IsError, "garrison_start_run starts a run");
+                }
+                EnumerationResult<Run> page = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, T(host) + "/runs?agentId=" + agent.Id + "&maxResults=50", null, 200, token).ConfigureAwait(false);
+                List<Run> mcpRuns = new List<Run>();
+                foreach (Run listed in page.Objects)
+                {
+                    Run? stored = await db.Runs.ReadAsync(host.TenantId, listed.Id, token).ConfigureAwait(false);
+                    if (stored != null && stored.InputText == "entry over mcp") mcpRuns.Add(stored);
+                }
+                Assert.True(mcpRuns.Count == 1 && mcpRuns[0].EntrySurface == EntrySurfaceEnum.Mcp, "An MCP start is Mcp");
+
+                Trigger hook = await HttpTestHelpers.SendAsync<Trigger>(host.AdminClient, HttpMethod.Post, T(host) + "/triggers", new Trigger { Name = "trail-entry-hook", Type = TriggerTypeEnum.Webhook, AgentId = agent.Id }, 201, token).ConfigureAwait(false);
+                TriggerFire fire = await HttpTestHelpers.SendAsync<TriggerFire>(host.AdminClient, HttpMethod.Post, T(host) + "/triggers/" + hook.Id + "/fire", new TriggerFireRequest { Body = "{}", ContentType = "application/json" }, 201, token).ConfigureAwait(false);
+                Run fired = Assert.NotNull(await db.Runs.ReadAsync(host.TenantId, Assert.NotNull(fire.RunId, "The fire's run"), token).ConfigureAwait(false), "The trigger run");
+                Assert.Equal(EntrySurfaceEnum.Trigger, fired.EntrySurface, "A trigger fire is Trigger");
+
+                AgentMessageSendRequest urgent = new AgentMessageSendRequest { Recipient = agent.Name, Subject = "Entry", Body = "Wake up", Urgency = MessageUrgencyEnum.Urgent, IdempotencyKey = "trail-entry-" + provider };
+                AgentMessage sent = await HttpTestHelpers.SendAsync<AgentMessage>(host.AdminClient, HttpMethod.Post, T(host) + "/messages", urgent, 201, token).ConfigureAwait(false);
+                Run woken = Assert.NotNull(await db.Runs.ReadAsync(host.TenantId, Assert.NotNull(sent.DeliveredRunId, "Urgent mail woke a run: " + Serializer.Serialize(sent)), token).ConfigureAwait(false), "The woken run");
+                Assert.True(woken.Kind == RunKindEnum.Message && woken.EntrySurface == EntrySurfaceEnum.Message, "A message wake is Message");
+
+                RunTrailService service = host.Server.Context.Get<RunTrailService>();
+                RunTrail restTrail = await service.BuildAsync(OrganizationSuite.Admin(host), host.TenantId, rest.Id, null, token).ConfigureAwait(false);
+                RunTrailNode caller = restTrail.Nodes.Single(n => n.Id == restTrail.OriginId);
+                Assert.True(caller.Kind == RunTrailNodeKindEnum.Caller && caller.EntrySurface == EntrySurfaceEnum.Rest, "The Caller node says Rest: " + Serializer.Serialize(restTrail));
+                Assert.Equal(EntrySurfaceEnum.Rest, restTrail.Nodes.Single(n => n.Id == rest.Id).EntrySurface, "The root Run node says Rest");
+                RunTrail triggerTrail = await service.BuildAsync(OrganizationSuite.Admin(host), host.TenantId, fired.Id, null, token).ConfigureAwait(false);
+                Assert.True(triggerTrail.Nodes.Single(n => n.Id == triggerTrail.OriginId).Kind == RunTrailNodeKindEnum.Trigger && triggerTrail.Nodes.Single(n => n.Id == fired.Id).EntrySurface == EntrySurfaceEnum.Trigger, "A trigger trail: Trigger origin, run says Trigger");
+                RunTrail messageTrail = await service.BuildAsync(OrganizationSuite.Admin(host), host.TenantId, woken.Id, null, token).ConfigureAwait(false);
+                Assert.Equal(EntrySurfaceEnum.Message, messageTrail.Nodes.Single(n => n.Id == woken.Id).EntrySurface, "The woken Run node says Message");
+                string json = Serializer.Serialize(restTrail);
+                Assert.True(json.Contains("\"entrySurface\":\"Rest\"", StringComparison.Ordinal), "The entry surface serializes as a string: " + json);
+
+                // A child run follows its parent: only runs that start a leg of the work carry the surface.
+                Run child = OrganizationSuite.RunOf(host, agent);
+                child.ParentRunId = rest.Id;
+                child.RootRunId = rest.Id;
+                child.Kind = RunKindEnum.Delegated;
+                child.EntrySurface = EntrySurfaceEnum.Mcp;
+                await db.Runs.CreateAsync(child, token).ConfigureAwait(false);
+                RunTrail withChild = await service.BuildAsync(OrganizationSuite.Admin(host), host.TenantId, child.Id, null, token).ConfigureAwait(false);
+                Assert.True(withChild.Nodes.Single(n => n.Id == child.Id).EntrySurface == null && Run(withChild, rest.Id).EntrySurface == EntrySurfaceEnum.Rest, "A child run node leaves the surface out");
+                Run reread = Assert.NotNull(await db.Runs.ReadAsync(host.TenantId, child.Id, token).ConfigureAwait(false), "The child run");
+                Assert.Equal(EntrySurfaceEnum.Mcp, reread.EntrySurface, "The column round-trips");
+            }
+        }
+
+        private static RunTrailNode Run(RunTrail trail, string id)
+        {
+            return trail.Nodes.Single(n => n.Id == id);
         }
 
         private static Task SettingsAsync(CancellationToken token)

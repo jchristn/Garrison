@@ -121,6 +121,12 @@ describe('TrailSequence', () => {
     expect(qa('.trail-edge-label').map((e) => e.textContent)).toContain('woke');
   });
 
+  it('shows on the caller step how the request came in (LP-013)', () => {
+    mount(<TrailSequence trail={fixture} />);
+    expect(step('usr_operator1').querySelector('.trail-step-detail').textContent).toContain('Rest');
+    expect(step('run_a1').querySelector('.trail-step-detail').textContent).not.toContain('Rest');
+  });
+
   it('highlights the focus run and draws the redacted step as a hatched box with only its kind', () => {
     mount(<TrailSequence trail={fixture} />);
     expect(step('run_b2').getAttribute('class')).toContain('is-focus');

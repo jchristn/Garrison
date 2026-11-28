@@ -278,6 +278,8 @@ The activity trail of a run shows how the work moved: where it started (a person
 
 `client.Runs.GetRunTrail(ctx, runID, opts)` returns a `*RunTrail` with `OriginID`, `FocusRunID`, `Nodes` (`RunTrailNode`, `Kind` one of the `RunTrailNode*` constants), `Edges` (`RunTrailEdge`, `Kind` one of the `RunTrailEdge*` constants), `Truncation` (one of the `RunTrailTruncation*` constants), `NodeCount`, `HopCount`, and `GeneratedUTC`. The server leaves out null properties, so optional node fields are pointers. Set `RunTrailOptions.IncludeEffects` to a `false` value to leave out effect journal entries; `nil` options use the `RunTrail.IncludeEffects` setting (default true).
 
+`Run.EntrySurface` and `RunTrailNode.EntrySurface` (one of the `EntrySurface*` constants) say how the work came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`. The trail sets it on the `Caller` node and on runs that start a leg of the work. Runs the dashboard starts are `Rest`.
+
 ```go
 trail, err := client.Runs.GetRunTrail(ctx, run.ID, nil)
 if err != nil {

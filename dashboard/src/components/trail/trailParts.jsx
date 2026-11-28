@@ -47,11 +47,13 @@ export function stepTitle(t, node) {
   return kindLabel(t, node.kind);
 }
 
-/** The second line of a step: its state label and duration. */
+/** The second line of a step: its state label and duration, and for a Caller its entry surface. */
 export function stepDetail(t, node, lng) {
   const parts = [];
   const label = stateLabel(t, node.state);
   if (label) parts.push(label);
+  // The caller lane says how the request came in (LP-013): Rest, Mcp, A2a, App, and so on.
+  if (node.kind === 'Caller' && node.entrySurface) parts.push(enumLabel(t, 'entrySurface', node.entrySurface));
   if (node.durationMs !== null && node.durationMs !== undefined && node.kind !== 'Message') parts.push(formatDuration(node.durationMs, lng));
   return parts.join(' · ');
 }

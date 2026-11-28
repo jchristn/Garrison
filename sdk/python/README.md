@@ -252,6 +252,8 @@ The activity trail of a run shows how the work moved: where it started (a person
 
 `client.runs.get_run_trail(run_id, include_effects=None)` returns a `RunTrail` dictionary with `originId`, `focusRunId`, `nodes` (`RunTrailNode`, `kind` one of `RUN_TRAIL_NODE_KINDS`), `edges` (`RunTrailEdge`, `kind` one of `RUN_TRAIL_EDGE_KINDS`), `truncation` (one of `RUN_TRAIL_TRUNCATIONS`), `nodeCount`, `hopCount`, and `generatedUtc`. The server leaves out null keys, so read optional ones with `.get()`. Pass `include_effects=False` to leave out effect journal entries; `None` uses the `RunTrail.IncludeEffects` setting (default true).
 
+`run["entrySurface"]` and a trail node's `entrySurface` (one of `ENTRY_SURFACES`) say how the work came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`. The trail sets it on the `Caller` node and on runs that start a leg of the work. Runs the dashboard starts are `Rest`.
+
 ```python
 trail = client.runs.get_run_trail(run["id"])
 for node in trail["nodes"]:

@@ -125,7 +125,7 @@ await check("run trail", async () => {
   const trail = await client.runs.getRunTrail(runId);
   require(trail.focusRunId === runId && trail.truncation === "None" && trail.nodeCount === trail.nodes.length, `trail header ${trail.focusRunId} ${trail.truncation}`);
   const origin = trail.nodes.find((n) => n.id === trail.originId);
-  require(origin && origin.kind === "Caller" && origin.callerType === "Credential", `origin ${JSON.stringify(origin)}`);
+  require(origin && origin.kind === "Caller" && origin.callerType === "Credential" && origin.entrySurface === "Rest", `origin ${JSON.stringify(origin)}`);
   const focus = trail.nodes.find((n) => n.id === runId);
   require(focus && focus.isFocus && focus.kind === "Run" && focus.state === "Succeeded" && focus.runKind === "Invoke", `focus ${JSON.stringify(focus)}`);
   require(trail.edges.some((e) => e.fromId === trail.originId && e.toId === runId && e.kind === "Started"), "Started edge");

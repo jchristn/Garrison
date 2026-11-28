@@ -73,7 +73,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | Phase | Name | Depends on | Status | Done / Total |
 |---|---|---|---|---|
 | LP0 | Plan wiring | none | Done | 2 / 2 |
-| LP1 | Activity trail: server | LP0 | In progress (LP1.12 to LP1.14 open) | 11 / 14 |
+| LP1 | Activity trail: server | LP0 | In progress (LP1.13, LP1.14 open) | 12 / 14 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | In progress | 1 / 12 |
 | LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
@@ -307,7 +307,7 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 
   Accept: all pass; doc reviewed for human voice.
 
-- [ ] LP1.12 Entry surface (LP-013): `EntrySurfaceEnum`, a `runs.entry_surface` column in the next free migration, set on every start path from the LP1.1 inventory, `entrySurface` on the trail's Caller and root Run nodes, the fixture updated, and the dashboard showing it on the caller lane.  Accept: Touchstone cases per start path on both providers; fixture and dashboard vitest updated.
+- [x] LP1.12 Entry surface (LP-013): `EntrySurfaceEnum`, a `runs.entry_surface` column in the next free migration, set on every start path from the LP1.1 inventory, `entrySurface` on the trail's Caller and root Run nodes, the fixture updated, and the dashboard showing it on the caller lane.  Accept: Touchstone cases per start path on both providers; fixture and dashboard vitest updated.  | claude 2026-11-27 EntrySurfaceEnum, runs.entrysurface (migration 62), set in RunService from the creation surface label every start path already passes (EntrySurfaces.FromSurface: rest and playground Rest, mcp, a2a, app, trigger, keeper, message, escalation, eval, shadow; pipeline stages Internal). Dashboard is reserved: no header or principal tells it from Rest, so it is recorded as Rest (documented). entrySurface on the Caller node and on Run nodes with no parent and no retry-of; fixture, fixture-shape case, Caller step detail in the sequence view, SDK models, docs. Checks: run-trail suites on sqlite and postgresql 34/34 (new entry-surface-map unit case and entry-surface case per provider covering REST, MCP, trigger, and message wake through real routes; A2A, app, keeper, escalation, eval, shadow covered by the map case only), db-sqlite and db-postgresql 38/38 incl. migrate-twice, vitest runTrail, trailLayout, runTrailApi 46/46, scripts/run-sdk-harnesses.sh all PASS
 - [ ] LP1.13 Shadow link (LP-014): `runs.shadow_of_run_id`, filled by `ShadowTrialService` when a shadow copy starts, a `Shadowed` edge kind, and trail cases.  Accept: Touchstone cases on both providers.
 - [ ] LP1.14 Escalation answer into the tick (LP-015): the trail walks from an answered non-blocking escalation to the tick in `DeliveredTickId` and its run.  Accept: Touchstone case.
 

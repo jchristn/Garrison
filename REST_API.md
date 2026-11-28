@@ -2928,8 +2928,8 @@ A run that a person invoked directly, with no child runs or messages:
   "originId": "usr_operator1",
   "focusRunId": "run_a1",
   "nodes": [
-    { "id": "usr_operator1", "kind": "Caller", "startedUtc": "2026-11-27T10:00:00.000Z", "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com" },
-    { "id": "run_a1", "kind": "Run", "state": "Succeeded", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "oun_sre", "unitName": "Site reliability", "deploymentId": "dep_lead", "startedUtc": "2026-11-27T10:00:01.000Z", "endedUtc": "2026-11-27T10:04:10.000Z", "durationMs": 249000, "inputTokens": 5200, "outputTokens": 1300, "costUsd": 0.042, "runKind": "Invoke", "isFocus": true, "lane": "agt_lead" },
+    { "id": "usr_operator1", "kind": "Caller", "startedUtc": "2026-11-27T10:00:00.000Z", "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com", "entrySurface": "Rest" },
+    { "id": "run_a1", "kind": "Run", "state": "Succeeded", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "oun_sre", "unitName": "Site reliability", "deploymentId": "dep_lead", "startedUtc": "2026-11-27T10:00:01.000Z", "endedUtc": "2026-11-27T10:04:10.000Z", "durationMs": 249000, "inputTokens": 5200, "outputTokens": 1300, "costUsd": 0.042, "runKind": "Invoke", "isFocus": true, "lane": "agt_lead", "entrySurface": "Rest" },
     { "id": "rep_run_a1", "kind": "Reply", "state": "Succeeded", "startedUtc": "2026-11-27T10:04:10.000Z", "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com" }
   ],
   "edges": [
@@ -2967,6 +2967,7 @@ A run that a person invoked directly, with no child runs or messages:
 | `callerType`, `callerName` | Who called, on `Caller` and `Reply` nodes |
 | `toolName` | The tool an `Effect` node called. Its arguments are never included |
 | `redactedKind` | On a `Redacted` placeholder, the kind of the step you may not read. A placeholder keeps only its kind, time, and lane |
+| `entrySurface` | How the work came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal` (a pipeline stage). On the `Caller` node it is the surface of the run the caller started; on a `Run` node it is set only when the run starts a leg of the work (no parent, not a retry). The dashboard uses the REST API, so its requests are `Rest`; `Dashboard` is reserved. Left out for runs created before schema version 62 |
 
 | `RunTrailEdge` `kind` | From, to |
 |---|---|
@@ -6965,6 +6966,7 @@ One invocation of one deployment.
 | `kind` | `RunKindEnum` | Run kind. |
 | `evalRunId` | `string?` | The eval run this run belongs to: a case run or a judge run (kind `Eval`). See [Evaluations](#evaluations). |
 | `shadowTrialId` | `string?` | The shadow trial this run is a copy for (kind `Shadow`). |
+| `entrySurface` | `EntrySurfaceEnum?` | How the run came in: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`. Set at creation; null for runs created before schema version 62. The dashboard's runs are `Rest`; `Dashboard` is reserved. See [docs/TRAILS.md](docs/TRAILS.md). |
 | `status` | `RunStatusEnum` | Status. |
 | `outcome` | `RunOutcomeEnum` | Outcome code. |
 | `priority` | `int` | Priority; higher runs first. Minimum -100, maximum 100, default 0. |

@@ -449,6 +449,12 @@ namespace Garrison.Core.Models
         public string? ShadowTrialId { get; set; } = null;
 
         /// <summary>
+        /// How the run came in (LP-013): Rest, Mcp, A2a, App, Trigger, Keeper, Message, Escalation, Eval, Shadow, or
+        /// Internal. Set when the run is created; null on runs created before schema version 62.
+        /// </summary>
+        public EntrySurfaceEnum? EntrySurface { get; set; } = null;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.

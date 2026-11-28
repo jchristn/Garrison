@@ -197,7 +197,7 @@ namespace Garrison.Sdk.Test
                     RunTrail trail = await client.Runs.GetRunTrailAsync(runId, null, token).ConfigureAwait(false);
                     Require(trail.FocusRunId == runId && trail.Truncation == RunTrailTruncationEnum.None && trail.NodeCount == trail.Nodes.Count, "trail header " + trail.FocusRunId + " " + trail.Truncation);
                     RunTrailNode? origin = trail.Nodes.FirstOrDefault(n => n.Id == trail.OriginId);
-                    Require(origin != null && origin.Kind == RunTrailNodeKindEnum.Caller && origin.CallerType == PrincipalTypeEnum.Credential, "origin is the calling credential");
+                    Require(origin != null && origin.Kind == RunTrailNodeKindEnum.Caller && origin.CallerType == PrincipalTypeEnum.Credential && origin.EntrySurface == EntrySurfaceEnum.Rest, "origin is the calling credential, over REST");
                     RunTrailNode? focus = trail.Nodes.FirstOrDefault(n => n.Id == runId);
                     Require(focus != null && focus.IsFocus && focus.Kind == RunTrailNodeKindEnum.Run && focus.State == "Succeeded" && focus.RunKind == RunKindEnum.Invoke, "focus run node");
                     Require(trail.Edges.Any(e => e.FromId == trail.OriginId && e.ToId == runId && e.Kind == RunTrailEdgeKindEnum.Started), "Started edge");

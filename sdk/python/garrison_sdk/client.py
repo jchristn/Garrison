@@ -1069,6 +1069,9 @@ TRIGGER_TYPES = ("Cron", "Webhook")
 # environment (PLAYGROUND_ENVIRONMENT); see Agents.playground_invoke and StudioDrafts.playground_invoke.
 # Eval runs start one Eval run per case, and shadow trials start Shadow runs that cannot act; Run["evalRunId"] and
 # Run["shadowTrialId"] name the eval run or the trial.
+# Run["entrySurface"] and RunTrailNode["entrySurface"]: how a run came in. The dashboard calls the REST API, so its runs
+# are "Rest"; "Dashboard" is reserved. Runs created before the server recorded it have no value.
+ENTRY_SURFACES = ("Rest", "Mcp", "A2a", "App", "Dashboard", "Trigger", "Keeper", "Message", "Escalation", "Eval", "Shadow", "Internal")
 RUN_KINDS = ("Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message", "Eval", "Shadow")
 PLAYGROUND_ENVIRONMENT = "draft"
 # A trigger with targetType "EvalSet" is a scheduled check (evalSetId, deploymentId required, evalJudgeAgentId,
@@ -1611,7 +1614,8 @@ class RunTrailNode(TypedDict, total=False):
     """One step of an activity trail. kind is one of RUN_TRAIL_NODE_KINDS. The server leaves out keys whose value is
     null, so read optional keys with .get(). lane is "caller" for Caller, Trigger, and Reply steps and the agent
     identifier otherwise. A Redacted placeholder carries redactedKind, the kind of the step you may not read. toolName
-    names an Effect's tool, never its arguments."""
+    names an Effect's tool, never its arguments. entrySurface (one of ENTRY_SURFACES) says how the work came in, on the
+    Caller node and on Run nodes that start a leg of the work."""
     id: str
     kind: str
     state: Optional[str]
@@ -1633,6 +1637,7 @@ class RunTrailNode(TypedDict, total=False):
     callerName: Optional[str]
     toolName: Optional[str]
     redactedKind: Optional[str]
+    entrySurface: Optional[str]
 
 
 class RunTrailEdge(TypedDict, total=False):

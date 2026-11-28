@@ -114,5 +114,11 @@ namespace Garrison.Sdk.Models
         /// For a Redacted placeholder, the kind of the step you may not read; otherwise null.
         /// </summary>
         public RunTrailNodeKindEnum? RedactedKind { get; set; } = null;
+
+        /// <summary>
+        /// How the work came in: on a Caller node, the entry surface of the run the caller started; on a Run node that
+        /// starts a leg of the work (no parent and not a retry), its own. Null elsewhere.
+        /// </summary>
+        public EntrySurfaceEnum? EntrySurface { get; set; } = null;
     }
 }

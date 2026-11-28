@@ -18,6 +18,8 @@ A trail is a list of **nodes** and a list of **edges**. A node is one step: the 
 
 Run nodes carry what you need to judge a step at a glance: the agent and its unit, the deployment, the status, start and end times, duration, tokens, cost, and the run kind, so a `Shadow` or `Eval` run is easy to spot. Effect nodes carry the tool name of a state-changing Garrison tool call. Message, report, escalation, and approval nodes carry their status and time.
 
+The Caller node also says how the request came in, in `entrySurface`: `Rest`, `Mcp`, `A2a`, or `App`. The same field is on every run that starts a leg of the work (a run with no parent that is not a retry), so a run woken by a message says `Message`, a trigger's run says `Trigger`, and a keeper tick's run says `Keeper`. Escalations routed to an agent, eval cases, and shadow copies have their own values, and a pipeline stage is `Internal` because the pipeline run is its origin. Child runs and retries leave the field out and follow their parent. The dashboard calls the same REST API as any client, with the same credentials, so nothing tells its requests apart: they are recorded as `Rest`, and `Dashboard` is reserved. The playground is `Rest` for the same reason. Runs created before schema version 62 have no entry surface.
+
 The walk starts at the focus run, goes back to the origin, then goes forward breadth first through every child run, fan-out group, retry, message and the run it woke, report, escalation, approval, and effect. A record is shown once even when two paths reach it, so a pair of agents that keep writing to each other shows each message once and stops at the hop cap instead of looping.
 
 ## Where a trail starts
@@ -124,10 +126,10 @@ Records that hang off a run, rather than start one:
 
 ## Gaps found
 
-These links do not exist as structured fields today. The trail works without them, and none was added in LP1.2, which only adds indexes (schema migration 61).
+These links did not exist as structured fields when LP1.1 checked the code. LP1.2 added only indexes (schema migration 61); the entry surface came later (schema migration 62).
 
 - **The reply leg is never recorded on its own.** No path stores "the answer went back to the caller" as a record. The trail draws a `Reply` node from the root run's terminal state when the origin is a person or API caller who started the run directly. For A2A that means the trail ends at the run's terminal state whether or not the client ever fetched the result.
 - **Non-blocking escalation answers.** The answer reaches the raising agent through its next keeper tick (`DeliveredTickId`), which is a different trail. The trail shows the escalation as answered but has no edge into that later tick.
 - **Shadow copies** do not record the live run they copy, except inside their idempotency key as text. A shadow run's trail starts at the person who started the trial.
-- **Which surface a request came in on** (REST, MCP, A2A, app) is used for metrics but not stored on the run, so a Caller node cannot say how the caller connected.
+- **Which surface a request came in on** was used for metrics but not stored. It is now the run's `entrySurface` (LP1.12, migration 62), shown on the Caller node.
 - **Unit names** come from the organization revision that is live now, not the one in force when each step ran, because the chain of command reads only live revisions.

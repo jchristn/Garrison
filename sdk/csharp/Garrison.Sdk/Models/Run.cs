@@ -379,6 +379,12 @@ namespace Garrison.Sdk.Models
         public string? ShadowTrialId { get; set; } = null;
 
         /// <summary>
+        /// How the run came in (Rest, Mcp, A2a, App, Trigger, Keeper, Message, Escalation, Eval, Shadow, or Internal), or
+        /// null for runs created before the server recorded it.
+        /// </summary>
+        public EntrySurfaceEnum? EntrySurface { get; set; } = null;
+
+        /// <summary>
         /// Blocking escalation the run is waiting on (AA2), or null.
         /// </summary>
         public string? EscalationId { get; set; } = null;

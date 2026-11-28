@@ -279,7 +279,7 @@ func main() {
 				reply = true
 			}
 		}
-		if origin == nil || origin.Kind != garrison.RunTrailNodeCaller || origin.CallerType == nil || *origin.CallerType != "Credential" {
+		if origin == nil || origin.Kind != garrison.RunTrailNodeCaller || origin.CallerType == nil || *origin.CallerType != "Credential" || origin.EntrySurface == nil || *origin.EntrySurface != garrison.EntrySurfaceRest {
 			return fmt.Errorf("origin %+v", origin)
 		}
 		if focus == nil || !focus.IsFocus || focus.Kind != garrison.RunTrailNodeRun || focus.State == nil || *focus.State != "Succeeded" || focus.RunKind == nil || *focus.RunKind != "Invoke" {

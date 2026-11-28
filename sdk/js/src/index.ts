@@ -1399,6 +1399,9 @@ export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "
 export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message", "Eval", "Shadow"] as const;
 /** The reserved environment playground deployments live in; users cannot create deployments in it. */
 export const PLAYGROUND_ENVIRONMENT = "draft" as const;
+/** How a run came in. The dashboard calls the REST API, so its runs are Rest; Dashboard is reserved. */
+export type EntrySurface = "Rest" | "Mcp" | "A2a" | "App" | "Dashboard" | "Trigger" | "Keeper" | "Message" | "Escalation" | "Eval" | "Shadow" | "Internal";
+export const ENTRY_SURFACES: readonly EntrySurface[] = ["Rest", "Mcp", "A2a", "App", "Dashboard", "Trigger", "Keeper", "Message", "Escalation", "Eval", "Shadow", "Internal"] as const;
 /** What a step of an activity trail is. */
 export type RunTrailNodeKind = "Caller" | "Trigger" | "KeeperTick" | "Run" | "Message" | "Report" | "Escalation" | "Approval" | "Effect" | "FanOutGroup" | "PipelineRun" | "Reply" | "Redacted";
 export const RUN_TRAIL_NODE_KINDS: readonly RunTrailNodeKind[] = ["Caller", "Trigger", "KeeperTick", "Run", "Message", "Report", "Escalation", "Approval", "Effect", "FanOutGroup", "PipelineRun", "Reply", "Redacted"] as const;
@@ -1419,6 +1422,8 @@ export interface RunTrailNode extends Json {
   durationMs?: number | null; inputTokens?: number | null; outputTokens?: number | null; costUsd?: number | null;
   runKind?: RunKind | null; isFocus: boolean; lane: string; callerType?: string | null; callerName?: string | null;
   toolName?: string | null; redactedKind?: RunTrailNodeKind | null;
+  /** How the work came in, on the Caller node and on Run nodes that start a leg of the work. */
+  entrySurface?: EntrySurface | null;
 }
 /** A link between two trail steps. */
 export interface RunTrailEdge extends Json { fromId: string; toId: string; kind: RunTrailEdgeKind; atUtc: string; }
@@ -1546,6 +1551,8 @@ export interface Run extends Json {
   evalRunId?: string | null;
   /** The shadow trial this run belongs to (kind Shadow), or null. */
   shadowTrialId?: string | null;
+  /** How the run came in, or null for runs created before the server recorded it. */
+  entrySurface?: EntrySurface | null;
   /** Structured output of the run as a JSON value (any JSON type), or null when there is none. */
   structuredOutput?: unknown;
 }

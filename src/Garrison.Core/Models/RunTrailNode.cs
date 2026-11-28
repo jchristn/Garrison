@@ -154,6 +154,13 @@ namespace Garrison.Core.Models
         public RunTrailNodeKindEnum? RedactedKind { get; set; } = null;
 
         /// <summary>
+        /// How the work came in (LP-013): on a Caller node, the entry surface of the run the caller started; on a Run node
+        /// that starts a leg of the work (no parent and not a retry), its own entry surface. Null elsewhere, and on runs
+        /// created before the entry surface was recorded.
+        /// </summary>
+        public EntrySurfaceEnum? EntrySurface { get; set; } = null;
+
+        /// <summary>
         /// The lane name used for the caller's steps: caller.
         /// </summary>
         public static string CallerLane

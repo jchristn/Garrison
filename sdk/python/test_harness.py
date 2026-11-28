@@ -817,7 +817,7 @@ def t_run_trail():
     require(trail["focusRunId"] == run_id and trail["truncation"] == "None" and trail["nodeCount"] == len(trail["nodes"]), f"trail header {trail.get('focusRunId')} {trail.get('truncation')}")
     nodes = {n["id"]: n for n in trail["nodes"]}
     origin = nodes.get(trail["originId"])
-    require(origin is not None and origin["kind"] == "Caller" and origin.get("callerType") == "Credential", f"origin {origin}")
+    require(origin is not None and origin["kind"] == "Caller" and origin.get("callerType") == "Credential" and origin.get("entrySurface") == "Rest", f"origin {origin}")
     focus = nodes.get(run_id)
     require(focus is not None and focus["isFocus"] and focus["kind"] == "Run" and focus.get("state") == "Succeeded" and focus.get("runKind") == "Invoke", f"focus {focus}")
     require(any(e["fromId"] == trail["originId"] and e["toId"] == run_id and e["kind"] == "Started" for e in trail["edges"]), "Started edge")
