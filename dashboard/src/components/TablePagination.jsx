@@ -142,7 +142,6 @@ export default function TablePagination({
         >
           <ChevronsRightIcon />
         </button>
-        </div>
         {onRefresh && (
           <button
             type="button"
@@ -155,6 +154,7 @@ export default function TablePagination({
             <RefreshIcon />
           </button>
         )}
+        </div>
       </div>
     </div>
   );

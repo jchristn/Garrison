@@ -2521,7 +2521,7 @@ a.sidebar-utility { text-decoration: none; }
   .data-table th, .data-table td { padding-inline: 0.5rem; }
   .data-table th.select-cell, .data-table td.select-cell { padding-inline: 0.5rem 0.25rem; }
 }
-.data-table th { hyphens: auto; -webkit-hyphens: auto; }
+.data-table th { hyphens: auto; -webkit-hyphens: auto; hyphenate-limit-chars: 12 5 5; }
 /* UXP1-V016: the Actions column stays pinned at the end edge, so the row menu is reachable however far the table
    scrolls, with a shadow while columns hide behind it. */
 .data-table th.col-actions, .data-table td.col-actions { position: sticky; inset-inline-end: 0; z-index: 1; background: var(--color-surface); }
@@ -2716,3 +2716,6 @@ a.sidebar-utility { text-decoration: none; }
 .tour-sample-kind { color: var(--color-text-secondary); }
 .wizard-applied { margin-bottom: var(--spacing-md); }
 .wizard-applied li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }
+/* UXP1-V025: in a FilterBar, a date and time field and a text field are wide enough for their value or placeholder. */
+.filter-bar .field:has(input[type='datetime-local']) { flex: 1 1 13rem; min-width: 13rem; }
+.filter-bar .field:has(input[type='text']) { flex: 1 1 12rem; }

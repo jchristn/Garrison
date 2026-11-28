@@ -10570,3 +10570,21 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   "target": "Endpoint or executable"
  }
 });
+
+// Shared tables (LP5.5): the short auto-refresh option labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "autoRefresh": {
+   "short": "{{count}} sec"
+  }
+ }
+});

@@ -10600,3 +10600,21 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   "target": "Endpoint o ejecutable"
  }
 });
+
+// Shared tables (LP5.5): the short auto-refresh option labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "autoRefresh": {
+   "short": "{{count}} seg."
+  }
+ }
+});

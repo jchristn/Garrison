@@ -10550,3 +10550,21 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   "target": "端點或執行檔"
  }
 });
+
+// Shared tables (LP5.5): the short auto-refresh option labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "autoRefresh": {
+   "short": "{{count}} 秒"
+  }
+ }
+});

@@ -10549,3 +10549,21 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   "target": "エンドポイントまたは実行ファイル"
  }
 });
+
+// Shared tables (LP5.5): the short auto-refresh option labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "components": {
+  "autoRefresh": {
+   "short": "{{count}} 秒"
+  }
+ }
+});

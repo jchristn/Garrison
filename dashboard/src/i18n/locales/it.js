@@ -10596,3 +10596,21 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   "target": "Endpoint o eseguibile"
  }
 });
+
+// Shared tables (LP5.5): the short auto-refresh option labels.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "autoRefresh": {
+   "short": "{{count}} sec."
+  }
+ }
+});

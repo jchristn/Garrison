@@ -4,7 +4,8 @@ import { tip } from './Tooltip';
 
 /**
  * Auto-refresh interval selector. `value` is a number of seconds (0 = None).
- * Options: None, 15 (default), 30, 60, 120, 180, 300.
+ * Options: None, 15 (default), 30, 60, 120, 180, 300. The options use the short form ("15 sec") so the select stays
+ * narrow beside its visible label (UXP1-V019).
  */
 export default function AutoRefreshSelect({ value, onChange }) {
   const { t } = useTranslation();
@@ -24,7 +25,7 @@ export default function AutoRefreshSelect({ value, onChange }) {
             </option>
           ) : (
             <option key={s} value={s}>
-              {t('components.autoRefresh.seconds', { count: s })}
+              {t('components.autoRefresh.short', { count: s })}
             </option>
           )
         )}
