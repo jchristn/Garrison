@@ -18,7 +18,7 @@ from typing import Optional
 
 import requests
 
-from garrison_sdk import (EFFECT_POLICIES, EVAL_RUN_TERMINAL_STATUSES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
+from garrison_sdk import (EFFECT_POLICIES, ORGANIZATION_VALIDATION_PROBLEM_CODES, RUN_TRAIL_NODE_KINDS, EVAL_RUN_TERMINAL_STATUSES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
                           GarrisonError, sign_webhook, verify_webhook)
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
@@ -808,6 +808,43 @@ def t_messages():
         require(False, "an unknown message is not found")
     except GarrisonError as e:
         require(e.status_code == 404, f"status {e.status_code}")
+
+
+def t_run_trail():
+    # A direct invoke: the caller starts the run and the trail ends with the reply to that caller.
+    run_id = state["run"]
+    trail = client.runs.get_run_trail(run_id)
+    require(trail["focusRunId"] == run_id and trail["truncation"] == "None" and trail["nodeCount"] == len(trail["nodes"]), f"trail header {trail.get('focusRunId')} {trail.get('truncation')}")
+    nodes = {n["id"]: n for n in trail["nodes"]}
+    origin = nodes.get(trail["originId"])
+    require(origin is not None and origin["kind"] == "Caller" and origin.get("callerType") == "Credential", f"origin {origin}")
+    focus = nodes.get(run_id)
+    require(focus is not None and focus["isFocus"] and focus["kind"] == "Run" and focus.get("state") == "Succeeded" and focus.get("runKind") == "Invoke", f"focus {focus}")
+    require(any(e["fromId"] == trail["originId"] and e["toId"] == run_id and e["kind"] == "Started" for e in trail["edges"]), "Started edge")
+    require(any(n["kind"] == "Reply" for n in trail["nodes"]) and any(e["fromId"] == run_id and e["kind"] == "Replied" for e in trail["edges"]), "Reply node and Replied edge")
+    require(all(k in RUN_TRAIL_NODE_KINDS for k in (n["kind"] for n in trail["nodes"])), "node kinds are known")
+    without = client.runs.get_run_trail(run_id, include_effects=False)
+    require(not any(n["kind"] == "Effect" for n in without["nodes"]), "include_effects False leaves out effects")
+    _expect_status(404, client.runs.get_run_trail, "run_sdk_missing")
+
+
+def t_organization_validate():
+    # A dry run of publishing: an empty tree has no root (an Error), and a root with an active lead is valid.
+    org = None
+    try:
+        org = client.organizations.create({"name": f"sdk-py-validate-{SUFFIX}", "mission": "Validate with the Python SDK."})
+        empty = client.organizations.validate_organization(org["id"])
+        require(not empty["valid"] and any(p["code"] == "OneRoot" and p["severity"] == "Error" and p["message"] for p in empty["problems"]), f"an empty tree reports OneRoot: {empty}")
+        root = client.organizations.create_unit(org["id"], {"name": "board", "leadAgentId": state["agent"], "leadTitle": "CEO"})
+        client.organizations.create_unit(org["id"], {"name": "unled", "parentUnitId": root["id"]})
+        filled = client.organizations.validate_organization(org["name"])
+        require(filled["valid"] and not any(p["severity"] == "Error" for p in filled["problems"]), f"a rooted tree is valid: {filled}")
+        require(any(p["code"] == "UnitWithoutLead" and p["severity"] == "Warning" and p.get("unitId") for p in filled["problems"]), "a unit without a lead is a warning")
+        require(all(p["code"] in ORGANIZATION_VALIDATION_PROBLEM_CODES for p in filled["problems"]), "problem codes are known")
+        _expect_status(404, client.organizations.validate_organization, "org_sdk_missing")
+    finally:
+        if org is not None:
+            client.organizations.delete(org["id"])
 
 
 def t_organizations():
@@ -1679,7 +1716,7 @@ AUTH_HELP = (
 
 for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
                  ("model price CRUD", t_prices), ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create), ("usage quota CRUD and meters", t_quotas),
-                 ("invoke with wait", t_invoke), ("run transcript (Markdown and JSON)", t_run_transcript),
+                 ("invoke with wait", t_invoke), ("run transcript (Markdown and JSON)", t_run_transcript), ("run trail", t_run_trail),
                  ("input schema enforcement", t_input_schema), ("run timing metrics", t_run_metrics),
                  ("run analytics", t_analytics), ("run analytics grouped by harness", t_analytics_group),
                  ("run analytics grouped by harness and model", t_analytics_harness_model),
@@ -1697,7 +1734,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
                  ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
-                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("change rules", t_change_rules), ("board", t_board), ("performance and org brakes", t_performance), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
+                 ("webhook and cron triggers", t_triggers), ("keepers", t_keepers), ("escalations", t_escalations), ("freezes", t_freezes), ("memory", t_memory), ("reports", t_reports), ("messages", t_messages), ("organizations", t_organizations), ("organization validate", t_organization_validate), ("change rules", t_change_rules), ("board", t_board), ("performance and org brakes", t_performance), ("eval sets, eval runs, shadow trials, and canary releases", t_evaluation), ("notification endpoints", t_notifications), ("effect operation metadata", t_effect_operations), ("scheduling, pinned sessions, remote admission, and key rotation", t_control_plane_contracts), ("agent revisions and promotion", t_revisions_promotion), ("agent assets", t_agent_assets), ("conversation file spaces", t_file_spaces), ("capability catalog", t_capabilities), ("fan-out groups", t_fan_out_groups), ("agentic app, delegation plan, and app revision", t_apps), ("studio draft apply through an approval", t_studio_drafts), ("architect prompts", t_architect_prompts), ("agent architects", t_architects), ("app gateway chat with the support triage bundle", t_app_gateway), ("playground and compile preview of a draft revision", t_playground), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

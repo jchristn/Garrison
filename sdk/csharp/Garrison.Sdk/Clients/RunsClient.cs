@@ -98,6 +98,27 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Read a run's activity trail: every step from where the work started (a caller, trigger, keeper tick, or pipeline
+        /// run) through child runs, fan-out groups, retries, messages, reports, escalations, approvals, and effects, back to
+        /// the reply. The trail carries no text an agent wrote. Steps you may not read come back as Redacted placeholders,
+        /// and a trail that reached a RunTrail.* cap says so in Truncation. Needs Read on Run; a run token is refused.
+        /// </summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="includeEffects">Whether to show effect journal entries, or null for the RunTrail.IncludeEffects cluster setting (default true).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The trail.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when id is null or empty.</exception>
+        /// <exception cref="GarrisonException">404 when the run does not exist in the tenant; 403 RunTokenTrailNotAllowed for a run token.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        public async Task<RunTrail> GetRunTrailAsync(string id, bool? includeEffects = null, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            Dictionary<string, string?>? query = null;
+            if (includeEffects.HasValue) query = new Dictionary<string, string?> { { "includeEffects", includeEffects.Value ? "true" : "false" } };
+            return await Transport.SendAsync<RunTrail>(HttpMethod.Get, TenantPath("/runs/" + Segment(id) + "/trail"), null, query, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
         /// Read a run.
         /// </summary>
         /// <param name="id">Run identifier.</param>

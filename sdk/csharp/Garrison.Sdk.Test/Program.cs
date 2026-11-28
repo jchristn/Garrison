@@ -190,6 +190,28 @@ namespace Garrison.Sdk.Test
                     Require(!transcript.IncludesThinking, "thinking included by default");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("run trail", async () =>
+                {
+                    // A direct invoke: the caller starts the run and the trail ends with the reply to that caller.
+                    string runId = invokedRun?.Id ?? throw new InvalidOperationException("no invoked run");
+                    RunTrail trail = await client.Runs.GetRunTrailAsync(runId, null, token).ConfigureAwait(false);
+                    Require(trail.FocusRunId == runId && trail.Truncation == RunTrailTruncationEnum.None && trail.NodeCount == trail.Nodes.Count, "trail header " + trail.FocusRunId + " " + trail.Truncation);
+                    RunTrailNode? origin = trail.Nodes.FirstOrDefault(n => n.Id == trail.OriginId);
+                    Require(origin != null && origin.Kind == RunTrailNodeKindEnum.Caller && origin.CallerType == PrincipalTypeEnum.Credential, "origin is the calling credential");
+                    RunTrailNode? focus = trail.Nodes.FirstOrDefault(n => n.Id == runId);
+                    Require(focus != null && focus.IsFocus && focus.Kind == RunTrailNodeKindEnum.Run && focus.State == "Succeeded" && focus.RunKind == RunKindEnum.Invoke, "focus run node");
+                    Require(trail.Edges.Any(e => e.FromId == trail.OriginId && e.ToId == runId && e.Kind == RunTrailEdgeKindEnum.Started), "Started edge");
+                    Require(trail.Nodes.Any(n => n.Kind == RunTrailNodeKindEnum.Reply) && trail.Edges.Any(e => e.FromId == runId && e.Kind == RunTrailEdgeKindEnum.Replied), "Reply node and Replied edge");
+                    RunTrail withoutEffects = await client.Runs.GetRunTrailAsync(runId, false, token).ConfigureAwait(false);
+                    Require(!withoutEffects.Nodes.Any(n => n.Kind == RunTrailNodeKindEnum.Effect), "includeEffects false leaves out effects");
+                    try
+                    {
+                        await client.Runs.GetRunTrailAsync("run_sdk_missing", null, token).ConfigureAwait(false);
+                        Require(false, "the trail of an unknown run is not found");
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404) { }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("input schema enforcement", async () =>
                 {
                     Agent structured = new Agent();
@@ -1199,6 +1221,33 @@ namespace Garrison.Sdk.Test
                     {
                         if (organization != null) await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
                         await client.Agents.DeleteAsync(member.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("organization validate", async () =>
+                {
+                    // A dry run of publishing: an empty tree has no root (an Error), and a root with an active lead is valid.
+                    Organization? organization = null;
+                    try
+                    {
+                        organization = await client.Organizations.CreateAsync(new Organization { Name = "sdk-cs-validate-" + suffix, Mission = "Validate with the C# SDK." }, token).ConfigureAwait(false);
+                        OrganizationValidationResult empty = await client.Organizations.ValidateOrganizationAsync(organization.Id, token).ConfigureAwait(false);
+                        Require(!empty.Valid && empty.Problems.Any(p => p.Code == OrganizationValidationProblemCodeEnum.OneRoot && p.Severity == OrganizationValidationSeverityEnum.Error && !String.IsNullOrEmpty(p.Message)), "an empty tree reports OneRoot");
+                        OrgUnit root = await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "board", LeadAgentId = agentId, LeadTitle = "CEO" }, token).ConfigureAwait(false);
+                        await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "unled", ParentUnitId = root.Id }, token).ConfigureAwait(false);
+                        OrganizationValidationResult filled = await client.Organizations.ValidateOrganizationAsync(organization.Name, token).ConfigureAwait(false);
+                        Require(filled.Valid && !filled.Problems.Any(p => p.Severity == OrganizationValidationSeverityEnum.Error), "a rooted tree is valid");
+                        Require(filled.Problems.Any(p => p.Code == OrganizationValidationProblemCodeEnum.UnitWithoutLead && p.Severity == OrganizationValidationSeverityEnum.Warning && p.UnitId != null), "a unit without a lead is a warning");
+                        try
+                        {
+                            await client.Organizations.ValidateOrganizationAsync("org_sdk_missing", token).ConfigureAwait(false);
+                            Require(false, "validating an unknown organization is not found");
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { }
+                    }
+                    finally
+                    {
+                        if (organization != null) await client.Organizations.DeleteAsync(organization.Id, token).ConfigureAwait(false);
                     }
                 }).ConfigureAwait(false);
 

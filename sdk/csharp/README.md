@@ -271,6 +271,36 @@ await client.Organizations.RollbackAsync(org.Id, new OrgRollbackRequest { Note =
 
 `OrgUnitSpend.Exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept `FreezeTargetKindEnum.OrgUnit` and `Organization`, memory accepts the `OrgUnit` and `Organization` scopes, `UsageQuotaScopeEnum.OrgUnit` tracks a unit's subtree, `CapabilityDescriptor.Org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `SubjectKind` `Organization`, `OrganizationId`, and `OrgRevisionId`.
 
+## Validating an organization
+
+Validating an organization checks its working tree the way publishing would, without writing anything. Each problem has a `code`, a `severity`, the unit, agent, or mandate it is about, and a `message` that says how to fix it. `Error` problems are the ones publishing refuses (`OneRoot`, `Cycle`, `AgentInTwoUnits`, `BudgetOverParent`, `AgentInactive`, and the rest). `Warning` problems publish but leave the organization incomplete: `UnitWithoutLead`, `KeeperDeploymentMissing`, and `MandateMismatch`. `valid` is true when no problem is an `Error`. Reading needs Read on Organization, and an unknown organization is 404.
+
+`Organizations.ValidateOrganizationAsync(orgId)` returns an `OrganizationValidationResult` with `Valid` and `Problems` (`OrganizationValidationProblem`, with `Code` an `OrganizationValidationProblemCodeEnum` and `Severity` an `OrganizationValidationSeverityEnum`). The organization may be named by identifier or name.
+
+```csharp
+OrganizationValidationResult check = await client.Organizations.ValidateOrganizationAsync("acme");
+foreach (OrganizationValidationProblem problem in check.Problems)
+{
+    Console.WriteLine(problem.Severity + " " + problem.Code + ": " + problem.Message);
+}
+if (check.Valid) await client.Organizations.PublishAsync("acme", (await client.Organizations.CreateRevisionAsync("acme", new OrgRevisionRequest())).Id);
+```
+
+## Activity trails
+
+The activity trail of a run shows how the work moved: where it started (a person or API caller, a trigger, a keeper tick, or a pipeline run), the runs it reached through child runs, fan-out groups, retries, and messages, the reports, escalations, approvals, and effect journal entries along the way, and the reply to the caller. The server builds it on each request from records it already keeps. It holds identifiers, kinds, states, times, and token and cost figures, never text an agent wrote, so read a message or a report through its own client. Steps you may not read come back as `Redacted` placeholders that keep only their kind and time. A trail that reaches one of the `RunTrail.*` cluster settings stops there and names the cap in `truncation` (`NodeCap`, `HopCap`, or `SpanCap`). Reading needs Read on Run, an unknown run is 404, and a run token gets 403 `RunTokenTrailNotAllowed`. See [docs/TRAILS.md](../../docs/TRAILS.md).
+
+`Runs.GetRunTrailAsync(runId, includeEffects)` returns a `RunTrail` with `OriginId`, `FocusRunId`, `Nodes` (`RunTrailNode`, with `Kind` a `RunTrailNodeKindEnum`), `Edges` (`RunTrailEdge`, with `Kind` a `RunTrailEdgeKindEnum`), `Truncation` (`RunTrailTruncationEnum`), `NodeCount`, `HopCount`, and `GeneratedUtc`. Pass `includeEffects` as `false` to leave out effect journal entries; `null` uses the `RunTrail.IncludeEffects` setting (default true).
+
+```csharp
+RunTrail trail = await client.Runs.GetRunTrailAsync(run.Id);
+foreach (RunTrailNode node in trail.Nodes)
+{
+    Console.WriteLine(node.Kind + " " + node.Id + " " + (node.AgentName ?? node.CallerName) + " " + node.State);
+}
+RunTrail lean = await client.Runs.GetRunTrailAsync(run.Id, includeEffects: false);
+```
+
 ## Change rules and proposals
 
 A deployment with `ManagementAccessEnum.OrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (`ChangeClassEnum`: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `ChangeRules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field raises a `GarrisonException` with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`.

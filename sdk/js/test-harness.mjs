@@ -2,7 +2,7 @@
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { AppGatewayClient, EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
+import { AppGatewayClient, EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, ORGANIZATION_VALIDATION_PROBLEM_CODES, RUN_TRAIL_NODE_KINDS, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
 const suffix = Math.random().toString(16).slice(2, 10);
@@ -117,6 +117,23 @@ await check("run transcript (Markdown and JSON)", async () => {
   require(transcript.turnCount === 1 && transcript.turns.length === 1, `turns ${transcript.turnCount}`);
   require(transcript.turns[0].input === "Hello from the JavaScript SDK", `turn input ${transcript.turns[0].input}`);
   require(transcript.includesThinking === false, "thinking included by default");
+});
+await check("run trail", async () => {
+  // A direct invoke: the caller starts the run and the trail ends with the reply to that caller.
+  require(state.run, "no finished run");
+  const runId = state.run.id;
+  const trail = await client.runs.getRunTrail(runId);
+  require(trail.focusRunId === runId && trail.truncation === "None" && trail.nodeCount === trail.nodes.length, `trail header ${trail.focusRunId} ${trail.truncation}`);
+  const origin = trail.nodes.find((n) => n.id === trail.originId);
+  require(origin && origin.kind === "Caller" && origin.callerType === "Credential", `origin ${JSON.stringify(origin)}`);
+  const focus = trail.nodes.find((n) => n.id === runId);
+  require(focus && focus.isFocus && focus.kind === "Run" && focus.state === "Succeeded" && focus.runKind === "Invoke", `focus ${JSON.stringify(focus)}`);
+  require(trail.edges.some((e) => e.fromId === trail.originId && e.toId === runId && e.kind === "Started"), "Started edge");
+  require(trail.nodes.some((n) => n.kind === "Reply") && trail.edges.some((e) => e.fromId === runId && e.kind === "Replied"), "Reply node and Replied edge");
+  require(trail.nodes.every((n) => RUN_TRAIL_NODE_KINDS.includes(n.kind)), "node kinds are known");
+  const without = await client.runs.getRunTrail(runId, { includeEffects: false });
+  require(!without.nodes.some((n) => n.kind === "Effect"), "includeEffects false leaves out effects");
+  await expectStatus(404, () => client.runs.getRunTrail("run_sdk_missing"));
 });
 await check("input schema enforcement", async () => {
   const schema = { type: "object", properties: { topic: { type: "string" }, count: { type: "integer" } }, required: ["topic"] };
@@ -747,6 +764,24 @@ await check("organizations", async () => {
   } finally {
     if (org) await client.organizations.delete(org.id);
     await client.agents.delete(member.id);
+  }
+});
+await check("organization validate", async () => {
+  // A dry run of publishing: an empty tree has no root (an Error), and a root with an active lead is valid.
+  let org = null;
+  try {
+    org = await client.organizations.create({ name: `sdk-js-validate-${suffix}`, mission: "Validate with the JavaScript SDK." });
+    const empty = await client.organizations.validateOrganization(org.id);
+    require(!empty.valid && empty.problems.some((p) => p.code === "OneRoot" && p.severity === "Error" && p.message), `an empty tree reports OneRoot: ${JSON.stringify(empty)}`);
+    const root = await client.organizations.createUnit(org.id, { name: "board", leadAgentId: state.agent, leadTitle: "CEO" });
+    await client.organizations.createUnit(org.id, { name: "unled", parentUnitId: root.id });
+    const filled = await client.organizations.validateOrganization(org.name);
+    require(filled.valid && !filled.problems.some((p) => p.severity === "Error"), `a rooted tree is valid: ${JSON.stringify(filled)}`);
+    require(filled.problems.some((p) => p.code === "UnitWithoutLead" && p.severity === "Warning" && p.unitId), "a unit without a lead is a warning");
+    require(filled.problems.every((p) => ORGANIZATION_VALIDATION_PROBLEM_CODES.includes(p.code)), "problem codes are known");
+    await expectStatus(404, () => client.organizations.validateOrganization("org_sdk_missing"));
+  } finally {
+    if (org) await client.organizations.delete(org.id);
   }
 });
 await check("change rules", async () => {

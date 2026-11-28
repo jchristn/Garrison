@@ -1399,6 +1399,37 @@ export type RunKind = "Invoke" | "Delegated" | "Test" | "Retry" | "Pipeline" | "
 export const RUN_KINDS: readonly RunKind[] = ["Invoke", "Delegated", "Test", "Retry", "Pipeline", "Trigger", "Playground", "Keeper", "Message", "Eval", "Shadow"] as const;
 /** The reserved environment playground deployments live in; users cannot create deployments in it. */
 export const PLAYGROUND_ENVIRONMENT = "draft" as const;
+/** What a step of an activity trail is. */
+export type RunTrailNodeKind = "Caller" | "Trigger" | "KeeperTick" | "Run" | "Message" | "Report" | "Escalation" | "Approval" | "Effect" | "FanOutGroup" | "PipelineRun" | "Reply" | "Redacted";
+export const RUN_TRAIL_NODE_KINDS: readonly RunTrailNodeKind[] = ["Caller", "Trigger", "KeeperTick", "Run", "Message", "Report", "Escalation", "Approval", "Effect", "FanOutGroup", "PipelineRun", "Reply", "Redacted"] as const;
+/** How two steps of an activity trail are linked, from cause to effect. */
+export type RunTrailEdgeKind = "Started" | "Spawned" | "FannedOut" | "Retried" | "Sent" | "Woke" | "Filed" | "Raised" | "Routed" | "Answered" | "Requested" | "Decided" | "Performed" | "Replied" | "Delivered";
+export const RUN_TRAIL_EDGE_KINDS: readonly RunTrailEdgeKind[] = ["Started", "Spawned", "FannedOut", "Retried", "Sent", "Woke", "Filed", "Raised", "Routed", "Answered", "Requested", "Decided", "Performed", "Replied", "Delivered"] as const;
+/** Why a trail stopped short; None when it is complete. */
+export type RunTrailTruncation = "None" | "NodeCap" | "HopCap" | "SpanCap";
+export const RUN_TRAIL_TRUNCATIONS: readonly RunTrailTruncation[] = ["None", "NodeCap", "HopCap", "SpanCap"] as const;
+/**
+ * One step of an activity trail. The server leaves out properties that are null. lane is "caller" for Caller, Trigger,
+ * and Reply steps and the agent identifier otherwise. A Redacted placeholder carries redactedKind, the kind of the step you
+ * may not read. toolName names an Effect's tool, never its arguments.
+ */
+export interface RunTrailNode extends Json {
+  id: string; kind: RunTrailNodeKind; state?: string | null; agentId?: string | null; agentName?: string | null;
+  unitId?: string | null; unitName?: string | null; deploymentId?: string | null; startedUtc?: string | null; endedUtc?: string | null;
+  durationMs?: number | null; inputTokens?: number | null; outputTokens?: number | null; costUsd?: number | null;
+  runKind?: RunKind | null; isFocus: boolean; lane: string; callerType?: string | null; callerName?: string | null;
+  toolName?: string | null; redactedKind?: RunTrailNodeKind | null;
+}
+/** A link between two trail steps. */
+export interface RunTrailEdge extends Json { fromId: string; toId: string; kind: RunTrailEdgeKind; atUtc: string; }
+/**
+ * A run's activity trail: every step from where the work started (originId) through the runs and records it reached,
+ * back to the reply. focusRunId is the run asked about. No text an agent wrote is included.
+ */
+export interface RunTrail extends Json {
+  originId: string; focusRunId: string; nodes: RunTrailNode[]; edges: RunTrailEdge[]; truncation: RunTrailTruncation;
+  nodeCount: number; hopCount: number; generatedUtc: string;
+}
 export type EffectOperationState = "Authorized" | "Dispatched" | "Completed" | "Unknown";
 export const EFFECT_OPERATION_STATES: readonly EffectOperationState[] = ["Authorized", "Dispatched", "Completed", "Unknown"] as const;
 /** Read-only placement diagnostics; eligibility never reserves capacity. */
@@ -2425,6 +2456,17 @@ export class Runs {
   /** Read database statement totals by completed run lifecycle operation. */
   databaseUsage(id: string): Promise<RunDatabaseUsage[]> { return this.t.request("GET", this.p(`/${seg(id)}/database-usage`)); }
   operations(id: string): Promise<EffectOperation[]> { return this.t.request("GET", this.p(`/${seg(id)}/operations`)); }
+  /**
+   * The run's activity trail: every step from where the work started through child runs, fan-out groups, retries,
+   * messages, reports, escalations, approvals, and effects, back to the reply. includeEffects left out uses the
+   * RunTrail.IncludeEffects cluster setting (default true). Steps you may not read come back as Redacted placeholders.
+   * Needs Read on Run. Fails with 404 for an unknown run and 403 RunTokenTrailNotAllowed for a run token.
+   */
+  getRunTrail(id: string, options: { includeEffects?: boolean } = {}): Promise<RunTrail> {
+    if (!id) throw new TypeError("id is required");
+    const query = options.includeEffects === undefined ? undefined : { includeEffects: options.includeEffects ? "true" : "false" };
+    return this.t.request("GET", this.p(`/${seg(id)}/trail`), query);
+  }
   list(filter: RunFilter = {}): Promise<EnumerationResult<Run>> { return this.t.request("GET", this.p(), filter as any); }
   cancel(id: string): Promise<Run> { return this.t.request("POST", this.p(`/${seg(id)}/cancel`)); }
   retry(id: string): Promise<Run> { return this.t.request("POST", this.p(`/${seg(id)}/retry`)); }
@@ -2692,6 +2734,18 @@ export interface OrgChart extends Json {
   organizationId: string; name: string; mission?: string | null; revisionId?: string | null; revisionNumber: number;
   source: "Live" | "Working"; units: OrgChartUnit[];
 }
+/** Error is what publishing would refuse; Warning publishes but leaves the organization incomplete. */
+export type OrganizationValidationSeverity = "Error" | "Warning";
+export const ORGANIZATION_VALIDATION_SEVERITIES: readonly OrganizationValidationSeverity[] = ["Error", "Warning"] as const;
+export type OrganizationValidationProblemCode = "UnitWithoutLead" | "AgentInTwoUnits" | "PeerLineToMissingUnit" | "BudgetOverParent" | "KeeperDeploymentMissing" | "UnitDetachedFromRoot" | "OneRoot" | "Cycle" | "UnitNameTaken" | "TooManyUnits" | "TooManyMembers" | "TooManyPeerLines" | "BudgetPeriodTaken" | "BudgetInvalid" | "AgentInactive" | "MandateMismatch";
+export const ORGANIZATION_VALIDATION_PROBLEM_CODES: readonly OrganizationValidationProblemCode[] = ["UnitWithoutLead", "AgentInTwoUnits", "PeerLineToMissingUnit", "BudgetOverParent", "KeeperDeploymentMissing", "UnitDetachedFromRoot", "OneRoot", "Cycle", "UnitNameTaken", "TooManyUnits", "TooManyMembers", "TooManyPeerLines", "BudgetPeriodTaken", "BudgetInvalid", "AgentInactive", "MandateMismatch"] as const;
+/** One problem in an organization's working tree. unitId, agentId, and mandateId name what it is about, or are null. */
+export interface OrganizationValidationProblem extends Json {
+  code: OrganizationValidationProblemCode; severity: OrganizationValidationSeverity; unitId?: string | null; agentId?: string | null;
+  mandateId?: string | null; message: string;
+}
+/** valid is true when no problem has severity Error. problems lists errors first. */
+export interface OrganizationValidationResult extends Json { valid: boolean; problems: OrganizationValidationProblem[]; }
 /** A unit's subtree spend in the current window of one period. amountUsd and fraction are null without a budget. */
 export interface OrgUnitSpend extends Json {
   unitId: string; unitName: string; period: BudgetPeriod; amountUsd?: number | null; spentUsd: number; fraction?: number | null;
@@ -2740,6 +2794,8 @@ export class Organizations extends Resource<Organization> {
   }
   /** Spend of each unit's subtree against its budgets in the current day and month windows. */
   spend(organization: string): Promise<OrgUnitSpend[]> { return this.t.request("GET", `${this.item(organization)}/spend`); }
+  /** Validate the working tree without publishing it. Writes nothing. Needs Read on Organization. Fails with 404 for an unknown organization. */
+  validateOrganization(organization: string): Promise<OrganizationValidationResult> { return this.t.request("POST", `${this.item(organization)}/validate`); }
   /** The organization's executive proposals, newest change first, without diffs. Needs Read on Organization. */
   listProposals(organization: string, query: { status?: StudioDraftStatus; maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<OrgProposal>> {
     return this.t.request("GET", `${this.item(organization)}/proposals`, query as any);

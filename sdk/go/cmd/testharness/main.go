@@ -252,6 +252,67 @@ func main() {
 		}
 		return nil
 	})
+	check("run trail", func(ctx context.Context) error {
+		// A direct invoke: the caller starts the run and the trail ends with the reply to that caller.
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		runID := finished.ID
+		trail, err := client.Runs.GetRunTrail(ctx, runID, nil)
+		if err != nil {
+			return err
+		}
+		if trail.FocusRunID != runID || trail.Truncation != garrison.RunTrailTruncationNone || trail.NodeCount != len(trail.Nodes) {
+			return fmt.Errorf("trail header %s %s", trail.FocusRunID, trail.Truncation)
+		}
+		var origin, focus *garrison.RunTrailNode
+		reply := false
+		for i := range trail.Nodes {
+			n := &trail.Nodes[i]
+			if n.ID == trail.OriginID {
+				origin = n
+			}
+			if n.ID == runID {
+				focus = n
+			}
+			if n.Kind == garrison.RunTrailNodeReply {
+				reply = true
+			}
+		}
+		if origin == nil || origin.Kind != garrison.RunTrailNodeCaller || origin.CallerType == nil || *origin.CallerType != "Credential" {
+			return fmt.Errorf("origin %+v", origin)
+		}
+		if focus == nil || !focus.IsFocus || focus.Kind != garrison.RunTrailNodeRun || focus.State == nil || *focus.State != "Succeeded" || focus.RunKind == nil || *focus.RunKind != "Invoke" {
+			return fmt.Errorf("focus %+v", focus)
+		}
+		started, replied := false, false
+		for _, e := range trail.Edges {
+			if e.FromID == trail.OriginID && e.ToID == runID && e.Kind == garrison.RunTrailEdgeStarted {
+				started = true
+			}
+			if e.FromID == runID && e.Kind == garrison.RunTrailEdgeReplied {
+				replied = true
+			}
+		}
+		if !started || !reply || !replied {
+			return fmt.Errorf("started %v reply %v replied %v", started, reply, replied)
+		}
+		off := false
+		without, err := client.Runs.GetRunTrail(ctx, runID, &garrison.RunTrailOptions{IncludeEffects: &off})
+		if err != nil {
+			return err
+		}
+		for _, n := range without.Nodes {
+			if n.Kind == garrison.RunTrailNodeEffect {
+				return errors.New("includeEffects false leaves out effects")
+			}
+		}
+		var apiErr *garrison.Error
+		if _, err := client.Runs.GetRunTrail(ctx, "run_sdk_missing", nil); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("the trail of an unknown run is not found: %v", err)
+		}
+		return nil
+	})
 	check("input schema enforcement", func(ctx context.Context) error {
 		var agent garrison.Agent
 		schema := `{"type":"object","properties":{"topic":{"type":"string"},"count":{"type":"integer"}},"required":["topic"]}`
@@ -1864,6 +1925,57 @@ func main() {
 			return err
 		}
 		deleted = true
+		return nil
+	})
+
+	check("organization validate", func(ctx context.Context) error {
+		// A dry run of publishing: an empty tree has no root (an Error), and a root with an active lead is valid.
+		str := func(v string) *string { return &v }
+		org, err := client.Organizations.Create(ctx, garrison.Organization{Name: "sdk-go-validate-" + suffix, Mission: str("Validate with the Go SDK.")})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.Organizations.Delete(ctx, org.ID) }()
+		empty, err := client.Organizations.ValidateOrganization(ctx, org.ID)
+		if err != nil {
+			return err
+		}
+		oneRoot := false
+		for _, p := range empty.Problems {
+			if p.Code == garrison.OrganizationProblemOneRoot && p.Severity == garrison.OrganizationValidationError && p.Message != "" {
+				oneRoot = true
+			}
+		}
+		if empty.Valid || !oneRoot {
+			return fmt.Errorf("an empty tree reports OneRoot: %+v", empty)
+		}
+		root, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: str(agentID), LeadTitle: str("CEO")})
+		if err != nil {
+			return err
+		}
+		if _, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "unled", ParentUnitID: str(root.ID)}); err != nil {
+			return err
+		}
+		filled, err := client.Organizations.ValidateOrganization(ctx, org.Name)
+		if err != nil {
+			return err
+		}
+		unled := false
+		for _, p := range filled.Problems {
+			if p.Severity == garrison.OrganizationValidationError {
+				return fmt.Errorf("a rooted tree has an error: %+v", p)
+			}
+			if p.Code == garrison.OrganizationProblemUnitWithoutLead && p.Severity == garrison.OrganizationValidationWarning && p.UnitID != nil {
+				unled = true
+			}
+		}
+		if !filled.Valid || !unled {
+			return fmt.Errorf("valid %v, unit without a lead reported %v", filled.Valid, unled)
+		}
+		var apiErr *garrison.Error
+		if _, err := client.Organizations.ValidateOrganization(ctx, "org_sdk_missing"); !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("validating an unknown organization is not found: %v", err)
+		}
 		return nil
 	})
 

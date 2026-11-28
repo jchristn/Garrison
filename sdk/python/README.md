@@ -232,6 +232,33 @@ client.organizations.rollback(org["id"], note="Undo")
 
 `ORGANIZATION_STATUSES`, `ORG_REVISION_STATES`, `BUDGET_PERIODS`, `USAGE_QUOTA_SCOPES`, and `PROMOTION_SUBJECT_KINDS` list the values. A spend entry's `exhausted` is True when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, a capability descriptor's `org` places an agent capability in its organization, and a publish or rollback writes a promotion record with `subjectKind` `Organization`, `organizationId`, and `orgRevisionId`.
 
+## Validating an organization
+
+Validating an organization checks its working tree the way publishing would, without writing anything. Each problem has a `code`, a `severity`, the unit, agent, or mandate it is about, and a `message` that says how to fix it. `Error` problems are the ones publishing refuses (`OneRoot`, `Cycle`, `AgentInTwoUnits`, `BudgetOverParent`, `AgentInactive`, and the rest). `Warning` problems publish but leave the organization incomplete: `UnitWithoutLead`, `KeeperDeploymentMissing`, and `MandateMismatch`. `valid` is true when no problem is an `Error`. Reading needs Read on Organization, and an unknown organization is 404.
+
+`client.organizations.validate_organization(org)` returns an `OrganizationValidationResult` dictionary with `valid` and `problems` (`OrganizationValidationProblem`, `code` one of `ORGANIZATION_VALIDATION_PROBLEM_CODES` and `severity` one of `ORGANIZATION_VALIDATION_SEVERITIES`). The organization may be named by identifier or name.
+
+```python
+check = client.organizations.validate_organization("acme")
+for problem in check["problems"]:
+    print(problem["severity"], problem["code"], problem["message"])
+if check["valid"]:
+    client.organizations.publish("acme", client.organizations.create_revision("acme")["id"])
+```
+
+## Activity trails
+
+The activity trail of a run shows how the work moved: where it started (a person or API caller, a trigger, a keeper tick, or a pipeline run), the runs it reached through child runs, fan-out groups, retries, and messages, the reports, escalations, approvals, and effect journal entries along the way, and the reply to the caller. The server builds it on each request from records it already keeps. It holds identifiers, kinds, states, times, and token and cost figures, never text an agent wrote, so read a message or a report through its own client. Steps you may not read come back as `Redacted` placeholders that keep only their kind and time. A trail that reaches one of the `RunTrail.*` cluster settings stops there and names the cap in `truncation` (`NodeCap`, `HopCap`, or `SpanCap`). Reading needs Read on Run, an unknown run is 404, and a run token gets 403 `RunTokenTrailNotAllowed`. See [docs/TRAILS.md](../../docs/TRAILS.md).
+
+`client.runs.get_run_trail(run_id, include_effects=None)` returns a `RunTrail` dictionary with `originId`, `focusRunId`, `nodes` (`RunTrailNode`, `kind` one of `RUN_TRAIL_NODE_KINDS`), `edges` (`RunTrailEdge`, `kind` one of `RUN_TRAIL_EDGE_KINDS`), `truncation` (one of `RUN_TRAIL_TRUNCATIONS`), `nodeCount`, `hopCount`, and `generatedUtc`. The server leaves out null keys, so read optional ones with `.get()`. Pass `include_effects=False` to leave out effect journal entries; `None` uses the `RunTrail.IncludeEffects` setting (default true).
+
+```python
+trail = client.runs.get_run_trail(run["id"])
+for node in trail["nodes"]:
+    print(node["kind"], node["id"], node.get("agentName") or node.get("callerName"), node.get("state"))
+lean = client.runs.get_run_trail(run["id"], include_effects=False)
+```
+
 ## Change rules and proposals
 
 A deployment with `managementAccess` `OrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (`CHANGE_CLASSES`: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `client.change_rules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field fails with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`.

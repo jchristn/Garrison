@@ -386,3 +386,58 @@ func (o *OrganizationsClient) Spend(ctx context.Context, organization string) ([
 	}
 	return out, nil
 }
+
+// OrganizationValidationProblem is one problem in an organization's working tree. Severity is Error (publishing would
+// refuse it) or Warning (it publishes, but the organization is incomplete). UnitID, AgentID, and MandateID name what the
+// problem is about, or are nil.
+type OrganizationValidationProblem struct {
+	Code      string  `json:"code"`
+	Severity  string  `json:"severity"`
+	UnitID    *string `json:"unitId,omitempty"`
+	AgentID   *string `json:"agentId,omitempty"`
+	MandateID *string `json:"mandateId,omitempty"`
+	Message   string  `json:"message"`
+}
+
+// OrganizationValidationResult is the dry run of publishing a working tree. Valid is true when no problem is an Error.
+type OrganizationValidationResult struct {
+	Valid    bool                            `json:"valid"`
+	Problems []OrganizationValidationProblem `json:"problems"`
+}
+
+// Organization validation severities.
+const (
+	OrganizationValidationError   = "Error"
+	OrganizationValidationWarning = "Warning"
+)
+
+// Organization validation problem codes. UnitWithoutLead, KeeperDeploymentMissing, and MandateMismatch are warnings;
+// the rest are errors.
+const (
+	OrganizationProblemUnitWithoutLead         = "UnitWithoutLead"
+	OrganizationProblemAgentInTwoUnits         = "AgentInTwoUnits"
+	OrganizationProblemPeerLineToMissingUnit   = "PeerLineToMissingUnit"
+	OrganizationProblemBudgetOverParent        = "BudgetOverParent"
+	OrganizationProblemKeeperDeploymentMissing = "KeeperDeploymentMissing"
+	OrganizationProblemUnitDetachedFromRoot    = "UnitDetachedFromRoot"
+	OrganizationProblemOneRoot                 = "OneRoot"
+	OrganizationProblemCycle                   = "Cycle"
+	OrganizationProblemUnitNameTaken           = "UnitNameTaken"
+	OrganizationProblemTooManyUnits            = "TooManyUnits"
+	OrganizationProblemTooManyMembers          = "TooManyMembers"
+	OrganizationProblemTooManyPeerLines        = "TooManyPeerLines"
+	OrganizationProblemBudgetPeriodTaken       = "BudgetPeriodTaken"
+	OrganizationProblemBudgetInvalid           = "BudgetInvalid"
+	OrganizationProblemAgentInactive           = "AgentInactive"
+	OrganizationProblemMandateMismatch         = "MandateMismatch"
+)
+
+// ValidateOrganization validates the working tree without publishing it. It writes nothing. Needs Read on Organization;
+// a 404 is an unknown organization.
+func (o *OrganizationsClient) ValidateOrganization(ctx context.Context, organization string) (*OrganizationValidationResult, error) {
+	var out OrganizationValidationResult
+	if err := o.c.Do(ctx, http.MethodPost, o.item(organization)+"/validate", nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}

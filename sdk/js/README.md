@@ -229,6 +229,30 @@ await client.organizations.rollback(org.id, { note: "Undo" });
 
 `ORGANIZATION_STATUSES`, `ORG_REVISION_STATES`, `BUDGET_PERIODS`, and `PROMOTION_SUBJECT_KINDS` list the values. A spend entry's `exhausted` is true when new runs in the subtree are refused with `BudgetExhausted`. Freezes accept the `OrgUnit` and `Organization` target kinds, memory accepts the `OrgUnit` and `Organization` scopes, an `OrgUnit` usage quota tracks a unit's subtree, `CapabilityDescriptor.org` places an agent capability in its organization, and a publish or rollback writes a `PromotionRecord` with `subjectKind` `Organization`, `organizationId`, and `orgRevisionId`.
 
+## Validating an organization
+
+Validating an organization checks its working tree the way publishing would, without writing anything. Each problem has a `code`, a `severity`, the unit, agent, or mandate it is about, and a `message` that says how to fix it. `Error` problems are the ones publishing refuses (`OneRoot`, `Cycle`, `AgentInTwoUnits`, `BudgetOverParent`, `AgentInactive`, and the rest). `Warning` problems publish but leave the organization incomplete: `UnitWithoutLead`, `KeeperDeploymentMissing`, and `MandateMismatch`. `valid` is true when no problem is an `Error`. Reading needs Read on Organization, and an unknown organization is 404.
+
+`client.organizations.validateOrganization(org)` resolves with an `OrganizationValidationResult`: `valid` and `problems` (`OrganizationValidationProblem`, `code` an `OrganizationValidationProblemCode` and `severity` an `OrganizationValidationSeverity`; `ORGANIZATION_VALIDATION_PROBLEM_CODES` and `ORGANIZATION_VALIDATION_SEVERITIES` list them). The organization may be named by identifier or name.
+
+```ts
+const check = await client.organizations.validateOrganization("acme");
+for (const problem of check.problems) console.log(problem.severity, problem.code, problem.message);
+if (check.valid) await client.organizations.publish("acme", (await client.organizations.createRevision("acme")).id);
+```
+
+## Activity trails
+
+The activity trail of a run shows how the work moved: where it started (a person or API caller, a trigger, a keeper tick, or a pipeline run), the runs it reached through child runs, fan-out groups, retries, and messages, the reports, escalations, approvals, and effect journal entries along the way, and the reply to the caller. The server builds it on each request from records it already keeps. It holds identifiers, kinds, states, times, and token and cost figures, never text an agent wrote, so read a message or a report through its own client. Steps you may not read come back as `Redacted` placeholders that keep only their kind and time. A trail that reaches one of the `RunTrail.*` cluster settings stops there and names the cap in `truncation` (`NodeCap`, `HopCap`, or `SpanCap`). Reading needs Read on Run, an unknown run is 404, and a run token gets 403 `RunTokenTrailNotAllowed`. See [docs/TRAILS.md](../../docs/TRAILS.md).
+
+`client.runs.getRunTrail(runId, { includeEffects })` resolves with a `RunTrail`: `originId`, `focusRunId`, `nodes` (`RunTrailNode`, `kind` a `RunTrailNodeKind`), `edges` (`RunTrailEdge`, `kind` a `RunTrailEdgeKind`), `truncation` (a `RunTrailTruncation`), `nodeCount`, `hopCount`, and `generatedUtc`. `RUN_TRAIL_NODE_KINDS`, `RUN_TRAIL_EDGE_KINDS`, and `RUN_TRAIL_TRUNCATIONS` list the values. The server leaves out null properties, so optional ones may be `undefined`. Pass `includeEffects: false` to leave out effect journal entries; leaving it out uses the `RunTrail.IncludeEffects` setting (default true).
+
+```ts
+const trail = await client.runs.getRunTrail(run.id);
+for (const node of trail.nodes) console.log(node.kind, node.id, node.agentName ?? node.callerName, node.state);
+const lean = await client.runs.getRunTrail(run.id, { includeEffects: false });
+```
+
 ## Change rules and proposals
 
 A deployment with `managementAccess` `OrgSubtree` of an agent that leads a unit is an executive: its runs write studio drafts limited to the units below it. Hard limits refuse changes to the executive itself, its own unit, anything above it, secrets, budget increases, and authority. People write change rules that pre-authorize narrow classes of change (`CHANGE_CLASSES`: `PromptRetune`, `WakeTuning`, `MandateTextEdit`, `AddWorker`, `RemoveWorker`, `ModelChange`, `DeploymentWeight`) for a unit's subtree, with optional limits. A draft whose every change a rule covers applies at once, recorded as an org revision that a rollback undoes; any other draft waits for a person. `client.changeRules` needs Read, Create, Update, and Delete on ChangeRule, and run tokens can never write a rule. A refused field fails with status 400 and a field code such as `UnknownLimit`, `ClassNotInRule`, `UnitNotFound`, `BoundRequired`, `MinimumAboveMaximum`, or `ExpiryInPast`.

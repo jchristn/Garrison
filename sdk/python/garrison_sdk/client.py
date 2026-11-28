@@ -1122,6 +1122,13 @@ MESSAGE_REJECTIONS = ("HopLimit", "LineRate", "ThreadBudget", "NoLine", "Frozen"
 ORGANIZATION_STATUSES = ("Draft", "Active", "Frozen", "Retired")
 ORG_REVISION_STATES = ("Draft", "Published", "Superseded")
 BUDGET_PERIODS = ("Day", "Month")
+# Activity trails (Runs.get_run_trail).
+RUN_TRAIL_NODE_KINDS = ("Caller", "Trigger", "KeeperTick", "Run", "Message", "Report", "Escalation", "Approval", "Effect", "FanOutGroup", "PipelineRun", "Reply", "Redacted")
+RUN_TRAIL_EDGE_KINDS = ("Started", "Spawned", "FannedOut", "Retried", "Sent", "Woke", "Filed", "Raised", "Routed", "Answered", "Requested", "Decided", "Performed", "Replied", "Delivered")
+RUN_TRAIL_TRUNCATIONS = ("None", "NodeCap", "HopCap", "SpanCap")
+# Organization validation (Organizations.validate_organization).
+ORGANIZATION_VALIDATION_SEVERITIES = ("Error", "Warning")
+ORGANIZATION_VALIDATION_PROBLEM_CODES = ("UnitWithoutLead", "AgentInTwoUnits", "PeerLineToMissingUnit", "BudgetOverParent", "KeeperDeploymentMissing", "UnitDetachedFromRoot", "OneRoot", "Cycle", "UnitNameTaken", "TooManyUnits", "TooManyMembers", "TooManyPeerLines", "BudgetPeriodTaken", "BudgetInvalid", "AgentInactive", "MandateMismatch")
 USAGE_QUOTA_SCOPES = ("Tenant", "Agent", "Deployment", "Mandate", "OrgUnit")
 # Change rules: a ChangeRule class entry's "class", a limit's "class", and ChangeRuleMatchItem["classes"].
 CHANGE_CLASSES = ("PromptRetune", "WakeTuning", "MandateTextEdit", "AddWorker", "RemoveWorker", "ModelChange", "DeploymentWeight")
@@ -1580,6 +1587,74 @@ class OrgUnitSpend(TypedDict, total=False):
     exhausted: bool
     windowStartUtc: str
     windowEndUtc: str
+
+
+class OrganizationValidationProblem(TypedDict, total=False):
+    """One problem in an organization's working tree. code is one of ORGANIZATION_VALIDATION_PROBLEM_CODES and severity
+    one of ORGANIZATION_VALIDATION_SEVERITIES: an Error is what publishing would refuse, a Warning publishes but leaves the
+    organization incomplete. unitId, agentId, and mandateId name what the problem is about, or are None."""
+    code: str
+    severity: str
+    unitId: Optional[str]
+    agentId: Optional[str]
+    mandateId: Optional[str]
+    message: str
+
+
+class OrganizationValidationResult(TypedDict, total=False):
+    """Organizations.validate_organization: valid is True when no problem has severity Error. problems lists errors first."""
+    valid: bool
+    problems: List[OrganizationValidationProblem]
+
+
+class RunTrailNode(TypedDict, total=False):
+    """One step of an activity trail. kind is one of RUN_TRAIL_NODE_KINDS. The server leaves out keys whose value is
+    null, so read optional keys with .get(). lane is "caller" for Caller, Trigger, and Reply steps and the agent
+    identifier otherwise. A Redacted placeholder carries redactedKind, the kind of the step you may not read. toolName
+    names an Effect's tool, never its arguments."""
+    id: str
+    kind: str
+    state: Optional[str]
+    agentId: Optional[str]
+    agentName: Optional[str]
+    unitId: Optional[str]
+    unitName: Optional[str]
+    deploymentId: Optional[str]
+    startedUtc: Optional[str]
+    endedUtc: Optional[str]
+    durationMs: Optional[int]
+    inputTokens: Optional[int]
+    outputTokens: Optional[int]
+    costUsd: Optional[float]
+    runKind: Optional[str]
+    isFocus: bool
+    lane: str
+    callerType: Optional[str]
+    callerName: Optional[str]
+    toolName: Optional[str]
+    redactedKind: Optional[str]
+
+
+class RunTrailEdge(TypedDict, total=False):
+    """A link between two trail steps, from cause to effect. kind is one of RUN_TRAIL_EDGE_KINDS."""
+    fromId: str
+    toId: str
+    kind: str
+    atUtc: str
+
+
+class RunTrail(TypedDict, total=False):
+    """Runs.get_run_trail: every step from where the work started (originId) through the runs and records it reached,
+    back to the reply. focusRunId is the run asked about. truncation is one of RUN_TRAIL_TRUNCATIONS ("None" when the
+    trail is complete). No text an agent wrote is included."""
+    originId: str
+    focusRunId: str
+    nodes: List[RunTrailNode]
+    edges: List[RunTrailEdge]
+    truncation: str
+    nodeCount: int
+    hopCount: int
+    generatedUtc: str
 
 
 class BoardCeo(TypedDict, total=False):
@@ -3105,6 +3180,17 @@ class Runs:
         """Read tenant-scoped effect intent metadata in creation order."""
         return self._t.request("GET", self._p(f"/{_seg(id)}/operations"))
 
+    def get_run_trail(self, id: str, include_effects: Optional[bool] = None) -> RunTrail:
+        """The run's activity trail (see RunTrail): every step from where the work started through child runs, fan-out
+        groups, retries, messages, reports, escalations, approvals, and effects, back to the reply. include_effects None
+        uses the RunTrail.IncludeEffects cluster setting (default True). Steps you may not read come back as Redacted
+        placeholders. Needs Read on Run. Raises GarrisonError 404 for an unknown run and 403 RunTokenTrailNotAllowed for
+        a run token."""
+        if not id:
+            raise ValueError("id is required")
+        query = None if include_effects is None else {"includeEffects": "true" if include_effects else "false"}
+        return self._t.request("GET", self._p(f"/{_seg(id)}/trail"), query)
+
     def list(self, status: Optional[str] = None, agent_id: Optional[str] = None, deployment_id: Optional[str] = None,
              harness_type: Optional[str] = None, node_id: Optional[str] = None, parent_run_id: Optional[str] = None,
              root_run_id: Optional[str] = None, outcome: Optional[str] = None, from_utc: Optional[datetime] = None,
@@ -3427,6 +3513,11 @@ class Organizations(Resource):
         if reason is not None and len(reason) > 1024:
             raise ValueError("reason must be at most 1024 characters")
         return self._t.request("POST", self._item(org_id) + f"/units/{_seg(unit_id)}/cancel-all", body={"reason": reason})
+
+    def validate_organization(self, organization: str) -> OrganizationValidationResult:
+        """Validate the working tree without publishing it (see OrganizationValidationResult). Writes nothing. Needs Read
+        on Organization. Raises GarrisonError 404 for an unknown organization."""
+        return self._t.request("POST", self._item(organization) + "/validate")
 
     def spend(self, organization: str) -> List[Dict[str, Any]]:
         """Spend of each unit's subtree against its budgets in the current day and month windows (see OrgUnitSpend)."""

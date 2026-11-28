@@ -209,6 +209,22 @@ namespace Garrison.Sdk.Clients
         }
 
         /// <summary>
+        /// Validate the working tree without publishing it. Each problem has a code, a severity, the unit, agent, or
+        /// mandate it is about, and a message. Error problems are the ones publishing would refuse; Warning problems
+        /// publish but leave the organization incomplete. Valid is true when no problem is an Error. Writes nothing.
+        /// Needs Read on Organization.
+        /// </summary>
+        /// <param name="id">Organization identifier or name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The result.</returns>
+        /// <exception cref="GarrisonException">404 when the organization does not exist in the tenant.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the response is empty.</exception>
+        public async Task<OrganizationValidationResult> ValidateOrganizationAsync(string id, CancellationToken token = default)
+        {
+            return await Transport.SendAsync<OrganizationValidationResult>(HttpMethod.Post, Item(id) + "/validate", token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
+        /// <summary>
         /// Spend of each unit's subtree against its budgets in the current day and month windows (live revision).
         /// </summary>
         /// <param name="id">Organization identifier or name.</param>

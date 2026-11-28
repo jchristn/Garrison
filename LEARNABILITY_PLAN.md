@@ -73,7 +73,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | Phase | Name | Depends on | Status | Done / Total |
 |---|---|---|---|---|
 | LP0 | Plan wiring | none | Done | 2 / 2 |
-| LP1 | Activity trail: server | LP0 | In progress (LP1.10 to LP1.14 open) | 9 / 14 |
+| LP1 | Activity trail: server | LP0 | In progress (LP1.11 to LP1.14 open) | 10 / 14 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | In progress | 1 / 12 |
 | LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
@@ -297,7 +297,7 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
   - focus in the middle of a chain resolving to the origin.
 
   Accept: targeted run passes on sqlite and postgresql.
-- [ ] LP1.10 SDKs: typed models and the method in all four, a live harness case each, and README sections.  Accept: `scripts/run-sdk-harnesses.sh` cases for the trail pass.
+- [x] LP1.10 SDKs: typed models and the method in all four, a live harness case each, and README sections.  Accept: `scripts/run-sdk-harnesses.sh` cases for the trail pass.  | claude 2026-11-27 RunTrail, RunTrailNode, RunTrailEdge, OrganizationValidationResult and Problem plus their enums in C#, Python, JS, Go; GetRunTrailAsync/get_run_trail/getRunTrail/GetRunTrail and ValidateOrganizationAsync/validate_organization/validateOrganization/ValidateOrganization; run trail and organization validate harness cases and README sections. No harness has a case filter, so scripts/run-sdk-harnesses.sh ran all four in full: csharp, python, js, go, consoles PASS
 - [ ] LP1.11 Docs and Postman:
   - `REST_API.md` and `MCP_API.md` entries;
   - `docs/TRAILS.md` (what a trail shows, origin rules, caps, redaction, why text is not in it);
