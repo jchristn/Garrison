@@ -9192,6 +9192,166 @@
               }
             }
           ]
+        },
+        {
+          "name": "Read the activity trail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/trail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "trail"
+              ]
+            },
+            "description": "The trail of the run Invoke agent and wait started. This credential called the agent directly, so the origin is a `Caller` node for it, the run is the focus, and the trail ends with a `Reply` node once the run has finished. See docs/TRAILS.md.\n\n`GET /v1.0/api/tenants/{tenantId}/runs/{id}/trail`: The activity trail of a run, from where the work started to the reply, with no agent-written text. Query: `includeEffects` (`true` or `false`, default the `RunTrail.IncludeEffects` setting). Needs Read on `Run`; each other step needs Read on its own kind or comes back `Redacted`. Success: 200 with `RunTrail` (null properties left out). Errors: 400 `ValidationFailed` for a bad `includeEffects`, 401 without a valid token, 403 `RunTokenTrailNotAllowed` for a run token or 403 without the permission, 404 when the `id` is unknown or in another tenant."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "var trail = {}; try { trail = pm.response.json(); } catch (e) { }",
+                  "pm.test('focus is the invoked run', () => { pm.expect(trail.focusRunId).to.eql(pm.variables.get('runId')); pm.expect(trail.truncation).to.eql('None'); pm.expect(trail.nodeCount).to.eql(trail.nodes.length); });",
+                  "pm.test('origin is the caller', () => { const origin = trail.nodes.find(n => n.id === trail.originId); pm.expect(origin.kind).to.eql('Caller'); pm.expect(origin.lane).to.eql('caller'); });",
+                  "pm.test('focus run node', () => { const focus = trail.nodes.find(n => n.id === trail.focusRunId); pm.expect(focus.kind).to.eql('Run'); pm.expect(focus.isFocus).to.eql(true); pm.expect(focus.state).to.eql('Succeeded'); });",
+                  "pm.test('started and replied', () => { pm.expect(trail.edges.some(e => e.kind === 'Started' && e.toId === trail.focusRunId)).to.eql(true); pm.expect(trail.nodes.some(n => n.kind === 'Reply')).to.eql(true); pm.expect(trail.edges.some(e => e.kind === 'Replied')).to.eql(true); });",
+                  "pm.test('no agent text', () => { trail.nodes.forEach(n => { pm.expect(n).not.to.have.property('body'); pm.expect(n).not.to.have.property('resultText'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activity trail without effects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/trail?includeEffects=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "trail"
+              ],
+              "query": [
+                {
+                  "key": "includeEffects",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "The same trail with `includeEffects=false`: effect journal entries are left out, everything else is the same.\n\n`GET /v1.0/api/tenants/{tenantId}/runs/{id}/trail`: The activity trail of a run, from where the work started to the reply, with no agent-written text. Query: `includeEffects` (`true` or `false`, default the `RunTrail.IncludeEffects` setting). Needs Read on `Run`; each other step needs Read on its own kind or comes back `Redacted`. Success: 200 with `RunTrail` (null properties left out). Errors: 400 `ValidationFailed` for a bad `includeEffects`, 401 without a valid token, 403 `RunTokenTrailNotAllowed` for a run token or 403 without the permission, 404 when the `id` is unknown or in another tenant."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "var trail = {}; try { trail = pm.response.json(); } catch (e) { }",
+                  "pm.test('no Effect nodes', () => { pm.expect(trail.nodes.filter(n => n.kind === 'Effect')).to.have.length(0); pm.expect(trail.focusRunId).to.eql(pm.variables.get('runId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activity trail with a bad includeEffects is rejected",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/trail?includeEffects=maybe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "trail"
+              ],
+              "query": [
+                {
+                  "key": "includeEffects",
+                  "value": "maybe"
+                }
+              ]
+            },
+            "description": "`includeEffects` takes only `true` or `false`.\n\n`GET /v1.0/api/tenants/{tenantId}/runs/{id}/trail`: The activity trail of a run, from where the work started to the reply, with no agent-written text. Query: `includeEffects` (`true` or `false`, default the `RunTrail.IncludeEffects` setting). Needs Read on `Run`; each other step needs Read on its own kind or comes back `Redacted`. Success: 200 with `RunTrail` (null properties left out). Errors: 400 `ValidationFailed` for a bad `includeEffects`, 401 without a valid token, 403 `RunTokenTrailNotAllowed` for a run token or 403 without the permission, 404 when the `id` is unknown or in another tenant. This request expects 400 `ValidationFailed`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "var payload = {}; try { payload = pm.response.json(); } catch (e) { }",
+                  "pm.test('code is ValidationFailed', function () { pm.expect(payload.code).to.eql('ValidationFailed'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activity trail of an unknown run",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{missingRunId}}/trail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{missingRunId}}",
+                "trail"
+              ]
+            },
+            "description": "The trail of a run that does not exist: 404, the same answer another tenant's run gets.\n\n`GET /v1.0/api/tenants/{tenantId}/runs/{id}/trail`: The activity trail of a run, from where the work started to the reply, with no agent-written text. Query: `includeEffects` (`true` or `false`, default the `RunTrail.IncludeEffects` setting). Needs Read on `Run`; each other step needs Read on its own kind or comes back `Redacted`. Success: 200 with `RunTrail` (null properties left out). Errors: 400 `ValidationFailed` for a bad `includeEffects`, 401 without a valid token, 403 `RunTokenTrailNotAllowed` for a run token or 403 without the permission, 404 when the `id` is unknown or in another tenant. This request expects 404 `NotFound`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "var payload = {}; try { payload = pm.response.json(); } catch (e) { }",
+                  "pm.test('code is NotFound', function () { pm.expect(payload.code).to.eql('NotFound'); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -25109,6 +25269,42 @@
           ]
         },
         {
+          "name": "Validate the empty working tree",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "validate"
+              ]
+            },
+            "description": "A new organization has no units, so it cannot publish yet: the dry run reports `OneRoot` with severity `Error` and `valid` false. Nothing is written.\n\n`POST /v1.0/api/tenants/{tenantId}/organizations/{id}/validate`: Check the working tree the way publishing would, without writing anything. No body. Needs Read on `Organization`. Success: 200 with `OrganizationValidationResult` (`valid`, and `problems` with `code`, `severity`, `unitId`, `agentId`, `mandateId`, `message`); `valid` is true when no problem has severity `Error`. Errors: 401 without a valid token, 403 without the permission, 404 when the `id` is unknown or in another tenant."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('not valid, OneRoot error', () => { pm.expect(json.valid).to.eql(false); const p = json.problems.find(x => x.code === 'OneRoot'); pm.expect(p.severity).to.eql('Error'); pm.expect(p.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Add the root unit",
           "request": {
             "method": "POST",
@@ -25439,6 +25635,42 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('source is Working', function () { pm.expect(json.source).to.eql('Working'); pm.expect(json.units.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validate the working tree",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{orgId}}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{orgId}}",
+                "validate"
+              ]
+            },
+            "description": "With the root unit and the child unit in place, each led by an active agent, the tree would publish: `valid` is true and no problem is an `Error`.\n\n`POST /v1.0/api/tenants/{tenantId}/organizations/{id}/validate`: Check the working tree the way publishing would, without writing anything. No body. Needs Read on `Organization`. Success: 200 with `OrganizationValidationResult` (`valid`, and `problems` with `code`, `severity`, `unitId`, `agentId`, `mandateId`, `message`); `valid` is true when no problem has severity `Error`. Errors: 401 without a valid token, 403 without the permission, 404 when the `id` is unknown or in another tenant."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('valid', () => { pm.expect(json.valid).to.eql(true); pm.expect(json.problems).to.be.an('array'); pm.expect(json.problems.filter(x => x.severity === 'Error')).to.have.length(0); });"
                 ]
               }
             }
@@ -25898,6 +26130,42 @@
                 "exec": [
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "pm.test('status is 404', function () { pm.response.to.have.status(404); });",
+                  "var payload = {}; try { payload = pm.response.json(); } catch (e) { }",
+                  "pm.test('code is NotFound', function () { pm.expect(payload.code).to.eql('NotFound'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validate an unknown organization",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/organizations/{{missingOrganizationId}}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "organizations",
+                "{{missingOrganizationId}}",
+                "validate"
+              ]
+            },
+            "description": "An organization that does not exist, or belongs to another tenant, answers 404.\n\n`POST /v1.0/api/tenants/{tenantId}/organizations/{id}/validate`: Check the working tree the way publishing would, without writing anything. No body. Needs Read on `Organization`. Success: 200 with `OrganizationValidationResult` (`valid`, and `problems` with `code`, `severity`, `unitId`, `agentId`, `mandateId`, `message`); `valid` is true when no problem has severity `Error`. Errors: 401 without a valid token, 403 without the permission, 404 when the `id` is unknown or in another tenant. This request expects 404 `NotFound`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
                   "var payload = {}; try { payload = pm.response.json(); } catch (e) { }",
                   "pm.test('code is NotFound', function () { pm.expect(payload.code).to.eql('NotFound'); });"
                 ]
@@ -33279,7 +33547,7 @@
     {
       "key": "runId",
       "value": "",
-      "description": "Set from the `id` of the response to Runs > Invoke agent and wait. Used by 13 requests in Runs, Fan-out."
+      "description": "Set from the `id` of the response to Runs > Invoke agent and wait. Used by 16 requests in Runs, Fan-out."
     },
     {
       "key": "testRunId",
@@ -33829,7 +34097,7 @@
     {
       "key": "orgId",
       "value": "",
-      "description": "Set from the `id` of the response to Organizations > Create an organization. Used by 28 requests in Organizations, Change rules, Cleanup."
+      "description": "Set from the `id` of the response to Organizations > Create an organization. Used by 30 requests in Organizations, Change rules, Cleanup."
     },
     {
       "key": "orgName",
@@ -34064,7 +34332,7 @@
     {
       "key": "missingOrganizationId",
       "value": "org_postman_missing",
-      "description": "An organization identifier that does not exist, for the 404 checks in Organizations and Board. Used by 2 requests in Organizations, Board."
+      "description": "An organization identifier that does not exist, for the 404 checks in Organizations and Board. Used by 3 requests in Organizations, Board."
     },
     {
       "key": "missingProposalId",
@@ -34079,7 +34347,7 @@
     {
       "key": "missingRunId",
       "value": "run_nope",
-      "description": "A run identifier that does not exist, for the 404 checks in Runs and MCP. Used by 2 requests in Runs, MCP."
+      "description": "A run identifier that does not exist, for the 404 checks in Runs and MCP. Used by 3 requests in Runs, MCP."
     },
     {
       "key": "missingUnitId",

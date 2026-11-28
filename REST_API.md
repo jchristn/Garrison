@@ -2899,6 +2899,93 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/childre
   -H "Authorization: Bearer $TOKEN"
 ```
 
+#### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/trail`
+
+Read the activity trail of a run: where the work started, every run and record it reached, and the reply. Any run in the trail can be the one you ask about. The trail starts at the same origin whichever run you pick, and `focusRunId` and `isFocus` mark the one you asked for. The server builds the trail on each request from link fields the records already carry, so nothing is stored. [docs/TRAILS.md](docs/TRAILS.md) explains how to read one.
+
+| Query parameter | Meaning |
+|---|---|
+| `includeEffects` | `true` or `false`: whether to include each run's effect journal entries as `Effect` nodes. Without it, the `RunTrail.IncludeEffects` cluster setting decides (default `true`) |
+
+| | |
+|---|---|
+| Permission | Read on `Run` for the run you ask about. Each other step is checked against your Read permission for its kind (`AgentMessage`, `Report`, `Escalation`, `Approval`, `FanOutGroup`, `PipelineRun`, `Mandate` for a keeper tick, `Trigger`, `Run`), and a step you may not read becomes a `Redacted` placeholder |
+| Auth | A user token, an access key pair, a signed request, or the admin API key. A run token is refused |
+| Request body | None |
+| Response | `RunTrail`. Properties whose value is null are left out |
+| Success | 200 |
+| Errors | 400 `ValidationFailed` when `includeEffects` is not `true` or `false`; 403 `RunTokenTrailNotAllowed` for a run token, checked before anything is read; 404 for an unknown run or one in another tenant |
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/trail?includeEffects=false" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+A run that a person invoked directly, with no child runs or messages:
+
+```json
+{
+  "originId": "usr_operator1",
+  "focusRunId": "run_a1",
+  "nodes": [
+    { "id": "usr_operator1", "kind": "Caller", "startedUtc": "2026-11-27T10:00:00.000Z", "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com" },
+    { "id": "run_a1", "kind": "Run", "state": "Succeeded", "agentId": "agt_lead", "agentName": "Incident lead", "unitId": "oun_sre", "unitName": "Site reliability", "deploymentId": "dep_lead", "startedUtc": "2026-11-27T10:00:01.000Z", "endedUtc": "2026-11-27T10:04:10.000Z", "durationMs": 249000, "inputTokens": 5200, "outputTokens": 1300, "costUsd": 0.042, "runKind": "Invoke", "isFocus": true, "lane": "agt_lead" },
+    { "id": "rep_run_a1", "kind": "Reply", "state": "Succeeded", "startedUtc": "2026-11-27T10:04:10.000Z", "isFocus": false, "lane": "caller", "callerType": "User", "callerName": "operator@example.com" }
+  ],
+  "edges": [
+    { "fromId": "usr_operator1", "toId": "run_a1", "kind": "Started", "atUtc": "2026-11-27T10:00:01.000Z" },
+    { "fromId": "run_a1", "toId": "rep_run_a1", "kind": "Replied", "atUtc": "2026-11-27T10:04:10.000Z" }
+  ],
+  "truncation": "None",
+  "nodeCount": 3,
+  "hopCount": 0,
+  "generatedUtc": "2026-11-27T10:05:00.000Z"
+}
+```
+
+| `RunTrail` field | Meaning |
+|---|---|
+| `originId` | The node where the work started: a `Caller`, `Trigger`, `KeeperTick`, or `PipelineRun` node. When the walk back stopped at a cap, the oldest run it reached |
+| `focusRunId` | The run you asked about |
+| `nodes[]`, `edges[]` | The steps and the links between them, from cause to effect |
+| `truncation` | `None`, or the cap the trail reached: `NodeCap` (`RunTrail.MaxNodes`), `HopCap` (`RunTrail.MaxMessageHops`), or `SpanCap` (`RunTrail.MaxSpanHours`). The steps found before the cap are all there |
+| `nodeCount` | The number of nodes |
+| `hopCount` | The most message hops between the origin and any run in the trail |
+| `generatedUtc` | When the server built the trail |
+
+| `RunTrailNode` field | Meaning |
+|---|---|
+| `id` | The record's identifier. A `Caller` node uses the caller's principal identifier, a `Reply` node is `rep_` plus the run identifier, and a `Redacted` placeholder is `red_` plus a number |
+| `kind` | `Caller`, `Trigger`, `KeeperTick`, `Run`, `Message`, `Report`, `Escalation`, `Approval`, `Effect`, `FanOutGroup`, `PipelineRun`, `Reply`, or `Redacted` |
+| `state` | The record's status, such as a run's `Succeeded` or an effect's `Completed` |
+| `agentId`, `agentName`, `deploymentId` | The agent the step belongs to, and for a run its deployment |
+| `unitId`, `unitName` | The agent's unit in an organization that is live now. Names come from the live revision, not the one in force when the step ran |
+| `startedUtc`, `endedUtc`, `durationMs` | Timing |
+| `inputTokens`, `outputTokens`, `costUsd`, `runKind` | Usage and kind of a `Run` node |
+| `isFocus` | True for the run you asked about |
+| `lane` | `caller` for steps on the caller's side (`Caller`, `Trigger`, `KeeperTick`, `PipelineRun`, `Reply`), otherwise the agent identifier. The dashboard draws one lane per value |
+| `callerType`, `callerName` | Who called, on `Caller` and `Reply` nodes |
+| `toolName` | The tool an `Effect` node called. Its arguments are never included |
+| `redactedKind` | On a `Redacted` placeholder, the kind of the step you may not read. A placeholder keeps only its kind, time, and lane |
+
+| `RunTrailEdge` `kind` | From, to |
+|---|---|
+| `Started` | The origin to the run it started |
+| `Spawned` | A parent run, or a fan-out group, to a child run |
+| `FannedOut` | A run to the fan-out group it started |
+| `Retried` | A run to its retry |
+| `Sent` | A run, or a person, to a message it sent |
+| `Woke` | A message to the run it woke |
+| `Delivered` | A message to a run that was already running and read it from its inbox |
+| `Filed` | A run to a report it filed |
+| `Raised`, `Routed` | A run to the escalation it raised, and the escalation to the run it was routed to |
+| `Answered` | An escalation back to the blocked run it answered |
+| `Requested`, `Decided` | A run to the approval it asked for, and the approval once decided |
+| `Performed` | A run to an effect journal entry |
+| `Replied` | The first run to the `Reply` node, when a person or API caller started it directly and it has finished |
+
+No text is copied in: no message bodies or subjects, report text, escalation questions or answers, tool arguments, or run output. Open a step's own record through its route to read it.
+
 ### Conversations
 
 A conversation is a series of runs (turns) with one agent that share a harness session. The first turn starts the conversation (`"startConversation": true` on invoke, or any A2A message); each later turn names it with `conversationId` (or the A2A `contextId`) and resumes the session where the previous turn left it: Claude Code and Mux with `--resume <session>`, Codex with `codex exec resume <session>`, the Codex app-server profile with `thread/resume`, Gemini CLI with `--resume`. A conversation stays on the deployment of its first turn, because a session can only be resumed by the harness that created it.
@@ -4069,6 +4156,7 @@ An organization (AA7) is a tree of units with lead agents, members, peer lines, 
 | `PUT /organizations/{id}/units/{unitId}` | Update on `Organization` | `OrgUnit`, 200 |
 | `DELETE /organizations/{id}/units/{unitId}` | Update on `Organization` | 204 |
 | `GET /organizations/{id}/chart` | Read on `Organization` | `OrgChart`, 200 |
+| `POST /organizations/{id}/validate` | Read on `Organization` | `OrganizationValidationResult`, 200 |
 | `GET /organizations/{id}/revisions` | Read on `Organization` | `OrgRevision[]`, newest first, without snapshots, 200 |
 | `POST /organizations/{id}/revisions` | Update on `Organization` | `OrgRevision`, 201 |
 | `GET /organizations/{id}/revisions/{revId}` | Read on `Organization` | `OrgRevision` with its snapshot, 200 |
@@ -4119,6 +4207,55 @@ Stop everything in a unit's subtree of the live tree in one action, with an opti
 #### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/spend`
 
 Each unit of the live revision with its subtree's known spend in the current UTC day or month window, one entry per budget; a unit without budgets reports its day. Empty before the first publish.
+
+#### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/validate`
+
+Check the working tree the way publishing would, without writing anything. Use it before you snapshot and publish a revision, or to show what is still missing from a tree you are building. `{id}` takes an identifier or a name.
+
+| | |
+|---|---|
+| Permission | Read on `Organization` |
+| Auth | Any management token, access key pair, signed request, or the admin API key |
+| Request body | None |
+| Response | `OrganizationValidationResult` |
+| Success | 200, also when the tree has problems |
+| Errors | 404 for an unknown organization or one in another tenant |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/acme/validate" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "valid": false,
+  "problems": [
+    { "code": "AgentInTwoUnits", "severity": "Error", "unitId": "oun_support", "agentId": "agt_triage", "message": "An agent holds one position in an organization; triage already is lead of engineering and cannot also lead support." },
+    { "code": "UnitWithoutLead", "severity": "Warning", "unitId": "oun_research", "message": "Unit research has no lead, so its members have no manager. Set a lead agent." }
+  ]
+}
+```
+
+`valid` is true when no problem has severity `Error`. Each problem names the `unitId`, `agentId`, or `mandateId` it is about where there is one, and `message` says what to change. Null properties are left out. Errors first, then warnings.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `OneRoot` | Error | The tree has no root unit, or more than one |
+| `Cycle` | Error | A unit would sit below itself |
+| `UnitDetachedFromRoot` | Error | A unit's parent is not in this organization |
+| `UnitNameTaken` | Error | Two units have the same name |
+| `AgentInTwoUnits` | Error | An agent holds two positions (lead or member) |
+| `AgentInactive` | Error | A lead or member agent no longer exists or is not active |
+| `PeerLineToMissingUnit` | Error | A peer line points at itself or at a unit outside the organization |
+| `BudgetOverParent` | Error | A unit budget is above its nearest ancestor's budget for the same period |
+| `BudgetPeriodTaken` | Error | A unit has two budgets for one period |
+| `BudgetInvalid` | Error | A budget amount is not above 0 or is over the maximum |
+| `TooManyUnits`, `TooManyMembers`, `TooManyPeerLines` | Error | The tree is over a size limit |
+| `UnitWithoutLead` | Warning | A unit has no lead, so its members have no manager |
+| `MandateMismatch` | Warning | A mandate held in a unit no longer exists or belongs to another agent |
+| `KeeperDeploymentMissing` | Warning | A keeper mandate in the tree names a deployment that is missing, inactive, or another agent's, so its ticks cannot start |
+
+Warnings do not stop a publish. The 409 codes publishing answers (see [docs/ORGANIZATIONS.md](docs/ORGANIZATIONS.md#validation)) map to these: `LeadsTwoUnits` and `PositionTaken` to `AgentInTwoUnits`, `BudgetExceedsParent` to `BudgetOverParent`, `ParentNotFound` to `UnitDetachedFromRoot`, and `PeerNotFound` to `PeerLineToMissingUnit`.
 
 #### `GET /v1.0/api/tenants/{tenantId}/organizations/{id}/proposals`
 
