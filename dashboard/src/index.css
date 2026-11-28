@@ -2269,6 +2269,7 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 .org-minimap .react-flow__minimap-mask { fill: color-mix(in srgb, var(--color-surface-alt) 70%, transparent); }
 .org-minimap .react-flow__minimap-node { fill: var(--color-surface-alt); stroke: var(--color-border); }
 .org-problems { display: flex; flex-direction: column; gap: var(--spacing-xs); margin-block-start: var(--spacing-sm); }
+.org-problems p { margin: 0; font-size: var(--font-size-sm); }
 .org-problem-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .org-problem-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); padding: 4px var(--spacing-sm); font-size: var(--font-size-sm); border-inline-start: 3px solid var(--color-danger); background: color-mix(in srgb, var(--color-danger) 6%, transparent); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .org-problem-list li::before { content: none; }
@@ -2678,6 +2679,8 @@ a.sidebar-utility { text-decoration: none; }
 .studio-org-canvas .studio-canvas-unit.is-compact .studio-canvas-node-tags { font-size: 18px; }
 .studio-org-canvas .studio-canvas-unit.is-compact .org-unit-collapse { font-size: 18px; }
 .org-unit-collapse { margin-block-start: 4px; inline-size: 100%; justify-content: center; border: 1px dashed var(--color-border); }
+/* A long label (German "3 Einheiten darunter ausblenden") wraps inside the card instead of running past the button. */
+.org-unit-collapse { white-space: normal; text-align: center; min-inline-size: 0; padding-inline: var(--spacing-xs); line-height: 1.25; }
 .studio-org-canvas .react-flow__handle.org-tree-handle { opacity: 0; pointer-events: none; inline-size: 1px; block-size: 1px; min-inline-size: 0; min-block-size: 0; border: 0; }
 .studio-canvas-flow .react-flow__edge.is-report .react-flow__edge-path { stroke: color-mix(in srgb, var(--color-text-muted) 70%, var(--color-border)); stroke-width: 1.5; }
 .studio-org-canvas .studio-canvas-tools { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; }
