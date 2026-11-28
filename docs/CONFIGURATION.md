@@ -211,6 +211,10 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Memory.Scoped.MaxEntriesPerScope` | `10000` | 10 to 1000000 | Most entries one memory scope may hold. A new key in a full scope is refused with `MemoryScopeFull`; replacing an existing key is always allowed |
 | `Reports.MaxBodyBytes` | `32768` | 256 to 262144 | Most UTF-8 bytes in a report body. A larger body is refused with a validation error |
 | `Reports.DigestMaxReports` | `20` | 0 to 200 | Most subordinate reports a keeper tick's input carries through `report-digest`, the newest ones. 0 leaves them out; keepers can still list them with `garrison_list_reports` |
+| `RunTrail.MaxNodes` | `500` | 10 to 5000 | Most steps in one activity trail (`GET .../runs/{id}/trail`). A trail that reaches it stops and says `truncation: NodeCap` |
+| `RunTrail.MaxMessageHops` | `12` | 0 to 50 | Most message hops a trail follows, back to where the work started and forward from it. `0` follows no message. Reaching it says `truncation: HopCap` |
+| `RunTrail.MaxSpanHours` | `72` | 1 to 720 | Most hours after the start of the work a step may begin and still be in the trail. Later steps are left out with `truncation: SpanCap` |
+| `RunTrail.IncludeEffects` | `true` | | Whether trails show each run's effect journal entries when the request does not say. The `includeEffects` query parameter overrides it |
 | `Messaging.MaxHops` | `8` | 1 to 64 | Most agent-to-agent hops a message may travel. A message that would travel more is rejected with `HopLimit` |
 | `Messaging.LineRatePerMinute` | `30` | 1 to 6000 | Most messages one sender may send one recipient in any 60 seconds. More are rejected with `LineRate`. Counted in the database, so the limit holds across replicas |
 | `Messaging.ThreadBudget` | `200` | 2 to 100000 | Most messages one thread may hold. More are rejected with `ThreadBudget` |

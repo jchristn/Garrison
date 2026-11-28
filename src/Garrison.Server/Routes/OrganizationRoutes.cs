@@ -68,6 +68,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.PUT, one + "/units/{unitId}", ResourceTypeEnum.Organization, OperationTypeEnum.Update, UpdateUnitAsync, "Replace a unit of the working tree", tag, typeof(OrgUnit), typeof(OrgUnit));
             routes.Scoped(HttpMethod.DELETE, one + "/units/{unitId}", ResourceTypeEnum.Organization, OperationTypeEnum.Update, DeleteUnitAsync, "Remove a unit without children from the working tree, with the peer lines that point at it", tag, null, null);
             routes.Scoped(HttpMethod.GET, one + "/chart", ResourceTypeEnum.Organization, OperationTypeEnum.Read, ChartAsync, "The organization chart: units, leads, members, titles, mandate summaries, and peer lines of the live revision (the working tree before the first publish)", tag, null, typeof(OrgChart));
+            routes.Scoped(HttpMethod.POST, one + "/validate", ResourceTypeEnum.Organization, OperationTypeEnum.Read, ValidateAsync, "Validate the working tree without publishing (LP3.7a): every problem publishing would refuse (severity Error) and every gap that publishes but leaves the organization incomplete (severity Warning: a unit without a lead, a missing mandate, a keeper whose deployment is missing). valid is true when no problem is an Error. Writes nothing", tag, null, typeof(OrganizationValidationResult));
             routes.Scoped(HttpMethod.GET, one + "/revisions", ResourceTypeEnum.Organization, OperationTypeEnum.Read, ListRevisionsAsync, "List revisions, newest first, without snapshots", tag, null, typeof(List<OrgRevision>));
             routes.Scoped(HttpMethod.POST, one + "/revisions", ResourceTypeEnum.Organization, OperationTypeEnum.Update, CreateRevisionAsync, "Snapshot the working tree as a Draft revision, pinning the current revision of every mandate it names", tag, typeof(OrgRevisionRequest), typeof(OrgRevision));
             routes.Scoped(HttpMethod.GET, one + "/revisions/{revId}", ResourceTypeEnum.Organization, OperationTypeEnum.Read, ReadRevisionAsync, "Read a revision with its snapshot", tag, null, typeof(OrgRevision));
@@ -178,6 +179,12 @@ namespace Garrison.Server.Routes
         {
             Organization organization = await LoadAsync(http).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, await _Organizations.ChartAsync(organization, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        private async Task ValidateAsync(HttpContextBase http)
+        {
+            Organization organization = await LoadAsync(http).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(http, 200, await _Organizations.ValidateWorkingTreeAsync(organization, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         private async Task ListRevisionsAsync(HttpContextBase http)

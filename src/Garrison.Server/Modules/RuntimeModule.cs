@@ -73,6 +73,7 @@ namespace Garrison.Server.Modules
         private EscalationOptions? _EscalationOptions = null;
         private MemoryOptions? _MemoryOptions = null;
         private ReportOptions? _ReportOptions = null;
+        private RunTrailSettings? _RunTrailSettings = null;
         private EvaluationOptions? _EvaluationOptions = null;
         private EvalRunner? _EvalRunner = null;
         private MessagingOptions? _MessagingOptions = null;
@@ -324,6 +325,10 @@ namespace Garrison.Server.Modules
             // AA8: executives, change rules, and proposals. A rollback past an executive's apply applies its revert draft.
             organizations.ApplyRevertAsync = async (ctx, tenantId, draftId, ct) => await context.Get<Garrison.Server.Services.StudioService>().ApplyRevertAsync(ctx, tenantId, draftId, ct).ConfigureAwait(false);
             context.Register(chain);
+            // LP1.5: the activity trail of a run, built in one call with caps from the RunTrail.* cluster settings.
+            _RunTrailSettings = new RunTrailSettings();
+            context.Register(_RunTrailSettings);
+            context.Register(new RunTrailService(context.Database, context.Authorization, chain, _RunTrailSettings));
             // UT-01, UT-02: resource-scoped grants match a name's identifier and the organizations a target belongs to.
             ResourceLineageResolver lineage = new ResourceLineageResolver(context.Database, chain);
             context.Authorization.Lineage = lineage;
@@ -387,6 +392,7 @@ namespace Garrison.Server.Modules
             new RunRoutes(context, _Runs!, _Events!, _Options!, _Signals!, _Invoker!, _Blocked!).Register(routes);
             new ConversationRoutes(context, _Conversations!, _Blocked!).Register(routes);
             new FanOutRoutes(context, context.Get<FanOutService>()).Register(routes);
+            new RunTrailRoutes(context.Get<RunTrailService>()).Register(routes);
             new AnalyticsRoutes(_Analytics!).Register(routes);
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
@@ -594,6 +600,13 @@ namespace Garrison.Server.Modules
                 _MemoryOptions.ScopedEnabled = cluster.GetBool("Memory.Scoped.Enabled");
                 _MemoryOptions.MaxValueBytes = cluster.GetInt("Memory.Scoped.MaxValueBytes");
                 _MemoryOptions.MaxEntriesPerScope = cluster.GetInt("Memory.Scoped.MaxEntriesPerScope");
+            }
+            if (_RunTrailSettings != null)
+            {
+                _RunTrailSettings.MaxNodes = cluster.GetInt("RunTrail.MaxNodes");
+                _RunTrailSettings.MaxMessageHops = cluster.GetInt("RunTrail.MaxMessageHops");
+                _RunTrailSettings.MaxSpanHours = cluster.GetInt("RunTrail.MaxSpanHours");
+                _RunTrailSettings.IncludeEffects = cluster.GetBool("RunTrail.IncludeEffects");
             }
             if (_ReportOptions != null)
             {

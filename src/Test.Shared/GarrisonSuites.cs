@@ -96,6 +96,7 @@ namespace Test.Shared
                 suites.AddRange(RevisionSuite.Build());
                 suites.AddRange(AssetSuite.Build());
                 suites.AddRange(FileSpaceSuite.Build());
+                suites.AddRange(RunTrailSuite.Build());
                 suites.AddRange(CapabilitySuite.Build());
                 suites.AddRange(FanOutSuite.Build());
                 suites.AddRange(AppSuite.Build());

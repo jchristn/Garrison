@@ -73,15 +73,15 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | Phase | Name | Depends on | Status | Done / Total |
 |---|---|---|---|---|
 | LP0 | Plan wiring | none | Done | 2 / 2 |
-| LP1 | Activity trail: server | LP0 | Not started | 0 / 11 |
+| LP1 | Activity trail: server | LP0 | In progress (LP1.10, LP1.11 open) | 9 / 11 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
-| LP3 | Organization designer | LP0 | Not started | 0 / 11 |
+| LP3 | Organization designer | LP0 | In progress | 1 / 12 |
 | LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
 | LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | Not started | 0 / 5 |
 | LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
 | LP7 | Release integration | LP6 | Not started | 0 / 5 |
 
-Total tasks: 59.
+Total tasks: 60.
 
 ```
 LP0 wiring
@@ -267,19 +267,19 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 
 ### Phase LP1: Activity trail, server
 
-- [ ] LP1.1 Lineage inventory. For every way a run starts (REST invoke, A2A, MCP, conversation turn, trigger, keeper tick, message wake, escalation answer, fan-out, child, retry, pipeline stage, eval, shadow, canary), record which fields link it to its cause and whether the reply to the caller is recorded. Write the result as a table in `docs/TRAILS.md` (new). List every missing link as LP1.2 work.  Accept: one row per start path, each confirmed in code; gaps listed.
-- [ ] LP1.2 Schema, next free migration (61 or later):
+- [x] LP1.1 Lineage inventory. For every way a run starts (REST invoke, A2A, MCP, conversation turn, trigger, keeper tick, message wake, escalation answer, fan-out, child, retry, pipeline stage, eval, shadow, canary), record which fields link it to its cause and whether the reply to the caller is recorded. Write the result as a table in `docs/TRAILS.md` (new). List every missing link as LP1.2 work.  Accept: one row per start path, each confirmed in code; gaps listed.  | claude 2026-11-27 docs/TRAILS.md inventory, 18 start paths checked in code (85213112). Gaps recorded there: no reply record on any path, non-blocking escalation answers, shadow source run, request surface; none needed a column
+- [x] LP1.2 Schema, next free migration (61 or later):  | claude 2026-11-27 migration 61: tenant-led indexes on runs (parent, root, retryof, pipeline), agent_messages (senderrun, deliveredrun), reports (run), escalations (routedrun), approvals (run); effect_operations and escalations raisingrun already had them; no link column (69156dbd). db-sqlite, db-postgresql pass
   - indexes for the trail's batched reads where they are missing (`runs(tenant_id, parent_run_id)`, `runs(tenant_id, root_run_id)`, `agent_messages(tenant_id, sender_run_id)`, `agent_messages(tenant_id, delivered_run_id)`, `reports(tenant_id, run_id)`, `escalations(tenant_id, raising_run_id)`, `effect_operations(tenant_id, run_id)`);
   - any link column LP1.1 found missing, as a structured column, never JSON.
 
   Accept: migrate-twice, tenant isolation, and backup coverage on both providers.
-- [ ] LP1.3 Enums and models from section 6.1, plus `RunTrailSettings` with clamped setters.  Accept: build is clean; XML docs state defaults and bounds.
-- [ ] LP1.4 Batched data-layer reads: `I*Methods` methods that take a tenant ID and an ID set, with Sqlite and Postgresql implementations, async with `CancellationToken`, and an `IEnumerable` method paired with its async variant where one is returned.  Accept: Touchstone cases on both providers.
-- [ ] LP1.5 `RunTrailService` per section 6.2, with LP-003 origin resolution, caps, dedupe, LP-004 filtering, and the `Reply` node. The JSON shape is fixed by `dashboard/src/tests/fixtures/runTrail.json` (committed with LP0 so LP2 could start; camelCase, enums as strings).  Accept: a Touchstone case serializes a built trail and checks it has exactly the fixture's property names.
-- [ ] LP1.6 REST route in `RunTrailRoutes.cs` (a registrar class), with OpenAPI metadata, scope map entry, request history capture, and the run-token 403 (LP-010).  Accept: route cases for 200, 404, cross-tenant 404, and the run-token 403.
-- [ ] LP1.7 Management MCP tool `garrison_get_run_trail` with a typed `McpGetRunTrailArguments`, an input schema, `structuredContent`, and run-token hiding.  Accept: tool listed for a person's token and absent for a run token.
-- [ ] LP1.8 Telemetry and settings per section 6.3, including a panel on the runs Grafana dashboard.  Accept: metric names in `GarrisonMetricCatalog`; label cardinality checked by `LabelGuard`; settings documented.
-- [ ] LP1.9 Touchstone `RunTrailSuite` on both providers, registered in `GarrisonSuites.cs`. Cases:
+- [x] LP1.3 Enums and models from section 6.1, plus `RunTrailSettings` with clamped setters.  Accept: build is clean; XML docs state defaults and bounds.  | claude 2026-11-27 RunTrailNodeKindEnum, RunTrailEdgeKindEnum (plus Delivered), RunTrailTruncationEnum, RunTrail, RunTrailNode, RunTrailEdge, RunTrailSettings (69156dbd)
+- [x] LP1.4 Batched data-layer reads: `I*Methods` methods that take a tenant ID and an ID set, with Sqlite and Postgresql implementations, async with `CancellationToken`, and an `IEnumerable` method paired with its async variant where one is returned.  Accept: Touchstone cases on both providers.  | claude 2026-11-27 ListByIdsAsync, ListByParentsAsync, ListRetriesOfAsync, ListByPipelineRunsAsync, ListBySenderRunsAsync, ListByDeliveredRunsAsync, ListByRaisingRunsAsync, ListByRoutedRunsAsync, ListByRunsAsync (reports, approvals, effects), fan-out ListByParentsAsync, ticks ListByIdsAsync, chunked by AdoIdSetQuery (69156dbd). run-trail batched-reads on both providers
+- [x] LP1.5 `RunTrailService` per section 6.2, with LP-003 origin resolution, caps, dedupe, LP-004 filtering, and the `Reply` node. The JSON shape is fixed by `dashboard/src/tests/fixtures/runTrail.json` (committed with LP0 so LP2 could start; camelCase, enums as strings).  Accept: a Touchstone case serializes a built trail and checks it has exactly the fixture's property names.  | claude 2026-11-27 RunTrailService, RunTrailWalk, RunTrailOrigin; fixture-shape case. Unit names come from the live revision, not the one in force at each step (ChainOfCommand reads live only); null properties are omitted from the JSON
+- [x] LP1.6 REST route in `RunTrailRoutes.cs` (a registrar class), with OpenAPI metadata, scope map entry, request history capture, and the run-token 403 (LP-010).  Accept: route cases for 200, 404, cross-tenant 404, and the run-token 403.  | claude 2026-11-27 RunTrailRoutes, handler-scoped so a run token gets 403 RunTokenTrailNotAllowed before authorization; includeEffects query parameter (400 on a bad value)
+- [x] LP1.7 Management MCP tool `garrison_get_run_trail` with a typed `McpGetRunTrailArguments`, an input schema, `structuredContent`, and run-token hiding.  Accept: tool listed for a person's token and absent for a run token.  | claude 2026-11-27 garrison_get_run_trail, a Management tool (hidden from and refused for run tokens), McpGetRunTrailArguments, structuredContent
+- [x] LP1.8 Telemetry and settings per section 6.3, including a panel on the runs Grafana dashboard.  Accept: metric names in `GarrisonMetricCatalog`; label cardinality checked by `LabelGuard`; settings documented.  | claude 2026-11-27 garrison.run_trail.requests{outcome}, garrison.run_trail.build{truncation}, span garrison.run_trail.build, Runs dashboard panel, TELEMETRY.md rows; RunTrail.* as cluster settings (Settings page reads the catalog), CONFIGURATION.md. telemetry suite passes
+- [x] LP1.9 Touchstone `RunTrailSuite` on both providers, registered in `GarrisonSuites.cs`. Cases:  | claude 2026-11-27 RunTrailSuite: run-trail-unit 3 cases, run-trail-sqlite and run-trail-postgresql 14 cases each, all pass; also db-*, telemetry, organizations-*, management-mcp-* pass
   - a plain invoke;
   - a fan-out with three children and a retry;
   - a message chain three hops deep with a reply;
@@ -347,6 +347,7 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 - [ ] LP3.5 Budget tab in the unit panel. It shows the unit budget with spend so far and the parent's remaining headroom, and edits it through the existing route. A budget above the parent's is refused inline with the server's reason.  Accept: vitest for the refusal.
 - [ ] LP3.6 Rules tab in the unit panel (LP-007). It lists the change rules that match the unit, each with its class and approvals, and an Add rule action opens the existing rule editor scoped to this unit. For a run token context the tab is read-only with the reason shown.  Accept: vitest; no rule is ever written through a draft operation.
 - [ ] LP3.7 Live validation. The canvas calls `validate` after each change and lists problems with links to the unit. Problems include a unit without a lead, an agent in two units, a peer line to a missing unit, a budget over the parent's, a keeper whose deployment is missing, and a unit with no path to the root. Validation uses the server's publish checks through a dry-run route if one does not exist yet (add it under LP3.7a with scope map, OpenAPI, Postman, docs, and Touchstone cases).  Accept: each problem shows in the list and clears when fixed.
+- [x] LP3.7a Organization validation dry run: `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/validate` returns `OrganizationValidationResult { valid, problems: [{ code, severity, unitId, agentId, mandateId, message }] }`, scope map Organization Read, OpenAPI, Touchstone on both providers.  Accept: each problem code is reported and clears when fixed.  | claude 2026-11-27 OrgTreeValidator.Inspect (non-throwing twin of Validate) plus OrganizationService.ValidateWorkingTreeAsync; severity Error is what publishing refuses, Warning publishes (UnitWithoutLead, KeeperDeploymentMissing, MandateMismatch); valid means no Error. run-trail org-inspect and org-validate pass on both providers. Postman and REST_API.md go with LP1.11
 - [ ] LP3.8 Templates. Start a new organization from Blank, Gerbil (one keeper), or Site reliability (the `examples/autonomous/site-reliability-org` shape), using the existing manifest apply. The result opens in the Design tab.  Accept: each template applies on a fresh tenant and validates clean.
 - [ ] LP3.9 Read-only overlays on the canvas for the Chart tab above 768px:
   - each unit's health from its latest report, spend against budget, and runs and messages in the selected range;

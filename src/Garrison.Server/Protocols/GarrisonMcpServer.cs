@@ -993,6 +993,9 @@ namespace Garrison.Server.Protocols
                     case "garrison_get_run_events":
                         result = await EventsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_get_run_trail":
+                        result = await RunTrailToolAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_get_run_transcript":
                         result = await RunTranscriptAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
@@ -3489,6 +3492,27 @@ namespace Garrison.Server.Protocols
             summary.DisplayName = String.IsNullOrWhiteSpace(agent.DisplayName) ? null : agent.DisplayName;
             summary.Description = String.IsNullOrWhiteSpace(agent.Description) ? null : agent.Description;
             return summary;
+        }
+
+        private async Task<object> RunTrailToolAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run) throw ToolError("RunTokenTrailNotAllowed", "Activity trails are for people and API credentials; a run token cannot read one.");
+            McpGetRunTrailArguments arguments = ManagementArguments<McpGetRunTrailArguments>(args);
+            if (String.IsNullOrWhiteSpace(arguments.RunId)) throw ToolError("ValidationFailed", "runId is required.");
+            Run run = await _Context.Database.Runs.ReadAsync(tenantId, arguments.RunId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run " + arguments.RunId + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, run.Id, token).ConfigureAwait(false);
+            try
+            {
+                return await _Context.Get<RunTrailService>().BuildAsync(ctx, tenantId, run.Id, arguments.IncludeEffects, token).ConfigureAwait(false);
+            }
+            catch (NotFoundException e)
+            {
+                throw ToolError("NotFound", e.Message);
+            }
+            catch (AppAccessException e)
+            {
+                throw ToolError(e.Code, e.Message);
+            }
         }
 
         private static McpToolException ToolError(string code, string message)

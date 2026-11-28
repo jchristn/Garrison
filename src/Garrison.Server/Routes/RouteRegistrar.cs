@@ -188,10 +188,17 @@ namespace Garrison.Server.Routes
         /// <param name="tag">OpenAPI tag.</param>
         /// <param name="requestBody">Optional request body type.</param>
         /// <param name="response">Optional response type.</param>
-        public void ScopedByHandler(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null)
+        /// <param name="queryParameters">Optional query parameters described in OpenAPI; when present, a 400 response is documented too.</param>
+        public void ScopedByHandler(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null, List<OpenApiParameterMetadata>? queryParameters = null)
         {
             Record(method, path, resourceType, operation, RouteAuthorizationEnum.Handler, summary, tag);
-            Add(method, path, handler, Metadata(method, path, summary, tag, requestBody, response, true));
+            OpenApiRouteMetadata metadata = Metadata(method, path, summary, tag, requestBody, response, true);
+            if (queryParameters != null && queryParameters.Count > 0)
+            {
+                foreach (OpenApiParameterMetadata parameter in queryParameters) metadata.WithParameter(parameter);
+                metadata.WithResponse(400, OpenApiResponseMetadata.Json("Invalid query parameters.", OpenApiSchemaFactory.For(typeof(ErrorResponse))));
+            }
+            Add(method, path, handler, metadata);
         }
 
         /// <summary>

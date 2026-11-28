@@ -511,6 +511,70 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Validate an organization's working tree without publishing it (LP3.7a): the tree rules publishing applies
+        /// (<see cref="OrgTreeValidator"/>), active lead and member agents, and, as warnings that do not block publishing,
+        /// units without a lead, mandates that are missing or belong to another agent, and keeper mandates whose deployment
+        /// is missing, inactive, or another agent's. Nothing is written.
+        /// </summary>
+        /// <param name="organization">Organization (tenant-scoped by the caller).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The result: valid when no problem has severity Error.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when organization is null.</exception>
+        /// <exception cref="OperationCanceledException">Thrown when the token is cancelled.</exception>
+        public async Task<OrganizationValidationResult> ValidateWorkingTreeAsync(Organization organization, CancellationToken token = default)
+        {
+            if (organization == null) throw new ArgumentNullException(nameof(organization));
+            string tenantId = organization.TenantId;
+            List<OrgUnit> units = TreeOrder(organization, await _Database.Organizations.ListUnitsAsync(tenantId, organization.Id, token).ConfigureAwait(false));
+            List<OrganizationValidationProblem> errors = _Validator.Inspect(units, true);
+            List<OrganizationValidationProblem> warnings = new List<OrganizationValidationProblem>();
+            Dictionary<string, Agent?> agents = new Dictionary<string, Agent?>(StringComparer.Ordinal);
+            Dictionary<string, Mandate?> mandates = new Dictionary<string, Mandate?>(StringComparer.Ordinal);
+            Dictionary<string, Deployment?> deployments = new Dictionary<string, Deployment?>(StringComparer.Ordinal);
+            HashSet<string> inactiveReported = new HashSet<string>(StringComparer.Ordinal);
+            foreach (OrgUnit unit in units)
+            {
+                token.ThrowIfCancellationRequested();
+                if (String.IsNullOrEmpty(unit.LeadAgentId))
+                {
+                    warnings.Add(ValidationProblem(OrganizationValidationProblemCodeEnum.UnitWithoutLead, OrganizationValidationSeverityEnum.Warning, unit.Id, null, null, "Unit " + unit.Name + " has no lead, so its members have no manager. Set a lead agent."));
+                }
+                List<OrgUnitMember> holders = new List<OrgUnitMember>();
+                if (!String.IsNullOrEmpty(unit.LeadAgentId)) holders.Add(new OrgUnitMember { AgentId = unit.LeadAgentId, AgentName = unit.LeadAgentName, MandateId = unit.LeadMandateId });
+                holders.AddRange(unit.Members);
+                foreach (OrgUnitMember holder in holders)
+                {
+                    Agent? agent = await CachedAsync(agents, holder.AgentId, id => _Database.Agents.ReadAsync(tenantId, id, token)).ConfigureAwait(false);
+                    string agentName = agent?.Name ?? holder.AgentName ?? holder.AgentId;
+                    if ((agent == null || !agent.Active) && inactiveReported.Add(holder.AgentId))
+                    {
+                        errors.Add(ValidationProblem(OrganizationValidationProblemCodeEnum.AgentInactive, OrganizationValidationSeverityEnum.Error, unit.Id, holder.AgentId, null, "Agent " + agentName + " in unit " + unit.Name + " no longer exists or is not active; replace it or make it active."));
+                    }
+                    if (String.IsNullOrEmpty(holder.MandateId)) continue;
+                    Mandate? mandate = await CachedAsync(mandates, holder.MandateId, id => _Database.Mandates.ReadAsync(tenantId, id, token)).ConfigureAwait(false);
+                    if (mandate == null)
+                    {
+                        warnings.Add(ValidationProblem(OrganizationValidationProblemCodeEnum.MandateMismatch, OrganizationValidationSeverityEnum.Warning, unit.Id, holder.AgentId, holder.MandateId, "The mandate of " + agentName + " in unit " + unit.Name + " no longer exists; attach another mandate or clear it."));
+                        continue;
+                    }
+                    if (mandate.AgentId != holder.AgentId)
+                    {
+                        warnings.Add(ValidationProblem(OrganizationValidationProblemCodeEnum.MandateMismatch, OrganizationValidationSeverityEnum.Warning, unit.Id, holder.AgentId, mandate.Id, "Mandate " + mandate.Name + " in unit " + unit.Name + " belongs to another agent, not " + agentName + "."));
+                        continue;
+                    }
+                    Deployment? deployment = String.IsNullOrEmpty(mandate.DeploymentId) ? null : await CachedAsync(deployments, mandate.DeploymentId, id => _Database.Deployments.ReadAsync(tenantId, id, token)).ConfigureAwait(false);
+                    if (deployment == null || !deployment.Active || deployment.AgentId != mandate.AgentId)
+                    {
+                        warnings.Add(ValidationProblem(OrganizationValidationProblemCodeEnum.KeeperDeploymentMissing, OrganizationValidationSeverityEnum.Warning, unit.Id, holder.AgentId, mandate.Id, "Keeper mandate " + mandate.Name + " of " + agentName + " in unit " + unit.Name + " names a deployment that is missing, inactive, or another agent's, so its ticks cannot start. Pick an active deployment of " + agentName + "."));
+                    }
+                }
+            }
+            OrganizationValidationResult result = new OrganizationValidationResult();
+            result.Problems = errors.Concat(warnings).ToList();
+            return result;
+        }
+
+        /// <summary>
         /// Snapshot the working tree as a new Draft revision, pinning the current revision of every mandate it names.
         /// </summary>
         /// <param name="ctx">Authorized caller (Organization Update).</param>
@@ -1055,6 +1119,26 @@ namespace Garrison.Server.Runtime
             if (mandate == null) throw new ValidationException("The unit is invalid.", new Dictionary<string, string> { { field, "Mandate " + value + " was not found in this tenant." } });
             if (mandate.AgentId != agent.Id) throw new ConflictException("MandateMismatch", "Mandate " + mandate.Name + " belongs to another agent, not " + agent.Name + ".");
             return mandate;
+        }
+
+        private static OrganizationValidationProblem ValidationProblem(OrganizationValidationProblemCodeEnum code, OrganizationValidationSeverityEnum severity, string? unitId, string? agentId, string? mandateId, string message)
+        {
+            OrganizationValidationProblem problem = new OrganizationValidationProblem();
+            problem.Code = code;
+            problem.Severity = severity;
+            problem.UnitId = unitId;
+            problem.AgentId = agentId;
+            problem.MandateId = mandateId;
+            problem.Message = message;
+            return problem;
+        }
+
+        private static async Task<T?> CachedAsync<T>(Dictionary<string, T?> cache, string id, Func<string, Task<T?>> read) where T : class
+        {
+            if (cache.TryGetValue(id, out T? known)) return known;
+            T? value = await read(id).ConfigureAwait(false);
+            cache[id] = value;
+            return value;
         }
 
         private async Task EnsureAgentsActiveAsync(string tenantId, List<OrgUnit> units, CancellationToken token)

@@ -192,6 +192,12 @@ namespace Garrison.Core.Telemetry
         /// <summary>Scoped memory operations (AA4).</summary>
         public static readonly MetricDescriptor MemoryOperations = new MetricDescriptor("garrison.memory.operations", MetricKindEnum.Counter, "{operation}", "scope_kind, operation, outcome", "Scoped memory operations by scope kind (agent, app, orgunit, organization), operation (read, write, delete, list, search, expire, recall), and outcome (ok, not_found, conflict, denied, refused, failed)", "server", "Autonomy", "garrison-autonomy");
 
+        /// <summary>Activity trail requests by outcome (LP1.8).</summary>
+        public static readonly MetricDescriptor RunTrailRequests = new MetricDescriptor("garrison.run_trail.requests", MetricKindEnum.Counter, "{request}", "outcome", "Activity trail requests by outcome: built, truncated (a cap was reached), not_found, forbidden (a run token), failed", "server", "Runs", "garrison-runs");
+
+        /// <summary>Time to build an activity trail (LP1.8).</summary>
+        public static readonly MetricDescriptor RunTrailBuildDuration = new MetricDescriptor("garrison.run_trail.build", MetricKindEnum.Histogram, "s", "truncation", "Time to build an activity trail, by the cap that cut it short (None, NodeCap, HopCap, SpanCap)", "server", "Runs", "garrison-runs", TelemetryBuckets.Fast);
+
         /// <summary>Reports filed (AA5).</summary>
         public static readonly MetricDescriptor Reports = new MetricDescriptor("garrison.reports", MetricKindEnum.Counter, "{report}", "kind, health", "Reports filed by kind (status, incident, decision, handoff, brief) and health (healthy, degraded, unhealthy, unknown)", "server", "Autonomy", "garrison-autonomy");
 
@@ -542,7 +548,7 @@ namespace Garrison.Core.Telemetry
             SynchronousWaitAdmission, SynchronousWaiters, HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, OrgProposals, BoardDirections, BoardBriefs, CascadeCancels, AutoFreezes, EvalRuns, EvalCaseDuration, EvalScheduledChecks, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, KeeperTicks, KeeperTickLag, KeeperInterval, Escalations, EscalationAnswerDuration, Freezes, SpendCapHits, MemoryOperations, Reports, RunTrailRequests, RunTrailBuildDuration, Messages, MessageDeliveryLag, MessageLoopGuard, OrgBudgetsExhausted, OrgProposals, BoardDirections, BoardBriefs, CascadeCancels, AutoFreezes, EvalRuns, EvalCaseDuration, EvalScheduledChecks, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,
