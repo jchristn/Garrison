@@ -5,7 +5,8 @@ import ConfirmModal from '../../ConfirmModal';
 import { PlusIcon } from '../../Icons';
 import { tip } from '../../Tooltip';
 import { readStored, writeStored } from '../../../utils/studio';
-import { absoluteX, canvasOrganizations, defaultOrganization, layoutOrg, orgSummary, orgToFlow, parsePeerId, peerId, unitAgentChoices, unitHeaderHeight, unitLabel } from '../../../utils/orgCanvas';
+import { absoluteX, layoutOrg, orgSummary, parsePeerId, peerId, unitHeaderHeight, unitLabel } from '../../../utils/orgCanvas';
+import { draftOrgSource } from '../../../utils/orgCanvasSource';
 import CanvasUnitNode from './CanvasUnitNode';
 import OrgUnitPanel from './OrgUnitPanel';
 import { EmptyNote } from '../../States';
@@ -30,8 +31,11 @@ function orgStorageKey(draftId) {
  * - the keyboard does the same: units are focusable parent first, C starts or finishes a peer line, Delete removes a
  *   unit, N jumps to the Add unit field, Escape cancels; the outline lists each peer line as a button (Delete
  *   disconnects it).
+ *
+ * Every change goes through an organization canvas source (LP3.1, utils/orgCanvasSource.js). Without a `source` the
+ * canvas builds the draft source over `graph` and `runOperation`, which sends the studio unit graph operations above.
  */
-export default function OrgCanvas({ draft, graph, blocked = '', agents = [], runOperation, say }) {
+export default function OrgCanvas({ draft, graph, source = null, blocked = '', agents = [], runOperation, say }) {
   const { t } = useTranslation();
   const { fitView } = useReactFlow();
   const [chosen, setChosen] = useState(() => readStored(orgStorageKey(draft.id)));
@@ -39,11 +43,13 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
   const [connectFrom, setConnectFrom] = useState(null);
   const [target, setTarget] = useState('');
   const [removing, setRemoving] = useState(null);
-  const organizations = canvasOrganizations(graph);
-  const organization = defaultOrganization(graph, chosen);
-  const flow = useMemo(() => orgToFlow(graph, organization), [graph, organization]);
+  const src = useMemo(() => source || draftOrgSource({ graph, runOperation }), [source, graph, runOperation]);
+  const organizations = src.organizations();
+  // The remembered organization when it still exists, else the first.
+  const organization = chosen && organizations.includes(chosen) ? chosen : organizations[0] || '';
+  const flow = useMemo(() => src.load(organization), [src, organization]);
   const layout = useMemo(() => layoutOrg(flow), [flow]);
-  const choices = useMemo(() => unitAgentChoices(agents, graph), [agents, graph]);
+  const choices = useMemo(() => src.choices(agents), [src, agents]);
   const [form, setForm] = useState({
     organization: '',
     unit: '',
@@ -55,7 +61,7 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
   const wrapperRef = useRef(null);
   const focusNext = useRef(null);
   const formOrg = form.organization.trim() || organization;
-  const formFlow = formOrg === organization ? flow : orgToFlow(graph, formOrg);
+  const formFlow = formOrg === organization ? flow : src.load(formOrg);
   const parents = formFlow.units.map((u) => u.name);
   // The parent: the one picked, '' for none (a root), or by default the root of the organization the unit goes to.
   const parent = form.parent === '' ? '' : parents.includes(form.parent) ? form.parent : formFlow.roots[0] || '';
@@ -151,12 +157,12 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
     if (blocked || !unit) return;
     const org = formOrg;
     if (!org) return;
-    const next = await runOperation('AddUnit', {
+    const next = await src.addUnit({
       organization: org,
       unit,
-      parent: parent || undefined,
-      agent: form.agent.trim() || undefined,
-      role: form.role.trim() || undefined
+      parent,
+      agent: form.agent.trim(),
+      role: form.role.trim()
     });
     if (!next) return;
     if (org !== organization) choose(org);
@@ -192,7 +198,7 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
   const connect = async (from, to) => {
     setConnectFrom(null);
     if (blocked || !from || !to || from === to) return;
-    const next = await runOperation('ConnectUnits', { organization, from, to });
+    const next = await src.connectUnits({ organization, from, to });
     if (next) {
       setSelection({ type: 'peer', id: peerId(from, to) });
       say(t('components.studio.canvas.org.announce.connected', { from, to }));
@@ -201,7 +207,7 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
 
   const disconnect = async (peer) => {
     if (blocked) return;
-    const next = await runOperation('DisconnectUnits', {
+    const next = await src.disconnectUnits({
       organization,
       from: peer.from,
       to: peer.to
@@ -218,11 +224,11 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
   };
 
   const addMember = async (unit, agent, role) => {
-    const next = await runOperation('AddUnitMember', {
+    const next = await src.addMember({
       organization,
       unit,
       agent,
-      role: role || undefined
+      role
     });
     if (next)
       say(
@@ -235,7 +241,7 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
   };
 
   const removeMember = async (unit, agent) => {
-    const next = await runOperation('RemoveUnitMember', {
+    const next = await src.removeMember({
       organization,
       unit,
       agent
@@ -252,7 +258,7 @@ export default function OrgCanvas({ draft, graph, blocked = '', agents = [], run
   const removeUnit = async () => {
     const unit = removing;
     setRemoving(null);
-    const next = await runOperation('RemoveUnit', { organization, unit });
+    const next = await src.removeUnit({ organization, unit });
     if (next) {
       setSelection(null);
       say(
