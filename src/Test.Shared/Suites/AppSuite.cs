@@ -8,6 +8,8 @@ namespace Test.Shared.Suites
     using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Database;
+    using Garrison.Core.Database.Ado;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
@@ -44,6 +46,8 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "revisions-promotion", "An app revision pins every member; promotion and rollback move all three members' pins together, and a missing target deployment changes none (" + provider + ")", ct => PromotionAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "sessions", "App sessions: AppUser role required, management API refuses the token, another user's conversation is 404, expired sessions end, anonymous only when enabled (" + provider + ")", ct => SessionsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifest-mcp", "A full app bundle applies, exports, and re-applies unchanged; MCP app tools list, create, read, and update apps (" + provider + ")", ct => ManifestAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "appearance-data", "Appearance fields and ordered starter prompts round-trip at the driver, an update replaces the prompts, another tenant reads nothing, and tenant deletion removes the prompt rows (" + provider + ")", ct => AppearanceDataAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "appearance-validation", "Appearance fields default, round-trip over REST, and are refused with field codes: InvalidColor, TooLong, TooMany and Required starter prompts, UnknownAsset for another tenant's avatar (" + provider + ")", ct => AppearanceValidationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "gateway-conversation", "A two-turn gateway conversation on the fake harness, streamed, and a file the agent wrote listed and downloaded with a matching SHA-256 (" + provider + ")", ct => GatewayAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Agentic apps (" + provider + ")", cases));
             }
@@ -484,6 +488,89 @@ namespace Test.Shared.Suites
                     Assert.Equal("Solo", updated.Description ?? String.Empty, "Updated over MCP");
                     await user.ExpectErrorAsync("garrison_create_app", new { configuration = new { name = "mf-bad", entryAgentId = "missing", members = new[] { new { agentId = "mf-researcher" } } } }, "ValidationFailed", token).ConfigureAwait(false);
                 }
+            }
+        }
+
+        private static async Task AppearanceDataAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                AgenticApp app = new AgenticApp
+                {
+                    TenantId = "ten_look", Name = "look", Slug = "look-" + Guid.NewGuid().ToString("N").Substring(0, 8), EntryAgentId = "agt_look",
+                    Members = new List<AgenticAppMember> { new AgenticAppMember { AgentId = "agt_look" } },
+                    Subtitle = "Answers in minutes", WelcomeTitle = "Hello", ComposerPlaceholder = "Ask anything", AgentDisplayName = "Desk", AgentAvatarAssetId = "ast_avatar",
+                    PaletteId = "harbor", DarkPrimaryColor = "#0af", DarkAccentColor = "#112233", DarkBackgroundColor = "#000", DarkHeaderColor = "#111", DarkAgentBubbleColor = "#222",
+                    DarkConversationListColor = "#333", DarkComposerColor = "#444", DarkFilesColor = "#555", ThemeDefault = AppThemeDefaultEnum.Dark, AllowThemeSwitch = false,
+                    CornerStyle = AppCornerStyleEnum.Pill, Density = AppDensityEnum.Compact, ShowFilesPanel = false, ShowLanguagePicker = false, ShowPoweredBy = false,
+                    StarterPrompts = new List<string> { "First", "Second", "Third" }
+                };
+                await db.Apps.CreateAsync(app, token).ConfigureAwait(false);
+                AgenticApp read = Assert.NotNull(await db.Apps.ReadAsync("ten_look", app.Id, token).ConfigureAwait(false), "App read back");
+                Assert.True(read.Subtitle == "Answers in minutes" && read.WelcomeTitle == "Hello" && read.ComposerPlaceholder == "Ask anything" && read.AgentDisplayName == "Desk" && read.AgentAvatarAssetId == "ast_avatar" && read.PaletteId == "harbor", "Text fields round-trip: " + Serializer.Serialize(read));
+                Assert.True(read.DarkPrimaryColor == "#0af" && read.DarkAccentColor == "#112233" && read.DarkBackgroundColor == "#000" && read.DarkHeaderColor == "#111" && read.DarkAgentBubbleColor == "#222"
+                    && read.DarkConversationListColor == "#333" && read.DarkComposerColor == "#444" && read.DarkFilesColor == "#555", "Dark colors round-trip");
+                Assert.True(read.ThemeDefault == AppThemeDefaultEnum.Dark && !read.AllowThemeSwitch && read.CornerStyle == AppCornerStyleEnum.Pill && read.Density == AppDensityEnum.Compact
+                    && !read.ShowFilesPanel && !read.ShowLanguagePicker && !read.ShowPoweredBy, "Theme, corners, density, and toggles round-trip");
+                Assert.True(read.StarterPrompts.SequenceEqual(new[] { "First", "Second", "Third" }), "Starter prompts keep their order: " + String.Join(", ", read.StarterPrompts));
+
+                read.StarterPrompts = new List<string> { "Only" };
+                await db.Apps.UpdateAsync(read, token).ConfigureAwait(false);
+                AgenticApp updated = Assert.NotNull(await db.Apps.ReadAsync("ten_look", app.Id, token).ConfigureAwait(false), "Updated app");
+                Assert.True(updated.StarterPrompts.Count == 1 && updated.StarterPrompts[0] == "Only", "An update replaces the starter prompts");
+                Assert.True(await db.Apps.ReadAsync("ten_other", app.Id, token).ConfigureAwait(false) == null, "Another tenant reads nothing");
+
+                AdoDatabaseDriver ado = (AdoDatabaseDriver)db;
+                await db.Tenants.DeleteCascadeAsync("ten_look", token).ConfigureAwait(false);
+                object? left = await ado.ScalarAsync("SELECT COUNT(*) FROM " + ado.Table("agentic_app_starter_prompts") + " WHERE appid = @id;", c => AdoDatabaseDriver.Add(c, "id", app.Id), token).ConfigureAwait(false);
+                Assert.Equal(0L, Convert.ToInt64(left, System.Globalization.CultureInfo.InvariantCulture), "Tenant deletion removes the starter prompt rows");
+            }
+        }
+
+        private static async Task AppearanceValidationAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                List<Agent> agents = await AgentsAsync(host, "look", token).ConfigureAwait(false);
+                string apps = T(host) + "/apps";
+                AgenticApp plain = await HttpTestHelpers.SendAsync<AgenticApp>(host.AdminClient, HttpMethod.Post, apps, App("look-plain", agents), 201, token).ConfigureAwait(false);
+                Assert.True(plain.ThemeDefault == AppThemeDefaultEnum.System && plain.AllowThemeSwitch && plain.CornerStyle == AppCornerStyleEnum.Rounded && plain.Density == AppDensityEnum.Comfortable
+                    && plain.ShowFilesPanel && plain.ShowLanguagePicker && plain.ShowPoweredBy && plain.StarterPrompts.Count == 0 && plain.Subtitle == null && plain.DarkPrimaryColor == null, "Defaults: " + Serializer.Serialize(plain));
+
+                AgenticApp styled = App("look-styled", agents);
+                styled.Subtitle = "  Answers in minutes  ";
+                styled.PaletteId = "custom";
+                styled.PrimaryColor = "#1f6";
+                styled.DarkPrimaryColor = "#7AB8FF";
+                styled.ThemeDefault = AppThemeDefaultEnum.Light;
+                styled.CornerStyle = AppCornerStyleEnum.Sharp;
+                styled.StarterPrompts = new List<string> { "Summarize the news", " Plan my week " };
+                AgenticApp created = await HttpTestHelpers.SendAsync<AgenticApp>(host.AdminClient, HttpMethod.Post, apps, styled, 201, token).ConfigureAwait(false);
+                Assert.True(created.Subtitle == "Answers in minutes" && created.PaletteId == "custom" && created.PrimaryColor == "#1f6" && created.DarkPrimaryColor == "#7AB8FF"
+                    && created.ThemeDefault == AppThemeDefaultEnum.Light && created.CornerStyle == AppCornerStyleEnum.Sharp, "Appearance stored, trimmed, and #rgb accepted: " + Serializer.Serialize(created));
+                Assert.True(created.StarterPrompts.SequenceEqual(new[] { "Summarize the news", "Plan my week" }), "Starter prompts stored in order and trimmed");
+
+                async Task Refused(Action<AgenticApp> change, string field, string code)
+                {
+                    AgenticApp bad = Serializer.Deserialize<AgenticApp>(Serializer.Serialize(created))!;
+                    change(bad);
+                    TestResponse response = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Put, apps + "/" + created.Id, bad, token).ConfigureAwait(false);
+                    Assert.True(response.StatusCode == 400 && response.Body.Contains("\"" + field + "\"", StringComparison.Ordinal) && response.Body.Contains(code, StringComparison.Ordinal), field + " is refused with " + code + ": " + response.Body);
+                }
+                await Refused(a => a.DarkHeaderColor = "navy", "darkHeaderColor", "InvalidColor").ConfigureAwait(false);
+                await Refused(a => a.DarkFilesColor = "#12345", "darkFilesColor", "InvalidColor").ConfigureAwait(false);
+                await Refused(a => a.Subtitle = new string('s', 201), "subtitle", "TooLong").ConfigureAwait(false);
+                await Refused(a => a.WelcomeTitle = new string('w', 121), "welcomeTitle", "TooLong").ConfigureAwait(false);
+                await Refused(a => a.ComposerPlaceholder = new string('c', 121), "composerPlaceholder", "TooLong").ConfigureAwait(false);
+                await Refused(a => a.AgentDisplayName = new string('a', 81), "agentDisplayName", "TooLong").ConfigureAwait(false);
+                await Refused(a => a.PaletteId = new string('p', 65), "paletteId", "TooLong").ConfigureAwait(false);
+                await Refused(a => a.StarterPrompts = new List<string> { "1", "2", "3", "4", "5" }, "starterPrompts", "TooMany").ConfigureAwait(false);
+                await Refused(a => a.StarterPrompts = new List<string> { "ok", "   " }, "starterPrompts[1]", "Required").ConfigureAwait(false);
+                await Refused(a => a.StarterPrompts = new List<string> { new string('x', 201) }, "starterPrompts[0]", "TooLong").ConfigureAwait(false);
+
+                Tenant other = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Look Other" }, 201, token).ConfigureAwait(false);
+                AgentAsset foreign = await host.Server.Context.Database.AgentAssets.CreateAsync(new AgentAsset { TenantId = other.Id, Name = "foreign-avatar" }, token).ConfigureAwait(false);
+                await Refused(a => a.AgentAvatarAssetId = foreign.Id, "agentAvatarAssetId", "UnknownAsset").ConfigureAwait(false);
             }
         }
 

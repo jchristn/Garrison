@@ -463,6 +463,13 @@ namespace Garrison.Core.Database.Ado
             v63.BuildVersion63();
             migrations.Add(new SchemaMigration(63, "Shadow run source", v63._Statements, v63._Columns));
 
+            // LP8.1: agentic app appearance (LP-016): subtitle, welcome title, placeholder, agent name and avatar, the
+            // palette the operator started from, dark colors, theme, corners, density, panel toggles, and starter prompts
+            // as an ordered child table.
+            SchemaBuilder v64 = new SchemaBuilder(catalog, dialect);
+            v64.BuildVersion64();
+            migrations.Add(new SchemaMigration(64, "Agentic app appearance", v64._Statements, v64._Columns));
+
             return migrations;
         }
 
@@ -532,6 +539,39 @@ namespace Garrison.Core.Database.Ado
         {
             SqlDialect d = _Dialect;
             Column("organizations", "budgetfreezemarginpercent", d.TypeInt);
+        }
+
+        private void BuildVersion64()
+        {
+            SqlDialect d = _Dialect;
+            Column("agentic_apps", "subtitle", "VARCHAR(256)");
+            Column("agentic_apps", "welcometitle", "VARCHAR(128)");
+            Column("agentic_apps", "composerplaceholder", "VARCHAR(128)");
+            Column("agentic_apps", "agentdisplayname", "VARCHAR(128)");
+            Column("agentic_apps", "agentavatarassetid", d.TypeId);
+            Column("agentic_apps", "paletteid", "VARCHAR(64)");
+            Column("agentic_apps", "darkprimarycolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkaccentcolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkbackgroundcolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkheadercolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkagentbubblecolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkconversationlistcolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkcomposercolor", "VARCHAR(16)");
+            Column("agentic_apps", "darkfilescolor", "VARCHAR(16)");
+            Column("agentic_apps", "themedefault", "VARCHAR(16) NOT NULL DEFAULT 'System'");
+            Column("agentic_apps", "allowthemeswitch", d.TypeBool + " NOT NULL DEFAULT " + d.BooleanLiteral(true));
+            Column("agentic_apps", "cornerstyle", "VARCHAR(16) NOT NULL DEFAULT 'Rounded'");
+            Column("agentic_apps", "density", "VARCHAR(16) NOT NULL DEFAULT 'Comfortable'");
+            Column("agentic_apps", "showfilespanel", d.TypeBool + " NOT NULL DEFAULT " + d.BooleanLiteral(true));
+            Column("agentic_apps", "showlanguagepicker", d.TypeBool + " NOT NULL DEFAULT " + d.BooleanLiteral(true));
+            Column("agentic_apps", "showpoweredby", d.TypeBool + " NOT NULL DEFAULT " + d.BooleanLiteral(true));
+            Table("agentic_app_starter_prompts",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "appid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "prompt VARCHAR(256) NOT NULL");
+            Index("agentic_app_starter_prompts", "parent", false, "tenantid", "appid", "position");
         }
 
         private void BuildVersion63()

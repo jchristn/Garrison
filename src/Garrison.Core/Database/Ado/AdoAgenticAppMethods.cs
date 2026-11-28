@@ -24,6 +24,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _Members;
         private readonly string _Edges;
         private readonly string _Environments;
+        private readonly string _StarterPrompts;
         private readonly string _Revisions;
         private readonly string _RevisionMembers;
         private readonly string _RevisionEdges;
@@ -43,6 +44,7 @@ namespace Garrison.Core.Database.Ado
         public AdoAgenticAppMethods(AdoDatabaseDriver driver)
         {
             _Driver = driver ?? throw new ArgumentNullException(nameof(driver));
+            _StarterPrompts = driver.Table("agentic_app_starter_prompts");
             _Apps = driver.Table("agentic_apps");
             _Members = driver.Table("agentic_app_members");
             _Edges = driver.Table("agentic_app_edges");
@@ -68,8 +70,8 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _Apps + " (id, tenantid, name, slug, description, entryagentid, liveenvironment, authmode, anonymousenabled, showoperatordetail, displayname, logoassetid, primarycolor, accentcolor, welcometext, backgroundcolor, headercolor, agentbubblecolor, conversationlistcolor, composercolor, filescolor, fontfamily, faviconassetid, latestpublishedrevisionid, active, createdutc, lastupdateutc) " +
-                    "VALUES (@id, @tenantid, @name, @slug, @description, @entryagentid, @liveenvironment, @authmode, @anonymousenabled, @showoperatordetail, @displayname, @logoassetid, @primarycolor, @accentcolor, @welcometext, @backgroundcolor, @headercolor, @agentbubblecolor, @conversationlistcolor, @composercolor, @filescolor, @fontfamily, @faviconassetid, @latestpublishedrevisionid, @active, @createdutc, @lastupdateutc);",
+                    "INSERT INTO " + _Apps + " (id, tenantid, name, slug, description, entryagentid, liveenvironment, authmode, anonymousenabled, showoperatordetail, displayname, logoassetid, primarycolor, accentcolor, welcometext, backgroundcolor, headercolor, agentbubblecolor, conversationlistcolor, composercolor, filescolor, fontfamily, faviconassetid, subtitle, welcometitle, composerplaceholder, agentdisplayname, agentavatarassetid, paletteid, darkprimarycolor, darkaccentcolor, darkbackgroundcolor, darkheadercolor, darkagentbubblecolor, darkconversationlistcolor, darkcomposercolor, darkfilescolor, themedefault, allowthemeswitch, cornerstyle, density, showfilespanel, showlanguagepicker, showpoweredby, latestpublishedrevisionid, active, createdutc, lastupdateutc) " +
+                    "VALUES (@id, @tenantid, @name, @slug, @description, @entryagentid, @liveenvironment, @authmode, @anonymousenabled, @showoperatordetail, @displayname, @logoassetid, @primarycolor, @accentcolor, @welcometext, @backgroundcolor, @headercolor, @agentbubblecolor, @conversationlistcolor, @composercolor, @filescolor, @fontfamily, @faviconassetid, @subtitle, @welcometitle, @composerplaceholder, @agentdisplayname, @agentavatarassetid, @paletteid, @darkprimarycolor, @darkaccentcolor, @darkbackgroundcolor, @darkheadercolor, @darkagentbubblecolor, @darkconversationlistcolor, @darkcomposercolor, @darkfilescolor, @themedefault, @allowthemeswitch, @cornerstyle, @density, @showfilespanel, @showlanguagepicker, @showpoweredby, @latestpublishedrevisionid, @active, @createdutc, @lastupdateutc);",
                     command => Bind(command, app), ct).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, app, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -86,9 +88,10 @@ namespace Garrison.Core.Database.Ado
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
                     "UPDATE " + _Apps + " SET name = @name, slug = @slug, description = @description, entryagentid = @entryagentid, liveenvironment = @liveenvironment, authmode = @authmode, anonymousenabled = @anonymousenabled, " +
                     "showoperatordetail = @showoperatordetail, displayname = @displayname, logoassetid = @logoassetid, primarycolor = @primarycolor, accentcolor = @accentcolor, welcometext = @welcometext, backgroundcolor = @backgroundcolor, headercolor = @headercolor, agentbubblecolor = @agentbubblecolor, conversationlistcolor = @conversationlistcolor, composercolor = @composercolor, filescolor = @filescolor, fontfamily = @fontfamily, faviconassetid = @faviconassetid, " +
+                    "subtitle = @subtitle, welcometitle = @welcometitle, composerplaceholder = @composerplaceholder, agentdisplayname = @agentdisplayname, agentavatarassetid = @agentavatarassetid, paletteid = @paletteid, darkprimarycolor = @darkprimarycolor, darkaccentcolor = @darkaccentcolor, darkbackgroundcolor = @darkbackgroundcolor, darkheadercolor = @darkheadercolor, darkagentbubblecolor = @darkagentbubblecolor, darkconversationlistcolor = @darkconversationlistcolor, darkcomposercolor = @darkcomposercolor, darkfilescolor = @darkfilescolor, themedefault = @themedefault, allowthemeswitch = @allowthemeswitch, cornerstyle = @cornerstyle, density = @density, showfilespanel = @showfilespanel, showlanguagepicker = @showlanguagepicker, showpoweredby = @showpoweredby, " +
                     "latestpublishedrevisionid = @latestpublishedrevisionid, active = @active, lastupdateutc = @lastupdateutc WHERE id = @id AND tenantid = @tenantid;",
                     command => Bind(command, app), ct).ConfigureAwait(false);
-                foreach (string table in new[] { _Members, _Edges, _Environments })
+                foreach (string table in new[] { _Members, _Edges, _Environments, _StarterPrompts })
                 {
                     await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + table + " WHERE appid = @id;", command => AdoDatabaseDriver.Add(command, "id", app.Id), ct).ConfigureAwait(false);
                 }
@@ -235,7 +238,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "tenantid", tenantId);
                 }, ct).ConfigureAwait(false);
                 if (deleted == 0) return;
-                foreach (string table in new[] { _Members, _Edges, _Environments })
+                foreach (string table in new[] { _Members, _Edges, _Environments, _StarterPrompts })
                 {
                     await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + table + " WHERE appid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 }
@@ -471,6 +474,18 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "deploymentid", String.IsNullOrEmpty(app.Environments[position].DeploymentId) ? null : app.Environments[position].DeploymentId);
                 }, token).ConfigureAwait(false);
             }
+            for (int i = 0; i < app.StarterPrompts.Count; i++)
+            {
+                int position = i;
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "INSERT INTO " + _StarterPrompts + " (id, tenantid, appid, position, prompt) VALUES (@id, @tenantid, @appid, @position, @prompt);", command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", app.Id + "_s" + position.ToString("D4", CultureInfo.InvariantCulture));
+                    AdoDatabaseDriver.Add(command, "tenantid", app.TenantId);
+                    AdoDatabaseDriver.Add(command, "appid", app.Id);
+                    AdoDatabaseDriver.Add(command, "position", position);
+                    AdoDatabaseDriver.Add(command, "prompt", app.StarterPrompts[position]);
+                }, token).ConfigureAwait(false);
+            }
         }
 
         private async Task LoadChildrenAsync(AgenticApp app, CancellationToken token)
@@ -482,6 +497,11 @@ namespace Garrison.Core.Database.Ado
                 reader => new AgenticAppEdge { CallerAgentId = AdoConverters.Str(reader, "calleragentid"), CalleeAgentId = AdoConverters.Str(reader, "calleeagentid"), FanOutAllowed = AdoConverters.Bool(reader, "fanoutallowed") }, token).ConfigureAwait(false);
             app.Environments = await _Driver.QueryAsync("SELECT * FROM " + _Environments + " WHERE appid = @id ORDER BY position ASC;", bind,
                 reader => new AgenticAppEnvironment { Environment = AdoConverters.Str(reader, "environment"), DeploymentId = AdoConverters.NullableStr(reader, "deploymentid") }, token).ConfigureAwait(false);
+            app.StarterPrompts = await _Driver.QueryAsync("SELECT prompt FROM " + _StarterPrompts + " WHERE tenantid = @tenantid AND appid = @id ORDER BY position ASC;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "tenantid", app.TenantId);
+                AdoDatabaseDriver.Add(command, "id", app.Id);
+            }, reader => AdoConverters.Str(reader, "prompt"), token).ConfigureAwait(false);
         }
 
         private async Task LoadRevisionChildrenAsync(AppRevision revision, CancellationToken token)
@@ -518,6 +538,27 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "filescolor", app.FilesColor);
             AdoDatabaseDriver.Add(command, "fontfamily", app.FontFamily.HasValue ? app.FontFamily.Value.ToString() : null);
             AdoDatabaseDriver.Add(command, "faviconassetid", app.FaviconAssetId);
+            AdoDatabaseDriver.Add(command, "subtitle", app.Subtitle);
+            AdoDatabaseDriver.Add(command, "welcometitle", app.WelcomeTitle);
+            AdoDatabaseDriver.Add(command, "composerplaceholder", app.ComposerPlaceholder);
+            AdoDatabaseDriver.Add(command, "agentdisplayname", app.AgentDisplayName);
+            AdoDatabaseDriver.Add(command, "agentavatarassetid", app.AgentAvatarAssetId);
+            AdoDatabaseDriver.Add(command, "paletteid", app.PaletteId);
+            AdoDatabaseDriver.Add(command, "darkprimarycolor", app.DarkPrimaryColor);
+            AdoDatabaseDriver.Add(command, "darkaccentcolor", app.DarkAccentColor);
+            AdoDatabaseDriver.Add(command, "darkbackgroundcolor", app.DarkBackgroundColor);
+            AdoDatabaseDriver.Add(command, "darkheadercolor", app.DarkHeaderColor);
+            AdoDatabaseDriver.Add(command, "darkagentbubblecolor", app.DarkAgentBubbleColor);
+            AdoDatabaseDriver.Add(command, "darkconversationlistcolor", app.DarkConversationListColor);
+            AdoDatabaseDriver.Add(command, "darkcomposercolor", app.DarkComposerColor);
+            AdoDatabaseDriver.Add(command, "darkfilescolor", app.DarkFilesColor);
+            AdoDatabaseDriver.Add(command, "themedefault", app.ThemeDefault.ToString());
+            AdoDatabaseDriver.Add(command, "allowthemeswitch", app.AllowThemeSwitch);
+            AdoDatabaseDriver.Add(command, "cornerstyle", app.CornerStyle.ToString());
+            AdoDatabaseDriver.Add(command, "density", app.Density.ToString());
+            AdoDatabaseDriver.Add(command, "showfilespanel", app.ShowFilesPanel);
+            AdoDatabaseDriver.Add(command, "showlanguagepicker", app.ShowLanguagePicker);
+            AdoDatabaseDriver.Add(command, "showpoweredby", app.ShowPoweredBy);
             AdoDatabaseDriver.Add(command, "latestpublishedrevisionid", app.LatestPublishedRevisionId);
             AdoDatabaseDriver.Add(command, "active", app.Active);
             AdoDatabaseDriver.Add(command, "createdutc", app.CreatedUtc);
@@ -551,6 +592,27 @@ namespace Garrison.Core.Database.Ado
             string? font = AdoConverters.NullableStr(reader, "fontfamily");
             app.FontFamily = font != null && Enum.TryParse(font, out AppFontEnum parsedFont) ? parsedFont : null;
             app.FaviconAssetId = AdoConverters.NullableStr(reader, "faviconassetid");
+            app.Subtitle = AdoConverters.NullableStr(reader, "subtitle");
+            app.WelcomeTitle = AdoConverters.NullableStr(reader, "welcometitle");
+            app.ComposerPlaceholder = AdoConverters.NullableStr(reader, "composerplaceholder");
+            app.AgentDisplayName = AdoConverters.NullableStr(reader, "agentdisplayname");
+            app.AgentAvatarAssetId = AdoConverters.NullableStr(reader, "agentavatarassetid");
+            app.PaletteId = AdoConverters.NullableStr(reader, "paletteid");
+            app.DarkPrimaryColor = AdoConverters.NullableStr(reader, "darkprimarycolor");
+            app.DarkAccentColor = AdoConverters.NullableStr(reader, "darkaccentcolor");
+            app.DarkBackgroundColor = AdoConverters.NullableStr(reader, "darkbackgroundcolor");
+            app.DarkHeaderColor = AdoConverters.NullableStr(reader, "darkheadercolor");
+            app.DarkAgentBubbleColor = AdoConverters.NullableStr(reader, "darkagentbubblecolor");
+            app.DarkConversationListColor = AdoConverters.NullableStr(reader, "darkconversationlistcolor");
+            app.DarkComposerColor = AdoConverters.NullableStr(reader, "darkcomposercolor");
+            app.DarkFilesColor = AdoConverters.NullableStr(reader, "darkfilescolor");
+            app.ThemeDefault = AdoConverters.Enum(reader, "themedefault", AppThemeDefaultEnum.System);
+            app.AllowThemeSwitch = AdoConverters.Bool(reader, "allowthemeswitch");
+            app.CornerStyle = AdoConverters.Enum(reader, "cornerstyle", AppCornerStyleEnum.Rounded);
+            app.Density = AdoConverters.Enum(reader, "density", AppDensityEnum.Comfortable);
+            app.ShowFilesPanel = AdoConverters.Bool(reader, "showfilespanel");
+            app.ShowLanguagePicker = AdoConverters.Bool(reader, "showlanguagepicker");
+            app.ShowPoweredBy = AdoConverters.Bool(reader, "showpoweredby");
             app.LatestPublishedRevisionId = AdoConverters.NullableStr(reader, "latestpublishedrevisionid");
             app.Active = AdoConverters.Bool(reader, "active");
             app.CreatedUtc = AdoConverters.Date(reader, "createdutc");

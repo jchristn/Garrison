@@ -162,6 +162,7 @@ namespace Garrison.Core.Database
                 "agentic_app_members",
                 "agentic_app_edges",
                 "agentic_app_environments",
+                "agentic_app_starter_prompts",
                 "app_revisions",
                 "app_revision_members",
                 "app_revision_edges",

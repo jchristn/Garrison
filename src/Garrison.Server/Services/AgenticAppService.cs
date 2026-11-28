@@ -23,7 +23,7 @@ namespace Garrison.Server.Services
 
         private static readonly Regex _NamePattern = new Regex("^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$", RegexOptions.CultureInvariant);
         private static readonly Regex _SlugPattern = new Regex("^[a-z0-9][a-z0-9-]{1,62}$", RegexOptions.CultureInvariant);
-        private static readonly Regex _ColorPattern = new Regex("^#[0-9A-Fa-f]{6}$", RegexOptions.CultureInvariant);
+        private static readonly Regex _ColorPattern = new Regex("^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$", RegexOptions.CultureInvariant);
         private readonly ServerContext _Server;
 
         #endregion
@@ -349,10 +349,37 @@ namespace Garrison.Server.Services
             to.FilesColor = String.IsNullOrWhiteSpace(from.FilesColor) ? null : from.FilesColor.Trim();
             to.FontFamily = from.FontFamily;
             to.FaviconAssetId = String.IsNullOrWhiteSpace(from.FaviconAssetId) ? null : from.FaviconAssetId.Trim();
+            to.Subtitle = Clean(from.Subtitle);
+            to.WelcomeTitle = Clean(from.WelcomeTitle);
+            to.ComposerPlaceholder = Clean(from.ComposerPlaceholder);
+            to.AgentDisplayName = Clean(from.AgentDisplayName);
+            to.AgentAvatarAssetId = Clean(from.AgentAvatarAssetId);
+            to.PaletteId = Clean(from.PaletteId);
+            to.DarkPrimaryColor = Clean(from.DarkPrimaryColor);
+            to.DarkAccentColor = Clean(from.DarkAccentColor);
+            to.DarkBackgroundColor = Clean(from.DarkBackgroundColor);
+            to.DarkHeaderColor = Clean(from.DarkHeaderColor);
+            to.DarkAgentBubbleColor = Clean(from.DarkAgentBubbleColor);
+            to.DarkConversationListColor = Clean(from.DarkConversationListColor);
+            to.DarkComposerColor = Clean(from.DarkComposerColor);
+            to.DarkFilesColor = Clean(from.DarkFilesColor);
+            to.ThemeDefault = from.ThemeDefault;
+            to.AllowThemeSwitch = from.AllowThemeSwitch;
+            to.CornerStyle = from.CornerStyle;
+            to.Density = from.Density;
+            to.ShowFilesPanel = from.ShowFilesPanel;
+            to.ShowLanguagePicker = from.ShowLanguagePicker;
+            to.ShowPoweredBy = from.ShowPoweredBy;
+            to.StarterPrompts = from.StarterPrompts.Select(p => p == null ? String.Empty : p.Trim()).ToList();
             to.Members = from.Members.Select(m => new AgenticAppMember { AgentId = (m.AgentId ?? String.Empty).Trim(), Role = String.IsNullOrWhiteSpace(m.Role) ? null : m.Role.Trim() }).ToList();
             to.Edges = from.Edges.Select(e => new AgenticAppEdge { CallerAgentId = (e.CallerAgentId ?? String.Empty).Trim(), CalleeAgentId = (e.CalleeAgentId ?? String.Empty).Trim(), FanOutAllowed = e.FanOutAllowed }).ToList();
             to.Environments = from.Environments.Select(e => new AgenticAppEnvironment { Environment = (e.Environment ?? String.Empty).Trim(), DeploymentId = String.IsNullOrWhiteSpace(e.DeploymentId) ? null : e.DeploymentId.Trim() }).ToList();
             to.Active = from.Active;
+        }
+
+        private static string? Clean(string? value)
+        {
+            return String.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
 
         private async Task ValidateAsync(string tenantId, AgenticApp app, string? appId, CancellationToken token)
@@ -370,14 +397,38 @@ namespace Garrison.Server.Services
             if (app.Description != null && app.Description.Length > 4000) Fail("description", "TooLong", "At most 4000 characters.");
             if (app.DisplayName != null && app.DisplayName.Length > 128) Fail("displayName", "TooLong", "At most 128 characters.");
             if (app.WelcomeText != null && app.WelcomeText.Length > 4000) Fail("welcomeText", "TooLong", "At most 4000 characters.");
-            if (app.PrimaryColor != null && !_ColorPattern.IsMatch(app.PrimaryColor)) Fail("primaryColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.AccentColor != null && !_ColorPattern.IsMatch(app.AccentColor)) Fail("accentColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.BackgroundColor != null && !_ColorPattern.IsMatch(app.BackgroundColor)) Fail("backgroundColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.HeaderColor != null && !_ColorPattern.IsMatch(app.HeaderColor)) Fail("headerColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.AgentBubbleColor != null && !_ColorPattern.IsMatch(app.AgentBubbleColor)) Fail("agentBubbleColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.ConversationListColor != null && !_ColorPattern.IsMatch(app.ConversationListColor)) Fail("conversationListColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.ComposerColor != null && !_ColorPattern.IsMatch(app.ComposerColor)) Fail("composerColor", "InvalidColor", "A color is #RRGGBB.");
-            if (app.FilesColor != null && !_ColorPattern.IsMatch(app.FilesColor)) Fail("filesColor", "InvalidColor", "A color is #RRGGBB.");
+            if (app.PrimaryColor != null && !_ColorPattern.IsMatch(app.PrimaryColor)) Fail("primaryColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.AccentColor != null && !_ColorPattern.IsMatch(app.AccentColor)) Fail("accentColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.BackgroundColor != null && !_ColorPattern.IsMatch(app.BackgroundColor)) Fail("backgroundColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.HeaderColor != null && !_ColorPattern.IsMatch(app.HeaderColor)) Fail("headerColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.AgentBubbleColor != null && !_ColorPattern.IsMatch(app.AgentBubbleColor)) Fail("agentBubbleColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.ConversationListColor != null && !_ColorPattern.IsMatch(app.ConversationListColor)) Fail("conversationListColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.ComposerColor != null && !_ColorPattern.IsMatch(app.ComposerColor)) Fail("composerColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.FilesColor != null && !_ColorPattern.IsMatch(app.FilesColor)) Fail("filesColor", "InvalidColor", "A color is #rgb or #rrggbb.");
+            if (app.Subtitle != null && app.Subtitle.Length > 200) Fail("subtitle", "TooLong", "At most 200 characters.");
+            if (app.WelcomeTitle != null && app.WelcomeTitle.Length > 120) Fail("welcomeTitle", "TooLong", "At most 120 characters.");
+            if (app.ComposerPlaceholder != null && app.ComposerPlaceholder.Length > 120) Fail("composerPlaceholder", "TooLong", "At most 120 characters.");
+            if (app.AgentDisplayName != null && app.AgentDisplayName.Length > 80) Fail("agentDisplayName", "TooLong", "At most 80 characters.");
+            if (app.PaletteId != null && app.PaletteId.Length > 64) Fail("paletteId", "TooLong", "At most 64 characters.");
+            Dictionary<string, string?> darkColors = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["darkPrimaryColor"] = app.DarkPrimaryColor, ["darkAccentColor"] = app.DarkAccentColor, ["darkBackgroundColor"] = app.DarkBackgroundColor,
+                ["darkHeaderColor"] = app.DarkHeaderColor, ["darkAgentBubbleColor"] = app.DarkAgentBubbleColor, ["darkConversationListColor"] = app.DarkConversationListColor,
+                ["darkComposerColor"] = app.DarkComposerColor, ["darkFilesColor"] = app.DarkFilesColor
+            };
+            foreach (KeyValuePair<string, string?> color in darkColors)
+            {
+                if (color.Value != null && !_ColorPattern.IsMatch(color.Value)) Fail(color.Key, "InvalidColor", "A color is #rgb or #rrggbb.");
+            }
+            if (!Enum.IsDefined(app.ThemeDefault)) Fail("themeDefault", "InvalidValue", "System, Light, or Dark.");
+            if (!Enum.IsDefined(app.CornerStyle)) Fail("cornerStyle", "InvalidValue", "Sharp, Rounded, or Pill.");
+            if (!Enum.IsDefined(app.Density)) Fail("density", "InvalidValue", "Compact or Comfortable.");
+            if (app.StarterPrompts.Count > 4) Fail("starterPrompts", "TooMany", "At most 4 starter prompts.");
+            for (int i = 0; i < app.StarterPrompts.Count; i++)
+            {
+                if (app.StarterPrompts[i].Length == 0) Fail("starterPrompts[" + i + "]", "Required", "A starter prompt is not blank.");
+                else if (app.StarterPrompts[i].Length > 200) Fail("starterPrompts[" + i + "]", "TooLong", "At most 200 characters.");
+            }
             if (app.LogoAssetId != null)
             {
                 AgentAsset? logo = await _Server.Database.AgentAssets.ReadAsync(tenantId, app.LogoAssetId, token).ConfigureAwait(false)
@@ -391,6 +442,13 @@ namespace Garrison.Server.Services
                     ?? await _Server.Database.AgentAssets.ReadByNameAsync(tenantId, app.FaviconAssetId, token).ConfigureAwait(false);
                 if (favicon == null) Fail("faviconAssetId", "UnknownAsset", "No agent asset " + app.FaviconAssetId + " in this tenant.");
                 else app.FaviconAssetId = favicon.Id;
+            }
+            if (app.AgentAvatarAssetId != null)
+            {
+                AgentAsset? avatar = await _Server.Database.AgentAssets.ReadAsync(tenantId, app.AgentAvatarAssetId, token).ConfigureAwait(false)
+                    ?? await _Server.Database.AgentAssets.ReadByNameAsync(tenantId, app.AgentAvatarAssetId, token).ConfigureAwait(false);
+                if (avatar == null) Fail("agentAvatarAssetId", "UnknownAsset", "No agent asset " + app.AgentAvatarAssetId + " in this tenant.");
+                else app.AgentAvatarAssetId = avatar.Id;
             }
 
             // Members, entry, and edges may name agents; store identifiers.
