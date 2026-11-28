@@ -120,3 +120,33 @@ spec:
   branding:
     displayName: Support Desk
     welcomeText: Tell us what went wrong.
+    subtitle: Answers from the help center, routed to the right queue
+    welcomeTitle: How can we help?
+    composerPlaceholder: Describe the problem
+    agentDisplayName: Support
+    # The dashboard's Ocean preset filled these colors; paletteId only records where they came from. The app page
+    # draws the colors as stored, and a dark color left out is derived from its light color.
+    paletteId: ocean
+    primaryColor: "#0369A1"
+    accentColor: "#0E7490"
+    backgroundColor: "#F0F9FF"
+    headerColor: "#E0F2FE"
+    agentBubbleColor: "#FFFFFF"
+    conversationListColor: "#F0F9FF"
+    composerColor: "#FFFFFF"
+    filesColor: "#F0F9FF"
+    darkPrimaryColor: "#38BDF8"
+    darkAccentColor: "#22D3EE"
+    darkBackgroundColor: "#082F49"
+    darkHeaderColor: "#0C4A6E"
+    darkAgentBubbleColor: "#0B3B5A"
+    darkConversationListColor: "#072A40"
+    darkComposerColor: "#0B3B5A"
+    darkFilesColor: "#072A40"
+    themeDefault: System
+    cornerStyle: Rounded
+    density: Comfortable
+    starterPrompts:
+      - I was charged twice this month
+      - I cannot sign in to my account
+      - How do I export my data?

@@ -10,7 +10,7 @@ import { GarrisonError } from "./errors.js";
 import { backoffDelay } from "./eventStream.js";
 import type { BackoffOptions } from "./eventStream.js";
 import { queryString, readServerSentEvents, seg } from "./http.js";
-import type { AppAuthMode, AppFont, ConversationFileVersion, FileDownloadUrl, FileSpaceListing, RunEvent, RunStatus } from "./index.js";
+import type { AppAppearance, AppAuthMode, AppFont, ConversationFileVersion, FileDownloadUrl, FileSpaceListing, RunEvent, RunStatus } from "./index.js";
 
 export { GarrisonError } from "./errors.js";
 export * from "./eventStream.js";
@@ -22,8 +22,12 @@ export const TERMINAL_STATUSES = ["Succeeded", "Failed", "Cancelled", "TimedOut"
 /** Default storage key prefix for persisted app sessions; the app slug is appended. */
 export const DEFAULT_SESSION_KEY_PREFIX = "garrison.app.session.";
 
-/** Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. */
-export interface AppInfo {
+/**
+ * Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. agentDisplayName falls back to
+ * the entry agent's name; agentAvatarUrl is /v1.0/apps/{slug}/avatar when the app has an avatar, else null.
+ */
+export interface AppInfo extends AppAppearance {
+  agentAvatarUrl?: string | null;
   slug: string; displayName: string; description?: string | null; welcomeText?: string | null; primaryColor?: string | null;
   accentColor?: string | null; logoUrl?: string | null; backgroundColor?: string | null; headerColor?: string | null;
   agentBubbleColor?: string | null; conversationListColor?: string | null; composerColor?: string | null; filesColor?: string | null;

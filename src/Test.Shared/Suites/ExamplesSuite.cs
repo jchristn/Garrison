@@ -202,6 +202,9 @@ namespace Test.Shared.Suites
 
                 using (HttpClient client = new HttpClient { BaseAddress = host.AdminClient.BaseAddress })
                 {
+                    AppInfo look = Assert.NotNull(Serializer.Deserialize<AppInfo>(await client.GetStringAsync("/v1.0/apps/support-triage", token).ConfigureAwait(false)), "App info");
+                    Assert.True(look.PaletteId == "ocean" && look.DarkPrimaryColor == "#38BDF8" && look.StarterPrompts.Count == 3 && look.WelcomeTitle == "How can we help?" && look.AgentDisplayName == "Support",
+                        "The example's appearance reaches the app page: " + Serializer.Serialize(look));
                     string session;
                     using (StringContent content = new StringContent("{}", Encoding.UTF8, "application/json"))
                     using (HttpResponseMessage response = await client.PostAsync("/v1.0/apps/support-triage/session", content, token).ConfigureAwait(false))

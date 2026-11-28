@@ -392,9 +392,9 @@ Management tools for apps (AD6), for users and credentials only:
 | `garrison_create_app` | AgenticApp.Create | `configuration` (REST app fields; agents by name or ID) |
 | `garrison_update_app` | AgenticApp.Update on the resolved ID | `app`, `configuration` |
 
-`configuration` takes the REST `AgenticApp` fields, including the branding fields `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor` (each color `#RRGGBB` or null), `fontFamily` (`System`, `Sans`, `Serif`, `Rounded`, `Mono`), `faviconAssetId`, and `welcomeText`.
+`configuration` takes the REST `AgenticApp` fields, including the branding fields `displayName`, `logoAssetId`, `primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor`, `fontFamily` (`System`, `Sans`, `Serif`, `Rounded`, `Mono`), `faviconAssetId`, and `welcomeText`, and the appearance fields `subtitle`, `welcomeTitle`, `composerPlaceholder`, `agentDisplayName`, `agentAvatarAssetId`, `paletteId`, the eight dark colors (`darkPrimaryColor` through `darkFilesColor`), `themeDefault` (`System`, `Light`, `Dark`), `allowThemeSwitch`, `cornerStyle` (`Sharp`, `Rounded`, `Pill`), `density` (`Compact`, `Comfortable`), `showFilesPanel`, `showLanguagePicker`, `showPoweredBy`, and `starterPrompts` (at most 4, each up to 200 characters). Every color is `#rgb`, `#rrggbb`, or null. `garrison_update_app` replaces the whole app, so a field left out returns to its default.
 
-Validation errors use the REST field codes (for example `InvalidColor`, `UnknownAsset`). See [docs/APPS.md](docs/APPS.md).
+Validation errors use the REST field codes (for example `InvalidColor`, `UnknownAsset`, `TooLong`, `TooMany`, `Required`). See [docs/APPS.md](docs/APPS.md).
 
 ## Studio drafts
 

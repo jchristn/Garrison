@@ -15,7 +15,8 @@ import (
 // AppInfo is an app's branding and sign-in mode, from GET /v1.0/apps/{slug}. Reading it needs no credentials.
 // AuthMode is one of AppAuthModeTenantUsers, AppAuthModeAppUsers, or AppAuthModeAnonymous. FontFamily is one of the
 // AppFont constants and is always present (default System). FaviconURL is /v1.0/apps/{slug}/favicon when the app has a
-// favicon or a logo, else nil.
+// favicon or a logo, else nil. AgentDisplayName falls back to the entry agent's name; AgentAvatarURL is
+// /v1.0/apps/{slug}/avatar when the app has an avatar, else nil. A nil Dark color means derive it from the light color.
 type AppInfo struct {
 	Slug                  string  `json:"slug"`
 	DisplayName           string  `json:"displayName"`
@@ -35,6 +36,29 @@ type AppInfo struct {
 	AuthMode              string  `json:"authMode"`
 	AnonymousAllowed      bool    `json:"anonymousAllowed"`
 	ShowOperatorDetail    bool    `json:"showOperatorDetail"`
+
+	Subtitle                  *string  `json:"subtitle"`
+	WelcomeTitle              *string  `json:"welcomeTitle"`
+	ComposerPlaceholder       *string  `json:"composerPlaceholder"`
+	AgentDisplayName          *string  `json:"agentDisplayName"`
+	AgentAvatarURL            *string  `json:"agentAvatarUrl"`
+	PaletteID                 *string  `json:"paletteId"`
+	DarkPrimaryColor          *string  `json:"darkPrimaryColor"`
+	DarkAccentColor           *string  `json:"darkAccentColor"`
+	DarkBackgroundColor       *string  `json:"darkBackgroundColor"`
+	DarkHeaderColor           *string  `json:"darkHeaderColor"`
+	DarkAgentBubbleColor      *string  `json:"darkAgentBubbleColor"`
+	DarkConversationListColor *string  `json:"darkConversationListColor"`
+	DarkComposerColor         *string  `json:"darkComposerColor"`
+	DarkFilesColor            *string  `json:"darkFilesColor"`
+	ThemeDefault              string   `json:"themeDefault"`
+	AllowThemeSwitch          bool     `json:"allowThemeSwitch"`
+	CornerStyle               string   `json:"cornerStyle"`
+	Density                   string   `json:"density"`
+	ShowFilesPanel            bool     `json:"showFilesPanel"`
+	ShowLanguagePicker        bool     `json:"showLanguagePicker"`
+	ShowPoweredBy             bool     `json:"showPoweredBy"`
+	StarterPrompts            []string `json:"starterPrompts"`
 }
 
 // AppSessionResponse is an app session. Token has the prefix gas_ and works only on /v1.0/apps/{slug}/ for that app.

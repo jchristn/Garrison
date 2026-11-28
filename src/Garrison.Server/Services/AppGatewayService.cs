@@ -78,7 +78,14 @@ namespace Garrison.Server.Services
                 PrimaryColor = app.PrimaryColor, AccentColor = app.AccentColor, LogoUrl = app.LogoAssetId == null ? null : "/v1.0/apps/" + app.Slug + "/logo",
                 BackgroundColor = app.BackgroundColor, HeaderColor = app.HeaderColor, AgentBubbleColor = app.AgentBubbleColor, ConversationListColor = app.ConversationListColor, ComposerColor = app.ComposerColor, FilesColor = app.FilesColor, FontFamily = app.FontFamily ?? AppFontEnum.System,
                 FaviconUrl = app.FaviconAssetId == null && app.LogoAssetId == null ? null : "/v1.0/apps/" + app.Slug + "/favicon",
-                AuthMode = app.AuthMode, AnonymousAllowed = AnonymousAllowed(app), ShowOperatorDetail = app.ShowOperatorDetail
+                AuthMode = app.AuthMode, AnonymousAllowed = AnonymousAllowed(app), ShowOperatorDetail = app.ShowOperatorDetail,
+                Subtitle = app.Subtitle, WelcomeTitle = app.WelcomeTitle, ComposerPlaceholder = app.ComposerPlaceholder,
+                AgentDisplayName = app.AgentDisplayName ?? app.Members.FirstOrDefault(m => m.AgentId == app.EntryAgentId)?.AgentName,
+                AgentAvatarUrl = app.AgentAvatarAssetId == null ? null : "/v1.0/apps/" + app.Slug + "/avatar", PaletteId = app.PaletteId,
+                DarkPrimaryColor = app.DarkPrimaryColor, DarkAccentColor = app.DarkAccentColor, DarkBackgroundColor = app.DarkBackgroundColor, DarkHeaderColor = app.DarkHeaderColor,
+                DarkAgentBubbleColor = app.DarkAgentBubbleColor, DarkConversationListColor = app.DarkConversationListColor, DarkComposerColor = app.DarkComposerColor, DarkFilesColor = app.DarkFilesColor,
+                ThemeDefault = app.ThemeDefault, AllowThemeSwitch = app.AllowThemeSwitch, CornerStyle = app.CornerStyle, Density = app.Density,
+                ShowFilesPanel = app.ShowFilesPanel, ShowLanguagePicker = app.ShowLanguagePicker, ShowPoweredBy = app.ShowPoweredBy, StarterPrompts = new List<string>(app.StarterPrompts)
             };
         }
 

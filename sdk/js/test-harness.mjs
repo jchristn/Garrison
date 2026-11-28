@@ -1448,6 +1448,9 @@ await check("app gateway chat with the support triage bundle", async () => {
   const gateway = client.appGateway(app.slug);
   const info = await gateway.info();
   require(info.slug === app.slug && info.authMode === "Anonymous" && info.anonymousAllowed === true, `info ${JSON.stringify(info)}`);
+  require(app.paletteId === "ocean" && app.starterPrompts?.length === 3 && app.darkPrimaryColor === "#38BDF8" && app.cornerStyle === "Rounded" && app.showPoweredBy === true, `app appearance ${JSON.stringify(app)}`);
+  require(info.paletteId === "ocean" && info.starterPrompts?.length === 3 && info.darkFilesColor === "#072A40" && info.welcomeTitle === "How can we help?" && info.agentDisplayName === "Support"
+    && info.themeDefault === "System" && info.density === "Comfortable" && info.allowThemeSwitch === true && info.agentAvatarUrl == null, `info appearance ${JSON.stringify(info)}`);
   require(gateway.logoUrl().endsWith(`/v1.0/apps/${app.slug}/logo`), gateway.logoUrl());
   await expectStatus(404, () => gateway.logo());
   await gateway.startSession();

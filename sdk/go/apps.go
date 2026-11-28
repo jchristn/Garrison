@@ -25,6 +25,26 @@ const (
 	AppFontMono    = "Mono"
 )
 
+// Themes an agentic app's chat UI opens in (AgenticApp.ThemeDefault, AppInfo.ThemeDefault). System is the default.
+const (
+	AppThemeDefaultSystem = "System"
+	AppThemeDefaultLight  = "Light"
+	AppThemeDefaultDark   = "Dark"
+)
+
+// Corner styles of an agentic app's chat UI (AgenticApp.CornerStyle). Rounded is the default.
+const (
+	AppCornerStyleSharp   = "Sharp"
+	AppCornerStyleRounded = "Rounded"
+	AppCornerStylePill    = "Pill"
+)
+
+// Spacing of an agentic app's chat UI (AgenticApp.Density). Comfortable is the default.
+const (
+	AppDensityCompact     = "Compact"
+	AppDensityComfortable = "Comfortable"
+)
+
 // AppUserRole is the built-in role that lets a user use one agentic app's chat UI. Assign it with resource scope on the
 // app identifier; it grants nothing in the management API.
 const AppUserRole = "AppUser"
@@ -68,6 +88,14 @@ type AgenticAppEnvironment struct {
 // theme default; anything else is 400 InvalidColor.
 // FontFamily is one of the AppFont constants (nil means System). FaviconAssetID is an image asset shown as the browser
 // tab icon; nil uses the logo (LogoAssetID), or the default icon without one. An unknown asset is 400 UnknownAsset.
+//
+// Appearance: Subtitle (up to 200 characters), WelcomeTitle and ComposerPlaceholder (up to 120), AgentDisplayName (up
+// to 80; nil shows the entry agent's name), AgentAvatarAssetID (an image asset), PaletteID (the preset the operator
+// started from, or custom; informational), and the eight Dark colors (nil derives from the light color). Every color is
+// #rgb or #rrggbb. ThemeDefault is an AppThemeDefault constant (empty means System), CornerStyle an AppCornerStyle
+// constant (empty means Rounded), Density an AppDensity constant (empty means Comfortable). AllowThemeSwitch,
+// ShowFilesPanel, ShowLanguagePicker, and ShowPoweredBy nil mean the server default, true. StarterPrompts holds at most
+// 4, each 1 to 200 characters (400 TooMany, Required, or TooLong). Longer text is 400 TooLong.
 type AgenticApp struct {
 	ID                        string                  `json:"id,omitempty"`
 	TenantID                  string                  `json:"tenantId,omitempty"`
@@ -92,6 +120,28 @@ type AgenticApp struct {
 	FilesColor                *string                 `json:"filesColor,omitempty"`
 	FontFamily                *string                 `json:"fontFamily,omitempty"`
 	FaviconAssetID            *string                 `json:"faviconAssetId,omitempty"`
+	Subtitle                  *string                 `json:"subtitle,omitempty"`
+	WelcomeTitle              *string                 `json:"welcomeTitle,omitempty"`
+	ComposerPlaceholder       *string                 `json:"composerPlaceholder,omitempty"`
+	AgentDisplayName          *string                 `json:"agentDisplayName,omitempty"`
+	AgentAvatarAssetID        *string                 `json:"agentAvatarAssetId,omitempty"`
+	PaletteID                 *string                 `json:"paletteId,omitempty"`
+	DarkPrimaryColor          *string                 `json:"darkPrimaryColor,omitempty"`
+	DarkAccentColor           *string                 `json:"darkAccentColor,omitempty"`
+	DarkBackgroundColor       *string                 `json:"darkBackgroundColor,omitempty"`
+	DarkHeaderColor           *string                 `json:"darkHeaderColor,omitempty"`
+	DarkAgentBubbleColor      *string                 `json:"darkAgentBubbleColor,omitempty"`
+	DarkConversationListColor *string                 `json:"darkConversationListColor,omitempty"`
+	DarkComposerColor         *string                 `json:"darkComposerColor,omitempty"`
+	DarkFilesColor            *string                 `json:"darkFilesColor,omitempty"`
+	ThemeDefault              string                  `json:"themeDefault,omitempty"`
+	AllowThemeSwitch          *bool                   `json:"allowThemeSwitch,omitempty"`
+	CornerStyle               string                  `json:"cornerStyle,omitempty"`
+	Density                   string                  `json:"density,omitempty"`
+	ShowFilesPanel            *bool                   `json:"showFilesPanel,omitempty"`
+	ShowLanguagePicker        *bool                   `json:"showLanguagePicker,omitempty"`
+	ShowPoweredBy             *bool                   `json:"showPoweredBy,omitempty"`
+	StarterPrompts            []string                `json:"starterPrompts,omitempty"`
 	Members                   []AgenticAppMember      `json:"members"`
 	Edges                     []AgenticAppEdge        `json:"edges,omitempty"`
 	Environments              []AgenticAppEnvironment `json:"environments,omitempty"`

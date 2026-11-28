@@ -236,6 +236,27 @@ export type AppAuthMode = typeof APP_AUTH_MODES[number];
 /** Typefaces of an app's chat UI (AppFontEnum). */
 export const APP_FONTS = ["System", "Sans", "Serif", "Rounded", "Mono"] as const;
 export type AppFont = typeof APP_FONTS[number];
+/** The theme an app's chat UI opens in (AppThemeDefaultEnum). Default System. */
+export const APP_THEME_DEFAULTS = ["System", "Light", "Dark"] as const;
+export type AppThemeDefault = typeof APP_THEME_DEFAULTS[number];
+/** Corner styles of an app's chat UI (AppCornerStyleEnum). Default Rounded. */
+export const APP_CORNER_STYLES = ["Sharp", "Rounded", "Pill"] as const;
+export type AppCornerStyle = typeof APP_CORNER_STYLES[number];
+/** Spacing of an app's chat UI (AppDensityEnum). Default Comfortable. */
+export const APP_DENSITIES = ["Compact", "Comfortable"] as const;
+export type AppDensity = typeof APP_DENSITIES[number];
+/**
+ * Appearance fields shared by an app and its public info. Every color is #rgb or #rrggbb; a dark color left null is
+ * derived from its light color by the app page. starterPrompts holds at most 4, each 1 to 200 characters.
+ */
+export interface AppAppearance {
+  subtitle?: string | null; welcomeTitle?: string | null; composerPlaceholder?: string | null; agentDisplayName?: string | null;
+  paletteId?: string | null; darkPrimaryColor?: string | null; darkAccentColor?: string | null; darkBackgroundColor?: string | null;
+  darkHeaderColor?: string | null; darkAgentBubbleColor?: string | null; darkConversationListColor?: string | null;
+  darkComposerColor?: string | null; darkFilesColor?: string | null; themeDefault?: AppThemeDefault; allowThemeSwitch?: boolean;
+  cornerStyle?: AppCornerStyle; density?: AppDensity; showFilesPanel?: boolean; showLanguagePicker?: boolean; showPoweredBy?: boolean;
+  starterPrompts?: string[];
+}
 /**
  * Built-in role that lets a user use one agentic app's chat UI. Assign it with resource scope on the app identifier; it
  * grants nothing in the management API.
@@ -263,12 +284,14 @@ export interface AgenticAppEnvironment { environment: string; deploymentId?: str
  * the app UI uses. The server checks that the entry agent is a member, edges connect members, every member is reachable
  * from the entry agent, and the edges have no cycle.
  */
-export interface AgenticApp extends Json {
+export interface AgenticApp extends Json, AppAppearance {
   id: string; tenantId: string; name: string; slug: string; description?: string | null; entryAgentId: string;
   liveEnvironment: string; authMode: AppAuthMode; anonymousEnabled: boolean; showOperatorDetail: boolean;
   displayName?: string | null; logoAssetId?: string | null; primaryColor?: string | null; accentColor?: string | null; welcomeText?: string | null;
   backgroundColor?: string | null; headerColor?: string | null; agentBubbleColor?: string | null; conversationListColor?: string | null;
   composerColor?: string | null; filesColor?: string | null; fontFamily?: AppFont | null; faviconAssetId?: string | null;
+  /** An image asset shown beside the agent's messages, or null; an unknown asset is 400 UnknownAsset. */
+  agentAvatarAssetId?: string | null;
   members: AgenticAppMember[]; edges: AgenticAppEdge[]; environments: AgenticAppEnvironment[];
   latestPublishedRevisionId?: string | null; active: boolean; createdUtc: string; lastUpdateUtc: string;
 }

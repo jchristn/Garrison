@@ -62,6 +62,7 @@ namespace Garrison.Server.Routes
             routes.Anonymous(HttpMethod.GET, _Base, InfoAsync, "App branding and how to sign in", _Tag, null, typeof(AppInfo));
             routes.Anonymous(HttpMethod.GET, _Base + "/logo", LogoAsync, "The app's logo image", _Tag);
             routes.Anonymous(HttpMethod.GET, _Base + "/favicon", FaviconAsync, "The app's browser tab icon: its favicon asset, else its logo", _Tag);
+            routes.Anonymous(HttpMethod.GET, _Base + "/avatar", AvatarAsync, "The image shown beside the agent's messages", _Tag);
             routes.Anonymous(HttpMethod.POST, _Base + "/session", StartSessionAsync, "Start an app session: email and password, a management bearer token, or anonymous when the app allows it", _Tag, typeof(AppSessionRequest), typeof(AppSessionResponse));
             routes.Anonymous(HttpMethod.DELETE, _Base + "/session", EndSessionAsync, "End the app session", _Tag);
             routes.Anonymous(HttpMethod.GET, _Base + "/conversations", ConversationsAsync, "The session owner's conversations in the app", _Tag, null, typeof(List<AppConversationView>));
@@ -110,6 +111,12 @@ namespace Garrison.Server.Routes
         {
             AgenticApp app = await AppAsync(http).ConfigureAwait(false);
             await SendImageAsync(http, app, app.FaviconAssetId ?? app.LogoAssetId, "The app has no favicon or logo.").ConfigureAwait(false);
+        }
+
+        private async Task AvatarAsync(HttpContextBase http)
+        {
+            AgenticApp app = await AppAsync(http).ConfigureAwait(false);
+            await SendImageAsync(http, app, app.AgentAvatarAssetId, "The app has no agent avatar.").ConfigureAwait(false);
         }
 
         private async Task SendImageAsync(HttpContextBase http, AgenticApp app, string? assetId, string missing)

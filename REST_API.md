@@ -4664,11 +4664,11 @@ Groups of agents behind one end-user chat UI (AD6). [docs/APPS.md](docs/APPS.md)
 | `POST /apps/{idOrName}/revisions/{idOrNumber}/publish` | Execute on `AgenticApp` | `AppRevision`, 200; 409 `RevisionPublished` |
 | `POST /apps/{idOrName}/promote` | Execute on `Promotion` for the target | `PromotionRecord`, 201 |
 
-Errors: 400 `ValidationFailed` with field codes `InvalidName`, `InvalidSlug`, `UnknownAgent`, `DuplicateMember`, `EntryNotMember`, `EdgeNotMember`, `SelfEdge`, `AppGraphCycle`, `UnreachableMember`, `UnknownEnvironment`, `InvalidEntryDeployment`, `InvalidColor`, `UnknownAsset`; 409 `NameConflict`, `AppSlugTaken`, `NoPublishedRevision`, `NoTargetDeployments`. Deleting an agent that belongs to an app answers 409 `AgentInUse`.
+Errors: 400 `ValidationFailed` with field codes `InvalidName`, `InvalidSlug`, `UnknownAgent`, `DuplicateMember`, `EntryNotMember`, `EdgeNotMember`, `SelfEdge`, `AppGraphCycle`, `UnreachableMember`, `UnknownEnvironment`, `InvalidEntryDeployment`, `InvalidColor`, `UnknownAsset`, `TooLong`, `TooMany`, `Required`; 409 `NameConflict`, `AppSlugTaken`, `NoPublishedRevision`, `NoTargetDeployments`. Deleting an agent that belongs to an app answers 409 `AgentInUse`.
 
-Colors (`primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor`) must be `#RRGGBB` or null; anything else is `InvalidColor`. `logoAssetId` and `faviconAssetId` must name an agent asset of the tenant; anything else is `UnknownAsset`.
+Colors (`primaryColor`, `accentColor`, `backgroundColor`, `headerColor`, `agentBubbleColor`, `conversationListColor`, `composerColor`, `filesColor`, and their eight `dark` counterparts such as `darkPrimaryColor`) must be `#rgb`, `#rrggbb`, or null; anything else is `InvalidColor`. A dark color left null is derived from its light color by the app page. `logoAssetId`, `faviconAssetId`, and `agentAvatarAssetId` must name an agent asset of the tenant; anything else is `UnknownAsset`. Text limits answer `TooLong`: `subtitle` 200 characters, `welcomeTitle` and `composerPlaceholder` 120, `agentDisplayName` 80, `paletteId` 64. `starterPrompts` holds at most 4 (`TooMany` on `starterPrompts`); each is trimmed, may not be blank (`Required` on `starterPrompts[i]`), and is at most 200 characters (`TooLong`). `themeDefault`, `cornerStyle`, and `density` take the enum names below. A `PUT` replaces every field, so a field left out returns to its default.
 
-The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens. `GET /v1.0/apps/{slug}`, `GET /v1.0/apps/{slug}/logo`, and `GET /v1.0/apps/{slug}/favicon` (the favicon asset, else the logo; 404 when neither) need no credentials; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
+The app gateway under `/v1.0/apps/{slug}/` is for end users and authenticates with app sessions, not management tokens. `GET /v1.0/apps/{slug}`, `GET /v1.0/apps/{slug}/logo`, `GET /v1.0/apps/{slug}/favicon` (the favicon asset, else the logo; 404 when neither), and `GET /v1.0/apps/{slug}/avatar` (the agent avatar asset; 404 without one) need no credentials; see [docs/APPS.md](docs/APPS.md#the-app-gateway).
 
 Two gateway routes manage the session owner's conversations. Both need the app session (`Authorization: Bearer gas_...`) and answer 404 when the conversation is not the owner's in this app.
 
@@ -9272,6 +9272,21 @@ An agentic app (AD6, AD-002): a group of agents with one entry agent that talks 
 | `filesColor` | `string?` | Background of the conversation's file list as #RRGGBB, or null for the theme's surface color. |
 | `fontFamily` | `AppFontEnum?` | Typeface of the chat UI, or null for `System`. |
 | `faviconAssetId` | `string?` | Agent asset (an image) shown as the browser tab icon, or null to use the logo, or the default icon without one. An unknown asset is `UnknownAsset`. |
+| `subtitle` | `string?` | Line under the name in the header and on the welcome screen, up to 200 characters, or null. |
+| `welcomeTitle` | `string?` | Heading of the welcome screen, up to 120 characters, or null to show the display name. |
+| `composerPlaceholder` | `string?` | Placeholder of the message input, up to 120 characters, or null for the app UI's default. |
+| `agentDisplayName` | `string?` | Author name on the agent's messages, up to 80 characters, or null to show the entry agent's name. |
+| `agentAvatarAssetId` | `string?` | Agent asset (an image) shown beside the agent's messages, or null. An unknown asset is `UnknownAsset`. |
+| `paletteId` | `string?` | The palette preset the operator started from, or `custom`, up to 64 characters, or null. Informational only; the app UI draws the stored colors. |
+| `darkPrimaryColor`, `darkAccentColor`, `darkBackgroundColor`, `darkHeaderColor`, `darkAgentBubbleColor`, `darkConversationListColor`, `darkComposerColor`, `darkFilesColor` | `string?` | The matching color in the dark theme as #rgb or #rrggbb, or null to derive it from the light color. |
+| `themeDefault` | `AppThemeDefaultEnum` | Theme the app UI opens in. Default `System`. |
+| `allowThemeSwitch` | `boolean` | Whether end users may switch themes; false hides the toggle and ignores a saved choice. Default true. |
+| `cornerStyle` | `AppCornerStyleEnum` | Corner style of buttons, bubbles, and panels. Default `Rounded`. |
+| `density` | `AppDensityEnum` | Spacing of the app UI. Default `Comfortable`. |
+| `showFilesPanel` | `boolean` | Whether the app UI shows the conversation's file panel. Default true. |
+| `showLanguagePicker` | `boolean` | Whether the app UI shows its language picker. Default true. |
+| `showPoweredBy` | `boolean` | Whether the app UI shows a "Powered by Garrison" footer. Default true. |
+| `starterPrompts` | `string[]` | Suggested first messages shown as buttons on a new conversation, in order. At most 4, each 1 to 200 characters. Default empty. |
 | `members` | `AgenticAppMember[]` | Members, including the entry agent. |
 | `edges` | `AgenticAppEdge[]` | Calls members may make to each other. |
 | `environments` | `AgenticAppEnvironment[]` | Entry deployment per environment. |
@@ -9316,6 +9331,18 @@ Which deployment of the entry agent an app uses in one environment (AD6.1). The 
 #### `AppFontEnum`
 
 `System` (default, the operating system's interface font), `Sans`, `Serif`, `Rounded`, `Mono`. Each maps to a font stack browsers already have, so no font is downloaded.
+
+#### `AppThemeDefaultEnum`
+
+`System` (default, follow the browser's light or dark preference), `Light`, `Dark`.
+
+#### `AppCornerStyleEnum`
+
+`Sharp` (square corners), `Rounded` (default), `Pill` (fully rounded buttons and inputs).
+
+#### `AppDensityEnum`
+
+`Compact` (tighter spacing), `Comfortable` (default).
 
 #### `AppRevision`
 
@@ -9396,6 +9423,19 @@ What an app's chat UI needs before anyone signs in (AD6.6, AD6.10): branding and
 | `filesColor` | `string?` | Background of the conversation's file list (#RRGGBB), or null for the theme's surface color. |
 | `fontFamily` | `AppFontEnum` | Typeface of the chat UI. Always present; default `System`. |
 | `faviconUrl` | `string?` | `/v1.0/apps/{slug}/favicon` when the app has a favicon or a logo, or null for the default icon. |
+| `subtitle` | `string?` | Line under the name, or null. |
+| `welcomeTitle` | `string?` | Heading of the welcome screen, or null to show `displayName`. |
+| `composerPlaceholder` | `string?` | Placeholder of the message input, or null for the app UI's default. |
+| `agentDisplayName` | `string?` | Author name on the agent's messages: the app's `agentDisplayName`, else the entry agent's name. |
+| `agentAvatarUrl` | `string?` | `/v1.0/apps/{slug}/avatar` when the app has an agent avatar, or null. |
+| `paletteId` | `string?` | The preset the operator started from, or `custom`, or null. Informational only. |
+| `darkPrimaryColor`, `darkAccentColor`, `darkBackgroundColor`, `darkHeaderColor`, `darkAgentBubbleColor`, `darkConversationListColor`, `darkComposerColor`, `darkFilesColor` | `string?` | Dark-theme colors (#rgb or #rrggbb), or null to derive each from its light color. |
+| `themeDefault` | `AppThemeDefaultEnum` | Theme the app UI opens in. |
+| `allowThemeSwitch` | `boolean` | Whether to show the theme toggle and honor a saved choice. |
+| `cornerStyle` | `AppCornerStyleEnum` | Corner style. |
+| `density` | `AppDensityEnum` | Spacing. |
+| `showFilesPanel`, `showLanguagePicker`, `showPoweredBy` | `boolean` | Whether to show the file panel, the language picker, and the "Powered by Garrison" footer. |
+| `starterPrompts` | `string[]` | Suggested first messages for a new conversation, in order. Always present. |
 | `authMode` | `AppAuthModeEnum` | Who may sign in. |
 | `anonymousAllowed` | `boolean` | Whether an anonymous session can be started. |
 | `showOperatorDetail` | `boolean` | Whether the UI shows operator detail such as tool calls. |

@@ -1638,6 +1638,9 @@ def t_app_gateway():
     gateway = client.app_gateway(app["slug"])
     info = gateway.info()
     require(info["slug"] == app["slug"] and info["authMode"] == "Anonymous" and info["anonymousAllowed"] is True, f"info {info}")
+    require(app.get("paletteId") == "ocean" and len(app.get("starterPrompts", [])) == 3 and app.get("darkPrimaryColor") == "#38BDF8" and app.get("cornerStyle") == "Rounded" and app.get("showPoweredBy") is True, f"app appearance {app}")
+    require(info.get("paletteId") == "ocean" and len(info.get("starterPrompts", [])) == 3 and info.get("darkFilesColor") == "#072A40" and info.get("welcomeTitle") == "How can we help?"
+            and info.get("agentDisplayName") == "Support" and info.get("themeDefault") == "System" and info.get("density") == "Comfortable" and info.get("allowThemeSwitch") is True and info.get("agentAvatarUrl") is None, f"info appearance {info}")
     require(gateway.logo_url().endswith(f"/v1.0/apps/{app['slug']}/logo"), gateway.logo_url())
     try:
         gateway.logo()

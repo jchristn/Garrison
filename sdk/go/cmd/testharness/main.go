@@ -3563,6 +3563,13 @@ func main() {
 		if info.Slug != app.Slug || info.AuthMode != garrison.AppAuthModeAnonymous || !info.AnonymousAllowed {
 			return fmt.Errorf("app info %+v", info)
 		}
+		if app.PaletteID == nil || *app.PaletteID != "ocean" || len(app.StarterPrompts) != 3 || app.DarkPrimaryColor == nil || *app.DarkPrimaryColor != "#38BDF8" || app.CornerStyle != garrison.AppCornerStyleRounded || app.ShowPoweredBy == nil || !*app.ShowPoweredBy {
+			return fmt.Errorf("app appearance %+v", app)
+		}
+		if info.PaletteID == nil || *info.PaletteID != "ocean" || len(info.StarterPrompts) != 3 || info.DarkFilesColor == nil || *info.DarkFilesColor != "#072A40" || info.WelcomeTitle == nil || *info.WelcomeTitle != "How can we help?" ||
+			info.AgentDisplayName == nil || *info.AgentDisplayName != "Support" || info.ThemeDefault != garrison.AppThemeDefaultSystem || info.Density != garrison.AppDensityComfortable || !info.AllowThemeSwitch || info.AgentAvatarURL != nil {
+			return fmt.Errorf("info appearance %+v", info)
+		}
 		if !strings.HasSuffix(gateway.LogoURL(), "/v1.0/apps/"+app.Slug+"/logo") {
 			return fmt.Errorf("logo URL %s", gateway.LogoURL())
 		}

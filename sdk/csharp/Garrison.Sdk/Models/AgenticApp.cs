@@ -197,6 +197,127 @@ namespace Garrison.Sdk.Models
         public string? FaviconAssetId { get; set; } = null;
 
         /// <summary>
+        /// Line under the name in the header and on the welcome screen, up to 200 characters, or null. Longer is 400 TooLong.
+        /// </summary>
+        public string? Subtitle { get; set; } = null;
+
+        /// <summary>
+        /// Heading of the welcome screen, up to 120 characters, or null to show the display name.
+        /// </summary>
+        public string? WelcomeTitle { get; set; } = null;
+
+        /// <summary>
+        /// Placeholder of the message input, up to 120 characters, or null for the app UI's default.
+        /// </summary>
+        public string? ComposerPlaceholder { get; set; } = null;
+
+        /// <summary>
+        /// Author name on the agent's messages, up to 80 characters, or null to show the entry agent's name.
+        /// </summary>
+        public string? AgentDisplayName { get; set; } = null;
+
+        /// <summary>
+        /// Agent asset (an image) shown beside the agent's messages, or null. An unknown asset is 400 UnknownAsset.
+        /// </summary>
+        public string? AgentAvatarAssetId { get; set; } = null;
+
+        /// <summary>
+        /// The palette preset the operator started from, or "custom", up to 64 characters, or null. Informational only.
+        /// </summary>
+        public string? PaletteId { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme primary color as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkPrimaryColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme accent color as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkAccentColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme page background as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkBackgroundColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme header bar background as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkHeaderColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme background of the agent's messages as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkAgentBubbleColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme background of the conversation list as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkConversationListColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme background of the message input area as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkComposerColor { get; set; } = null;
+
+        /// <summary>
+        /// Dark-theme background of the conversation's file list as #rgb or #rrggbb, or null to derive it from the light color. Anything else is 400 InvalidColor.
+        /// </summary>
+        public string? DarkFilesColor { get; set; } = null;
+
+        /// <summary>
+        /// Theme the app UI opens in. Default System.
+        /// </summary>
+        public AppThemeDefaultEnum ThemeDefault { get; set; } = AppThemeDefaultEnum.System;
+
+        /// <summary>
+        /// Whether end users may switch themes; false hides the toggle. Default true.
+        /// </summary>
+        public bool AllowThemeSwitch { get; set; } = true;
+
+        /// <summary>
+        /// Corner style of buttons, bubbles, and panels. Default Rounded.
+        /// </summary>
+        public AppCornerStyleEnum CornerStyle { get; set; } = AppCornerStyleEnum.Rounded;
+
+        /// <summary>
+        /// Spacing of the app UI. Default Comfortable.
+        /// </summary>
+        public AppDensityEnum Density { get; set; } = AppDensityEnum.Comfortable;
+
+        /// <summary>
+        /// Whether the app UI shows the conversation's file panel. Default true.
+        /// </summary>
+        public bool ShowFilesPanel { get; set; } = true;
+
+        /// <summary>
+        /// Whether the app UI shows its language picker. Default true.
+        /// </summary>
+        public bool ShowLanguagePicker { get; set; } = true;
+
+        /// <summary>
+        /// Whether the app UI shows the "Powered by Garrison" footer. Default true.
+        /// </summary>
+        public bool ShowPoweredBy { get; set; } = true;
+
+        /// <summary>
+        /// Suggested first messages for a new conversation, in order. At most 4, each 1 to 200 characters (otherwise 400 TooMany, Required, or TooLong). Never
+        /// null; assigning null stores an empty list.
+        /// </summary>
+        public List<string> StarterPrompts
+        {
+            get
+            {
+                return _StarterPrompts;
+            }
+            set
+            {
+                _StarterPrompts = value ?? new List<string>();
+            }
+        }
+
+        /// <summary>
         /// The agents in the app. Never null; assigning null stores an empty list.
         /// </summary>
         public List<AgenticAppMember> Members
@@ -274,6 +395,7 @@ namespace Garrison.Sdk.Models
         private List<AgenticAppMember> _Members = new List<AgenticAppMember>();
         private List<AgenticAppEdge> _Edges = new List<AgenticAppEdge>();
         private List<AgenticAppEnvironment> _Environments = new List<AgenticAppEnvironment>();
+        private List<string> _StarterPrompts = new List<string>();
 
         #endregion
     }

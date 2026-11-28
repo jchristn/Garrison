@@ -48,6 +48,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "manifest-mcp", "A full app bundle applies, exports, and re-applies unchanged; MCP app tools list, create, read, and update apps (" + provider + ")", ct => ManifestAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "appearance-data", "Appearance fields and ordered starter prompts round-trip at the driver, an update replaces the prompts, another tenant reads nothing, and tenant deletion removes the prompt rows (" + provider + ")", ct => AppearanceDataAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "appearance-validation", "Appearance fields default, round-trip over REST, and are refused with field codes: InvalidColor, TooLong, TooMany and Required starter prompts, UnknownAsset for another tenant's avatar (" + provider + ")", ct => AppearanceValidationAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "appearance-surfaces", "The public app config carries every appearance field with the entry agent's name as the fallback author and the avatar served at /avatar; a manifest with appearance keys applies, exports them, and re-applies unchanged; MCP creates an app with them (" + provider + ")", ct => AppearanceSurfacesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "gateway-conversation", "A two-turn gateway conversation on the fake harness, streamed, and a file the agent wrote listed and downloaded with a matching SHA-256 (" + provider + ")", ct => GatewayAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Agentic apps (" + provider + ")", cases));
             }
@@ -571,6 +572,95 @@ namespace Test.Shared.Suites
                 Tenant other = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Look Other" }, 201, token).ConfigureAwait(false);
                 AgentAsset foreign = await host.Server.Context.Database.AgentAssets.CreateAsync(new AgentAsset { TenantId = other.Id, Name = "foreign-avatar" }, token).ConfigureAwait(false);
                 await Refused(a => a.AgentAvatarAssetId = foreign.Id, "agentAvatarAssetId", "UnknownAsset").ConfigureAwait(false);
+            }
+        }
+
+        private static async Task AppearanceSurfacesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string assets = T(host) + "/agent-assets";
+                AgentAsset avatar = await HttpTestHelpers.SendAsync<AgentAsset>(host.AdminClient, HttpMethod.Post, assets, new AgentAsset { Name = "desk-avatar", Kind = AgentAssetKindEnum.ReferenceFile }, 201, token).ConfigureAwait(false);
+                byte[] png = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D };
+                AgentAssetVersionUpload upload = new AgentAssetVersionUpload();
+                upload.Files.Add(new AgentAssetFile { Path = "avatar.png", ContentBase64 = Convert.ToBase64String(png) });
+                await HttpTestHelpers.SendAsync<AgentAssetVersion>(host.AdminClient, HttpMethod.Post, assets + "/" + avatar.Id + "/versions", upload, 201, token).ConfigureAwait(false);
+
+                string yaml = String.Join("\n", new[]
+                {
+                    "apiVersion: garrison/v1", "kind: Agent", "metadata: { name: look-desk }", "spec: { description: Answers questions }", "---",
+                    "apiVersion: garrison/v1", "kind: AgenticApp", "metadata: { name: look-desk-app }",
+                    "spec:",
+                    "  entry: look-desk",
+                    "  members: [ { agent: look-desk } ]",
+                    "  authMode: Anonymous",
+                    "  anonymousEnabled: true",
+                    "  branding:",
+                    "    displayName: Look Desk",
+                    "    subtitle: Answers in minutes",
+                    "    welcomeTitle: How can we help?",
+                    "    composerPlaceholder: Ask a question",
+                    "    agentAvatar: desk-avatar",
+                    "    paletteId: harbor",
+                    "    primaryColor: '#1F6FEB'",
+                    "    darkPrimaryColor: '#58A6FF'",
+                    "    darkAccentColor: '#fa0'",
+                    "    darkBackgroundColor: '#0D1117'",
+                    "    darkHeaderColor: '#161B22'",
+                    "    darkAgentBubbleColor: '#21262D'",
+                    "    darkConversationListColor: '#161B22'",
+                    "    darkComposerColor: '#0D1117'",
+                    "    darkFilesColor: '#161B22'",
+                    "    themeDefault: Dark",
+                    "    allowThemeSwitch: false",
+                    "    cornerStyle: Pill",
+                    "    density: Compact",
+                    "    showFilesPanel: false",
+                    "    showLanguagePicker: false",
+                    "    showPoweredBy: false",
+                    "    starterPrompts: [ Summarize my week, Draft a reply ]",
+                    ""
+                });
+                ManifestApply first = await ApplyAsync(host, yaml, token).ConfigureAwait(false);
+                Assert.True(first.FailedCount == 0, "The appearance bundle applies: " + Serializer.Serialize(first.Items.Select(i => i.Kind + "/" + i.Name + " " + i.Result + " " + i.Message)));
+                AgenticApp app = await HttpTestHelpers.SendAsync<AgenticApp>(host.AdminClient, HttpMethod.Get, T(host) + "/apps/look-desk-app", null, 200, token).ConfigureAwait(false);
+                Assert.True(app.AgentAvatarAssetId == avatar.Id && app.PaletteId == "harbor" && app.ThemeDefault == AppThemeDefaultEnum.Dark && !app.AllowThemeSwitch && app.CornerStyle == AppCornerStyleEnum.Pill
+                    && app.Density == AppDensityEnum.Compact && !app.ShowFilesPanel && !app.ShowLanguagePicker && !app.ShowPoweredBy && app.StarterPrompts.SequenceEqual(new[] { "Summarize my week", "Draft a reply" }), "Manifest appearance applied: " + Serializer.Serialize(app));
+
+                AppInfo info = await HttpTestHelpers.SendAsync<AppInfo>(host.AdminClient, HttpMethod.Get, "/v1.0/apps/" + app.Slug, null, 200, token).ConfigureAwait(false);
+                Assert.True(info.Subtitle == "Answers in minutes" && info.WelcomeTitle == "How can we help?" && info.ComposerPlaceholder == "Ask a question" && info.PaletteId == "harbor"
+                    && info.AgentDisplayName == "look-desk" && info.AgentAvatarUrl == "/v1.0/apps/" + app.Slug + "/avatar", "The app config carries the text fields, the entry agent's name, and the avatar path: " + Serializer.Serialize(info));
+                Assert.True(info.DarkPrimaryColor == "#58A6FF" && info.DarkAccentColor == "#fa0" && info.DarkBackgroundColor == "#0D1117" && info.DarkHeaderColor == "#161B22" && info.DarkAgentBubbleColor == "#21262D"
+                    && info.DarkConversationListColor == "#161B22" && info.DarkComposerColor == "#0D1117" && info.DarkFilesColor == "#161B22", "The app config carries the dark colors");
+                Assert.True(info.ThemeDefault == AppThemeDefaultEnum.Dark && !info.AllowThemeSwitch && info.CornerStyle == AppCornerStyleEnum.Pill && info.Density == AppDensityEnum.Compact
+                    && !info.ShowFilesPanel && !info.ShowLanguagePicker && !info.ShowPoweredBy && info.StarterPrompts.SequenceEqual(new[] { "Summarize my week", "Draft a reply" }), "The app config carries theme, layout, toggles, and starter prompts");
+                using (HttpClient anonymous = new HttpClient { BaseAddress = new Uri(host.BaseUrl) })
+                {
+                    using (HttpResponseMessage image = await anonymous.GetAsync("/v1.0/apps/" + app.Slug + "/avatar", token).ConfigureAwait(false))
+                    {
+                        byte[] served = await image.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
+                        Assert.True((int)image.StatusCode == 200 && image.Content.Headers.ContentType?.MediaType == "image/png" && served.SequenceEqual(png), "The avatar is served without credentials: " + (int)image.StatusCode);
+                    }
+                }
+
+                using (HttpResponseMessage exported = await host.AdminClient.GetAsync(T(host) + "/manifests/export?resources=AgenticApp/look-desk-app&followReferences=true", token).ConfigureAwait(false))
+                {
+                    string export = await exported.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                    Assert.Equal(200, (int)exported.StatusCode, "Export: " + export);
+                    Assert.True(export.Contains("agentAvatar: desk-avatar", StringComparison.Ordinal) && export.Contains("starterPrompts", StringComparison.Ordinal) && export.Contains("Draft a reply", StringComparison.Ordinal)
+                        && export.Contains("darkFilesColor", StringComparison.Ordinal) && export.Contains("cornerStyle: Pill", StringComparison.Ordinal) && export.Contains("showPoweredBy: false", StringComparison.Ordinal) && export.Contains("kind: AgentAsset", StringComparison.Ordinal),
+                        "Export carries the appearance keys and the avatar asset: " + export);
+                    ManifestApply again = await ApplyAsync(host, export, token).ConfigureAwait(false);
+                    Assert.True(again.FailedCount == 0 && again.CreatedCount == 0 && again.UpdatedCount == 0, "The export re-applies unchanged: " + Serializer.Serialize(again.Items.Where(i => i.Result != ManifestApplyResultEnum.Unchanged).Select(i => i.Kind + "/" + i.Name + " " + i.Result + " " + Serializer.Serialize(i.Changes))));
+                }
+
+                using (TestMcpClient user = new TestMcpClient())
+                {
+                    await user.ConnectAsync(host, null, token).ConfigureAwait(false);
+                    AgenticApp created = await user.CallAsync<AgenticApp>("garrison_create_app", new { configuration = new { name = "look-mcp", entryAgentId = "look-desk", members = new[] { new { agentId = "look-desk" } }, subtitle = "Over MCP", darkPrimaryColor = "#123", density = "Compact", showPoweredBy = false, starterPrompts = new[] { "Hello" } } }, token).ConfigureAwait(false);
+                    Assert.True(created.Subtitle == "Over MCP" && created.DarkPrimaryColor == "#123" && created.Density == AppDensityEnum.Compact && !created.ShowPoweredBy && created.ShowFilesPanel && created.StarterPrompts.Count == 1, "MCP creates an app with appearance: " + Serializer.Serialize(created));
+                    await user.ExpectErrorAsync("garrison_create_app", new { configuration = new { name = "look-mcp-bad", entryAgentId = "look-desk", members = new[] { new { agentId = "look-desk" } }, darkHeaderColor = "dark" } }, "ValidationFailed", token).ConfigureAwait(false);
+                }
             }
         }
 

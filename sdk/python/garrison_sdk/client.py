@@ -457,7 +457,14 @@ class AgenticApp(TypedDict, total=False):
     conversation list beside the chat), composerColor (the message input area), and filesColor (the conversation's
     file list) are #RRGGBB or None for the theme default; anything else is 400 InvalidColor. fontFamily is one of APP_FONTS (None means System).
     faviconAssetId is an image asset shown as the browser tab icon; None uses the logo (logoAssetId), or the default
-    icon without one. An unknown asset is 400 UnknownAsset."""
+    icon without one. An unknown asset is 400 UnknownAsset. Appearance: subtitle (up to 200 characters), welcomeTitle
+    and composerPlaceholder (up to 120), agentDisplayName (up to 80; None shows the entry agent's name),
+    agentAvatarAssetId (an image asset, 400 UnknownAsset otherwise), paletteId (the preset the operator started from, or
+    custom; informational), the eight dark* colors (#rgb or #rrggbb, None derives from the light color), themeDefault
+    (APP_THEME_DEFAULTS, default System), allowThemeSwitch, cornerStyle (APP_CORNER_STYLES, default Rounded), density
+    (APP_DENSITIES, default Comfortable), showFilesPanel, showLanguagePicker, showPoweredBy (each default True), and
+    starterPrompts (at most 4, each 1 to 200 characters; 400 TooMany, Required, or TooLong). Every color accepts #rgb or
+    #rrggbb. Longer text is 400 TooLong."""
     id: str
     tenantId: str
     name: str
@@ -481,6 +488,28 @@ class AgenticApp(TypedDict, total=False):
     filesColor: Optional[str]
     fontFamily: Optional[str]
     faviconAssetId: Optional[str]
+    subtitle: Optional[str]
+    welcomeTitle: Optional[str]
+    composerPlaceholder: Optional[str]
+    agentDisplayName: Optional[str]
+    agentAvatarAssetId: Optional[str]
+    paletteId: Optional[str]
+    darkPrimaryColor: Optional[str]
+    darkAccentColor: Optional[str]
+    darkBackgroundColor: Optional[str]
+    darkHeaderColor: Optional[str]
+    darkAgentBubbleColor: Optional[str]
+    darkConversationListColor: Optional[str]
+    darkComposerColor: Optional[str]
+    darkFilesColor: Optional[str]
+    themeDefault: str
+    allowThemeSwitch: bool
+    cornerStyle: str
+    density: str
+    showFilesPanel: bool
+    showLanguagePicker: bool
+    showPoweredBy: bool
+    starterPrompts: List[str]
     members: List[AgenticAppMember]
     edges: List[AgenticAppEdge]
     environments: List[AgenticAppEnvironment]
@@ -543,7 +572,9 @@ class AppDelegationPlan(TypedDict, total=False):
 class AppInfo(TypedDict, total=False):
     """Branding and sign-in mode of an app, from GET /v1.0/apps/{slug}. Needs no credentials. fontFamily is one of
     APP_FONTS and is always present (default System). faviconUrl is /v1.0/apps/{slug}/favicon when the app has a
-    favicon or a logo, else None."""
+    favicon or a logo, else None. agentDisplayName falls back to the entry agent's name; agentAvatarUrl is
+    /v1.0/apps/{slug}/avatar when the app has an avatar, else None. A dark* color of None means derive it from the light
+    color. starterPrompts is always a list."""
     slug: str
     displayName: str
     description: Optional[str]
@@ -559,6 +590,28 @@ class AppInfo(TypedDict, total=False):
     filesColor: Optional[str]
     fontFamily: str
     faviconUrl: Optional[str]
+    subtitle: Optional[str]
+    welcomeTitle: Optional[str]
+    composerPlaceholder: Optional[str]
+    agentDisplayName: Optional[str]
+    agentAvatarUrl: Optional[str]
+    paletteId: Optional[str]
+    darkPrimaryColor: Optional[str]
+    darkAccentColor: Optional[str]
+    darkBackgroundColor: Optional[str]
+    darkHeaderColor: Optional[str]
+    darkAgentBubbleColor: Optional[str]
+    darkConversationListColor: Optional[str]
+    darkComposerColor: Optional[str]
+    darkFilesColor: Optional[str]
+    themeDefault: str
+    allowThemeSwitch: bool
+    cornerStyle: str
+    density: str
+    showFilesPanel: bool
+    showLanguagePicker: bool
+    showPoweredBy: bool
+    starterPrompts: List[str]
     authMode: str
     anonymousAllowed: bool
     showOperatorDetail: bool
@@ -1188,6 +1241,9 @@ APP_AUTH_MODES = ("TenantUsers", "AppUsers", "Anonymous")
 # Typefaces of an app's chat UI (AgenticApp["fontFamily"]), each a font stack browsers already have. System is the
 # default.
 APP_FONTS = ("System", "Sans", "Serif", "Rounded", "Mono")
+APP_THEME_DEFAULTS = ("System", "Light", "Dark")
+APP_CORNER_STYLES = ("Sharp", "Rounded", "Pill")
+APP_DENSITIES = ("Compact", "Comfortable")
 # Built-in role that lets a user use one app's chat UI. Assign it with resource scope on the app identifier; it grants
 # nothing in the management API. Permissions name the app resource type as APP_RESOURCE_TYPE.
 APP_USER_ROLE = "AppUser"

@@ -2152,6 +2152,9 @@ namespace Garrison.Sdk.Test
                     {
                         AppInfo info = await gateway.InfoAsync(token).ConfigureAwait(false);
                         Require(info.Slug == app.Slug && info.AuthMode == AppAuthModeEnum.Anonymous && info.AnonymousAllowed, "info " + info.Slug + " " + info.AuthMode);
+                        Require(app.PaletteId == "ocean" && app.StarterPrompts.Count == 3 && app.DarkPrimaryColor == "#38BDF8" && app.CornerStyle == AppCornerStyleEnum.Rounded && app.ShowPoweredBy, "app appearance " + app.PaletteId + " " + app.StarterPrompts.Count);
+                        Require(info.PaletteId == "ocean" && info.StarterPrompts.Count == 3 && info.DarkFilesColor == "#072A40" && info.WelcomeTitle == "How can we help?" && info.AgentDisplayName == "Support"
+                            && info.ThemeDefault == AppThemeDefaultEnum.System && info.Density == AppDensityEnum.Comfortable && info.AllowThemeSwitch && info.ShowFilesPanel && info.AgentAvatarUrl == null, "info appearance " + info.PaletteId + " " + info.StarterPrompts.Count);
                         Require(gateway.LogoUrl().EndsWith("/v1.0/apps/" + app.Slug + "/logo", StringComparison.Ordinal), "logo URL " + gateway.LogoUrl());
                         int logoStatus = 0;
                         try

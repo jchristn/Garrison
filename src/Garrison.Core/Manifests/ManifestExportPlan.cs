@@ -230,6 +230,7 @@ namespace Garrison.Core.Manifests
                         foreach (AgenticAppEnvironment env in app.Environments) Include("Deployment", env.DeploymentId);
                         Include("AgentAsset", app.LogoAssetId);
                         Include("AgentAsset", app.FaviconAssetId);
+                        Include("AgentAsset", app.AgentAvatarAssetId);
                         break;
                     case "Trigger":
                         Trigger fired = _Triggers[id];

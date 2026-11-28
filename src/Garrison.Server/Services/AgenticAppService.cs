@@ -426,7 +426,7 @@ namespace Garrison.Server.Services
             if (app.StarterPrompts.Count > 4) Fail("starterPrompts", "TooMany", "At most 4 starter prompts.");
             for (int i = 0; i < app.StarterPrompts.Count; i++)
             {
-                if (app.StarterPrompts[i].Length == 0) Fail("starterPrompts[" + i + "]", "Required", "A starter prompt is not blank.");
+                if (String.IsNullOrWhiteSpace(app.StarterPrompts[i])) Fail("starterPrompts[" + i + "]", "Required", "A starter prompt is not blank.");
                 else if (app.StarterPrompts[i].Length > 200) Fail("starterPrompts[" + i + "]", "TooLong", "At most 200 characters.");
             }
             if (app.LogoAssetId != null)

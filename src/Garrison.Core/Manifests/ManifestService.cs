@@ -1332,6 +1332,40 @@ namespace Garrison.Core.Manifests
                     app.FontFamily = font;
                 }
                 if (!String.IsNullOrWhiteSpace(spec.Branding.Favicon)) app.FaviconAssetId = await resolver.RequireAsync("AgentAsset", spec.Branding.Favicon, "branding.favicon", token).ConfigureAwait(false);
+                app.Subtitle = String.IsNullOrWhiteSpace(spec.Branding.Subtitle) ? null : spec.Branding.Subtitle;
+                app.WelcomeTitle = String.IsNullOrWhiteSpace(spec.Branding.WelcomeTitle) ? null : spec.Branding.WelcomeTitle;
+                app.ComposerPlaceholder = String.IsNullOrWhiteSpace(spec.Branding.ComposerPlaceholder) ? null : spec.Branding.ComposerPlaceholder;
+                app.AgentDisplayName = String.IsNullOrWhiteSpace(spec.Branding.AgentDisplayName) ? null : spec.Branding.AgentDisplayName;
+                if (!String.IsNullOrWhiteSpace(spec.Branding.AgentAvatar)) app.AgentAvatarAssetId = await resolver.RequireAsync("AgentAsset", spec.Branding.AgentAvatar, "branding.agentAvatar", token).ConfigureAwait(false);
+                app.PaletteId = String.IsNullOrWhiteSpace(spec.Branding.PaletteId) ? null : spec.Branding.PaletteId;
+                app.DarkPrimaryColor = String.IsNullOrWhiteSpace(spec.Branding.DarkPrimaryColor) ? null : spec.Branding.DarkPrimaryColor;
+                app.DarkAccentColor = String.IsNullOrWhiteSpace(spec.Branding.DarkAccentColor) ? null : spec.Branding.DarkAccentColor;
+                app.DarkBackgroundColor = String.IsNullOrWhiteSpace(spec.Branding.DarkBackgroundColor) ? null : spec.Branding.DarkBackgroundColor;
+                app.DarkHeaderColor = String.IsNullOrWhiteSpace(spec.Branding.DarkHeaderColor) ? null : spec.Branding.DarkHeaderColor;
+                app.DarkAgentBubbleColor = String.IsNullOrWhiteSpace(spec.Branding.DarkAgentBubbleColor) ? null : spec.Branding.DarkAgentBubbleColor;
+                app.DarkConversationListColor = String.IsNullOrWhiteSpace(spec.Branding.DarkConversationListColor) ? null : spec.Branding.DarkConversationListColor;
+                app.DarkComposerColor = String.IsNullOrWhiteSpace(spec.Branding.DarkComposerColor) ? null : spec.Branding.DarkComposerColor;
+                app.DarkFilesColor = String.IsNullOrWhiteSpace(spec.Branding.DarkFilesColor) ? null : spec.Branding.DarkFilesColor;
+                if (!String.IsNullOrWhiteSpace(spec.Branding.ThemeDefault))
+                {
+                    if (!Enum.TryParse(spec.Branding.ThemeDefault, true, out AppThemeDefaultEnum theme) || !Enum.IsDefined(theme)) throw new ValidationException("branding.themeDefault must be System, Light, or Dark.", new Dictionary<string, string> { { "branding.themeDefault", "System, Light, or Dark." } });
+                    app.ThemeDefault = theme;
+                }
+                if (!String.IsNullOrWhiteSpace(spec.Branding.CornerStyle))
+                {
+                    if (!Enum.TryParse(spec.Branding.CornerStyle, true, out AppCornerStyleEnum corners) || !Enum.IsDefined(corners)) throw new ValidationException("branding.cornerStyle must be Sharp, Rounded, or Pill.", new Dictionary<string, string> { { "branding.cornerStyle", "Sharp, Rounded, or Pill." } });
+                    app.CornerStyle = corners;
+                }
+                if (!String.IsNullOrWhiteSpace(spec.Branding.Density))
+                {
+                    if (!Enum.TryParse(spec.Branding.Density, true, out AppDensityEnum density) || !Enum.IsDefined(density)) throw new ValidationException("branding.density must be Compact or Comfortable.", new Dictionary<string, string> { { "branding.density", "Compact or Comfortable." } });
+                    app.Density = density;
+                }
+                app.AllowThemeSwitch = spec.Branding.AllowThemeSwitch ?? true;
+                app.ShowFilesPanel = spec.Branding.ShowFilesPanel ?? true;
+                app.ShowLanguagePicker = spec.Branding.ShowLanguagePicker ?? true;
+                app.ShowPoweredBy = spec.Branding.ShowPoweredBy ?? true;
+                app.StarterPrompts = spec.Branding.StarterPrompts == null ? new List<string>() : new List<string>(spec.Branding.StarterPrompts);
             }
 
             AgenticApp? existing = await _Database.Apps.ReadByNameAsync(tenantId, app.Name, token).ConfigureAwait(false);
@@ -1414,6 +1448,28 @@ namespace Garrison.Core.Manifests
             if (app.FilesColor != null) branding["filesColor"] = app.FilesColor;
             if (app.FontFamily.HasValue && app.FontFamily.Value != AppFontEnum.System) branding["font"] = app.FontFamily.Value.ToString();
             if (app.FaviconAssetId != null) branding["favicon"] = await resolver.NameAsync("AgentAsset", app.FaviconAssetId, token).ConfigureAwait(false) ?? app.FaviconAssetId;
+            if (app.Subtitle != null) branding["subtitle"] = app.Subtitle;
+            if (app.WelcomeTitle != null) branding["welcomeTitle"] = app.WelcomeTitle;
+            if (app.ComposerPlaceholder != null) branding["composerPlaceholder"] = app.ComposerPlaceholder;
+            if (app.AgentDisplayName != null) branding["agentDisplayName"] = app.AgentDisplayName;
+            if (app.AgentAvatarAssetId != null) branding["agentAvatar"] = await resolver.NameAsync("AgentAsset", app.AgentAvatarAssetId, token).ConfigureAwait(false) ?? app.AgentAvatarAssetId;
+            if (app.PaletteId != null) branding["paletteId"] = app.PaletteId;
+            if (app.DarkPrimaryColor != null) branding["darkPrimaryColor"] = app.DarkPrimaryColor;
+            if (app.DarkAccentColor != null) branding["darkAccentColor"] = app.DarkAccentColor;
+            if (app.DarkBackgroundColor != null) branding["darkBackgroundColor"] = app.DarkBackgroundColor;
+            if (app.DarkHeaderColor != null) branding["darkHeaderColor"] = app.DarkHeaderColor;
+            if (app.DarkAgentBubbleColor != null) branding["darkAgentBubbleColor"] = app.DarkAgentBubbleColor;
+            if (app.DarkConversationListColor != null) branding["darkConversationListColor"] = app.DarkConversationListColor;
+            if (app.DarkComposerColor != null) branding["darkComposerColor"] = app.DarkComposerColor;
+            if (app.DarkFilesColor != null) branding["darkFilesColor"] = app.DarkFilesColor;
+            if (app.ThemeDefault != AppThemeDefaultEnum.System) branding["themeDefault"] = app.ThemeDefault.ToString();
+            if (!app.AllowThemeSwitch) branding["allowThemeSwitch"] = false;
+            if (app.CornerStyle != AppCornerStyleEnum.Rounded) branding["cornerStyle"] = app.CornerStyle.ToString();
+            if (app.Density != AppDensityEnum.Comfortable) branding["density"] = app.Density.ToString();
+            if (!app.ShowFilesPanel) branding["showFilesPanel"] = false;
+            if (!app.ShowLanguagePicker) branding["showLanguagePicker"] = false;
+            if (!app.ShowPoweredBy) branding["showPoweredBy"] = false;
+            if (app.StarterPrompts.Count > 0) branding["starterPrompts"] = app.StarterPrompts.Select(p => (object?)p).ToList();
             if (branding.Count > 0) tree["branding"] = branding;
             return tree;
         }
