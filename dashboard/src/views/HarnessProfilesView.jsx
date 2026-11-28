@@ -19,7 +19,8 @@ const connections = {
   // LP4.7: the Connections hub's "?" button starts the Run an agent tour.
   hubKey: 'connections',
   steps: undefined,
-  explainer: false,
+  // UXP1-S005: Connections gets the same explainer as its neighbours, which says the docs call it a harness profile.
+  explainer: 'harnessProfiles',
   labels: { title: 'runtime.title', subtitle: 'runtime.sharedHint', add: 'runtime.add', create: 'runtime.create', edit: 'runtime.edit', view: 'runtime.view', emptyTitle: 'runtime.emptyTitle', emptyBody: 'runtime.configureFirst' },
   api: { ...harnessProfilesConfig.api, list: (client, tenant, params) => profilePage(client, tenant, params) },
   loadOptions: async ({ apiClient, tenantId }) => {
@@ -30,7 +31,7 @@ const connections = {
     const { t } = ctx;
     const base = harnessProfilesConfig.columns(ctx);
     return [base.find((c) => c.key === 'name'), base.find((c) => c.key === 'harnessType'),
-      { key: 'connectionTarget', label: t('runtime.connection'), tip: t('runtime.pickConnection'), render: (r) => r.runtimeConfiguration?.inferenceEndpoint?.baseUrl || r.runtimeConfiguration?.endpointName || r.executable || '-' },
+      { key: 'connectionTarget', label: t('runtime.target'), tip: t('tips.runtime.target'), render: (r) => r.runtimeConfiguration?.inferenceEndpoint?.baseUrl || r.runtimeConfiguration?.endpointName || r.executable || '-' },
       { key: 'connectionModel', label: t('views.agentWizard.access.model'), tip: t('inference.modelHint'), render: (r) => r.runtimeConfiguration?.model || '-' },
       { key: 'connectionAuthentication', label: t('inference.authentication'), tip: t('inference.hint'), render: (r) => r.runtimeConfiguration?.inferenceEndpoint ? t(`inference.auth.${r.runtimeConfiguration.inferenceEndpoint.authenticationType}`) : '-' },
       ...base.filter((c) => ['id', 'createdUtc'].includes(c.key))];

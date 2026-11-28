@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import FormFields from './FormFields';
@@ -19,7 +20,7 @@ const tipOf = (t, name) => t(`tips.organizations.unit.fields.${name}`);
  * so those are left out of the parent list.
  */
 export function unitFields(t, form, { units = [], options = {}, unitId = null } = {}) {
-  const agents = (options.agents || []).map((a) => ({ value: a.id, label: a.displayName || a.name || a.id }));
+  const agents = (options.agents || []).map((a) => ({ value: a.id, label: agentSelectLabel(a) }));
   const mandatesOf = (agentId) => (options.mandates || []).filter((m) => !agentId || m.agentId === agentId).map((m) => ({ value: m.id, label: m.name || m.id }));
   const apps = (options.apps || []).map((a) => ({ value: a.id, label: a.displayName || a.name || a.id }));
   const below = unitId ? descendantIds(units, unitId) : new Set();

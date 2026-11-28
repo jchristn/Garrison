@@ -49,6 +49,8 @@ export function orgErrorMessage(t, err) {
     const known = t(`organizations.errors.${code}`);
     const body = err.body && typeof err.body === 'object' ? err.body.message : null;
     const detail = typeof body === 'string' ? stripCodePrefix(body, code).trim() : '';
+    // UXP1-S027: the server's PositionTaken detail already says the rule and names the position, so it stands alone.
+    if (detail && code === 'PositionTaken') return detail;
     return detail && detail !== known ? `${known} ${detail}` : known;
   }
   return errorMessage(t, err);

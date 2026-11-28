@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { FormField } from './FormFields';
 import { PlusIcon, TrashIcon } from './Icons';
 import { tip } from './Tooltip';
@@ -31,7 +32,7 @@ export function stageFields(t, stage, options = {}) {
       tip: stageTip(t, 'agentId'),
       required: true,
       noneLabel: t('resources.pipelines.chooseAgent'),
-      options: [{ value: '', label: t('resources.pipelines.chooseAgent') }, ...agents.map((a) => ({ value: a.id, label: a.displayName || a.name }))].filter((o, i, all) => all.findIndex((x) => x.value === o.value) === i)
+      options: [{ value: '', label: t('resources.pipelines.chooseAgent') }, ...agents.map((a) => ({ value: a.id, label: agentSelectLabel(a) }))].filter((o, i, all) => all.findIndex((x) => x.value === o.value) === i)
     },
     {
       name: 'deploymentId',

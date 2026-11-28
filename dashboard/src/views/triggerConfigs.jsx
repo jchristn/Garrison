@@ -3,6 +3,7 @@
 // keys, enum labels) cover them.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import CopyButton from '../components/CopyButton';
 import ConfirmModal from '../components/ConfirmModal';
 import SigningSecretModal from '../components/SigningSecretModal';
@@ -122,7 +123,7 @@ export const triggersConfig = {
       safeList(apiClient.listPipelines(tenantId, { pageNumber: 1, pageSize: 1000 })),
       apiClient.listEvalSets ? safeList(apiClient.listEvalSets(tenantId, { pageNumber: 1, pageSize: 1000 })) : Promise.resolve([])
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), pipelines: Object.fromEntries(pipelines.map((p) => [p.id, p.name])), evalSets: Object.fromEntries(evalSets.map((x) => [x.id, evalSetLabel(x)])) };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])), pipelines: Object.fromEntries(pipelines.map((p) => [p.id, p.name])), evalSets: Object.fromEntries(evalSets.map((x) => [x.id, evalSetLabel(x)])) };
   },
   // Pick lists: agents, deployments (filtered by the chosen agent), pipelines, Task templates for the input, and the
   // latest eval set versions for a scheduled check (AA11.3).
@@ -204,12 +205,12 @@ export const triggersConfig = {
       field(id, t, 'type', 'select', { required: true, options: enumOpts(t, 'triggerType', ENUMS.triggerType), readOnly: mode !== 'create' }),
       field(id, t, 'description', 'textarea', { rows: 2 }),
       field(id, t, 'targetType', 'select', { required: true, options: enumOpts(t, 'triggerTargetType', ENUMS.triggerTargetType) }),
-      field(id, t, 'agentId', 'select', { required: true, options: agents.map((a) => ({ value: a.id, label: a.displayName || a.name })), showIf: isAgent }),
+      field(id, t, 'agentId', 'select', { required: true, options: agents.map((a) => ({ value: a.id, label: agentSelectLabel(a) })), showIf: isAgent }),
       field(id, t, 'evalSetId', 'select', { required: true, options: (options?.evalSets || []).map((x) => ({ value: x.id, label: evalSetLabel(x) })), showIf: isCheck }),
       check
         ? { ...field(id, t, 'deploymentId', 'select', { required: true, options: deployments.map((x) => ({ value: x.id, label: x.name })) }), hint: t('resources.triggers.hints.checkDeployment') }
         : field(id, t, 'deploymentId', 'select', { options: deployments.map((x) => ({ value: x.id, label: x.name })), noneLabel: t('resources.triggers.anyDeployment'), showIf: isAgent }),
-      field(id, t, 'evalJudgeAgentId', 'select', { options: agents.map((a) => ({ value: a.id, label: a.displayName || a.name })), noneLabel: t('resources.triggers.setJudge'), showIf: isCheck }),
+      field(id, t, 'evalJudgeAgentId', 'select', { options: agents.map((a) => ({ value: a.id, label: agentSelectLabel(a) })), noneLabel: t('resources.triggers.setJudge'), showIf: isCheck }),
       field(id, t, 'evalRecentInputCount', 'number', { min: counts.min, max: counts.max, hintValues: counts, showIf: isCheck }),
       field(id, t, 'pipelineId', 'select', { required: true, options: (options?.pipelines || []).map((p) => ({ value: p.id, label: p.name })), showIf: (x) => x?.targetType === 'Pipeline' }),
       field(id, t, 'inputTemplateId', 'select', { options: (options?.templates || []).map((p) => ({ value: p.id, label: p.name })), noneLabel: t('resources.triggers.builtinTemplate'), showIf: (x) => !isCheck(x) }),
@@ -262,7 +263,7 @@ export const notificationEndpointsConfig = {
   },
   loadLookups: async ({ apiClient, tenantId }) => {
     const [agents, deployments] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }))]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), deployments: Object.fromEntries(deployments.map((x) => [x.id, x.name])) };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])), deployments: Object.fromEntries(deployments.map((x) => [x.id, x.name])) };
   },
   loadOptions: async ({ apiClient, tenantId }) => {
     const [agents, deployments] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }))]);
@@ -301,7 +302,7 @@ export const notificationEndpointsConfig = {
       field(id, t, 'url', 'text', { required: true, placeholder: 'https://hooks.example.com/garrison' }),
       field(id, t, 'description', 'textarea', { rows: 2 }),
       field(id, t, 'events', 'multiselect', { required: true, options: enumOpts(t, 'notificationEvent', SUBSCRIBABLE_NOTIFICATION_EVENTS) }),
-      field(id, t, 'agentId', 'select', { options: (options?.agents || []).map((a) => ({ value: a.id, label: a.displayName || a.name })), noneLabel: t('resources.notifications.anyAgent') }),
+      field(id, t, 'agentId', 'select', { options: (options?.agents || []).map((a) => ({ value: a.id, label: agentSelectLabel(a) })), noneLabel: t('resources.notifications.anyAgent') }),
       field(id, t, 'deploymentId', 'select', { options: deployments.map((x) => ({ value: x.id, label: x.name })), noneLabel: t('resources.notifications.anyDeployment') }),
       field(id, t, 'includeResultText', 'checkbox'),
       field(id, t, 'resultTextMaxChars', 'number', { min: TRIGGER_LIMITS.resultTextMaxChars.min, max: TRIGGER_LIMITS.resultTextMaxChars.max, hintValues: TRIGGER_LIMITS.resultTextMaxChars, showIf: (x) => !!x?.includeResultText }),

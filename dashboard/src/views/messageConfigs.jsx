@@ -3,6 +3,7 @@
 // configuration-wide tests (tooltips, i18n keys, enum labels) cover it.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import SendMessageModal from '../components/SendMessageModal';
 import { MessageRejectionBadge, MessageStatusBadge, MessageUrgencyBadge } from '../components/MessageBadges';
 import { tip } from '../components/Tooltip';
@@ -110,7 +111,7 @@ export const messagesConfig = {
   // Agent names for the filters and columns, and the caller's permissions for Send message.
   loadLookups: async ({ apiClient, tenantId, principal }) => {
     const [agents, permissions] = await Promise.all([safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })), loadCallerPermissions(apiClient, tenantId, principal)]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), permissions };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])), permissions };
   },
   canDuplicate: false,
   bulkDelete: false,

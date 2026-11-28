@@ -3,6 +3,7 @@
 // enum labels) cover it.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import FileReportModal from '../components/FileReportModal';
 import { ReportHealthBadge, ReportIssueSeverityBadge } from '../components/ReportBadges';
 import { tip } from '../components/Tooltip';
@@ -93,7 +94,7 @@ export const reportsConfig = {
       loadCallerPermissions(apiClient, tenantId, principal)
     ]);
     return {
-      agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])),
+      agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])),
       apps: Object.fromEntries(apps.map((a) => [a.id, a.displayName || a.name])),
       permissions
     };

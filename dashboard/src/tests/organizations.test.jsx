@@ -474,7 +474,8 @@ describe('unit editor', () => {
     expect(parents).toEqual(['']);
     await click(q('[data-testid="org-unit-save"]'));
     await flush();
-    expect(q('[data-testid="org-unit-error"]').textContent).toBe('This agent already holds a position in the organization. An agent is a lead or a member of one unit only. Agent agent-3 is already a member of Billing.');
+    // UXP1-S027: the server's detail names the position, so it is shown alone instead of after the same rule twice.
+    expect(q('[data-testid="org-unit-error"]').textContent).toBe('Agent agent-3 is already a member of Billing.');
   });
 });
 

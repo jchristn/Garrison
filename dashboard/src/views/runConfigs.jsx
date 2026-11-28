@@ -1,6 +1,7 @@
 // ResourceView configurations for runs, conversations, approvals, nodes, and audit records.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { Badge } from '../components/StatusBadge';
 import { ENUMS, TERMINAL_RUN_STATUSES, runStatusTone, nodeStatusTone } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
@@ -109,7 +110,7 @@ export const conversationsConfig = {
   // Agent names for the filter; an agent named in the URL stays selectable even before the names load.
   loadLookups: async ({ apiClient, tenantId }) => {
     const r = await apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 });
-    return { agents: Object.fromEntries((r.items || []).map((a) => [a.id, a.displayName || a.name])) };
+    return { agents: Object.fromEntries((r.items || []).map((a) => [a.id, agentSelectLabel(a)])) };
   },
   filters: [
     {

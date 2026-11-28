@@ -3,6 +3,7 @@
 // so the configuration-wide tests (tooltips, i18n keys, enum labels) cover it.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import DeleteMemoryModal from '../components/DeleteMemoryModal';
 import MemoryContentModal from '../components/MemoryContentModal';
 import MemoryScopeList from '../components/MemoryScopeList';
@@ -98,7 +99,7 @@ export const memoryConfig = {
       scopes: failed ? [] : scopes,
       scopesError: failed ? scopes?.error || true : null,
       names: failed ? {} : scopeNames(scopes),
-      agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])),
+      agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])),
       permissions
     };
   },

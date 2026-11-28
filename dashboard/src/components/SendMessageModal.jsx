@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { tip } from './Tooltip';
@@ -36,7 +37,7 @@ export default function SendMessageModal({ initial = {}, onClose, onDone }) {
     let cancelled = false;
     apiClient
       .listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })
-      .then((page) => !cancelled && setAgents((page.items || []).map((a) => ({ value: a.id, label: a.displayName || a.name || a.id }))))
+      .then((page) => !cancelled && setAgents((page.items || []).map((a) => ({ value: a.id, label: agentSelectLabel(a) }))))
       .catch(() => !cancelled && setAgents([]));
     return () => {
       cancelled = true;

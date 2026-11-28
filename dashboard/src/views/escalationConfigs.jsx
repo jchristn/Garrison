@@ -3,6 +3,7 @@
 // enum labels) cover it.
 
 import ConfirmModal from '../components/ConfirmModal';
+import { agentSelectLabel } from '../utils/agentLabel';
 import CopyableId from '../components/CopyableId';
 import EscalationAnswerModal from '../components/EscalationAnswerModal';
 import { EscalationStatusBadge, EscalationSeverityBadge } from '../components/EscalationBadges';
@@ -106,7 +107,7 @@ export const escalationsConfig = {
       safeList(apiClient.listMandates(tenantId, { pageNumber: 1, pageSize: 1000 })),
       loadCallerPermissions(apiClient, tenantId, principal).catch(() => null)
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), mandates: Object.fromEntries(mandates.map((m) => [m.id, m.name])), permissions };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])), mandates: Object.fromEntries(mandates.map((m) => [m.id, m.name])), permissions };
   },
   canDuplicate: false,
   isEditable: () => false,

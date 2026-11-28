@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -91,7 +92,7 @@ export default function AnalyticsView() {
         apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 }).then((r) => r.items || []).catch(() => []),
         apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }).then((r) => r.items || []).catch(() => [])
       ]);
-      setDims(normalizeDimensions({ agents: agents.map((a) => ({ id: a.id, name: a.displayName || a.name })), deployments, harnesses: ENUMS.harnessType, models: [] }));
+      setDims(normalizeDimensions({ agents: agents.map((a) => ({ id: a.id, name: agentSelectLabel(a) })), deployments, harnesses: ENUMS.harnessType, models: [] }));
     }
   }, [apiClient, tenantId, built]);
 

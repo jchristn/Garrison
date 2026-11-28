@@ -131,9 +131,10 @@ describe('freeze helpers', () => {
 describe('Freezes list configuration', () => {
   const ctx = { t, i18n, navigate: vi.fn(), setExtraModal: vi.fn(), reload: vi.fn(), lookups: {} };
 
-  it('opens on the active freezes and filters by kind without the organization kinds', () => {
+  it('opens on the active freezes and filters by every kind, units and organizations too (UXP1-S019)', () => {
     expect(freezesConfig.defaultFilters).toEqual({ active: 'true' });
-    expect(freezesConfig.filters.find((f) => f.name === 'targetKind').options).toEqual(['Agent', 'Deployment', 'Mandate', 'App', 'TenantAutonomy']);
+    expect(freezesConfig.filters.find((f) => f.name === 'targetKind').options).toEqual(ENUMS.freezeTargetKind);
+    expect(ENUMS.freezeTargetKind).toEqual(expect.arrayContaining(['OrgUnit', 'Organization']));
     expect(freezesConfig.lookupsEvents).toEqual([FREEZES_CHANGED_EVENT]);
   });
 
@@ -193,7 +194,7 @@ describe('freeze and lift dialogs', () => {
     const listApps = vi.fn(async () => ({ items: [{ id: 'app_0001', name: 'research' }] }));
     mount(<FreezeModal onClose={() => {}} onDone={() => {}} />, { apiClient: { applyFreeze, listAgents, listApps } });
     await flush();
-    expect(qa('[data-testid="freeze-target"] option').map((o) => o.textContent)).toEqual(['Choose...', 'Echo']);
+    expect(qa('[data-testid="freeze-target"] option').map((o) => o.textContent)).toEqual(['Choose...', 'Echo (echo-agent)']);
     click(q('[data-testid="confirm-button"]'));
     await flush();
     expect(q('.modal').textContent).toContain('Choose what to freeze.');
@@ -291,7 +292,7 @@ describe('kill switch', () => {
     click(q('[data-testid="confirm-button"]'));
     await flush();
     expect(setKillSwitch).toHaveBeenCalledWith('default', { enabled: true, reason: 'Incident drill.' });
-    expect(addToast).toHaveBeenCalledWith({ type: 'warning', message: 'The kill switch is on. No keeper ticks start.' });
+    expect(addToast).toHaveBeenCalledWith({ type: 'warning', message: 'The kill switch is on. No keeper wakes and no message wakes an agent.' });
     expect(q('[data-testid="kill-switch"]').dataset.enabled).toBe('true');
     expect(q('[data-testid="kill-switch-meta"]').textContent).toContain('Turned on by admin@garrison');
   });

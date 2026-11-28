@@ -350,7 +350,7 @@ describe('detail panel', () => {
 
   it('shows the refresh warning prominently and the node labels of a built-in', () => {
     mount(<CapabilityDetail descriptor={capability(5)} lookups={LOOKUPS} />);
-    expect(q('[data-testid="capability-warning"]').textContent).toContain('Workers probe libreoffice as soffice --version, which another harness profile defined first.');
+    expect(q('[data-testid="capability-warning"]').textContent).toContain('Workers probe libreoffice as soffice --version, which another connection defined first.');
     expect(q('[data-testid="capability-requirements"]').textContent).toBe('garrison.io/tool-libreoffice=true');
     expect(q('[data-testid="capability-source-link"]').textContent).toBe('profile-2');
   });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { useTranslation } from 'react-i18next';
 import ConfirmModal from './ConfirmModal';
 import { tip } from './Tooltip';
@@ -23,7 +24,7 @@ async function targetsOf(apiClient, tenantId, kind) {
   }[kind];
   if (!list) return [];
   const page = await list();
-  return (page.items || []).map((r) => ({ value: r.id, label: r.displayName || r.name || r.id }));
+  return (page.items || []).map((r) => ({ value: r.id, label: agentSelectLabel(r) }));
 }
 
 /**

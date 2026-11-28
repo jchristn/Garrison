@@ -115,7 +115,7 @@ export const freezesConfig = {
   },
   filters: [
     { name: 'active', label: (t) => t(`resources.${ID}.columns.status`), tip: (t) => t('tips.freezes.filters.active'), options: ['true', 'false'], optionLabel: (o, t) => t(o === 'true' ? 'freezes.status.active' : 'freezes.status.lifted') },
-    { name: 'targetKind', label: (t) => t(`resources.${ID}.columns.targetKind`), tip: (t) => t('tips.freezes.filters.targetKind'), options: ENUMS.freezeTargetKind.filter((k) => k !== 'OrgUnit' && k !== 'Organization'), enumGroup: 'freezeTargetKind' }
+    { name: 'targetKind', label: (t) => t(`resources.${ID}.columns.targetKind`), tip: (t) => t('tips.freezes.filters.targetKind'), options: ENUMS.freezeTargetKind, enumGroup: 'freezeTargetKind' }
   ],
   // The caller's permissions, so Freeze and Lift are disabled with the reason when they are missing.
   loadLookups: async ({ apiClient, tenantId, principal }) => ({ permissions: await loadCallerPermissions(apiClient, tenantId, principal) }),

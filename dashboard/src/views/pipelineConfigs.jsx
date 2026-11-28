@@ -3,6 +3,7 @@
 // configuration-wide tests (tooltips, i18n keys, enum labels) cover them.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import NamedId from '../components/NamedId';
 import { ActiveBadge } from '../components/StatusBadge';
 import { tip } from '../components/Tooltip';
@@ -85,7 +86,7 @@ export const pipelinesConfig = {
   // Agent names for the stage chain column.
   loadLookups: async ({ apiClient, tenantId }) => {
     const agents = await safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 }));
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])) };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])) };
   },
   // Pick lists for the stage editor: agents, deployments (filtered per stage agent), Task templates, and the stage limit.
   loadOptions: async ({ apiClient, tenantId }) => {

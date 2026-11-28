@@ -3,6 +3,7 @@
 // enum labels) cover it.
 
 import CopyableId from '../components/CopyableId';
+import { agentSelectLabel } from '../utils/agentLabel';
 import { MandateStatusBadge, TickOutcomeBadge } from '../components/KeeperBadges';
 import { Badge } from '../components/StatusBadge';
 import { tip } from '../components/Tooltip';
@@ -145,7 +146,7 @@ export const keepersConfig = {
       safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 })),
       loadCallerPermissions(apiClient, tenantId, principal).catch(() => null)
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.displayName || a.name])), deployments: Object.fromEntries(deployments.map((x) => [x.id, x.name])), permissions };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, agentSelectLabel(a)])), deployments: Object.fromEntries(deployments.map((x) => [x.id, x.name])), permissions };
   },
   deniedReason: (action, row, { t, lookups }) => {
     const op = action === 'create' ? 'Create' : action === 'delete' ? 'Delete' : 'Update';
@@ -204,7 +205,7 @@ export const keepersConfig = {
     return [
       field(t, 'name', 'text', { required: true, placeholder: 'inbox-keeper' }),
       field(t, 'description', 'textarea', { rows: 2 }),
-      field(t, 'agentId', 'select', { required: true, options: agents.map((a) => ({ value: a.id, label: a.displayName || a.name })), readOnly: mode !== 'create' }),
+      field(t, 'agentId', 'select', { required: true, options: agents.map((a) => ({ value: a.id, label: agentSelectLabel(a) })), readOnly: mode !== 'create' }),
       field(t, 'deploymentId', 'select', { required: true, options: deployments.map((x) => ({ value: x.id, label: x.name })) }),
       ...keeperRevisionFields(t, mode === 'create')
     ];
