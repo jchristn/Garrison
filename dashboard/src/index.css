@@ -173,8 +173,12 @@ button[aria-disabled="true"]:hover { filter: none; }
 .button-primary:hover:not(:disabled) { background-color: var(--color-primary-hover); }
 .button-secondary { background-color: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
 .button-secondary:hover:not(:disabled) { background-color: var(--color-surface-alt); }
-.button-danger { background-color: var(--color-danger); color: #fff; }
-.button-danger:hover:not(:disabled) { filter: brightness(1.08); }
+/* Destructive buttons on a page are outlined so they never outweigh the page's primary action (UXP1-V013). Inside a
+   dialog (the confirm step, where the destructive action is the one being asked for) they are filled red. */
+.button-danger { background-color: var(--color-surface); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger) 55%, transparent); }
+.button-danger:hover:not(:disabled) { background-color: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface)); border-color: var(--color-danger); }
+.modal .button-danger { background-color: var(--color-danger); color: #fff; border-color: transparent; }
+.modal .button-danger:hover:not(:disabled) { background-color: var(--color-danger); filter: brightness(1.08); }
 .button-ghost { background: transparent; border: 1px solid transparent; }
 .button-ghost:hover:not(:disabled) { background-color: var(--color-surface-alt); }
 .button-sm { padding: 0.25rem 0.5rem; font-size: var(--font-size-xs); }
@@ -348,6 +352,31 @@ button[aria-disabled="true"]:hover { filter: none; }
   flex-shrink: 0;
 }
 .sidebar-collapsed .sidebar-footer { text-align: center; overflow: hidden; }
+/* UXP1-V014: the nav list shows a shadow at whichever edge has more items to scroll to, and on a short window the footer
+   folds into one row of icon buttons (each keeps its tooltip and its accessible name) so Monitoring and System stay in
+   view. */
+.sidebar-nav {
+  background:
+    linear-gradient(var(--color-surface) 30%, transparent) top / 100% 28px no-repeat local,
+    linear-gradient(transparent, var(--color-surface) 70%) bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(15, 23, 42, 0.22), transparent) top / 100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(15, 23, 42, 0.22), transparent) bottom / 100% 12px no-repeat scroll;
+  background-color: var(--color-surface);
+}
+[data-theme='dark'] .sidebar-nav {
+  background:
+    linear-gradient(var(--color-surface) 30%, transparent) top / 100% 28px no-repeat local,
+    linear-gradient(transparent, var(--color-surface) 70%) bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.7), transparent) top / 100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.7), transparent) bottom / 100% 12px no-repeat scroll;
+  background-color: var(--color-surface);
+}
+@media (max-height: 860px) {
+  .dashboard:not(.sidebar-collapsed) .sidebar-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem; padding: var(--spacing-xs) var(--spacing-sm); }
+  .dashboard:not(.sidebar-collapsed) .sidebar-footer .sidebar-utility { width: auto; padding: var(--spacing-xs); }
+  .dashboard:not(.sidebar-collapsed) .sidebar-footer .sidebar-utility span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .dashboard:not(.sidebar-collapsed) .sidebar-footer .sidebar-version { margin-inline-start: auto; }
+}
 
 /* Topbar */
 .dashboard-header {
@@ -396,6 +425,19 @@ button[aria-disabled="true"]:hover { filter: none; }
 .page-header-title { font-size: var(--font-size-2xl); font-weight: 700; }
 .page-header-subtitle { color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-top: 0.15rem; max-width: 70ch; }
 .page-header-actions { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
+/* One header for every page (UXP1-V026): back link above the title, title and badges on the left, actions on the right.
+   The actions keep to the right and wrap inside their own box instead of dropping under the title; only a narrow window
+   stacks them below. A plain link among the actions looks like a secondary button. */
+.page-header > .page-header-text { flex: 1 1 18rem; }
+.page-header > .page-header-actions { flex: 0 1 auto; max-width: 62%; justify-content: flex-end; align-items: center; }
+.page-header-back { font-size: var(--font-size-sm); margin-bottom: 0.2rem; }
+.page-header-back a::before { content: '\2190'; margin-inline-end: 0.35rem; }
+[dir='rtl'] .page-header-back a::before { content: '\2192'; }
+.page-header-actions > a:not([class]) { display: inline-flex; align-items: center; padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font-size: var(--font-size-sm); font-weight: 500; line-height: 1.25; white-space: nowrap; }
+.page-header-actions > a:not([class]):hover { background: var(--color-surface-alt); }
+@media (max-width: 720px) {
+  .page-header > .page-header-actions { max-width: 100%; flex-basis: 100%; justify-content: flex-start; }
+}
 
 /* ================= Cards / sections ================= */
 .section { margin-bottom: var(--spacing-lg); }
@@ -421,7 +463,26 @@ button[aria-disabled="true"]:hover { filter: none; }
 }
 .kpi-card.clickable { cursor: pointer; }
 .kpi-card.clickable:hover { border-color: var(--color-primary); }
-.kpi-label { overflow-wrap: anywhere; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 600; }
+.kpi-label { overflow-wrap: break-word; hyphens: auto; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 600; }
+/* KPI cards in a grid share their rows through a subgrid (UXP1-V018): a long label wraps between words (hyphenated in
+   the page language) and every value in the row sits on the same line however many lines its neighbours' labels take. */
+.kpi-grid > .kpi-card { grid-row: span 3; display: grid; grid-template-rows: subgrid; grid-template-columns: minmax(0, 1fr); row-gap: 0.25rem; align-content: start; justify-content: stretch; justify-items: start; align-items: start; text-align: start; }
+.kpi-grid > .kpi-card > .kpi-value { align-self: end; }
+/* KPI grids fill their rows (UXP1-V032): the column count follows the number of cards, and an odd last card spans the
+   gap it would leave. */
+.kpi-grid:has(> :nth-child(4):last-child), .kpi-grid:has(> :nth-child(8):last-child),
+.kpi-grid:has(> :nth-child(7):last-child), .kpi-grid:has(> :nth-child(11):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.kpi-grid:has(> :nth-child(5):last-child) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.kpi-grid:has(> :nth-child(6):last-child), .kpi-grid:has(> :nth-child(9):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kpi-grid:has(> :nth-child(7):last-child) > :last-child, .kpi-grid:has(> :nth-child(11):last-child) > :last-child { grid-column: span 2; }
+@media (max-width: 760px) {
+  .kpi-grid:has(> :nth-child(5):last-child), .kpi-grid:has(> :nth-child(6):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi-grid > .kpi-card:last-child:nth-child(odd):not(:first-child) { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .kpi-grid:has(> :nth-child(4):last-child), .kpi-grid:has(> :nth-child(8):last-child), .kpi-grid:has(> :nth-child(7):last-child),
+  .kpi-grid:has(> :nth-child(11):last-child), .kpi-grid:has(> :nth-child(9):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .kpi-value { font-size: 1.6rem; font-weight: 700; }
 .kpi-note { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 
@@ -629,12 +690,15 @@ button[aria-disabled="true"]:hover { filter: none; }
 .action-menu-item.disabled:hover { background: transparent; }
 
 /* ================= Code block ================= */
-.code-block { position: relative; background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.code-block { position: relative; background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding-inline-end: 2.25rem; min-width: 0; }
 /* Toolbar sits above the scroll gutter; give the button a surface backing so a scrollbar never occludes it. */
 .code-block-toolbar { position: absolute; top: 0.35rem; inset-inline-end: 0.55rem; z-index: 2; background: var(--color-surface-alt); border-radius: var(--radius-sm); }
-.code-block pre { padding: var(--spacing-sm); padding-inline-end: 2.5rem; overflow-x: auto; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre; max-height: 360px; overflow-y: auto; scrollbar-gutter: stable; }
+/* The copy button sits in a gutter the block reserves (padding-inline-end above), outside the scrolling pre, so it never
+   covers the end of a line that scrolls under it (UXP1-V005, V034). A wrapped block (prompt previews) breaks long lines. */
+.code-block pre { padding: var(--spacing-sm); padding-inline-end: var(--spacing-xs); overflow-x: auto; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre; max-height: 360px; overflow-y: auto; scrollbar-gutter: stable; }
+.code-block.is-wrapped pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; }
 /* Secret reveal: the value sits in a code-block card with the shared copy button; long tokens wrap instead of scrolling. */
-.secret-reveal-card pre { margin: 0; padding: var(--spacing-sm) var(--spacing-md); padding-inline-end: 2.75rem; font-family: var(--font-mono); font-size: var(--font-size-sm); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; overflow-x: hidden; }
+.secret-reveal-card pre { margin: 0; padding: var(--spacing-sm) var(--spacing-md); padding-inline-end: var(--spacing-xs); font-family: var(--font-mono); font-size: var(--font-size-sm); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; overflow-x: hidden; }
 .secret-reveal-card pre.is-multiline { word-break: normal; }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-sm); }
 .detail-item { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
@@ -657,10 +721,10 @@ button[aria-disabled="true"]:hover { filter: none; }
 .chart-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--spacing-md); }
 .chart-header { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); flex-wrap: wrap; margin-bottom: var(--spacing-sm); }
 .chart-title { font-size: var(--font-size-base); font-weight: 600; }
-.chart-controls { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; }
+.chart-controls { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; min-width: 0; max-width: 100%; }
 /* The segmented range control stays inside its card: when the labels do not fit on one line, each wraps inside its
-   own button. */
-.range-group { display: inline-flex; max-width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+   own button, and when even that is too wide the buttons wrap onto a second row (UXP1-V006). */
+.range-group { display: inline-flex; flex-wrap: wrap; min-width: 0; max-width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
 .range-btn { padding: 0.25rem 0.6rem; font-size: var(--font-size-xs); border-radius: 0; background: var(--color-surface); color: var(--color-text-secondary); border: none; white-space: normal; overflow-wrap: break-word; }
 .range-btn + .range-btn { border-inline-start: 1px solid var(--color-border); }
 .range-btn.active { background: var(--color-primary); color: #fff; }
@@ -688,6 +752,9 @@ button[aria-disabled="true"]:hover { filter: none; }
 .chart-tooltip-row { display: flex; justify-content: space-between; gap: var(--spacing-md); }
 .chart-body { width: 100%; min-width: 0; }
 .chart-empty { display: flex; align-items: center; justify-content: center; padding: var(--spacing-xl); text-align: center; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.chart-sparse-note { margin-top: var(--spacing-xs); font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+/* The range buttons and their refresh button stay together; the range group wraps inside itself on a phone. */
+.chart-controls .chart-controls { flex-wrap: nowrap; }
 
 /* ================= Login ================= */
 .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--spacing-lg); background: var(--color-background); }
@@ -744,6 +811,13 @@ button[aria-disabled="true"]:hover { filter: none; }
 .info-row:last-child { border-bottom: none; }
 .info-label { color: var(--color-text-secondary); }
 .info-value { font-weight: 500; text-align: end; word-break: break-word; }
+/* Server info endpoints (UXP1-V021): the label above a full-width value, each URL on one line with an ellipsis, and the
+   copy button beside it; the Endpoints card spans the whole grid row. */
+.info-grid-wide { grid-column: 1 / -1; }
+.info-row-stacked { flex-direction: column; gap: 0.15rem; }
+.info-row-stacked .info-value { display: flex; align-items: center; gap: var(--spacing-xs); text-align: start; min-width: 0; }
+.info-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feature-flags { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
 .settings-note { margin-bottom: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-md); font-size: var(--font-size-sm); background: color-mix(in srgb, var(--color-warning) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent); color: var(--color-warning); }
 .settings-note-neutral { background: var(--color-surface-alt); border-color: var(--color-border); color: var(--color-text-secondary); }
 .settings-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
@@ -803,10 +877,12 @@ button[aria-disabled="true"]:hover { filter: none; }
 .kv-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--spacing-sm); align-items: center; }
 .object-list-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--spacing-sm); padding: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); }
 .object-list-index { font-weight: 600; color: var(--color-text-muted); font-size: var(--font-size-sm); padding-top: 6px; min-width: 1.5em; }
-.object-list-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--spacing-sm); }
+.object-list-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--spacing-sm); }
 .object-list-actions { display: flex; flex-direction: column; gap: 2px; }
 .object-list-empty { color: var(--color-text-muted); font-size: var(--font-size-sm); }
-.stepper { display: flex; gap: var(--spacing-xs); flex-wrap: wrap; margin-bottom: var(--spacing-md); padding: 0; list-style: none; }
+.stepper { display: flex; gap: var(--spacing-xs); flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; margin-bottom: var(--spacing-md); padding: 0 0 2px; list-style: none; }
+/* UXP1-V034: the step chips stay on one row that scrolls inside the dialog, instead of leaving one step alone below. */
+.stepper-step { flex: 0 0 auto; white-space: nowrap; }
 .stepper-step { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--font-size-sm); cursor: pointer; }
 .stepper-step.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); font-weight: 600; }
 .stepper-index { display: inline-flex; width: 1.4em; height: 1.4em; border-radius: 50%; align-items: center; justify-content: center; background: var(--color-surface-alt); font-size: var(--font-size-xs); }
@@ -886,9 +962,24 @@ button[aria-disabled="true"]:hover { filter: none; }
 .invoke-layout, .editor-layout, .preview-layout { display: grid; grid-template-columns: minmax(300px, 2fr) minmax(0, 3fr); gap: var(--spacing-md); align-items: start; }
 .editor-layout { grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); }
 .preview-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.preview-layout > * { min-width: 0; }
 .invoke-form, .editor-main, .editor-side, .invoke-output { display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 0; }
 .invoke-run-head { display: flex; justify-content: space-between; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; margin-bottom: var(--spacing-sm); }
 .home-chart { min-width: 0; }
+/* Stacked panels keep the grid gap between them instead of touching (UXP1-V024). */
+.page-stack { display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 0; }
+.page-stack > * { margin-block: 0; }
+.page-stack:not(:first-child) { margin-top: var(--spacing-md); }
+/* Recent failures mark each row with a red cross, not the plain list's green check. */
+.plain-list.failure-list li::before { content: '\2715'; color: var(--color-danger); }
+/* A page of panels in normal flow (detail pages) keeps the same gap between them. */
+.page-flow > :is(.panel, .info-grid) + :is(.panel, .info-grid) { margin-top: var(--spacing-md); }
+/* A long explainer title wraps on a phone instead of pushing the page sideways (UXP1-V006, prompt template detail). */
+.explainer-fold { white-space: normal; max-width: 100%; min-width: 0; }
+/* Cards nest at most two deep (UXP1-V033): a table inside a card or a pipeline stage drops its own card border, and
+   paragraphs in a card use the same small body size as the rest of the card. */
+.panel .table-frame, .pipeline-timeline-stage .table-frame { border-color: transparent; border-radius: 0; background: transparent; }
+.panel > p, .panel > section > p { font-size: var(--font-size-sm); }
 .home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--spacing-md); margin-top: var(--spacing-md); align-items: start; }
 .node-list { list-style: none; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .node-list li { display: flex; align-items: center; gap: var(--spacing-sm); font-size: var(--font-size-sm); }
@@ -928,7 +1019,13 @@ a.button { text-decoration: none; }
 
 /* Settings */
 .settings-group { margin-bottom: var(--spacing-lg); }
+/* UXP1-V031: the section heading sits inside its card with the section's apply-mode badge beside it. */
+.settings-group-head { display: flex; align-items: center; gap: var(--spacing-sm); flex-wrap: wrap; }
 .settings-label { display: flex; align-items: center; gap: var(--spacing-xs); flex-wrap: wrap; }
+.settings-boolean { justify-content: flex-start; align-self: start; padding-top: 1.55rem; }
+@media (max-width: 600px) { .settings-boolean { padding-top: 0; } }
+.settings-boolean .settings-label { font-size: var(--font-size-sm); color: var(--color-text); }
+.settings-boolean .settings-label input[type='checkbox'] { width: auto; margin: 0; }
 .settings-badges { display: inline-flex; gap: var(--spacing-xs); }
 .settings-path { font-size: var(--font-size-xs); color: var(--color-text-muted); font-weight: normal; }
 .is-restarting { opacity: 0.6; pointer-events: none; }
@@ -974,8 +1071,14 @@ a.button { text-decoration: none; }
 @media (max-width: 1100px) {
   .topbar-hide-narrow { display: none; }
 }
-@media (max-width: 760px) {
+/* UXP1-V036: below about 1000px the server URL chip hides (About shows it) and the tenant picker keeps room for a
+   short tenant name instead of shrinking to a few letters under its chevron. */
+@media (max-width: 1000px) {
   .topbar-server { display: none; }
+}
+@media (min-width: 601px) {
+  .topbar-tenant, .topbar-tenant-name { flex-shrink: 0; }
+  .topbar-tenant select { min-width: 6.5rem; }
 }
 @media (max-width: 900px) {
   .mobile-nav-scrim { display: block; position: fixed; inset: 0; z-index: 850; background: rgba(15, 23, 42, 0.4); }
@@ -1069,13 +1172,16 @@ a.button { text-decoration: none; }
 
 /* ---------------------------------------------------------------- telemetry and analytics (P5.43, P5.46) */
 .telemetry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--spacing-sm) var(--spacing-md); }
+.telemetry-grid > .detail-item { grid-row: span 2; display: grid; grid-template-rows: subgrid; row-gap: 0.15rem; align-content: start; }
+.telemetry-grid .detail-item-label { hyphens: auto; }
+.telemetry-grid .detail-item-value { align-self: end; }
 .telemetry-phases { display: block; width: 100%; height: 14px; border-radius: 7px; overflow: hidden; background: var(--color-surface-alt); margin: var(--spacing-sm) 0 0.35rem; }
 .telemetry-phases-head { display: flex; justify-content: flex-end; }
 .export-trigger { display: inline-flex; align-items: center; gap: 0.3rem; height: 30px; }
 .telemetry-legend { display: flex; gap: var(--spacing-md); flex-wrap: wrap; font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: var(--spacing-sm); }
 .analytics-filters { display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-md); align-items: flex-end; margin-bottom: var(--spacing-lg); }
 .analytics-filters .field { min-width: 160px; flex: 0 1 200px; }
-.analytics-filters .field.analytics-range-field { flex: 0 0 auto; min-width: 0; }
+.analytics-filters .field.analytics-range-field { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .analytics-filters .field.analytics-ttft-toggle { flex: 0 0 auto; min-width: 0; align-self: center; }
 .analytics-charts { display: flex; flex-direction: column; gap: var(--spacing-md); }
 .analytics-chart-help { font-size: var(--font-size-xs); color: var(--color-text-secondary); max-width: 90ch; }
@@ -1128,6 +1234,10 @@ body { font-family: var(--locale-font, var(--font-family)); }
 .confirm-list li::before { content: '\2022'; color: var(--color-danger); }
 .named-id { gap: var(--spacing-xs); }
 input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[readonly] { background-color: var(--color-surface-alt); color: var(--color-text-secondary); cursor: not-allowed; }
+/* UXP1-V034: a details dialog shows its values as read-only fields, so their text keeps full contrast (browsers fade
+   disabled controls on their own); the muted surface and the cursor still say they cannot be changed. */
+.modal-body :is(input, select, textarea):disabled { color: var(--color-text); -webkit-text-fill-color: var(--color-text); opacity: 1; }
+.modal-body textarea:disabled { field-sizing: content; min-height: 0; max-height: 16rem; }
 .readonly-note { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); flex-wrap: wrap; }
 .manifest-changes-row > td { padding-top: 0; background: var(--color-surface-alt); }
 .manifest-changes { margin: var(--spacing-xs) 0 var(--spacing-sm); }
@@ -1255,11 +1365,34 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 
 /* Bright action backgrounds in dark mode use dark text to preserve readable contrast. */
 [data-theme='dark'] .button-primary,
-[data-theme='dark'] .button-danger,
+[data-theme='dark'] .modal .button-danger,
 [data-theme='dark'] .range-btn.active,
 [data-theme='dark'] .snippet-tab.active,
 [data-theme='dark'] .skip-link,
 [data-theme='dark'] .toast { color: #0b1220; }
+
+/* Theme contrast (UXP1-V020). Native controls (date pickers, file buttons, scrollbars) follow the theme. A disabled
+   filled button turns neutral instead of a dimmed brand color, so it no longer looks clickable; outlined and ghost
+   buttons keep more of their text in dark so a disabled label stays readable. */
+:root { color-scheme: light; }
+[data-theme='dark'] { color-scheme: dark; }
+.button-primary:disabled, .button-primary[aria-disabled='true'],
+.modal .button-danger:disabled, .modal .button-danger[aria-disabled='true'] { background-color: var(--color-surface-alt); color: var(--color-text-muted); border-color: var(--color-border); opacity: 1; filter: none; }
+[data-theme='dark'] .button-primary:disabled, [data-theme='dark'] .button-primary[aria-disabled='true'],
+[data-theme='dark'] .modal .button-danger:disabled, [data-theme='dark'] .modal .button-danger[aria-disabled='true'] { color: var(--color-text-muted); border-color: #2c3a55; }
+[data-theme='dark'] button:disabled:not(.button-primary), [data-theme='dark'] button[aria-disabled='true']:not(.button-primary) { opacity: 0.7; }
+[data-theme='dark'] .error-banner { color: #fecaca; background: color-mix(in srgb, var(--color-danger) 16%, var(--color-background)); border-color: color-mix(in srgb, var(--color-danger) 55%, transparent); }
+[data-theme='dark'] .modal-backdrop { background: rgba(2, 6, 15, 0.72); }
+/* The file picker's button matches the secondary buttons in both themes instead of the browser's light gray. */
+input[type='file']::file-selector-button { margin-inline-end: var(--spacing-sm); padding: 0.3rem 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--font-size-sm); cursor: pointer; }
+input[type='file']::file-selector-button:hover { background: var(--color-surface-alt); }
+/* Japanese and Chinese text (UXP1-V035): no single character left alone on a last line, no small kana or closing
+   punctuation at a line start, and short table headings never break between their characters. */
+:lang(ja) :is(p, li, .explainer-body, .lg-body), :lang(zh) :is(p, li), :lang(yue) :is(p, li) { text-wrap: pretty; line-break: strict; }
+:lang(ja) th, :lang(zh) th, :lang(yue) th { word-break: keep-all; }
+[data-theme='dark'] .modal { background: #16213a; border: 1px solid #2c3a55; }
+[data-theme='dark'] .modal .modal-header, [data-theme='dark'] .modal .modal-footer { border-color: #2c3a55; }
+[data-theme='dark'] .org-spend-track, [data-theme='dark'] .perf-bar-track, [data-theme='dark'] .fanout-budget-bar, [data-theme='dark'] .eval-progress { background: #2c3a55; border-color: #3d4d6b; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
@@ -1659,6 +1792,12 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .chat-composer-notes { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-xs) var(--spacing-md); flex-wrap: wrap; }
 .chat-composer-notes .field-hint { margin: 0; }
 .chat-composer-send { align-self: flex-end; flex: 0 0 auto; }
+/* UXP1-V034: on a phone the message box takes the full width with Send below it, and the studio summary reads as a
+   two-column list instead of one run-on line. */
+@media (max-width: 600px) {
+  .chat-composer { flex-direction: column; align-items: stretch; }
+  .studio-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-xs) var(--spacing-md); }
+}
 
 /* The wizard's Design step fills the content area, so only the conversation scrolls. */
 .agent-wizard-fill { height: 100%; min-height: 0; }
@@ -1882,7 +2021,8 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 .eval-check-row { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) 6rem auto; gap: var(--spacing-sm); align-items: start; width: 100%; }
 .eval-check-row .field { min-width: 0; }
 .eval-check-actions { padding-top: 1.6rem; }
-.eval-results-filter { display: inline-flex; align-items: center; gap: var(--spacing-xs); font-size: var(--font-size-sm); }
+.eval-results-filter { display: inline-flex; align-items: center; gap: var(--spacing-xs); font-size: var(--font-size-sm); white-space: nowrap; }
+.eval-results-filter input[type='checkbox'] { width: auto; margin: 0; }
 @media (max-width: 640px) {
   .eval-check-row { grid-template-columns: minmax(0, 1fr) auto; }
   .eval-check-row .eval-check-weight { grid-column: 1; }
