@@ -1,0 +1,485 @@
+# Garrison Learnability Plan (0.3.0)
+
+Garrison now has a lot of concepts. A new operator meets harnesses, nodes, agents, deployments, and runs, then keepers, mandates, messages, reports, escalations, memory, organizations, executives, change rules, evals, canaries, freezes, and the board. Each one is documented and each one has a page, but nothing in the dashboard shows how they fit together, and nothing shows what actually happened when a request went into an organization and an answer came back.
+
+This plan adds three things to 0.3.0 before it ships:
+
+- **The activity trail.** Open a run and see every hop from the request that started it, through every agent, message, child run, report, escalation, approval, and tool effect, back to the reply.
+- **The organization designer.** One visual editor for organizations, used both for published organizations and for studio drafts, that also covers mandates, keepers, budgets, and change rules.
+- **Guided learning.** A Learn page of concept diagrams drawn for Garrison, and short guided tours, one per job, that walk through the real dashboard on real sample data.
+
+Two full UX passes over the whole dashboard close the plan. One is a design review and one is a simulated user session. The user triages the findings from each pass.
+
+The trail comes first because it is the most useful of the three on its own, and because seeing a real trail teaches the concepts better than any tour. The tours come last because they walk through the trail and the designer.
+
+## Table of Contents
+
+1. [How to use this plan](#1-how-to-use-this-plan)
+2. [Progress Dashboard](#2-progress-dashboard)
+3. [Scope](#3-scope)
+4. [Current state](#4-current-state)
+5. [Decision log](#5-decision-log)
+6. [Architecture](#6-architecture)
+7. [Route inventory](#7-route-inventory)
+8. [Work breakdown](#8-work-breakdown)
+9. [Security and RBAC](#9-security-and-rbac)
+10. [Risks and open questions](#10-risks-and-open-questions)
+
+---
+
+## 1. How to use this plan
+
+### 1.1 Status markers, annotations, and IDs
+
+This plan uses the same markers and annotation format as `AUTONOMOUS_AGENTS_PLAN.md` section 1.1 (`[ ]`, `[~]`, `[x]`, `[-]`, `[!]`, then `  | <who> <YYYY-MM-DD> <note or commit>`). Tasks are `LP<phase>.<n>` and decisions are `LP-<nnn>`. IDs never change. A task that grows is split into `LP2.3a`, `LP2.3b`. When scope changes, add a task rather than rewriting a finished one.
+
+Work happens on `feature/autonomous-agents`. Commit and push per task. Nothing merges to `main` until AA13.15, and AA13.15 now waits on this plan (see LP0.1).
+
+### 1.2 Default bar for every task
+
+The default bar in `AUTONOMOUS_AGENTS_PLAN.md` section 1.2 and the layer checklist in section 1.3 apply to every task here without exception. They cover the C# style from `CLAUDE.md` and `~/Code/Agents/requirements/CODE_STYLE.md`, settings in place of constants, scope map, OpenAPI, request history, Postman, docs for every route and tool, prompt templates, nine locales with tooltips, no em dashes, `127.0.0.1`, and zero build warnings. This plan adds the following:
+
+- **Dashboard work** meets `~/Code/Agents/requirements/DASHBOARD_STYLE_AND_USABILITY.md` and `FRONTEND_ARCHITECTURE.md`:
+  - the shared API client;
+  - backend filters and sort;
+  - the Columns control and saved page size from 5c4d7ff3;
+  - custom confirm modals and no browser dialogs;
+  - copyable IDs;
+  - loading, empty, and error states;
+  - visible focus and keyboard parity;
+  - `prefers-reduced-motion`;
+  - no horizontal page scroll at 1366x768 with the sidebar open.
+- **Diagrams and canvases** must be readable in light and dark themes, in every locale, and in right-to-left layout. Every diagram has a text alternative: a list or table carrying the same information, for screen readers and for narrow screens.
+- **Tests are targeted.** Each task runs only the suites and vitest files it touches. Examples:
+  - `dotnet run --project src/Test.Automated -f net10.0 --no-build -- --suites RunTrail`
+  - `npx vitest run src/tests/runTrail.test.jsx`
+
+  The full matrix belongs to AA13.11 and CI. A task's annotation names the targeted runs.
+- **Dashboard code changes** end with `npm run lint` and `npm run build` in `dashboard/`. `scripts/check-em-dash.sh` and `scripts/check-version.sh` must pass.
+- **Writing:** new or changed docs follow `WRITING_DOCUMENTS.md`, including the humanizer review.
+
+### 1.3 Requirements conflicts
+
+The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. One more is recorded here:
+
+| Generic requirement | Garrison rule kept | Why |
+|---|---|---|
+| `DASHBOARD_STYLE_AND_USABILITY.md` "Allow tables to scroll horizontally on small screens" | Tables may scroll sideways below 768px only. At 1366x768 and wider, default columns must fit. | User instruction on 2026-11-27 (5c4d7ff3) |
+
+---
+
+## 2. Progress Dashboard
+
+| Phase | Name | Depends on | Status | Done / Total |
+|---|---|---|---|---|
+| LP0 | Plan wiring | none | Not started | 0 / 2 |
+| LP1 | Activity trail: server | LP0 | Not started | 0 / 11 |
+| LP2 | Activity trail: dashboard | LP1.5 (API shape) | Not started | 0 / 10 |
+| LP3 | Organization designer | LP0 | Not started | 0 / 11 |
+| LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | Not started | 0 / 10 |
+| LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | Not started | 0 / 5 |
+| LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
+| LP7 | Release integration | LP6 | Not started | 0 / 5 |
+
+Total tasks: 59.
+
+```
+LP0 wiring
+  |
+  +--> LP1 trail server --(API shape, LP1.5)--> LP2 trail dashboard --+
+  +--> LP3 organization designer ------------------------------------+--> LP4.5+ tours --> LP5 UX pass 1 --> LP6 UX pass 2 --> LP7 release
+  +--> LP4.1..LP4.4 diagrams and Learn page (parallel) --------------+
+```
+
+LP1, LP3, and the diagram half of LP4 can run at the same time in separate missions. LP2 can start against a mocked trail response as soon as LP1.5 fixes the response shape.
+
+---
+
+## 3. Scope
+
+### 3.1 Delivers
+
+- A server-built activity trail for any run, which walks back to where the work started and forward to everything it caused. It is exposed over REST, the management MCP server, and the four SDKs.
+- A Trail view on Run detail. It has a sequence view, a graph view, and a list view, plus a side drawer that loads each step's detail. "Open trail" links appear wherever a run, message, escalation, approval, report, or keeper tick is shown.
+- One organization canvas, used to design a published organization (its working tree) and an organization in a studio draft. It covers units, leads, members, peer lines, mandates and keepers, unit budgets, and the change rules that apply to a unit. It validates live and has a read-only mode with health, spend, and activity overlays.
+- A Learn page with interactive concept diagrams. The diagrams are React SVG components built from theme tokens with translated labels, and each box links to its page and its doc.
+- A tour engine with several named tours, each tied to one job. Tours navigate between routes and offer to load the gerbil example when the tenant is empty. Each hub has a "?" button that starts its tour.
+- Two whole-dashboard UX passes with findings, the user's triage, fixes, and verification.
+
+### 3.2 Out of scope
+
+- A new HTTP stack or graph database: the trail is assembled from existing tables.
+- Agent-written text inside the trail response (LP-002).
+- Run tokens reading trails (LP-010).
+- Drag-and-drop creation of brand new harness profiles or credentials from the canvas. The canvas links to the existing forms.
+- Video or animated tour assets.
+
+---
+
+## 4. Current state
+
+The plan builds on what exists. Each item is checked against the code on 2026-11-27.
+
+**Run lineage already recorded:**
+
+| Record | Fields that link it |
+|---|---|
+| `Run` | `ParentRunId`, `RootRunId`, `RetryOfRunId`, `FanOutGroupId`, `PipelineRunId`, `TriggerId`, `MandateId`, `MandateTickId`, `EscalationId`, `EvalRunId`, `ShadowTrialId`, `ConversationId`, `CallerType`, `CallerId`, `TraceId` |
+| `AgentMessage` | `SenderRunId`, `DeliveredRunId` |
+| `Report` | `RunId` |
+| `Escalation` | `RaisingRunId`, `RoutedRunId` |
+| `Approval` | `RunId`, `RootRunId` |
+| `ChildWaitRequest` | `ParentRunId`, `ChildRunId` |
+| `MandateTick` | `RunId` |
+| `EffectOperation` | `RunId` (the effect journal) |
+
+The gap is that nothing stitches these into one picture.
+
+**Run detail** already has a Children tab (`RunChildrenTree.jsx`, fan-out groups) and an event timeline (`RunTimeline.jsx`).
+
+**Organizations:**
+
+- `OrgChartTree.jsx` draws the published chart and edits the working tree on Organization detail. It shows health, spend, and Cancel everything in this unit.
+- `studio/canvas/OrgCanvas.jsx` (AA7.10, `@xyflow/react` 12.12.0) edits the organization in a studio draft. It supports nested units, peer lines, the keyboard, and a side panel (`OrgUnitPanel.jsx`) for lead and members.
+- The two are separate editors. Neither edits mandates, keepers, budgets, or change rules.
+
+**Learning:**
+
+- `Tour.jsx` is one nine-step tour that highlights shell areas and does not move between pages.
+- `Explainer.jsx` panels sit at the top of pages and tabs.
+- `SetupWizard.jsx` covers first run (credential, architect, sample manifest, first keeper, test invoke).
+- There are no diagrams.
+
+**Schema:** the latest migration is 60.
+
+---
+
+## 5. Decision log
+
+| ID | Decision | Reason |
+|---|---|---|
+| LP-001 | The server builds the trail in one call (`GET .../runs/{runId}/trail`) with caps on nodes, message hops, and time span, and marks the response `truncated` with the reason when a cap is hit. | A client walk needs dozens of requests and cannot apply tenant and permission checks consistently. Caps keep a looping organization from producing an unbounded response. |
+| LP-002 | The trail response carries no agent-written text: no prompts, outputs, message bodies, report bodies, escalation questions or answers, memory, or tool arguments. It carries IDs, kinds, states, timestamps, durations, the agent, unit, and deployment names a person gave them, token and cost totals, and status codes. The drawer loads text from the existing detail routes and renders it as data with its source shown. | AA-025: agent-written data is untrusted. Keeping it out of the trail also keeps the response small and cacheable. |
+| LP-003 | The trail starts at the origin, then walks forward. The origin is found by walking back through `ParentRunId`, a message's `DeliveredRunId` to `SenderRunId`, `EscalationId` to `RaisingRunId`, `MandateTickId`, `TriggerId`, and `PipelineRunId`, until it reaches a person or API caller, a trigger, a keeper tick, or the hop cap. The requested run is marked as the focus. | People click into the middle of a chain. "From my request to the first agent and back" needs the start even when the click lands three hops in. |
+| LP-004 | Each node is checked against the caller's read permission for its resource type. Another tenant's records never appear. A node the caller may not read appears as a placeholder with its kind and time only. | Tenant isolation and RBAC are non-negotiable. A placeholder keeps the shape of the chain honest without revealing the record. |
+| LP-005 | The sequence view (one lane per agent, time running down) is the default. The graph view and the list view are tabs. Below 768px the list view is the only view. | A sequence reads as "request, then hops, then reply". A free graph gets unreadable beyond about 15 nodes. The list is the accessible equivalent and fits a phone. |
+| LP-006 | There is one organization canvas. `OrgCanvas` becomes a component that takes an editing source: a draft source that sends studio unit graph operations, or a working-tree source that calls the organization unit routes. `OrgChartTree` stays only as the narrow-screen and read-only fallback. | Two editors that drift are worse than one. The studio canvas already has the keyboard model and operation handling. |
+| LP-007 | Change rules stay people-only (AA-023). The canvas shows the rules that match a unit and opens the existing rule editor scoped to that unit. Rules are never draft items, and an architect run never writes one. | The canvas is a person's tool. The no-self-modification limits in `ExecutiveDraftValidator` and the rule routes are not touched. |
+| LP-008 | Concept diagrams are React components that draw SVG from CSS tokens and `t()` labels, not static image files. English SVG exports for `docs/images` are generated from the same components by a script. | Static SVGs cannot follow the theme, the locale, or right-to-left layout, and they drift from the product. |
+| LP-009 | Tours are data: a tour is a list of steps, each naming a route, a target selector (`data-tour`), and a title and body key. The engine navigates, waits for the target with a timeout, skips a missing target with a note, and saves completion per tour per user. Each tour has one e2e spec. | The single shell tour cannot move between pages. Steps keyed to `data-tour` attributes, with a spec per tour, break loudly when the UI moves instead of pointing at nothing. |
+| LP-010 | The trail is available to people: REST, the management MCP server, and the SDKs. The trail tool is hidden from run tokens, and the route answers 403 to a run token. | A run seeing other units' work across the organization is more than its unit gives it. Revisit after 0.3.0 if agents need their own lineage. |
+| LP-011 | The live trail of a running request refreshes through the existing auto-refresh control (`AutoRefreshSelect`, default 5 seconds while any node is running, off when all are terminal). There is no new WebSocket channel in 0.3.0. | It reuses a pattern operators already know and adds no new channel to secure and document. |
+| LP-012 | Each UX pass is a gate. Pass 1 is a design review of every route. Pass 2 is a simulated user session per `SIMULATED_USER_TESTING.md` on a fresh instance. Neither pass fixes anything while it runs. The user triages each finding, and approved fixes are verified before the next pass starts. | The user asked for at least two passes that check the dashboard looks good and makes sense. Observe, then decide, then fix is the requirement's own rule. |
+
+---
+
+## 6. Architecture
+
+### 6.1 Trail model
+
+New types in `src/Garrison.Core`, one per file:
+
+| Type | Kind | Contents |
+|---|---|---|
+| `RunTrailNodeKindEnum` | enum | `Caller`, `Trigger`, `KeeperTick`, `Run`, `Message`, `Report`, `Escalation`, `Approval`, `Effect`, `FanOutGroup`, `PipelineRun`, `Reply`, `Redacted` |
+| `RunTrailEdgeKindEnum` | enum | `Started`, `Spawned`, `FannedOut`, `Retried`, `Sent`, `Woke`, `Filed`, `Raised`, `Routed`, `Answered`, `Requested`, `Decided`, `Performed`, `Replied` |
+| `RunTrailTruncationEnum` | enum | `None`, `NodeCap`, `HopCap`, `SpanCap` |
+| `RunTrailNode` | class | `Id` (the record ID), `Kind`, `State`, `AgentId`, `AgentName`, `UnitId`, `UnitName`, `DeploymentId`, `StartedUtc`, `EndedUtc`, `DurationMs`, `InputTokens`, `OutputTokens`, `CostUsd`, `RunKind`, `IsFocus`, `Lane` (the agent ID, or `caller`) |
+| `RunTrailEdge` | class | `FromId`, `ToId`, `Kind`, `AtUtc` |
+| `RunTrail` | class | `OriginId`, `FocusRunId`, `Nodes`, `Edges`, `Truncation`, `NodeCount`, `HopCount`, `GeneratedUtc` |
+| `RunTrailSettings` | class | `MaxNodes` (default 500, min 10, max 5000), `MaxMessageHops` (default 12, min 0, max 50), `MaxSpanHours` (default 72, min 1, max 720), `IncludeEffects` (default true) |
+
+No property is a tuple, no class is nested, and every public member has XML docs with its defaults and bounds.
+
+### 6.2 Trail service
+
+`src/Garrison.Server/Runtime/RunTrailService.cs` builds the trail:
+
+1. Load the focus run with a tenant filter. A missing run or another tenant's run answers 404.
+2. Walk back to the origin as described in LP-003, counting message hops.
+3. Walk forward breadth first from the origin. Each step reads:
+   - child runs by `ParentRunId`, fan-out groups, retries;
+   - messages by `SenderRunId` and the runs they woke by `DeliveredRunId`;
+   - reports by `RunId`;
+   - escalations by `RaisingRunId` and their routed and answer runs;
+   - approvals by `RunId`;
+   - effect operations by `RunId` when `IncludeEffects` is on.
+
+   Reads are batched by ID set per level, never one query per node.
+4. Deduplicate by record ID so a message loop shows once.
+5. Stop at a cap and set `Truncation`.
+6. Apply LP-004 permission filtering.
+7. Add a `Reply` node when the origin has a caller and the root run reached a terminal state.
+
+`ChainOfCommand` supplies unit names from the published revision in force at each node's start time.
+
+### 6.3 Surfaces
+
+| Surface | Contract |
+|---|---|
+| REST | `GET /v1.0/api/tenants/{tenantId}/runs/{runId}/trail?includeEffects=true`. Answers 200 with `RunTrail`, 404 for a missing or cross-tenant run, and 403 to a run token. Scope map: resource `Run`, operation `Read`. |
+| Management MCP | `garrison_get_run_trail` (`runId`, `includeEffects`) returns `structuredContent` with the `RunTrail`. It is hidden from run tokens. |
+| SDKs | `GetRunTrailAsync` in C#, `get_run_trail` in Python, `getRunTrail` in JS, `GetRunTrail` in Go, with typed models. |
+| Telemetry | Counter `garrison_run_trail_requests_total{outcome}`, histogram `garrison_run_trail_build_seconds`. The span `garrison.run_trail.build` nests under the request span and carries the attributes `node_count`, `hop_count`, and `truncation`. |
+| Settings | `RunTrail` section in the server settings, `docker/server/garrison.json`, Helm values, the k8s config map, the dashboard Settings page, and `docs/CONFIGURATION.md`. |
+
+### 6.4 Organization canvas sources
+
+`dashboard/src/utils/orgCanvasSource.js` defines the interface that `OrgCanvas` calls:
+
+- `load`, `addUnit`, `removeUnit`, `moveUnit`;
+- `setLead`, `addMember`, `removeMember`;
+- `connectUnits`, `disconnectUnits`;
+- `setBudget`;
+- `attachMandate`, `detachMandate`;
+- `validate`.
+
+There are two implementations:
+
+- `draftOrgSource` wraps the studio unit graph operations that exist today.
+- `workingTreeOrgSource` wraps the organization unit, budget, and mandate routes used by Organization detail today.
+
+The Publish button stays where publishing lives now: the org revision on Organization detail, and the draft release in the studio.
+
+---
+
+## 7. Route inventory
+
+Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new and changed routes only.
+
+| Route | User job | Roles | Backend | Table and filter needs | Actions and modals | Empty and error states |
+|---|---|---|---|---|---|---|
+| `/dashboard/runs/{id}?tab=trail` | Follow a request through every agent and back | Operator, admin, tenant admin, viewer | `GET .../runs/{id}/trail`, existing detail routes for the drawer | List view: LocalTableFrame with Columns; filters by kind, agent, state | Step drawer, Open record, Copy ID, Export JSON, Refresh, auto-refresh | Run has no hops (single run, shown as request and reply); truncated (banner naming the cap and a setting link); redacted steps (inline note); load failed (retry) |
+| `/dashboard/organizations/{id}?tab=design` | Design or change an organization visually | Admin, tenant admin, org editor | Organization unit, budget, mandate routes; change rule list | Canvas outline list (keyboard and narrow screens) | Unit panel tabs (People, Keepers, Budget, Rules), Validate, Publish revision, Discard working changes (confirm modal) | No units yet (start from a template or add the root unit); validation errors listed with links to the unit; read-only for viewers |
+| `/dashboard/organizations/{id}?tab=chart` | See how an organization is doing | All | Same, plus spend, latest reports, activity counts | None | Click a unit: its runs, its latest trail | No activity in range |
+| `/dashboard/studio/{draftId}` (organization view) | Design an organization in a draft | Admin, tenant admin, drafts | Studio draft operations (existing) | As above | As above, using draft operations | As today |
+| `/dashboard/learn` | Understand the concepts and how they relate | All | None (static, translated) | None | Diagram boxes link to pages and docs; Start tour buttons | Not applicable |
+| Every hub (`?` button) | Learn the hub's job in place | All | None | None | Start, Back, Next, Skip, Done | Tour target missing: the step is skipped with a note |
+
+---
+
+## 8. Work breakdown
+
+### Phase LP0: Plan wiring
+
+- [ ] LP0.1 Add AA13.17 to `AUTONOMOUS_AGENTS_PLAN.md`: "`LEARNABILITY_PLAN.md` complete (every LP task `[x]` or `[-]`)". AA13.15 depends on it. Update that plan's Progress Dashboard and its task total.  Accept: AA13.15 lists the dependency; totals add up.
+- [ ] LP0.2 `CLAUDE.md` names this plan next to the active plan, and `docs/REMAINING_PLAN_MATRIX.md` gains a row for it.  Accept: links resolve.
+
+### Phase LP1: Activity trail, server
+
+- [ ] LP1.1 Lineage inventory. For every way a run starts (REST invoke, A2A, MCP, conversation turn, trigger, keeper tick, message wake, escalation answer, fan-out, child, retry, pipeline stage, eval, shadow, canary), record which fields link it to its cause and whether the reply to the caller is recorded. Write the result as a table in `docs/TRAILS.md` (new). List every missing link as LP1.2 work.  Accept: one row per start path, each confirmed in code; gaps listed.
+- [ ] LP1.2 Schema, next free migration (61 or later):
+  - indexes for the trail's batched reads where they are missing (`runs(tenant_id, parent_run_id)`, `runs(tenant_id, root_run_id)`, `agent_messages(tenant_id, sender_run_id)`, `agent_messages(tenant_id, delivered_run_id)`, `reports(tenant_id, run_id)`, `escalations(tenant_id, raising_run_id)`, `effect_operations(tenant_id, run_id)`);
+  - any link column LP1.1 found missing, as a structured column, never JSON.
+
+  Accept: migrate-twice, tenant isolation, and backup coverage on both providers.
+- [ ] LP1.3 Enums and models from section 6.1, plus `RunTrailSettings` with clamped setters.  Accept: build is clean; XML docs state defaults and bounds.
+- [ ] LP1.4 Batched data-layer reads: `I*Methods` methods that take a tenant ID and an ID set, with Sqlite and Postgresql implementations, async with `CancellationToken`, and an `IEnumerable` method paired with its async variant where one is returned.  Accept: Touchstone cases on both providers.
+- [ ] LP1.5 `RunTrailService` per section 6.2, with LP-003 origin resolution, caps, dedupe, LP-004 filtering, and the `Reply` node. Freeze the JSON shape and commit `dashboard/src/tests/fixtures/runTrail.json` so LP2 can start.  Accept: the fixture matches the serialized model.
+- [ ] LP1.6 REST route in `RunTrailRoutes.cs` (a registrar class), with OpenAPI metadata, scope map entry, request history capture, and the run-token 403 (LP-010).  Accept: route cases for 200, 404, cross-tenant 404, and the run-token 403.
+- [ ] LP1.7 Management MCP tool `garrison_get_run_trail` with a typed `McpGetRunTrailArguments`, an input schema, `structuredContent`, and run-token hiding.  Accept: tool listed for a person's token and absent for a run token.
+- [ ] LP1.8 Telemetry and settings per section 6.3, including a panel on the runs Grafana dashboard.  Accept: metric names in `GarrisonMetricCatalog`; label cardinality checked by `LabelGuard`; settings documented.
+- [ ] LP1.9 Touchstone `RunTrailSuite` on both providers, registered in `GarrisonSuites.cs`. Cases:
+  - a plain invoke;
+  - a fan-out with three children and a retry;
+  - a message chain three hops deep with a reply;
+  - a loop of two agents messaging each other, which shows each record once and stops at the hop cap;
+  - an escalation answered by a person;
+  - a keeper tick origin;
+  - an approval;
+  - effects on and off;
+  - the node cap;
+  - redaction for a viewer without message read;
+  - cross-tenant 404;
+  - focus in the middle of a chain resolving to the origin.
+
+  Accept: targeted run passes on sqlite and postgresql.
+- [ ] LP1.10 SDKs: typed models and the method in all four, a live harness case each, and README sections.  Accept: `scripts/run-sdk-harnesses.sh` cases for the trail pass.
+- [ ] LP1.11 Docs and Postman:
+  - `REST_API.md` and `MCP_API.md` entries;
+  - `docs/TRAILS.md` (what a trail shows, origin rules, caps, redaction, why text is not in it);
+  - a Postman request with its description and variables;
+  - `scripts/check-api-docs.py` passes;
+  - Newman runs the new request.
+
+  Accept: all pass; doc reviewed for human voice.
+
+### Phase LP2: Activity trail, dashboard
+
+- [ ] LP2.1 API client method `getRunTrail(runId, { includeEffects })` and a `useRunTrail` hook that drives auto-refresh per LP-011.  Accept: vitest against the LP1.5 fixture.
+- [ ] LP2.2 Layout utility `utils/trailLayout.js`. Lanes are ordered by first appearance with the caller lane first. Rows follow time with collapsed idle gaps. Edges route between lanes. The utility is pure and unit tested for ordering, gap collapse, loops, and right-to-left mirroring.  Accept: vitest passes.
+- [ ] LP2.3 `TrailSequence.jsx`, an SVG sequence view:
+  - **Lanes:** headers show the agent name and unit; badges show the run kind (Shadow and Eval marked).
+  - **Edges:** arrows are labeled with their edge kind.
+  - **States:** colors pair with an icon and a text label.
+  - **Focus:** the focus run is highlighted and scrolled into view.
+  - **Placeholders:** redacted steps are drawn as a hatched box.
+  - **Interaction:** zoom and pan, plus keyboard navigation (arrow keys move between steps, Enter opens the drawer).
+
+  Accept: renders the fixture at 1366 wide without page scroll, and the axe check passes.
+- [ ] LP2.4 `TrailGraph.jsx`, a graph view on `@xyflow/react` with a time-layered layout. Nodes match the sequence view's styles. A minimap is shown above 25 nodes.  Accept: renders the fixture; shares styles with LP2.3.
+- [ ] LP2.5 `TrailList.jsx`, the list view. A LocalTableFrame (`tableId="run-trail"`) with Columns and saved page size, filters for kind, agent, and state, and a row click that opens the drawer. It is the only view below 768px (LP-005).  Accept: default columns fit at 1366; it is the only view at 390.
+- [ ] LP2.6 `TrailStepDrawer.jsx`:
+  - It loads the step's record from its existing detail route.
+  - Agent-written text is shown as data, with its source line ("written by agent X in run Y") inside a marked block and never rendered as raw HTML.
+  - Each step has links to its record page and Copy ID.
+
+  Accept: vitest covers a message, a report, an escalation, an effect, and a redacted step.
+- [ ] LP2.7 The Trail tab on Run detail, with three view tabs (sequence, graph, list), a summary strip, a truncation banner, an Export JSON button, and an empty state for a single run.
+  - The summary strip shows agents, hops, duration, tokens, cost, and failures.
+  - The truncation banner names the cap and links to the setting.
+
+  Accept: vitest for each state.
+- [ ] LP2.8 "Open trail" entry points:
+  - Run rows (action menu), Conversation detail turns, the Message thread, Escalation detail, Approval detail, Report detail, Keeper tick rows, and the board's activity items.
+  - Each opens the focus run's trail with the step selected.
+
+  Accept: each link has a vitest or e2e assertion.
+- [ ] LP2.9 i18n and tooltips for every new string in all nine locales, plus a right-to-left check of the sequence view.  Accept: missing-key and pseudo-locale checks pass.
+- [ ] LP2.10 e2e spec `trail.spec.js`. Start a two-agent message chain on the fake harness, open the trail from the first run, step through it with the keyboard, and open a message in the drawer. Not run by default per the targeted-test rule. The annotation records whether it ran.  Accept: spec committed; targeted run recorded.
+
+### Phase LP3: Organization designer
+
+- [ ] LP3.1 `orgCanvasSource` interface and `draftOrgSource` (section 6.4). Refactor `OrgCanvas` to call the interface with no change in behavior.  Accept: existing studio canvas vitests pass unchanged.
+- [ ] LP3.2 `workingTreeOrgSource` over the organization unit routes, and a Design tab on Organization detail that hosts the canvas. `OrgChartTree` stays as the Chart tab's read-only view and as the editor below 768px (LP-006).  Accept: add a unit, set a lead, add a member, connect peers, and remove a unit on a published organization's working tree, then publish a revision.
+- [ ] LP3.3 People palette: a searchable side list of agents. Drag an agent onto a unit to add it as a member, or onto the lead slot to make it the lead, with a keyboard equivalent (pick an agent, then pick a unit). A New agent action opens the existing agent form and drops the result into the unit.  Accept: vitest for drag and for the keyboard path.
+- [ ] LP3.4 Keepers tab in the unit panel. It lists each member's mandates with their wake schedule. Attach an existing mandate, create one with the existing mandate form (prefilled with the agent), and edit its wake schedule. A keeper badge on the member chip shows the next wake.  Accept: create a keeper from the canvas and see it on the Keepers page.
+- [ ] LP3.5 Budget tab in the unit panel. It shows the unit budget with spend so far and the parent's remaining headroom, and edits it through the existing route. A budget above the parent's is refused inline with the server's reason.  Accept: vitest for the refusal.
+- [ ] LP3.6 Rules tab in the unit panel (LP-007). It lists the change rules that match the unit, each with its class and approvals, and an Add rule action opens the existing rule editor scoped to this unit. For a run token context the tab is read-only with the reason shown.  Accept: vitest; no rule is ever written through a draft operation.
+- [ ] LP3.7 Live validation. The canvas calls `validate` after each change and lists problems with links to the unit. Problems include a unit without a lead, an agent in two units, a peer line to a missing unit, a budget over the parent's, a keeper whose deployment is missing, and a unit with no path to the root. Validation uses the server's publish checks through a dry-run route if one does not exist yet (add it under LP3.7a with scope map, OpenAPI, Postman, docs, and Touchstone cases).  Accept: each problem shows in the list and clears when fixed.
+- [ ] LP3.8 Templates. Start a new organization from Blank, Gerbil (one keeper), or Site reliability (the `examples/autonomous/site-reliability-org` shape), using the existing manifest apply. The result opens in the Design tab.  Accept: each template applies on a fresh tenant and validates clean.
+- [ ] LP3.9 Read-only overlays on the canvas for the Chart tab above 768px:
+  - each unit's health from its latest report, spend against budget, and runs and messages in the selected range;
+  - clicking a unit lists its recent runs, each with Open trail.
+
+  Accept: overlays match the numbers on the Budgets tab and on Runs filtered by unit.
+- [ ] LP3.10 Canvas polish:
+  - auto layout, a minimap above 12 units, and fit to screen;
+  - undo of the last change (sent as the inverse operation), with redo;
+  - a visible focus ring and keyboard parity for every new action;
+  - i18n and tooltips in nine locales.
+
+  Accept: vitest for undo and redo; axe check passes.
+- [ ] LP3.11 Docs: `docs/ORGANIZATIONS.md` and `docs/STUDIO.md` describe the designer with screenshots from both themes, and the e2e spec `orgDesigner.spec.js` builds the site reliability shape from Blank.  Accept: docs reviewed for human voice; spec committed; targeted run recorded.
+
+### Phase LP4: Guided learning
+
+- [ ] LP4.1 Diagram kit: `components/learn/Diagram.jsx` with box, group, arrow, and label primitives that draw SVG from CSS tokens, mirror in right-to-left layout, wrap translated labels, and link a box to a route. Every diagram carries a text alternative (`<desc>` plus a visible "Show as list" toggle).  Accept: vitest for mirroring and wrapping at German length.
+- [ ] LP4.2 Seven diagrams drawn with the kit:
+  1. **The runtime:** tenant, harness profile, credential, node pool, node, agent, deployment, run.
+  2. **A request's life:** caller, REST, MCP or A2A, run admission (freezes, budgets), lease, worker, harness, events, reply.
+  3. **Autonomy building blocks:** mandate, keeper, wake schedule, tick, run, memory, report, escalation.
+  4. **Teams:** mailboxes, wake-on-message, loop guards.
+  5. **An organization:** units, leads, members, peer lines, budgets, chain of command, published revisions.
+  6. **Self-revision:** executive, draft, `ExecutiveDraftValidator` hard limits, change rules, eval, shadow, canary, apply, revert.
+  7. **Brakes:** freeze, spend cap, kill switch, org budget guard, Cancel everything.
+
+  Every box links to its page and its doc.  Accept: each diagram reviewed against the code paths named in `docs/ARCHITECTURE.md`; light and dark screenshots.
+- [ ] LP4.3 The Learn page `/dashboard/learn`, in the sidebar's utility group next to Guided tour. It has the diagrams in learning order, one short paragraph each, a Start tour button per section, and a glossary that uses the same words as the docs vocabulary. `Explainer` panels gain a "See the diagram" link to their section.  Accept: route in nav; vitest for the page; reviewed for human voice.
+- [ ] LP4.4 `scripts/export-diagrams.mjs` renders each diagram to an English SVG in `docs/images/learn/`, and `docs/ARCHITECTURE.md`, `docs/ORGANIZATIONS.md`, `docs/EXECUTIVES.md`, and `docs/BRAKES.md` embed them.  Accept: images render on GitHub in both themes.
+- [ ] LP4.5 Tour engine per LP-009:
+  - **Definitions:** tour definitions live in `config/tours.js`.
+  - **Steps:** each step can navigate to a route; the engine waits for the target (default timeout 3 seconds, a setting in `constants`) and skips a missing target with a note.
+  - **Persistence:** completion is saved per tour per user, with replay from the Learn page and the sidebar.
+  - **Accessibility:** focus moves into the step card and the card has a visible focus ring. `prefers-reduced-motion` turns off the scroll animation, and Escape closes the tour.
+
+  The existing shell tour becomes the "First look" tour on the new engine.  Accept: vitest for navigation, waiting, skipping, and persistence.
+- [ ] LP4.6 Sample data. When a tour needs records the tenant does not have, it offers to load the gerbil example (and the site reliability example for the organization tours) through the existing manifest apply, with a confirm modal that says what will be created.  Accept: the offer appears on an empty tenant and not on a populated one.
+- [ ] LP4.7 Six tours, each three to seven steps:
+  - **First look** (the shell).
+  - **Run an agent:** harness profile, agent, deployment, Invoke, Run detail, Trail.
+  - **Follow a request:** the Trail tab's three views and the drawer.
+  - **Build a team:** the Design tab, palette, Keepers, Budget, publish.
+  - **Keep it safe:** freezes, spend caps, kill switch, change rules, approvals.
+  - **Watch an organization:** the board, performance, reports, escalations.
+
+  Each hub's "?" button starts the tour that covers it.  Accept: each tour walks to the end on a fresh tenant with sample data.
+- [ ] LP4.8 First run. The setup wizard's last step offers the Learn page and the Run an agent tour. A new user who skips the wizard sees one dismissible Home card pointing to Learn, and the dismissal is saved per user.  Accept: vitest.
+- [ ] LP4.9 i18n and tooltips for diagrams, the Learn page, and all tours in nine locales, with a right-to-left check of two diagrams.  Accept: missing-key and pseudo-locale checks pass.
+- [ ] LP4.10 One e2e spec per tour in `dashboard/tests/e2e/tours/`, each asserting every step's target is visible. The annotation records which specs were run (targeted).  Accept: specs committed.
+
+### Phase LP5: UX pass 1, design review of the whole dashboard
+
+This pass covers every route, not only the new ones. It asks two questions of each one: does it look good, and does it make sense? Nothing is fixed during the review (LP-012).
+
+- [ ] LP5.1 Capture. Stand up a seeded instance with the gerbil and site reliability examples, runs, a three-hop message chain, an escalation, a canary, and an eval. Extend `dashboard/tests/audit/tableWidths.mjs` into `dashboard/tests/audit/capture.mjs`, which screenshots every route, tab, detail page, and modal opened from a row action. It captures:
+  - 1366x768, 1280x800, 768x1024, and 390x844;
+  - light and dark;
+  - English and German, plus Japanese at 1366.
+
+  It also captures the loading, empty, and error states using mocked responses where the live instance cannot produce them. Record the environment (commit, image tags, ports) at the top of `docs/testing/UX_PASS_1.md`.  Accept: a coverage matrix of route by viewport by theme by locale, with every cell captured or a stated reason.
+- [ ] LP5.2 Visual review against the visual parts of `DASHBOARD_STYLE_AND_USABILITY.md` (Look and Feel, Controls, Data Tables, Responsive, Accessibility, Error and Empty States), done by a reviewer who did not build LP1 to LP4. It checks:
+  - spacing, alignment, and type scale;
+  - visual hierarchy, and nested card clutter;
+  - contrast in both themes;
+  - clipped or overlapping text;
+  - consistent badges and icons;
+  - diagram legibility;
+  - canvas and trail density at 15, 50, and 200 nodes;
+  - focus rings.
+
+  Accept: findings `UXP1-nnn` with severity, route, viewport, theme, screenshot, and the expected and actual results.
+- [ ] LP5.3 Sense-making review by a second reviewer who reads only the dashboard and the docs. For each route:
+  - Does it answer the three questions in "Product Standard"?
+  - Are labels and terms the ones the docs and the Learn page use?
+  - Is the next step obvious from each empty state?
+  - Do links between related records exist both ways?
+  - Do the tours and diagrams match what the pages actually do?
+
+  The reviewer also walks the six tours.  Accept: findings appended to `UX_PASS_1.md` in the same format.
+- [ ] LP5.4 Triage. Show the user a ranked summary, ask which findings to fix, and record each decision (fix, defer with reason, decline) in the report.  Accept: every finding has a decision from the user.
+- [ ] LP5.5 Fix and verify. Fix the approved findings in grouped commits, recapture the affected cells, and attach before and after screenshots to each finding.  Accept: every approved finding verified; lint, build, and targeted vitests pass.
+
+### Phase LP6: UX pass 2, simulated users on a fresh instance
+
+This pass follows `~/Code/Agents/requirements/SIMULATED_USER_TESTING.md` in full: observe, record evidence, and let the user decide. It runs on an instance built from the docs on a clean compose project (`garrison-usertest`), never the development stack.
+
+- [ ] LP6.1 Stand up from the docs exactly as written, through Docker Compose and through the minikube overlay. Time a first-time evaluator from a clean checkout to their first trail, and record every point where the docs were wrong or incomplete. Record the environment at the top of `docs/testing/UX_PASS_2.md`.  Accept: environment recorded; time to first trail recorded.
+- [ ] LP6.2 Journeys by persona, each run only through the dashboard and the docs:
+  - **First-time evaluator:** wizard, Learn page, Run an agent tour, first trail.
+  - **Organization designer:** builds the site reliability shape from Blank in the Design tab, adds keepers and budgets, adds a change rule, and publishes.
+  - **Operator investigating a failure:** a request into the organization fails two hops in; find it from Home, open the trail, find the failing step and its cause, and freeze the unit.
+  - **Restricted viewer:** sees the trail with redacted steps, cannot edit the canvas, and gets clear reasons.
+  - **Careless user:** drags members into loops, deletes a unit with keepers, closes the tab mid-tour, and resizes to 390 mid-canvas.
+
+  Accept: a coverage matrix of journey by persona, each covered or with a stated reason.
+- [ ] LP6.3 Whole-dashboard look and sense recheck. Rerun `capture.mjs` on the fresh instance and review every route again after the LP5 fixes, because a fix in one place often moves a problem to another.  Accept: findings `UXP2-nnn` appended with evidence.
+- [ ] LP6.4 Triage with the user. Present a ranked summary and record a decision for every finding.  Accept: every finding has a decision.
+- [ ] LP6.5 Fix and verify the approved findings by rerunning their steps on a fresh instance, then tear the instance down (or record what was left running and why).  Accept: the Definition of Done in `SIMULATED_USER_TESTING.md` holds.
+
+### Phase LP7: Release integration
+
+- [ ] LP7.1 The `CHANGELOG.md` `[0.3.0]` section gains Activity trail, Organization designer, and Learn page and tours entries, written for people.  Accept: user review (folds into AA13.13).
+- [ ] LP7.2 `README.md` and `DOCKERHUB_README.md` mention the trail and the designer, and `docs/README.md` links `docs/TRAILS.md` and the Learn diagrams.  Accept: links resolve.
+- [ ] LP7.3 Rerun AA13.9 (dashboard lint, build, tests, visual QA summary) and AA13.10 (the i18n gate) for the new views, and annotate both AA tasks.  Accept: both annotated with this plan's commits.
+- [ ] LP7.4 Website (`~/Websites/usegarrison.ai`): the autonomy page shows the trail and designer screenshots, and the site builds.  Accept: `npm run build` passes; user reviews.
+- [ ] LP7.5 Rebuild local images (`./build-all.sh`), restart the compose stack, and hand the operator a short checklist for the AA13.15 test that now includes a trail and the designer. Mark every LP task `[x]` or `[-]` and set LP0.1's AA13.17 to done.  Accept: stack healthy; checklist given; this plan complete.
+
+---
+
+## 9. Security and RBAC
+
+- **Tenant scope:** every trail read filters by the tenant ID from `RequestContext`, and a cross-tenant run answers 404. Batched reads carry the tenant ID in every query.
+- **Read permissions:** each node is checked against the caller's read permission for its resource type, and unreadable nodes become `Redacted` placeholders (LP-004). The redaction rules are tested as part of LP1.9.
+- **Run tokens:** they get 403 on the route, and the MCP tool is hidden from them (LP-010). The trail adds no mutation, so the effect journal rule (AA-026) is untouched.
+- **Agent-written text (AA-025):** the trail response never carries it (LP-002). The drawer shows it as data with provenance, inside a marked block, escaped, never as HTML. Audit records name trail reads by run ID only.
+- **The designer** writes through the same routes and permissions as today. It adds no new write path for runs, and change rules stay people-only (LP-007, AA-023). Nothing in this plan touches `ExecutiveDraftValidator` or the hard limits of AA-022.
+- **Sample data:** loading the examples uses the existing manifest apply permission. The confirm modal names everything that will be created.
+
+---
+
+## 10. Risks and open questions
+
+**Risks:**
+
+- **Trail size in busy organizations.** A keeper-driven organization can produce thousands of hops in a day. The caps and the truncation banner handle the worst case. If LP6 shows real trails hitting the cap often, the follow-up is paging the forward walk, not raising the default.
+- **The reply leg may not be recorded for every path.** LP1.1 exists to find out. Where the reply is not recorded (for example an A2A task that the caller polls), the trail ends at the root run's terminal state, and `docs/TRAILS.md` says so.
+- **Canvas refactor regressions.** LP3.1 is a no-behavior-change refactor that must pass the existing studio tests first. Nothing else in LP3 starts before it lands.
+- **Tour rot.** Every tour has an e2e spec keyed to `data-tour` attributes. A failing spec is a release blocker for the tour, not a reason to delete the step.
+- **Release date.** This plan adds about 59 tasks before AA13.15. The phases are ordered so that the trail alone (LP1, LP2) is shippable if the user decides to cut the rest, with LP5 and LP6 then run over what shipped.
+
+**Open questions (ask the user when the phase starts):**
+
+1. LP1.1: if the A2A reply is not recorded, should LP1.2 add it, or should the trail end at the run?
+2. LP3.8: are Gerbil and Site reliability the right templates, or does the user want a third (for example a two-person support team)?
+3. LP4.3: should the Learn page sit in the sidebar's utility group or at the top of navigation for new tenants?
