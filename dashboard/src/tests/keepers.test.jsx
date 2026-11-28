@@ -225,6 +225,32 @@ describe('keeper list configuration', () => {
     expect(ctx.navigate).toHaveBeenCalledWith('/dashboard/runs?mandateId=mdt_0001');
   });
 
+  it('saves the agent and deployment the form shows when they were never picked (UXP1-S003)', () => {
+    const options = {
+      agents: [{ id: 'agt_1', name: 'research-flaky' }, { id: 'agt_2', name: 'other' }],
+      deployments: [
+        { id: 'dep_1', name: 'research-flaky-fake', agentId: 'agt_1' },
+        { id: 'dep_2', name: 'other-fake', agentId: 'agt_2' }
+      ]
+    };
+    // The designer opens the form with the agent filled in and the deployment empty; the select shows dep_1.
+    const filled = keepersConfig.withOptions({ ...keepersConfig.blank(), agentId: 'agt_1' }, options);
+    expect(filled).toMatchObject({ agentId: 'agt_1', deploymentId: 'dep_1' });
+    expect(keepersConfig.withOptions(keepersConfig.blank(), options)).toMatchObject({ agentId: 'agt_1', deploymentId: 'dep_1' });
+    // Changing the agent leaves another agent's deployment behind; the check and the body use the one shown.
+    const stale = { ...keepersConfig.blank(), name: 'k', objective: 'Watch.', agentId: 'agt_2', deploymentId: 'dep_1' };
+    expect(keepersConfig.validate(stale, t, { options }).deploymentId).toBeUndefined();
+    expect(keepersConfig.toBody(stale, 'create', { options }).deploymentId).toBe('dep_2');
+    // An agent with no active deployment still needs one.
+    expect(keepersConfig.validate({ ...stale, agentId: 'agt_3' }, t, { options: { ...options, agents: [...options.agents, { id: 'agt_3', name: 'x' }] } }).deploymentId).toBe('Choose the deployment its ticks run on.');
+  });
+
+  it('says which keeper budgets are enforced (UXP1-S002)', () => {
+    expect(t('resources.keepers.sectionHints.budgets')).toContain('Both dollar budgets are enforced');
+    expect(t('resources.keepers.sectionHints.budgets')).not.toContain('later release');
+    expect(t('resources.keepers.hints.maxTokensPerTick')).toContain('not enforced yet');
+  });
+
   it('disables the add button, Edit, Delete, and the Execute actions for a viewer (UT-03)', () => {
     const lookups = { permissions: { grants: [{ resourceTypes: ['All'], operations: ['Read'], permissionType: 'Permit' }] } };
     const viewer = { ...ctx, lookups };

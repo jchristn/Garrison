@@ -38,6 +38,24 @@ const safeList = (promise) => promise.then((r) => r.items || []).catch(() => [])
 const when = (value, lng) => (value ? <span {...tip(formatDateTime(value, lng))}>{formatRelativeTime(value, lng)}</span> : '-');
 const enumOpts = (t, group, values) => values.map((v) => ({ value: v, label: enumLabel(t, group, v) }));
 
+/**
+ * The keeper form with the agent and deployment the form shows (UXP1-S003). A required select with no matching value
+ * shows its first option, so a form whose agent or deployment is empty, or whose deployment belongs to another agent
+ * after the agent changed, displays a choice it does not hold. This fills in exactly what is displayed: the agent when
+ * empty (create only), and the agent's first active deployment when the one held is not among the agent's deployments.
+ * Without options loaded the form is answered unchanged.
+ */
+export function keeperWithShownChoices(d, options, mode = 'create') {
+  if (!d || !options || !Array.isArray(options.deployments)) return d;
+  const agents = options.agents || [];
+  const all = options.deployments;
+  let agentId = d.agentId || '';
+  if (mode === 'create' && !agents.some((a) => a.id === agentId) && agents.length) agentId = agents[0].id;
+  const mine = all.filter((x) => !agentId || x.agentId === agentId);
+  const deploymentId = mine.some((x) => x.id === d.deploymentId) ? d.deploymentId : mine[0]?.id || '';
+  return agentId === d.agentId && deploymentId === d.deploymentId ? d : { ...d, agentId, deploymentId };
+}
+
 /** Run Pause, Resume, or Wake now on a keeper and report the result as a toast. */
 async function perform(ctx, record, action) {
   const { t } = ctx;
@@ -139,10 +157,11 @@ export const keepersConfig = {
     return { agents: agents.filter((a) => a.kind !== 'Remote'), deployments: deployments.filter((x) => x.active !== false) };
   },
   blank: () => blankKeeper(),
+  withOptions: (d, opts) => keeperWithShownChoices(d, opts, 'create'),
   toForm: (r) => keeperToForm(r),
   toDuplicate: (r) => keeperDuplicate(r),
-  toBody: (d, mode) => keeperToBody(d, mode),
-  validate: (d, t) => keeperErrors(d, t, d?.id ? 'edit' : 'create'),
+  toBody: (d, mode, ctx) => keeperToBody(keeperWithShownChoices(d, ctx?.options, mode), mode),
+  validate: (d, t, ctx) => keeperErrors(keeperWithShownChoices(d, ctx?.options, d?.id ? 'edit' : 'create'), t, d?.id ? 'edit' : 'create'),
   // 409 NameConflict belongs on the name field with keeper wording (the shared text describes capabilities).
   errorFields: (e, t) => (e?.code === 'NameConflict' ? { name: t(`resources.${ID}.errors.nameTaken`) } : null),
   columns: ({ t, i18n, lookups }) => {
