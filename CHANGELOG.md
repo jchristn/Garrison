@@ -94,6 +94,7 @@ The autonomous agents release, tracked in `AUTONOMOUS_AGENTS_PLAN.md` (task IDs 
 - Docs (LP1.11): `docs/TRAILS.md` explains how to read an activity trail: what it shows, where it starts, the `RunTrail.*` caps, redaction, why run tokens are refused and agent text is left out, the dashboard views, and the organization validate route. `REST_API.md` documents both routes and `MCP_API.md` the `garrison_get_run_trail` tool. The Postman collection gains trail requests in Runs and validate requests in Organizations.
 - Entry surface (LP1.12, LP-013): every run records how it came in (`entrySurface`: `Rest`, `Mcp`, `A2a`, `App`, `Trigger`, `Keeper`, `Message`, `Escalation`, `Eval`, `Shadow`, or `Internal`), schema version 62. The activity trail shows it on the Caller node and on runs that start a leg of the work, and the dashboard's sequence view shows it on the caller's step. The dashboard calls the REST API, so its runs are `Rest`. The SDK `Run` and trail node models carry it.
 - Shadow link (LP1.13, LP-014): a shadow copy records the live run it copies (`shadowOfRunId`, schema version 63), and the activity trail draws a `Shadowed` edge from the live run to each copy, so a copy's trail starts where the live run's did.
+- Escalation answers in the trail (LP1.14, LP-015): an answered non-blocking escalation now leads, with an `Answered` edge, to the keeper tick that received the answer and to that tick's run.
 
 ### Fixed
 

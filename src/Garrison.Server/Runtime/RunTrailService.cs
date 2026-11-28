@@ -343,7 +343,16 @@ namespace Garrison.Server.Runtime
             List<Escalation> escalations = await _Database.Escalations.ListByRaisingRunsAsync(tenantId, ids, limit, token).ConfigureAwait(false);
             List<Approval> approvals = await _Database.Approvals.ListByRunsAsync(tenantId, ids, limit, token).ConfigureAwait(false);
 
-            List<string> targets = sent.Select(m => m.DeliveredRunId).Concat(escalations.Select(e => e.RoutedRunId))
+            // A non-blocking escalation's answer reaches the raising agent in a later keeper tick (LP-015).
+            List<string> answerTickIds = escalations.Where(e => e.Status == EscalationStatusEnum.Answered && e.Mode == EscalationModeEnum.NonBlocking && !String.IsNullOrEmpty(e.DeliveredTickId))
+                .Select(e => e.DeliveredTickId!).Distinct(StringComparer.Ordinal).ToList();
+            Dictionary<string, MandateTick> answerTicks = new Dictionary<string, MandateTick>(StringComparer.Ordinal);
+            if (answerTickIds.Count > 0)
+            {
+                foreach (MandateTick tick in await _Database.MandateTicks.ListByIdsAsync(tenantId, answerTickIds, token).ConfigureAwait(false)) answerTicks[tick.Id] = tick;
+            }
+
+            List<string> targets = sent.Select(m => m.DeliveredRunId).Concat(escalations.Select(e => e.RoutedRunId)).Concat(answerTicks.Values.Select(t => t.RunId))
                 .Where(id => !String.IsNullOrEmpty(id) && !walk.Runs.ContainsKey(id!)).Select(id => id!).Distinct(StringComparer.Ordinal).ToList();
             foreach (Run run in await _Database.Runs.ListByIdsAsync(tenantId, targets, token).ConfigureAwait(false)) walk.Runs[run.Id] = run;
 
@@ -449,6 +458,24 @@ namespace Garrison.Server.Runtime
                 if (escalation.Status == EscalationStatusEnum.Answered && escalation.Mode == EscalationModeEnum.Blocking)
                 {
                     walk.Link(escalation.Id, escalation.RaisingRunId, RunTrailEdgeKindEnum.Answered, escalation.ResolvedUtc);
+                }
+                else if (escalation.Status == EscalationStatusEnum.Answered && !String.IsNullOrEmpty(escalation.DeliveredTickId) && answerTicks.TryGetValue(escalation.DeliveredTickId, out MandateTick? answerTick))
+                {
+                    // The tick that received the answer, and its run, are shown but not followed: the tick's run has
+                    // the tick as its own origin.
+                    if (walk.DepthOf(escalation.RaisingRunId) + 1 > maxHops && !walk.Has(answerTick.Id))
+                    {
+                        walk.Truncate(RunTrailTruncationEnum.HopCap);
+                        continue;
+                    }
+                    Run? tickRun = !String.IsNullOrEmpty(answerTick.RunId) && walk.Runs.TryGetValue(answerTick.RunId, out Run? tr) ? tr : null;
+                    if (!walk.Add(AnswerTickNode(answerTick, tickRun))) continue;
+                    walk.Link(escalation.Id, answerTick.Id, RunTrailEdgeKindEnum.Answered, escalation.ResolvedUtc ?? answerTick.StartedUtc);
+                    if (tickRun != null)
+                    {
+                        walk.SetDepth(tickRun.Id, walk.DepthOf(escalation.RaisingRunId) + 1);
+                        if (walk.Add(RunNode(tickRun, focusId), tickRun.Id == focusId)) walk.Link(answerTick.Id, tickRun.Id, RunTrailEdgeKindEnum.Started, Start(tickRun));
+                    }
                 }
             }
 
@@ -591,6 +618,21 @@ namespace Garrison.Server.Runtime
             {
                 node.StartedUtc = stage.CreatedUtc;
             }
+            return node;
+        }
+
+        private static RunTrailNode AnswerTickNode(MandateTick tick, Run? run)
+        {
+            RunTrailNode node = new RunTrailNode();
+            node.Id = tick.Id;
+            node.Kind = RunTrailNodeKindEnum.KeeperTick;
+            node.Lane = RunTrailNode.CallerLane;
+            node.AgentId = run?.AgentId;
+            node.AgentName = run?.AgentName;
+            node.State = tick.Outcome?.ToString();
+            node.StartedUtc = tick.StartedUtc;
+            node.EndedUtc = tick.FinishedUtc;
+            node.DurationMs = Duration(node.StartedUtc, node.EndedUtc);
             return node;
         }
 

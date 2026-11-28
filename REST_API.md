@@ -2981,7 +2981,7 @@ A run that a person invoked directly, with no child runs or messages:
 | `Delivered` | A message to a run that was already running and read it from its inbox |
 | `Filed` | A run to a report it filed |
 | `Raised`, `Routed` | A run to the escalation it raised, and the escalation to the run it was routed to |
-| `Answered` | An escalation back to the blocked run it answered |
+| `Answered` | An escalation back to the blocked run it answered, or, for a non-blocking escalation, to the keeper tick that received the answer (that tick's run follows with `Started`) |
 | `Requested`, `Decided` | A run to the approval it asked for, and the approval once decided |
 | `Performed` | A run to an effect journal entry |
 | `Replied` | The first run to the `Reply` node, when a person or API caller started it directly and it has finished |

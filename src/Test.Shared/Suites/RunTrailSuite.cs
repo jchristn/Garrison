@@ -56,6 +56,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "message-chain", "A message chain three hops deep resolves to the caller from the middle and the end, with hopCount 3, Sent and Woke edges, and a reply (" + provider + ")", ct => MessageChainAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "message-loop", "Two agents messaging each other show each record once and stop at RunTrail.MaxMessageHops with HopCap (" + provider + ")", ct => LoopAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "escalation", "A blocking escalation answered by a person: Raised and Answered edges, no question or answer text (" + provider + ")", ct => EscalationAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "escalation-answer-tick", "A non-blocking escalation answered by a person leads, with an Answered edge, to the keeper tick that received the answer and that tick's run, without answer or summary text (" + provider + ")", ct => EscalationAnswerTickAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "keeper-tick", "A keeper tick run has the KeeperTick as its origin and no reply; unit names come from the live organization (" + provider + ")", ct => KeeperTickAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "approval", "An approval shows as Requested and Decided (" + provider + ")", ct => ApprovalAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "effects", "Effect journal entries appear with their tool name only, and includeEffects=false leaves them out (" + provider + ")", ct => EffectsAsync(provider, ct)));
@@ -236,6 +237,54 @@ namespace Test.Shared.Suites
                 Assert.True(fromShadow.OriginId == "usr_shadow" && fromShadow.FocusRunId == shadow.Id && Has(fromShadow, live.Id, shadow.Id, RunTrailEdgeKindEnum.Shadowed), "From the copy, the trail starts at the live run's caller: " + Serializer.Serialize(fromShadow));
                 Assert.True(fromShadow.Nodes.Count(n => n.Id == shadow.Id) == 1 && Run(fromShadow, shadow.Id).IsFocus, "The copy is shown once, as the focus");
                 Assert.Equal("Shadowed", Serializer.Deserialize<Dictionary<string, object?>>(Serializer.Serialize(fromShadow.Edges.Single(e => e.Kind == RunTrailEdgeKindEnum.Shadowed)))!["kind"]?.ToString(), "The edge kind serializes as a string");
+            }
+        }
+
+        private static async Task EscalationAnswerTickAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                DatabaseDriverBase db = host.Server.Context.Database;
+                Agent agent = await OrganizationSuite.AgentAsync(host, "trail-esc-tick", token).ConfigureAwait(false);
+                Run raising = await RunAsync(host, agent, null, RunKindEnum.Invoke, RunStatusEnum.Succeeded, token).ConfigureAwait(false);
+                MandateTick tick = await db.MandateTicks.CreateAsync(new MandateTick { TenantId = host.TenantId, MandateId = "mdt_esc_tick", Summary = "SECRET-SUMMARY", Outcome = TickOutcomeEnum.Acted, FinishedUtc = DateTime.UtcNow.AddSeconds(30) }, token).ConfigureAwait(false);
+                Run tickRun = OrganizationSuite.RunOf(host, agent);
+                tickRun.Kind = RunKindEnum.Keeper;
+                tickRun.MandateId = "mdt_esc_tick";
+                tickRun.MandateTickId = tick.Id;
+                tickRun.Status = RunStatusEnum.Succeeded;
+                tickRun.EntrySurface = EntrySurfaceEnum.Keeper;
+                await db.Runs.CreateAsync(tickRun, token).ConfigureAwait(false);
+                tick.RunId = tickRun.Id;
+                await db.MandateTicks.UpdateAsync(tick, token).ConfigureAwait(false);
+                Escalation escalation = new Escalation
+                {
+                    TenantId = host.TenantId, RaisingRunId = raising.Id, AgentId = agent.Id, AgentName = agent.Name, Mode = EscalationModeEnum.NonBlocking,
+                    Question = "SECRET-QUESTION", Status = EscalationStatusEnum.Answered, AnswerText = "SECRET-ANSWER", ResolvedBy = "ops@example.com",
+                    ResolutionSource = EscalationResolutionSourceEnum.User, ResolvedUtc = DateTime.UtcNow.AddSeconds(5), DeliveredTickId = tick.Id
+                };
+                await db.Escalations.CreateAsync(escalation, token).ConfigureAwait(false);
+
+                RunTrail trail = await host.Server.Context.Get<RunTrailService>().BuildAsync(OrganizationSuite.Admin(host), host.TenantId, raising.Id, null, token).ConfigureAwait(false);
+                string json = Serializer.Serialize(trail);
+                Assert.True(Has(trail, raising.Id, escalation.Id, RunTrailEdgeKindEnum.Raised) && Has(trail, escalation.Id, tick.Id, RunTrailEdgeKindEnum.Answered), "Raised, then Answered into the tick: " + json);
+                Assert.True(!Has(trail, escalation.Id, raising.Id, RunTrailEdgeKindEnum.Answered), "A non-blocking answer does not go back to the raising run");
+                RunTrailNode tickNode = trail.Nodes.Single(n => n.Id == tick.Id);
+                Assert.True(tickNode.Kind == RunTrailNodeKindEnum.KeeperTick && tickNode.State == "Acted" && tickNode.Lane == "caller", "The tick node: " + json);
+                Assert.True(Has(trail, tick.Id, tickRun.Id, RunTrailEdgeKindEnum.Started) && Run(trail, tickRun.Id).RunKind == RunKindEnum.Keeper, "The tick started its run");
+                Assert.True(!json.Contains("SECRET-", StringComparison.Ordinal), "No question, answer, or summary text");
+
+                // Not yet delivered: the escalation is answered but no tick has it, so the trail stops at the escalation.
+                Run other = await RunAsync(host, agent, null, RunKindEnum.Invoke, RunStatusEnum.Succeeded, token).ConfigureAwait(false);
+                Escalation waiting = new Escalation
+                {
+                    TenantId = host.TenantId, RaisingRunId = other.Id, AgentId = agent.Id, AgentName = agent.Name, Mode = EscalationModeEnum.NonBlocking,
+                    Question = "Q", Status = EscalationStatusEnum.Answered, AnswerText = "A", ResolvedBy = "ops@example.com",
+                    ResolutionSource = EscalationResolutionSourceEnum.User, ResolvedUtc = DateTime.UtcNow
+                };
+                await db.Escalations.CreateAsync(waiting, token).ConfigureAwait(false);
+                RunTrail pending = await host.Server.Context.Get<RunTrailService>().BuildAsync(OrganizationSuite.Admin(host), host.TenantId, other.Id, null, token).ConfigureAwait(false);
+                Assert.True(!pending.Edges.Any(e => e.FromId == waiting.Id && e.Kind == RunTrailEdgeKindEnum.Answered) && !pending.Nodes.Any(n => n.Kind == RunTrailNodeKindEnum.KeeperTick), "An undelivered answer has no tick yet");
             }
         }
 

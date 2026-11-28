@@ -105,7 +105,7 @@ The table below lists every way a run starts, the fields that tie the run to its
 | Message wake | `MessageService` | `Kind` `Message`; each delivered message holds `DeliveredRunId` and `WokeRecipient`, and its `SenderRunId` names the run that sent it (null when a person sent it). `CallerName` is `message:<id>` | Walks back through `SenderRunId` to the sender's origin; a person who sent the message is the Caller | Not applicable |
 | Message read by a running run | `garrison_read_inbox` | the message's `DeliveredRunId` with `WokeRecipient` false | The run keeps its own origin; the trail shows a `Delivered` edge and does not follow it | Not applicable |
 | Escalation to an agent | `EscalationService.RouteCoreAsync` | an urgent message with `EscalationId` and `SenderRunId` = the raising run, delivered as a message wake; the escalation holds `RoutedRunId`. Without messaging, a run with `CallerName` `escalation:<id>` and the escalation's `RoutedRunId` | Walks back through the message, or through `RoutedRunId` to `RaisingRunId` | Not applicable |
-| Escalation answer | `EscalationService.AfterResolvedAsync` | Blocking: the raising run (its `EscalationId`) resumes; no new run. Non-blocking: the answer goes into the next keeper tick's input (`DeliveredTickId`) | Blocking: an `Answered` edge back to the raising run. Non-blocking: not linked in the trail yet (see gaps) | Not applicable |
+| Escalation answer | `EscalationService.AfterResolvedAsync` | Blocking: the raising run (its `EscalationId`) resumes; no new run. Non-blocking: the answer goes into the next keeper tick's input (`DeliveredTickId`) | Blocking: an `Answered` edge back to the raising run. Non-blocking: an `Answered` edge to the tick in `DeliveredTickId`, and a `Started` edge from it to the tick's run (since LP1.14) | Not applicable |
 | Child run (`garrison_invoke_agent` from a run) | `AgentInvoker` | `ParentRunId`, `RootRunId`, `Depth`, `CallChain`; `Kind` `Delegated`; the parent's `ChildWaitRequest` | Walks back through `ParentRunId` | The child's result goes back to the parent as the tool result; it is the child's own record |
 | Fan-out member | `FanOutService` | `ParentRunId`, `RootRunId`, `FanOutGroupId`; the group holds `ParentRunId` and each member's `ChildRunId` | Walks back through `ParentRunId` | The parent reads results with `garrison_gather` |
 | Retry | `RunService.RetryAsync` | `RetryOfRunId`, `Kind` `Retry`, `Attempt` | Walks back through `RetryOfRunId` | As for the original run |
@@ -119,7 +119,7 @@ Records that hang off a run, rather than start one:
 | Record | Link to the run | Shown as |
 |---|---|---|
 | Report | `RunId` | `Filed` edge |
-| Escalation | `RaisingRunId`, `RoutedRunId` | `Raised` and `Routed` edges, and `Answered` for a blocking escalation that was answered |
+| Escalation | `RaisingRunId`, `RoutedRunId`, `DeliveredTickId` | `Raised` and `Routed` edges, and `Answered` once answered: back to the raising run for a blocking escalation, to the receiving keeper tick for a non-blocking one |
 | Approval | `RunId`, `RootRunId` | `Requested` edge, and `Decided` once decided |
 | Effect journal entry | `RunId` | `Performed` edge, with the tool name and never its arguments |
 | Fan-out group | `ParentRunId` | `FannedOut` edge, then `Spawned` to each member |
@@ -129,7 +129,7 @@ Records that hang off a run, rather than start one:
 These links did not exist as structured fields when LP1.1 checked the code. LP1.2 added only indexes (schema migration 61); the entry surface came later (schema migration 62).
 
 - **The reply leg is never recorded on its own.** No path stores "the answer went back to the caller" as a record. The trail draws a `Reply` node from the root run's terminal state when the origin is a person or API caller who started the run directly. For A2A that means the trail ends at the run's terminal state whether or not the client ever fetched the result.
-- **Non-blocking escalation answers.** The answer reaches the raising agent through its next keeper tick (`DeliveredTickId`), which is a different trail. The trail shows the escalation as answered but has no edge into that later tick.
+- **Non-blocking escalation answers** reach the raising agent through its next keeper tick (`DeliveredTickId`). Since LP1.14 the trail draws an `Answered` edge from the escalation to that tick and shows the tick's run. It does not follow that run further, because the tick is the run's own origin; open the run's trail to see what it did next. A trail started from the tick's run begins at the tick and does not show the escalation.
 - **Shadow copies** recorded the live run they copy only inside their idempotency key as text. They now carry `shadowOfRunId` (LP1.13, migration 63), and the trail draws a `Shadowed` edge from the live run to each copy, so a copy's trail starts where the live run's did.
 - **Which surface a request came in on** was used for metrics but not stored. It is now the run's `entrySurface` (LP1.12, migration 62), shown on the Caller node.
 - **Unit names** come from the organization revision that is live now, not the one in force when each step ran, because the chain of command reads only live revisions.

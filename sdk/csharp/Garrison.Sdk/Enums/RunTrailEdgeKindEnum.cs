@@ -52,7 +52,8 @@ namespace Garrison.Sdk.Enums
         Routed,
 
         /// <summary>
-        /// An escalation was answered, and the answer went back to the run that raised it.
+        /// An escalation was answered: a blocking answer goes back to the run that raised it, and a non-blocking answer to
+        /// the keeper tick that received it (LP-015).
         /// </summary>
         Answered,
 
