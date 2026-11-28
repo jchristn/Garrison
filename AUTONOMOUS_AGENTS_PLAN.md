@@ -270,9 +270,9 @@ Most feature phases touch the same layers, and each phase below lists a task per
 | AA10 | The board | AA7 (AA10.4 needs AA8 and AA9) | Done | 12 / 12 |
 | AA11 | Performance signals and org-scale brakes | AA7, AA9 | Done | 10 / 10 |
 | AA12 | Reference examples, trials, and validation | AA1 to AA11 | In progress | 7 / 8 |
-| AA13 | Release (last) | every other phase | In progress | 4 / 16 |
+| AA13 | Release (last) | every other phase, `LEARNABILITY_PLAN.md` | In progress | 4 / 17 |
 
-Total tasks: 191.
+Total tasks: 192.
 
 ```
 AA0 branch feature/autonomous-agents, version 0.3.0 after approval (FIRST)
@@ -946,7 +946,7 @@ Touches: `examples/`, `scripts/`, `src/Test.Benchmark`, `benchmarks/`, `docs/tes
 
 ### Phase AA13: Release
 
-Depends on: every other phase. AA13.15 and AA13.16 are the last tasks of the plan.
+Depends on: every other phase and on `LEARNABILITY_PLAN.md` (AA13.17). AA13.15 and AA13.16 are the last tasks of the plan.
 Touches: repository-wide documentation, website, Postman, SDKs, CI, images.
 
 - [x] AA13.1 `README.md`: an "Autonomous agents" section (keepers, teams, organizations, board, brakes), layout table, documentation links, status; `AOT support` heading per `REPOSITORY_REQUIREMENTS.md` item 15 present and accurate.  Accept: links resolve; human-voice review done.  | claude 2026-11-26 Autonomous agents section (keepers, escalations, teams via messaging/reports/app memory, organizations, executives, board, brakes, untrusted text and effect journal, quickstart step 10 and examples), Run unattended and eval rows in the stage table, layout and docs tables, SDK coverage, v0.3.0 status, new AOT support heading (not supported: reflection-based System.Text.Json and OpenAPI, no Test.Aot); humanizer pass done; every local link and anchor resolves except the two `examples/autonomous/*` links wait on AA12.1 and AA12.2 | claude 2026-11-26 done: the examples/autonomous links resolve now that AA12.1 and AA12.2 landed; every local link in README.md checked by script
@@ -963,8 +963,9 @@ Touches: repository-wide documentation, website, Postman, SDKs, CI, images.
 - [x] AA13.12 Compliance gate: `scripts/check-em-dash.sh`, `scripts/check-version.sh`, `scripts/check-api-docs.py`, zero build warnings, every task in AA0 to AA12 `[x]` or `[-]` with reasons.  Accept: all pass. | claude 2026-11-26 check-em-dash, check-version (all mirrors 0.3.0), check-csharp-style, and check-api-docs (286 REST paths, 155 MCP tools, 14 channels, against a local server) pass; build 0 warnings. The API docs run found a startup stack overflow in GarrisonTelemetry, fixed in 83760ac1 with an observability case. AA12.7 closed 2026-11-27; reran on 4d7f6129: check-em-dash, check-version, check-csharp-style, check-api-docs (286 REST paths, 155 MCP tools, 14 channels) pass, build 0 warnings, 0 errors
 - [~] AA13.13 `CHANGELOG.md` `[0.3.0]` section complete and written for people.  Accept: reviewed. | claude 2026-11-27 reader pass in e671da10 (grouped by phase, merged the duplicate schema entries, split two mixed entries, moved the autonomy examples to Added; every original entry kept); the Mux migration entry names the published images that carry the bug (6ee89f9d). Waiting on the user's review
 - [x] AA13.14 Build images with `./build-all.sh` for the approved version.  Accept: images build locally for amd64 and arm64. | claude 2026-11-27 built from 6af4840a with the same Dockerfiles on Docker Build Cloud, one platform per build and loaded locally, not pushed (`./build-all.sh` pushes and moves `latest`, which is AA13.15): `jchristn77/garrison-{server,worker,dashboard}:v0.3.0` are linux/arm64 and `:v0.3.0-amd64` are linux/amd64. The server image reports 0.3.0 and refuses insecure defaults
-- [ ] AA13.15 Publish images and merge: push images and merge `feature/autonomous-agents` to `main` only after the user's explicit go-ahead and the operator's own test of the gerbil example and the site-reliability org on the release images.  Accept: user approval recorded; images tagged `v0.3.0` (or the approved version); merge commit recorded.
+- [ ] AA13.15 Publish images and merge (after AA13.17): push images and merge `feature/autonomous-agents` to `main` only after the user's explicit go-ahead and the operator's own test of the gerbil example and the site-reliability org on the release images.  Accept: user approval recorded; images tagged `v0.3.0` (or the approved version); merge commit recorded.
 - [ ] AA13.16 Archive: move this plan to `archive/AUTONOMOUS_AGENTS_PLAN.md`, update `CLAUDE.md` pointers.  Accept: links resolve.
+- [ ] AA13.17 `LEARNABILITY_PLAN.md` complete: the activity trail, the organization designer, the Learn page and tours, and both UX passes, with every LP task `[x]` or `[-]`.  Accept: that plan's Progress Dashboard shows every phase done.  | claude 2026-11-27 added with the learnability plan (LP0.1)
 
 ---
 

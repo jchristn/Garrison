@@ -2,7 +2,7 @@
 
 Guidance for agents working in this repository. The completed build plans are archived: `archive/GARRISON_PLAN.md` (the original plan and decision log, D- entries) and `archive/AGENT_DESIGN_DEPLOY_PLAN.md` (the 0.2.0 Agent Studio plan, AD entries). Read them for the reasoning behind a design and cite their IDs, but they are no longer annotated; record changes in `CHANGELOG.md`.
 
-The active plan is `AUTONOMOUS_AGENTS_PLAN.md` (the 0.3.0 autonomous agents release, tasks `AA<phase>.<n>` and decisions `AA-<nnn>`). Work happens on `feature/autonomous-agents`, never directly on `main`. Annotate each task's checkbox as it lands, following section 1.1 of that plan.
+The active plan is `AUTONOMOUS_AGENTS_PLAN.md` (the 0.3.0 autonomous agents release, tasks `AA<phase>.<n>` and decisions `AA-<nnn>`). Work happens on `feature/autonomous-agents`, never directly on `main`. Annotate each task's checkbox as it lands, following section 1.1 of that plan. `LEARNABILITY_PLAN.md` (tasks `LP<phase>.<n>`, decisions `LP-<nnn>`) is part of the same release: the activity trail, the organization designer, the Learn page and tours, and two UX passes. AA13.15 waits for it (AA13.17).
 
 ## What Garrison is
 

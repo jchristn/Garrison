@@ -72,7 +72,7 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 
 | Phase | Name | Depends on | Status | Done / Total |
 |---|---|---|---|---|
-| LP0 | Plan wiring | none | Not started | 0 / 2 |
+| LP0 | Plan wiring | none | Done | 2 / 2 |
 | LP1 | Activity trail: server | LP0 | Not started | 0 / 11 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | Not started | 0 / 10 |
 | LP3 | Organization designer | LP0 | Not started | 0 / 11 |
@@ -262,8 +262,8 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 
 ### Phase LP0: Plan wiring
 
-- [ ] LP0.1 Add AA13.17 to `AUTONOMOUS_AGENTS_PLAN.md`: "`LEARNABILITY_PLAN.md` complete (every LP task `[x]` or `[-]`)". AA13.15 depends on it. Update that plan's Progress Dashboard and its task total.  Accept: AA13.15 lists the dependency; totals add up.
-- [ ] LP0.2 `CLAUDE.md` names this plan next to the active plan, and `docs/REMAINING_PLAN_MATRIX.md` gains a row for it.  Accept: links resolve.
+- [x] LP0.1 Add AA13.17 to `AUTONOMOUS_AGENTS_PLAN.md`: "`LEARNABILITY_PLAN.md` complete (every LP task `[x]` or `[-]`)". AA13.15 depends on it. Update that plan's Progress Dashboard and its task total.  Accept: AA13.15 lists the dependency; totals add up.  | claude 2026-11-27 AA13.17 added, AA13.15 waits on it, AA dashboard 4 / 17, total 192
+- [x] LP0.2 `CLAUDE.md` names this plan next to the active plan, and `docs/REMAINING_PLAN_MATRIX.md` gains a row for it.  Accept: links resolve.  | claude 2026-11-27 CLAUDE.md pointer and matrix row
 
 ### Phase LP1: Activity trail, server
 

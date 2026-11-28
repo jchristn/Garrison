@@ -20,6 +20,7 @@ Updated 2026-11-26. The 0.3.0 release is tracked task by task in [AUTONOMOUS_AGE
 | AA11 | Performance signals and org-scale brakes | Complete |
 | AA12 | Examples, trials, benchmarks, simulated users, security and accessibility addenda | In progress |
 | AA13 | Release | In progress |
+| LP0 to LP7 | Learnability ([LEARNABILITY_PLAN.md](../LEARNABILITY_PLAN.md)): activity trail, organization designer, Learn page and tours, two UX passes | In progress |
 
 Three items below change status because of AA9. Canary releases cover traffic splitting by deployment weight with error-rate and eval-score thresholds (P12.24) and automated step promotion with rollback (P12.45). Shadow trials compare a candidate's outputs with its source's on real inputs, which covers part of P12.23; a general view comparing any two runs stays deferred.
 
