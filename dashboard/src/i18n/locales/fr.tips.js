@@ -4931,3 +4931,31 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+// LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "learn": "Ouvre la page Apprendre : sept schémas de l'articulation de Garrison, une visite pour chacun et un glossaire.",
+  "hubs": {
+   "learn": "Sept schémas de l'articulation de Garrison, du moteur d'exécution aux freins, avec une visite pour chacun et un glossaire."
+  }
+ },
+ "learn": {
+  "openPage": "Ouvre la page {{page}} dans le tableau de bord.",
+  "openDoc": "Ouvre {{doc}} sur GitHub dans un nouvel onglet.",
+  "showList": "Affiche les mêmes blocs et flèches sous forme de liste imbriquée, plus lisible avec un lecteur d'écran ou sur un écran étroit.",
+  "showDiagram": "Revient au schéma dessiné.",
+  "startTour": "Lance la visite {{tour}}, qui parcourt les pages qu'utilise cette partie de Garrison.",
+  "toc": "Va à {{title}} sur cette page.",
+  "seeDiagram": "Ouvre la page Apprendre sur le schéma qui montre la place de cette page dans Garrison."
+ }
+});

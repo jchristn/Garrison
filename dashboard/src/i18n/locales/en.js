@@ -9002,3 +9002,535 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "learn": "Learn",
+  "hubs": {
+   "learn": {
+    "label": "Learn",
+    "tip": "Diagrams, tours, and a glossary that show how Garrison fits together"
+   }
+  },
+  "items": {
+   "learn": {
+    "label": "Learn",
+    "tip": "Diagrams, tours, and a glossary that show how Garrison fits together"
+   }
+  }
+ },
+ "learn": {
+  "title": "Learn",
+  "subtitle": "How the parts of Garrison fit together, one diagram at a time. Each box opens its page, and the book in its corner opens its guide.",
+  "toc": "On this page",
+  "startTourNamed": "Tour: {{tour}}",
+  "showList": "Show as list",
+  "showDiagram": "Show as diagram",
+  "openPage": "{{name}}. Opens {{page}}.",
+  "openDoc": "Read about {{name}} in {{doc}}",
+  "glossaryTitle": "Glossary",
+  "glossaryIntro": "These are the words the docs use. Where the dashboard says something different, the entry says so.",
+  "list": {
+   "parts": "Parts",
+   "connections": "Connections",
+   "connection": "{{from}} {{arrow}} {{to}}",
+   "connectionLabelled": "{{from}} {{arrow}} {{to}}: {{label}}",
+   "doc": "Guide: {{doc}}"
+  },
+  "tours": {
+   "firstLook": "First look",
+   "runAnAgent": "Run an agent",
+   "followARequest": "Follow a request",
+   "buildATeam": "Build a team",
+   "keepItSafe": "Keep it safe",
+   "watchAnOrganization": "Watch an organization"
+  },
+  "diagrams": {
+   "runtime": {
+    "title": "The runtime",
+    "summary": "A tenant holds agents and the deployments that run them. A deployment ties an agent to a harness profile, a model, its prompts, and a node pool. Each request becomes a run, and a worker node in that pool pulls the run and starts the harness. Workers never touch the database: everything they need comes with the lease.",
+    "desc": "A tenant holds credentials, agents, harness profiles, deployments, and runs. Node pools and worker nodes form a fleet that tenants share.",
+    "groups": {
+     "tenant": "Tenant",
+     "fleet": "Shared fleet"
+    },
+    "boxes": {
+     "credential": {
+      "title": "Credential",
+      "body": "An access key owned by a user. Callers and worker nodes sign in with one."
+     },
+     "agent": {
+      "title": "Agent",
+      "body": "What callers invoke over REST, MCP, or A2A. It keeps immutable revisions."
+     },
+     "harnessProfile": {
+      "title": "Harness profile",
+      "body": "How one harness CLI or API runs headless. The dashboard calls it a connection."
+     },
+     "deployment": {
+      "title": "Deployment",
+      "body": "Binds an agent to a harness profile, a model, prompts, and a node pool."
+     },
+     "nodePool": {
+      "title": "Node pool",
+      "body": "A group of worker nodes, optionally dedicated to tenants."
+     },
+     "run": {
+      "title": "Run",
+      "body": "One execution of an agent on one deployment, with its events and result."
+     },
+     "node": {
+      "title": "Worker node",
+      "body": "Pulls the runs it can serve and starts the harness for each."
+     }
+    },
+    "arrows": {
+     "invokes": "invokes",
+     "runsOn": "runs on",
+     "usedBy": "used by",
+     "targets": "targets",
+     "creates": "creates",
+     "groups": "groups",
+     "leases": "leases"
+    }
+   },
+   "request": {
+    "title": "A request's life",
+    "summary": "Every way of starting an agent ends up in the same place. REST, MCP, and A2A share one invoker, which picks a deployment and admits the run only when no freeze, unit budget, or queue limit stands in the way. A worker claims the queued run, receives the compiled spec, and starts the harness. The output comes back as events, and the caller gets the result.",
+    "desc": "A request goes from the caller through REST, MCP, or A2A to run admission and the queue. A worker leases it and starts the harness, and the output comes back as events and a reply.",
+    "groups": {
+     "controlPlane": "Control plane",
+     "worker": "On a worker node"
+    },
+    "boxes": {
+     "caller": {
+      "title": "Caller",
+      "body": "A person, an SDK, an MCP client, or an A2A agent."
+     },
+     "surface": {
+      "title": "REST, MCP, or A2A",
+      "body": "All three use the same invoker, which checks Execute on the agent."
+     },
+     "admission": {
+      "title": "Run admission",
+      "body": "Picks a deployment, then checks freezes, unit budgets, and queue limits. A refused run is never created."
+     },
+     "queued": {
+      "title": "Queued",
+      "body": "Waits for a worker with the right harness, node pool, and labels."
+     },
+     "lease": {
+      "title": "Lease",
+      "body": "The worker long-polls, claims the run with a compare-and-set, and gets the compiled spec."
+     },
+     "harness": {
+      "title": "Harness",
+      "body": "The CLI or provider API, started with the spec's arguments, files, and MCP servers."
+     },
+     "events": {
+      "title": "Events",
+      "body": "Parsed output in batches: text, tool calls, usage, and the result."
+     },
+     "reply": {
+      "title": "Reply",
+      "body": "A waiting invoke returns the run. Streams get the final event."
+     }
+    },
+    "arrows": {
+     "sends": "request",
+     "admitted": "admitted",
+     "leased": "leased",
+     "starts": "starts",
+     "returns": "result"
+    }
+   },
+   "autonomy": {
+    "title": "Autonomy building blocks",
+    "summary": "A keeper is an agent with a standing job, written down as a mandate. Garrison wakes it on a schedule, and each wake is a tick: one ordinary run that ends with the keeper reporting what it found. Along the way it can remember things for later ticks, file reports for its manager, and escalate a question it should not answer alone. The answer wakes it again.",
+    "desc": "A keeper holds a mandate whose wake schedule starts ticks. Each tick starts a keeper run, which writes memory, files reports, and raises escalations. An answered escalation wakes the keeper again.",
+    "boxes": {
+     "keeper": {
+      "title": "Keeper",
+      "body": "An agent with a standing job. The API calls the record a mandate."
+     },
+     "mandate": {
+      "title": "Mandate",
+      "body": "Published revisions: the objective, what healthy looks like, autonomy, and escalation policy."
+     },
+     "schedule": {
+      "title": "Wake schedule",
+      "body": "A minimum and maximum interval with backoff. The leader claims each due wake once."
+     },
+     "tick": {
+      "title": "Tick",
+      "body": "One wake, with its wake source and an outcome: Quiet, Acted, Attention, or Escalated."
+     },
+     "run": {
+      "title": "Keeper run",
+      "body": "A run of kind Keeper on the mandate's deployment. It ends by reporting the tick."
+     },
+     "memory": {
+      "title": "Memory",
+      "body": "Entries tagged recall come back in the next tick's input."
+     },
+     "report": {
+      "title": "Report",
+      "body": "Filed upward. The manager's next tick reads it in its digest."
+     },
+     "escalation": {
+      "title": "Escalation",
+      "body": "A question for a person, a role, or another agent."
+     }
+    },
+    "arrows": {
+     "holds": "holds",
+     "sets": "sets",
+     "comesDue": "comes due",
+     "starts": "starts",
+     "writes": "writes",
+     "files": "files",
+     "raises": "raises",
+     "answerWakes": "answer wakes it"
+    }
+   },
+   "teams": {
+    "title": "Teams",
+    "summary": "Agents write to each other through mailboxes. A message is mail, not a phone call: the sender carries on, and the recipient reads it on its next run, or right away when the message is urgent. Every send passes the loop guards first, and a refused message is kept with its reason, so you can see who tried to reach whom.",
+    "desc": "A message passes the loop guards into the recipient's mailbox, or is stored as Rejected. Normal mail waits for the recipient's next run, and urgent mail wakes it.",
+    "boxes": {
+     "sender": {
+      "title": "Sender",
+      "body": "An agent's run, or a person. Agents write only along a line."
+     },
+     "guards": {
+      "title": "Loop guards",
+      "body": "In order: recipient frozen, no line, hop limit, thread budget, line rate."
+     },
+     "mailbox": {
+      "title": "Mailbox",
+      "body": "The recipient's queued messages, oldest first."
+     },
+     "normal": {
+      "title": "Normal delivery",
+      "body": "Waits for the keeper's next tick, or for a run that reads the inbox."
+     },
+     "rejected": {
+      "title": "Rejected",
+      "body": "Stored with its reason and never delivered."
+     },
+     "urgent": {
+      "title": "Urgent wake",
+      "body": "Brings the keeper's next wake forward, or starts a Message run when there is no keeper."
+     },
+     "recipient": {
+      "title": "Recipient run",
+      "body": "One run carries everything that arrived, so ten messages cost one tick."
+     }
+    },
+    "arrows": {
+     "sends": "sends",
+     "passes": "passes",
+     "refused": "refused",
+     "normal": "normal",
+     "urgent": "urgent",
+     "nextRun": "next run",
+     "wakes": "wakes now"
+    }
+   },
+   "organization": {
+    "title": "An organization",
+    "summary": "An organization gives a group of agents a shape: a tree of units, each with a lead, members, optional peer lines, and budgets. The lead of the root unit is the CEO, and the board, the people who run the organization, sits above it. Edits go to a working tree that nothing reads. Publishing a revision makes it live, and from then on messaging, reports, memory, escalations, freezes, and budgets all ask the same chain of command.",
+    "desc": "The board oversees the root unit, whose lead is the CEO. Units below it are joined by reporting lines, and peer lines join units sideways. The working tree goes live when a revision is published, and the chain of command reads only the live revision.",
+    "groups": {
+     "live": "Live revision"
+    },
+    "boxes": {
+     "board": {
+      "title": "Board",
+      "body": "The people who run the organization, above the CEO."
+     },
+     "root": {
+      "title": "Root unit",
+      "body": "Its lead is the CEO. Its budget caps the whole tree."
+     },
+     "unitA": {
+      "title": "Unit",
+      "body": "One lead, up to 200 members, and a Day and a Month budget."
+     },
+     "unitB": {
+      "title": "Peer unit",
+      "body": "A peer line joins every agent of two units, in both directions."
+     },
+     "working": {
+      "title": "Working tree",
+      "body": "Where people edit units. Nothing reads it at run time."
+     },
+     "revision": {
+      "title": "Published revision",
+      "body": "A snapshot that never changes. A rollback publishes a copy of an earlier one."
+     },
+     "chain": {
+      "title": "Chain of command",
+      "body": "Managers, chains, subtrees, and lines, from live revisions only."
+     }
+    },
+    "arrows": {
+     "oversees": "oversees",
+     "reportsA": "reporting line",
+     "peer": "peer line",
+     "publish": "publish",
+     "readBy": "read by"
+    }
+   },
+   "selfRevision": {
+    "title": "Self-revision",
+    "summary": "An executive is a unit lead that may propose changes to the units below it. It writes an ordinary studio draft, and ExecutiveDraftValidator holds the draft to hard limits that nothing can lift: nothing about itself, nothing above or outside its subtree, no secrets, no budget raises, and no management access. A draft that people's change rules fully cover applies at once. Anything else waits for a person. Every apply publishes one organization revision and saves a revert draft, so one rollback undoes it.",
+    "desc": "An executive writes a draft. Hard limits refuse it or pass it to the change rules, which an eval gate can hold back. A covered draft applies, anything else waits for a person who sees shadow and canary evidence. Each apply publishes an organization revision with a revert draft, and a rollback restores it.",
+    "boxes": {
+     "executive": {
+      "title": "Executive",
+      "body": "A unit lead whose deployment may draft changes below its unit."
+     },
+     "draft": {
+      "title": "Draft",
+      "body": "An ordinary studio draft. People follow it as a proposal."
+     },
+     "limits": {
+      "title": "Hard limits",
+      "body": "Checked at diff, at request, and just before apply. No rule or approval lifts them."
+     },
+     "refused": {
+      "title": "Refused",
+      "body": "The request fails with DraftInvalid, and nothing changes."
+     },
+     "eval": {
+      "title": "Eval gate",
+      "body": "The executive runs an eval set on its own draft. A gated rule needs a passing score."
+     },
+     "rules": {
+      "title": "Change rules",
+      "body": "Written only by people. Each change is sorted into classes and matched to a rule."
+     },
+     "person": {
+      "title": "A person decides",
+      "body": "A change no rule covers waits, like any draft."
+     },
+     "apply": {
+      "title": "Apply",
+      "body": "As the person behind the run, or the person who allowed it."
+     },
+     "evidence": {
+      "title": "Shadow trials and canaries",
+      "body": "Started by people. Their results show on the proposal, and a canary rolls back by itself."
+     },
+     "rollback": {
+      "title": "Rollback",
+      "body": "Restores an earlier revision, then applies the revert drafts, newest first."
+     },
+     "revision": {
+      "title": "Organization revision",
+      "body": "One per apply, naming the draft."
+     },
+     "revert": {
+      "title": "Revert draft",
+      "body": "The changed records as they were before."
+     }
+    },
+    "arrows": {
+     "writes": "writes",
+     "checked": "checked",
+     "breaks": "breaks a limit",
+     "passes": "passes",
+     "gate": "score",
+     "notCovered": "not covered",
+     "covered": "fully covered",
+     "allows": "allows",
+     "evidence": "evidence",
+     "publishes": "publishes",
+     "saves": "saves",
+     "restores": "restores"
+    }
+   },
+   "brakes": {
+    "title": "Brakes",
+    "summary": "Brakes do not depend on the agent cooperating. Freezes, the kill switch, spend caps, and unit budgets are checked in the control plane when a run is admitted and before each keeper wake, so a refused run is never created. Run tokens never hold the Freeze permissions, so an agent cannot lift a brake on itself. For work already running, cancel everything in a unit, and let the budget guard freeze a unit that overruns.",
+    "desc": "Freezes, the kill switch, spend caps, and unit budgets feed the checks at run admission and before keeper wakes, which refuse new runs and skip wakes. For work already running, Cancel everything stops a unit's subtree, and the budget guard freezes a unit that overruns.",
+    "groups": {
+     "newWork": "Stops new work",
+     "inFlight": "Stops work already running"
+    },
+    "boxes": {
+     "freeze": {
+      "title": "Freeze",
+      "body": "Stops an agent, deployment, keeper, app, unit, or organization until a person lifts it."
+     },
+     "killSwitch": {
+      "title": "Kill switch",
+      "body": "No keeper in the tenant wakes. Ordinary invocations keep working."
+     },
+     "spendCap": {
+      "title": "Spend cap",
+      "body": "A keeper's budget per tick and per day. A spent day moves it to CapReached."
+     },
+     "unitBudget": {
+      "title": "Unit budget",
+      "body": "A Day or Month cap on everything a unit's subtree runs."
+     },
+     "checks": {
+      "title": "Admission and wake checks",
+      "body": "Made in the control plane, never by the agent. A freeze reaches every replica through the backplane."
+     },
+     "refused": {
+      "title": "Refused run",
+      "body": "409 Frozen or BudgetExhausted. Nothing is created."
+     },
+     "skipped": {
+      "title": "Skipped wake",
+      "body": "Recorded as a Skipped tick with its code, and the schedule moves on."
+     },
+     "cancelAll": {
+      "title": "Cancel everything",
+      "body": "Cancels a unit subtree's runs and ticks, withdraws its escalations, and expires its mail. It freezes nothing."
+     },
+     "autoFreeze": {
+      "title": "Automatic freeze",
+      "body": "When a subtree spends its budget plus the margin, the guard freezes the unit and cancels its runs."
+     }
+    },
+    "arrows": {
+     "refuses": "new run",
+     "skips": "keeper wake"
+    }
+   }
+  },
+  "glossary": {
+   "tenant": {
+    "term": "Tenant",
+    "def": "The boundary around one customer's agents, runs, users, and settings. A read across tenants answers 404."
+   },
+   "agent": {
+    "term": "Agent",
+    "def": "Something callers invoke. Its configuration lives in immutable revisions."
+   },
+   "deployment": {
+    "term": "Deployment",
+    "def": "An agent bound to a harness profile, model, prompts, and node pool. An agent can have several, picked by weight."
+   },
+   "harnessProfile": {
+    "term": "Harness profile",
+    "def": "How a harness CLI or provider API runs headless: its arguments, prompt delivery, and output parser. The dashboard lists them under Connections."
+   },
+   "nodePool": {
+    "term": "Node pool",
+    "def": "A group of worker nodes that a deployment can target, optionally dedicated to tenants."
+   },
+   "node": {
+    "term": "Worker node",
+    "def": "A process that pulls runs and starts harnesses. It never touches the database."
+   },
+   "run": {
+    "term": "Run",
+    "def": "One execution of an agent. Keeper ticks, message wakes, eval cases, and shadow copies are runs of their own kind."
+   },
+   "runToken": {
+    "term": "Run token",
+    "def": "The credential each run gets for Garrison's MCP tools. It never holds the Freeze permissions."
+   },
+   "keeper": {
+    "term": "Keeper",
+    "def": "An agent with a standing job that Garrison wakes on a schedule. The API calls it a mandate."
+   },
+   "tick": {
+    "term": "Tick",
+    "def": "One wake of a keeper: a single run that ends by reporting an outcome and a summary."
+   },
+   "message": {
+    "term": "Message",
+    "def": "Mail from one agent to another, or from a person. The sender does not wait for an answer."
+   },
+   "line": {
+    "term": "Line",
+    "def": "What lets one agent write to another: an app edge, a reporting line, a peer line, or a reply in a thread."
+   },
+   "loopGuards": {
+    "term": "Loop guards",
+    "def": "The checks on every message: frozen recipient, no line, hop limit, thread budget, and line rate."
+   },
+   "report": {
+    "term": "Report",
+    "def": "How an agent tells those above it how its work is going. A report never changes once filed."
+   },
+   "memory": {
+    "term": "Memory",
+    "def": "Text an agent keeps between runs, in an Agent, App, OrgUnit, or Organization scope."
+   },
+   "escalation": {
+    "term": "Escalation",
+    "def": "A question a run asks when it should not decide alone. A person, a role, or another agent answers it."
+   },
+   "organization": {
+    "term": "Organization",
+    "def": "A tree of units that gives a group of agents a shape. Nothing in it takes effect until a person publishes a revision."
+   },
+   "unit": {
+    "term": "Unit",
+    "def": "One node of the tree: a lead, members, peer lines, and budgets."
+   },
+   "board": {
+    "term": "Board",
+    "def": "The people who run an organization. They sit above its CEO."
+   },
+   "chain": {
+    "term": "Chain of command",
+    "def": "Who manages whom, read only from the published revisions of live organizations."
+   },
+   "executive": {
+    "term": "Executive",
+    "def": "A unit lead that may propose changes to the units below it, within hard limits."
+   },
+   "changeRule": {
+    "term": "Change rule",
+    "def": "A standing yes from a person for a narrow class of executive change. Only people write them."
+   },
+   "evalSet": {
+    "term": "Eval set",
+    "def": "Fixed inputs with checks. An eval run scores an agent revision or a deployment against them."
+   },
+   "shadowTrial": {
+    "term": "Shadow trial",
+    "def": "Copies a sample of real inputs to a candidate deployment that cannot cause any effect, and compares the answers."
+   },
+   "canary": {
+    "term": "Canary release",
+    "def": "Moves traffic to a candidate deployment in steps and rolls back when its error rate or eval score crosses a line."
+   },
+   "freeze": {
+    "term": "Freeze",
+    "def": "Stops new runs of a target until a person lifts it."
+   },
+   "killSwitch": {
+    "term": "Kill switch",
+    "def": "A tenant-wide freeze of autonomy. No keeper wakes, and ordinary invocations keep working."
+   },
+   "unitBudget": {
+    "term": "Unit budget",
+    "def": "A Day or Month cap on what a unit's subtree may spend."
+   }
+  }
+ },
+ "components": {
+  "explainer": {
+   "seeDiagram": "See the diagram"
+  }
+ }
+});

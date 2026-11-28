@@ -9014,3 +9014,535 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
   }
  }
 });
+
+// LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "learn": "Lernen",
+  "hubs": {
+   "learn": {
+    "label": "Lernen",
+    "tip": "Diagramme, Touren und ein Glossar, die zeigen, wie Garrison zusammenhängt"
+   }
+  },
+  "items": {
+   "learn": {
+    "label": "Lernen",
+    "tip": "Diagramme, Touren und ein Glossar, die zeigen, wie Garrison zusammenhängt"
+   }
+  }
+ },
+ "learn": {
+  "title": "Lernen",
+  "subtitle": "Wie die Teile von Garrison zusammenhängen, ein Diagramm nach dem anderen. Jedes Feld öffnet seine Seite, das Buch in seiner Ecke die zugehörige Anleitung.",
+  "toc": "Auf dieser Seite",
+  "startTourNamed": "Rundgang: {{tour}}",
+  "showList": "Als Liste anzeigen",
+  "showDiagram": "Als Diagramm anzeigen",
+  "openPage": "{{name}}. Öffnet {{page}}.",
+  "openDoc": "Mehr über {{name}} in {{doc}}",
+  "glossaryTitle": "Glossar",
+  "glossaryIntro": "Das sind die Begriffe der Dokumentation. Wo das Dashboard etwas anderes sagt, steht es beim Eintrag.",
+  "list": {
+   "parts": "Teile",
+   "connections": "Verbindungen",
+   "connection": "{{from}} {{arrow}} {{to}}",
+   "connectionLabelled": "{{from}} {{arrow}} {{to}}: {{label}}",
+   "doc": "Anleitung: {{doc}}"
+  },
+  "tours": {
+   "firstLook": "Erster Überblick",
+   "runAnAgent": "Einen Agenten ausführen",
+   "followARequest": "Einer Anfrage folgen",
+   "buildATeam": "Ein Team aufbauen",
+   "keepItSafe": "Sicher betreiben",
+   "watchAnOrganization": "Eine Organisation beobachten"
+  },
+  "diagrams": {
+   "runtime": {
+    "title": "Die Laufzeit",
+    "summary": "Ein Mandant enthält Agenten und die Bereitstellungen, die sie ausführen. Eine Bereitstellung verbindet einen Agenten mit einem Harness-Profil, einem Modell, seinen Prompts und einem Knotenpool. Jede Anfrage wird zu einem Lauf, und ein Worker-Knoten aus diesem Pool holt sich den Lauf und startet das Harness. Worker greifen nie auf die Datenbank zu: Alles, was sie brauchen, kommt mit der Lease.",
+    "desc": "Ein Mandant enthält Zugangsschlüssel, Agenten, Harness-Profile, Bereitstellungen und Läufe. Knotenpools und Worker-Knoten bilden eine Flotte, die sich die Mandanten teilen.",
+    "groups": {
+     "tenant": "Mandant",
+     "fleet": "Gemeinsame Flotte"
+    },
+    "boxes": {
+     "credential": {
+      "title": "Zugangsschlüssel",
+      "body": "Ein Zugriffsschlüssel, der einem Benutzer gehört. Aufrufer und Worker-Knoten melden sich damit an."
+     },
+     "agent": {
+      "title": "Agent",
+      "body": "Das, was Aufrufer über REST, MCP oder A2A aufrufen. Er führt unveränderliche Revisionen."
+     },
+     "harnessProfile": {
+      "title": "Harness-Profil",
+      "body": "Wie ein Harness-CLI oder eine API ohne Oberfläche läuft. Im Dashboard heißt es Verbindung."
+     },
+     "deployment": {
+      "title": "Bereitstellung",
+      "body": "Verbindet einen Agenten mit Harness-Profil, Modell, Prompts und Knotenpool."
+     },
+     "nodePool": {
+      "title": "Knotenpool",
+      "body": "Eine Gruppe von Worker-Knoten, auf Wunsch bestimmten Mandanten vorbehalten."
+     },
+     "run": {
+      "title": "Lauf",
+      "body": "Eine Ausführung eines Agenten auf einer Bereitstellung, mit Ereignissen und Ergebnis."
+     },
+     "node": {
+      "title": "Worker-Knoten",
+      "body": "Holt sich die Läufe, die er bedienen kann, und startet für jeden das Harness."
+     }
+    },
+    "arrows": {
+     "invokes": "ruft auf",
+     "runsOn": "läuft auf",
+     "usedBy": "genutzt von",
+     "targets": "zielt auf",
+     "creates": "erzeugt",
+     "groups": "gruppiert",
+     "leases": "least"
+    }
+   },
+   "request": {
+    "title": "Der Weg einer Anfrage",
+    "summary": "Jeder Weg, einen Agenten zu starten, endet am selben Ort. REST, MCP und A2A teilen sich einen Aufrufer, der eine Bereitstellung wählt und den Lauf nur zulässt, wenn keine Sperre, kein Einheitenbudget und kein Warteschlangenlimit im Weg steht. Ein Worker übernimmt den wartenden Lauf, erhält die kompilierte Spezifikation und startet das Harness. Die Ausgabe kommt als Ereignisse zurück, und der Aufrufer erhält das Ergebnis.",
+    "desc": "Eine Anfrage geht vom Aufrufer über REST, MCP oder A2A zur Laufzulassung und in die Warteschlange. Ein Worker least sie und startet das Harness, und die Ausgabe kommt als Ereignisse und Antwort zurück.",
+    "groups": {
+     "controlPlane": "Steuerungsebene",
+     "worker": "Auf einem Worker-Knoten"
+    },
+    "boxes": {
+     "caller": {
+      "title": "Aufrufer",
+      "body": "Ein Mensch, ein SDK, ein MCP-Client oder ein A2A-Agent."
+     },
+     "surface": {
+      "title": "REST, MCP oder A2A",
+      "body": "Alle drei nutzen denselben Aufrufpfad, der Execute auf dem Agenten prüft."
+     },
+     "admission": {
+      "title": "Laufzulassung",
+      "body": "Wählt eine Bereitstellung und prüft dann Sperren, Einheitenbudgets und Warteschlangenlimits. Ein abgelehnter Lauf entsteht gar nicht erst."
+     },
+     "queued": {
+      "title": "In Warteschlange",
+      "body": "Wartet auf einen Worker mit passendem Harness, Knotenpool und Labels."
+     },
+     "lease": {
+      "title": "Lease-Zuteilung",
+      "body": "Der Worker fragt per Long Poll, übernimmt den Lauf per Compare-and-Set und erhält die kompilierte Spezifikation."
+     },
+     "harness": {
+      "title": "Harness",
+      "body": "Das CLI oder die Anbieter-API, gestartet mit den Argumenten, Dateien und MCP-Servern der Spezifikation."
+     },
+     "events": {
+      "title": "Ereignisse",
+      "body": "Geparste Ausgabe in Stapeln: Text, Toolaufrufe, Verbrauch und das Ergebnis."
+     },
+     "reply": {
+      "title": "Antwort",
+      "body": "Ein wartender Aufruf gibt den Lauf zurück. Streams erhalten das letzte Ereignis."
+     }
+    },
+    "arrows": {
+     "sends": "Anfrage",
+     "admitted": "zugelassen",
+     "leased": "geleast",
+     "starts": "startet",
+     "returns": "Ergebnis"
+    }
+   },
+   "autonomy": {
+    "title": "Bausteine der Autonomie",
+    "summary": "Ein Wächter ist ein Agent mit einer dauerhaften Aufgabe, festgehalten als Auftrag. Garrison weckt ihn nach Zeitplan, und jedes Wecken ist ein Zyklus: ein gewöhnlicher Lauf, an dessen Ende der Wächter meldet, was er gefunden hat. Unterwegs kann er sich Dinge für spätere Zyklen merken, Berichte für seine Leitung einreichen und eine Frage eskalieren, die er nicht allein beantworten sollte. Die Antwort weckt ihn erneut.",
+    "desc": "Ein Wächter hält einen Auftrag, dessen Aufwachplan Zyklen startet. Jeder Zyklus startet einen Wächter-Lauf, der ins Gedächtnis schreibt, Berichte einreicht und Eskalationen auslöst. Eine beantwortete Eskalation weckt den Wächter erneut.",
+    "boxes": {
+     "keeper": {
+      "title": "Wächter",
+      "body": "Ein Agent mit einer dauerhaften Aufgabe. Die API nennt den Datensatz Mandate."
+     },
+     "mandate": {
+      "title": "Auftrag",
+      "body": "Veröffentlichte Revisionen: das Ziel, wie gesund aussieht, Autonomie und Eskalationsregel."
+     },
+     "schedule": {
+      "title": "Aufwachplan",
+      "body": "Ein minimales und maximales Intervall mit Backoff. Der Leader übernimmt jedes fällige Wecken genau einmal."
+     },
+     "tick": {
+      "title": "Zyklus",
+      "body": "Ein Wecken mit seiner Weckquelle und einem Ergebnis: Ruhig, Gehandelt, Braucht Aufmerksamkeit oder Eskaliert."
+     },
+     "run": {
+      "title": "Wächter-Lauf",
+      "body": "Ein Lauf der Art Keeper auf der Bereitstellung des Auftrags. Er endet mit der Meldung des Zyklus."
+     },
+     "memory": {
+      "title": "Gedächtnis",
+      "body": "Einträge mit dem Tag recall kommen in der Eingabe des nächsten Zyklus zurück."
+     },
+     "report": {
+      "title": "Bericht",
+      "body": "Nach oben eingereicht. Der nächste Zyklus der Leitung liest ihn in seiner Übersicht."
+     },
+     "escalation": {
+      "title": "Eskalation",
+      "body": "Eine Frage an einen Menschen, eine Rolle oder einen anderen Agenten."
+     }
+    },
+    "arrows": {
+     "holds": "hält",
+     "sets": "legt fest",
+     "comesDue": "wird fällig",
+     "starts": "startet",
+     "writes": "schreibt",
+     "files": "reicht ein",
+     "raises": "löst aus",
+     "answerWakes": "Antwort weckt ihn"
+    }
+   },
+   "teams": {
+    "title": "Agenten-Teams",
+    "summary": "Agenten schreiben einander über Postfächer. Eine Nachricht ist Post, kein Telefonat: Der Absender macht weiter, und der Empfänger liest sie bei seinem nächsten Lauf oder sofort, wenn sie dringend ist. Jede Nachricht passiert zuerst die Schleifenschutzregeln, und eine abgelehnte Nachricht bleibt mit ihrem Grund gespeichert, damit Sie sehen, wer wen erreichen wollte.",
+    "desc": "Eine Nachricht passiert die Schleifenschutzregeln ins Postfach des Empfängers oder wird als Abgelehnt gespeichert. Normale Post wartet auf den nächsten Lauf des Empfängers, dringende Post weckt ihn.",
+    "boxes": {
+     "sender": {
+      "title": "Absender",
+      "body": "Der Lauf eines Agenten oder ein Mensch. Agenten schreiben nur entlang einer Verbindung."
+     },
+     "guards": {
+      "title": "Schleifenschutz",
+      "body": "In dieser Reihenfolge: Empfänger eingefroren, keine Verbindung, Weiterleitungsgrenze, Verlaufsbudget, Senderate."
+     },
+     "mailbox": {
+      "title": "Postfach",
+      "body": "Die wartenden Nachrichten des Empfängers, die älteste zuerst."
+     },
+     "normal": {
+      "title": "Normale Zustellung",
+      "body": "Wartet auf den nächsten Zyklus des Wächters oder auf einen Lauf, der das Postfach liest."
+     },
+     "rejected": {
+      "title": "Abgelehnt",
+      "body": "Mit Grund gespeichert und nie zugestellt."
+     },
+     "urgent": {
+      "title": "Dringendes Wecken",
+      "body": "Zieht das nächste Wecken des Wächters vor oder startet einen Message-Lauf, wenn es keinen Wächter gibt."
+     },
+     "recipient": {
+      "title": "Lauf des Empfängers",
+      "body": "Ein Lauf nimmt alles mit, was eingegangen ist, zehn Nachrichten kosten also einen Zyklus."
+     }
+    },
+    "arrows": {
+     "sends": "sendet",
+     "passes": "kommt durch",
+     "refused": "abgelehnt",
+     "normal": "normale Post",
+     "urgent": "dringend",
+     "nextRun": "nächster Lauf",
+     "wakes": "weckt sofort"
+    }
+   },
+   "organization": {
+    "title": "Eine Organisation",
+    "summary": "Eine Organisation gibt einer Gruppe von Agenten eine Form: einen Baum aus Einheiten, jede mit Leitung, Mitgliedern, optionalen Querverbindungen und Budgets. Die Leitung der Wurzeleinheit ist der CEO, und darüber sitzt das Gremium, also die Menschen, die die Organisation führen. Änderungen landen in einem Arbeitsbaum, den nichts liest. Erst eine veröffentlichte Revision macht sie live, und ab dann fragen Nachrichten, Berichte, Gedächtnis, Eskalationen, Sperren und Budgets alle dieselbe Führungskette.",
+    "desc": "Das Gremium beaufsichtigt die Wurzeleinheit, deren Leitung der CEO ist. Einheiten darunter hängen über Berichtslinien an ihr, Querverbindungen verbinden Einheiten seitlich. Der Arbeitsbaum wird live, wenn eine Revision veröffentlicht wird, und die Führungskette liest nur die Live-Revision.",
+    "groups": {
+     "live": "Live-Revision"
+    },
+    "boxes": {
+     "board": {
+      "title": "Gremium",
+      "body": "Die Menschen, die die Organisation führen, über dem CEO."
+     },
+     "root": {
+      "title": "Wurzeleinheit",
+      "body": "Ihre Leitung ist der CEO. Ihr Budget begrenzt den ganzen Baum."
+     },
+     "unitA": {
+      "title": "Einheit",
+      "body": "Eine Leitung, bis zu 200 Mitglieder und je ein Tages- und Monatsbudget."
+     },
+     "unitB": {
+      "title": "Nachbareinheit",
+      "body": "Eine Querverbindung verbindet alle Agenten zweier Einheiten, in beide Richtungen."
+     },
+     "working": {
+      "title": "Arbeitsbaum",
+      "body": "Hier bearbeiten Menschen Einheiten. Zur Laufzeit liest ihn nichts."
+     },
+     "revision": {
+      "title": "Veröffentlichte Revision",
+      "body": "Ein Schnappschuss, der sich nie ändert. Eine Zurücksetzung veröffentlicht eine Kopie einer früheren."
+     },
+     "chain": {
+      "title": "Führungskette",
+      "body": "Leitungen, Ketten, Teilbäume und Verbindungen, nur aus Live-Revisionen."
+     }
+    },
+    "arrows": {
+     "oversees": "beaufsichtigt",
+     "reportsA": "Berichtslinie",
+     "peer": "Querverbindung",
+     "publish": "veröffentlichen",
+     "readBy": "gelesen von"
+    }
+   },
+   "selfRevision": {
+    "title": "Selbstüberarbeitung",
+    "summary": "Ein Führungsagent ist eine Einheitsleitung, die Änderungen an den Einheiten unter sich vorschlagen darf. Er schreibt einen gewöhnlichen Studio-Entwurf, und ExecutiveDraftValidator prüft ihn gegen harte Grenzen, die nichts aufheben kann: nichts an ihm selbst, nichts über oder außerhalb seines Teilbaums, keine Geheimnisse, keine Budgeterhöhungen und kein Verwaltungszugriff. Ein Entwurf, den die Änderungsregeln der Menschen vollständig abdecken, wird sofort angewendet. Alles andere wartet auf einen Menschen. Jede Anwendung veröffentlicht eine Organisationsrevision und speichert einen Rückgängig-Entwurf, sodass eine Zurücksetzung sie aufhebt.",
+    "desc": "Ein Führungsagent schreibt einen Entwurf. Harte Grenzen lehnen ihn ab oder reichen ihn an die Änderungsregeln weiter, die eine Eval-Schranke zurückhalten kann. Ein abgedeckter Entwurf wird angewendet, alles andere wartet auf einen Menschen, der Belege aus Schattentests und Canary-Freigaben sieht. Jede Anwendung veröffentlicht eine Organisationsrevision mit Rückgängig-Entwurf, und eine Zurücksetzung stellt sie wieder her.",
+    "boxes": {
+     "executive": {
+      "title": "Führungsagent",
+      "body": "Eine Einheitsleitung, deren Bereitstellung Änderungen unterhalb ihrer Einheit entwerfen darf."
+     },
+     "draft": {
+      "title": "Entwurf",
+      "body": "Ein gewöhnlicher Studio-Entwurf. Menschen verfolgen ihn als Vorschlag."
+     },
+     "limits": {
+      "title": "Harte Grenzen",
+      "body": "Geprüft beim Diff, bei der Anfrage und direkt vor der Anwendung. Keine Regel und keine Freigabe hebt sie auf."
+     },
+     "refused": {
+      "title": "Abgelehnt",
+      "body": "Die Anfrage scheitert mit DraftInvalid, und nichts ändert sich."
+     },
+     "eval": {
+      "title": "Eval-Schranke",
+      "body": "Der Führungsagent lässt ein Eval-Set gegen seinen eigenen Entwurf laufen. Eine Regel mit Schranke braucht eine bestandene Bewertung."
+     },
+     "rules": {
+      "title": "Änderungsregeln",
+      "body": "Nur von Menschen geschrieben. Jede Änderung wird in Klassen eingeordnet und einer Regel zugeordnet."
+     },
+     "person": {
+      "title": "Ein Mensch entscheidet",
+      "body": "Eine Änderung, die keine Regel abdeckt, wartet wie jeder Entwurf."
+     },
+     "apply": {
+      "title": "Anwenden",
+      "body": "Als der Mensch hinter dem Lauf oder als der Mensch, der zugestimmt hat."
+     },
+     "evidence": {
+      "title": "Schattentests und Canary-Freigaben",
+      "body": "Von Menschen gestartet. Ihre Ergebnisse stehen am Vorschlag, und eine Canary-Freigabe setzt sich selbst zurück."
+     },
+     "rollback": {
+      "title": "Zurücksetzung",
+      "body": "Stellt eine frühere Revision wieder her und wendet dann die Rückgängig-Entwürfe an, die neuesten zuerst."
+     },
+     "revision": {
+      "title": "Organisationsrevision",
+      "body": "Eine pro Anwendung, mit Verweis auf den Entwurf."
+     },
+     "revert": {
+      "title": "Rückgängig-Entwurf",
+      "body": "Die geänderten Datensätze, wie sie vorher waren."
+     }
+    },
+    "arrows": {
+     "writes": "schreibt",
+     "checked": "geprüft",
+     "breaks": "verletzt eine Grenze",
+     "passes": "besteht",
+     "gate": "Bewertung",
+     "notCovered": "nicht abgedeckt",
+     "covered": "voll abgedeckt",
+     "allows": "stimmt zu",
+     "evidence": "Belege",
+     "publishes": "veröffentlicht",
+     "saves": "speichert",
+     "restores": "stellt wieder her"
+    }
+   },
+   "brakes": {
+    "title": "Bremsen",
+    "summary": "Bremsen hängen nicht davon ab, dass der Agent mitspielt. Sperren, der Notschalter, Ausgabengrenzen und Einheitenbudgets werden in der Steuerungsebene geprüft, wenn ein Lauf zugelassen wird und vor jedem Wecken eines Wächters, sodass ein abgelehnter Lauf gar nicht entsteht. Lauf-Tokens haben nie die Berechtigungen für Sperren, ein Agent kann also keine Bremse an sich selbst lösen. Für bereits laufende Arbeit gibt es Alles abbrechen für eine Einheit, und der Budgetwächter sperrt eine Einheit, die ihr Budget überzieht.",
+    "desc": "Sperren, der Notschalter, Ausgabengrenzen und Einheitenbudgets fließen in die Prüfungen bei der Laufzulassung und vor dem Wecken von Wächtern, die neue Läufe ablehnen und Wecken überspringen. Für laufende Arbeit stoppt Alles abbrechen den Teilbaum einer Einheit, und der Budgetwächter sperrt eine Einheit, die überzieht.",
+    "groups": {
+     "newWork": "Stoppt neue Arbeit",
+     "inFlight": "Stoppt laufende Arbeit"
+    },
+    "boxes": {
+     "freeze": {
+      "title": "Sperre",
+      "body": "Stoppt einen Agenten, eine Bereitstellung, einen Wächter, eine Anwendung, eine Einheit oder eine Organisation, bis ein Mensch sie aufhebt."
+     },
+     "killSwitch": {
+      "title": "Notschalter",
+      "body": "Kein Wächter im Mandanten wacht auf. Gewöhnliche Aufrufe funktionieren weiter."
+     },
+     "spendCap": {
+      "title": "Ausgabengrenze",
+      "body": "Das Budget eines Wächters pro Zyklus und pro Tag. Ein aufgebrauchter Tag setzt ihn auf CapReached."
+     },
+     "unitBudget": {
+      "title": "Einheitenbudget",
+      "body": "Eine Tages- oder Monatsgrenze für alles, was der Teilbaum einer Einheit ausführt."
+     },
+     "checks": {
+      "title": "Prüfungen bei Zulassung und Wecken",
+      "body": "In der Steuerungsebene, nie durch den Agenten. Eine Sperre erreicht jede Replik über den Backplane."
+     },
+     "refused": {
+      "title": "Abgelehnter Lauf",
+      "body": "409 Frozen oder BudgetExhausted. Es entsteht nichts."
+     },
+     "skipped": {
+      "title": "Übersprungenes Wecken",
+      "body": "Als übersprungener Zyklus mit seinem Code erfasst, und der Zeitplan läuft weiter."
+     },
+     "cancelAll": {
+      "title": "Alles abbrechen",
+      "body": "Bricht Läufe und Zyklen im Teilbaum einer Einheit ab, zieht ihre Eskalationen zurück und lässt ihre Post verfallen. Es sperrt nichts."
+     },
+     "autoFreeze": {
+      "title": "Automatische Sperre",
+      "body": "Gibt ein Teilbaum sein Budget plus die Marge aus, sperrt der Wächter die Einheit und bricht ihre Läufe ab."
+     }
+    },
+    "arrows": {
+     "refuses": "neuer Lauf",
+     "skips": "Wecken eines Wächters"
+    }
+   }
+  },
+  "glossary": {
+   "tenant": {
+    "term": "Mandant",
+    "def": "Die Grenze um die Agenten, Läufe, Benutzer und Einstellungen eines Kunden. Ein Zugriff über Mandanten hinweg antwortet mit 404."
+   },
+   "agent": {
+    "term": "Agent",
+    "def": "Etwas, das Aufrufer aufrufen. Seine Konfiguration liegt in unveränderlichen Revisionen."
+   },
+   "deployment": {
+    "term": "Bereitstellung",
+    "def": "Ein Agent, verbunden mit Harness-Profil, Modell, Prompts und Knotenpool. Ein Agent kann mehrere haben, gewählt nach Gewicht."
+   },
+   "harnessProfile": {
+    "term": "Harness-Profil",
+    "def": "Wie ein Harness-CLI oder eine Anbieter-API ohne Oberfläche läuft: Argumente, Prompt-Übergabe und Ausgabeparser. Das Dashboard führt sie unter Verbindungen."
+   },
+   "nodePool": {
+    "term": "Knotenpool",
+    "def": "Eine Gruppe von Worker-Knoten, auf die eine Bereitstellung zielen kann, auf Wunsch bestimmten Mandanten vorbehalten."
+   },
+   "node": {
+    "term": "Worker-Knoten",
+    "def": "Ein Prozess, der Läufe abholt und Harnesses startet. Er greift nie auf die Datenbank zu."
+   },
+   "run": {
+    "term": "Lauf",
+    "def": "Eine Ausführung eines Agenten. Wächter-Zyklen, Weckungen durch Nachrichten, Eval-Fälle und Schattenkopien sind Läufe eigener Art."
+   },
+   "runToken": {
+    "term": "Lauf-Token",
+    "def": "Die Anmeldedaten, die jeder Lauf für die MCP-Tools von Garrison erhält. Sie haben nie die Berechtigungen für Sperren."
+   },
+   "keeper": {
+    "term": "Wächter",
+    "def": "Ein Agent mit einer dauerhaften Aufgabe, den Garrison nach Zeitplan weckt. Die API nennt ihn Mandate."
+   },
+   "tick": {
+    "term": "Zyklus",
+    "def": "Ein Wecken eines Wächters: ein einzelner Lauf, der mit einem Ergebnis und einer Zusammenfassung endet."
+   },
+   "message": {
+    "term": "Nachricht",
+    "def": "Post von einem Agenten an einen anderen oder von einem Menschen. Der Absender wartet nicht auf eine Antwort."
+   },
+   "line": {
+    "term": "Verbindung",
+    "def": "Was einem Agenten erlaubt, einem anderen zu schreiben: eine App-Kante, eine Berichtslinie, eine Querverbindung oder eine Antwort im Verlauf."
+   },
+   "loopGuards": {
+    "term": "Schleifenschutz",
+    "def": "Die Prüfungen jeder Nachricht: eingefrorener Empfänger, keine Verbindung, Weiterleitungsgrenze, Verlaufsbudget und Senderate."
+   },
+   "report": {
+    "term": "Bericht",
+    "def": "Wie ein Agent den Stellen über ihm sagt, wie seine Arbeit läuft. Ein eingereichter Bericht ändert sich nie."
+   },
+   "memory": {
+    "term": "Gedächtnis",
+    "def": "Text, den ein Agent zwischen Läufen behält, in einem Bereich Agent, Anwendung, Organisationseinheit oder Organisation."
+   },
+   "escalation": {
+    "term": "Eskalation",
+    "def": "Eine Frage, die ein Lauf stellt, wenn er nicht allein entscheiden sollte. Ein Mensch, eine Rolle oder ein anderer Agent beantwortet sie."
+   },
+   "organization": {
+    "term": "Organisation",
+    "def": "Ein Baum aus Einheiten, der einer Gruppe von Agenten eine Form gibt. Nichts darin wirkt, bevor ein Mensch eine Revision veröffentlicht."
+   },
+   "unit": {
+    "term": "Einheit",
+    "def": "Ein Knoten im Baum: Leitung, Mitglieder, Querverbindungen und Budgets."
+   },
+   "board": {
+    "term": "Gremium",
+    "def": "Die Menschen, die eine Organisation führen. Sie stehen über ihrem CEO."
+   },
+   "chain": {
+    "term": "Führungskette",
+    "def": "Wer wen leitet, nur aus den veröffentlichten Revisionen aktiver Organisationen gelesen."
+   },
+   "executive": {
+    "term": "Führungsagent",
+    "def": "Eine Einheitsleitung, die innerhalb harter Grenzen Änderungen an den Einheiten unter sich vorschlagen darf."
+   },
+   "changeRule": {
+    "term": "Änderungsregel",
+    "def": "Ein dauerhaftes Ja eines Menschen für eine enge Klasse von Änderungen durch Führungsagenten. Nur Menschen schreiben sie."
+   },
+   "evalSet": {
+    "term": "Eval-Set",
+    "def": "Feste Eingaben mit Prüfungen. Ein Eval-Lauf bewertet eine Agentenrevision oder eine Bereitstellung damit."
+   },
+   "shadowTrial": {
+    "term": "Schattentest",
+    "def": "Kopiert eine Stichprobe echter Eingaben an eine Kandidaten-Bereitstellung, die nichts bewirken kann, und vergleicht die Antworten."
+   },
+   "canary": {
+    "term": "Canary-Freigabe",
+    "def": "Verschiebt Verkehr schrittweise auf eine Kandidaten-Bereitstellung und setzt zurück, wenn Fehlerrate oder Eval-Bewertung eine Grenze überschreiten."
+   },
+   "freeze": {
+    "term": "Sperre",
+    "def": "Stoppt neue Läufe eines Ziels, bis ein Mensch sie aufhebt."
+   },
+   "killSwitch": {
+    "term": "Notschalter",
+    "def": "Eine mandantenweite Sperre der Autonomie. Kein Wächter wacht auf, gewöhnliche Aufrufe funktionieren weiter."
+   },
+   "unitBudget": {
+    "term": "Einheitenbudget",
+    "def": "Eine Tages- oder Monatsgrenze dafür, was der Teilbaum einer Einheit ausgeben darf."
+   }
+  }
+ },
+ "components": {
+  "explainer": {
+   "seeDiagram": "Zum Diagramm"
+  }
+ }
+});

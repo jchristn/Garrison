@@ -4931,3 +4931,31 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   }
  }
 });
+
+// LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "learn": "Apre la pagina Impara: sette diagrammi su come si incastra Garrison, un tour per ciascuno e un glossario.",
+  "hubs": {
+   "learn": "Sette diagrammi su come si incastra Garrison, dal runtime ai freni, con un tour per ciascuno e un glossario."
+  }
+ },
+ "learn": {
+  "openPage": "Apre la pagina {{page}} nella dashboard.",
+  "openDoc": "Apre {{doc}} su GitHub in una nuova scheda.",
+  "showList": "Mostra gli stessi riquadri e frecce come elenco annidato, comodo con uno screen reader o su uno schermo stretto.",
+  "showDiagram": "Torna al diagramma disegnato.",
+  "startTour": "Avvia il tour {{tour}}, che percorre le pagine usate da questa parte di Garrison.",
+  "toc": "Va a {{title}} in questa pagina.",
+  "seeDiagram": "Apre la pagina Impara sul diagramma che mostra dove si colloca questa pagina in Garrison."
+ }
+});

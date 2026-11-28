@@ -9028,3 +9028,535 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "learn": "Apprendre",
+  "hubs": {
+   "learn": {
+    "label": "Apprendre",
+    "tip": "Des schémas, des visites et un glossaire qui montrent comment Garrison s'articule"
+   }
+  },
+  "items": {
+   "learn": {
+    "label": "Apprendre",
+    "tip": "Des schémas, des visites et un glossaire qui montrent comment Garrison s'articule"
+   }
+  }
+ },
+ "learn": {
+  "title": "Apprendre",
+  "subtitle": "Comment les pièces de Garrison s'articulent, un schéma à la fois. Chaque bloc ouvre sa page, et le livre dans son coin ouvre son guide.",
+  "toc": "Sur cette page",
+  "startTourNamed": "Visite : {{tour}}",
+  "showList": "Afficher en liste",
+  "showDiagram": "Afficher en schéma",
+  "openPage": "{{name}}. Ouvre {{page}}.",
+  "openDoc": "En savoir plus sur {{name}} dans {{doc}}",
+  "glossaryTitle": "Glossaire",
+  "glossaryIntro": "Ce sont les mots de la documentation. Quand le tableau de bord dit autre chose, l'entrée le précise.",
+  "list": {
+   "parts": "Éléments",
+   "connections": "Liens",
+   "connection": "{{from}} {{arrow}} {{to}}",
+   "connectionLabelled": "{{from}} {{arrow}} {{to}} : {{label}}",
+   "doc": "Guide : {{doc}}"
+  },
+  "tours": {
+   "firstLook": "Premier aperçu",
+   "runAnAgent": "Exécuter un agent",
+   "followARequest": "Suivre une requête",
+   "buildATeam": "Monter une équipe",
+   "keepItSafe": "Garder le contrôle",
+   "watchAnOrganization": "Surveiller une organisation"
+  },
+  "diagrams": {
+   "runtime": {
+    "title": "Le moteur d'exécution",
+    "summary": "Un locataire contient des agents et les déploiements qui les exécutent. Un déploiement relie un agent à un profil de harness, un modèle, ses prompts et un pool de nœuds. Chaque requête devient une exécution, et un nœud worker de ce pool la récupère puis lance le harness. Les workers ne touchent jamais la base de données : tout ce dont ils ont besoin arrive avec le bail.",
+    "desc": "Un locataire contient des clés d'accès, des agents, des profils de harness, des déploiements et des exécutions. Les pools de nœuds et les nœuds worker forment une flotte que les locataires partagent.",
+    "groups": {
+     "tenant": "Locataire",
+     "fleet": "Flotte partagée"
+    },
+    "boxes": {
+     "credential": {
+      "title": "Clé d'accès",
+      "body": "Une clé qui appartient à un utilisateur. Les appelants et les nœuds worker s'identifient avec."
+     },
+     "agent": {
+      "title": "Agent IA",
+      "body": "Ce que l'on invoque par REST, MCP ou A2A. Il conserve des révisions immuables."
+     },
+     "harnessProfile": {
+      "title": "Profil de harness",
+      "body": "Comment une CLI ou une API de harness tourne sans interface. Le tableau de bord parle de connexion."
+     },
+     "deployment": {
+      "title": "Déploiement",
+      "body": "Relie un agent à un profil de harness, un modèle, des prompts et un pool de nœuds."
+     },
+     "nodePool": {
+      "title": "Pool de nœuds",
+      "body": "Un groupe de nœuds worker, réservable à certains locataires."
+     },
+     "run": {
+      "title": "Exécution",
+      "body": "Une exécution d'un agent sur un déploiement, avec ses événements et son résultat."
+     },
+     "node": {
+      "title": "Nœud worker",
+      "body": "Récupère les exécutions qu'il peut servir et lance le harness de chacune."
+     }
+    },
+    "arrows": {
+     "invokes": "invoque",
+     "runsOn": "tourne sur",
+     "usedBy": "utilisé par",
+     "targets": "cible",
+     "creates": "crée",
+     "groups": "regroupe",
+     "leases": "prend à bail"
+    }
+   },
+   "request": {
+    "title": "La vie d'une requête",
+    "summary": "Toutes les façons de lancer un agent aboutissent au même endroit. REST, MCP et A2A partagent un invocateur, qui choisit un déploiement et n'admet l'exécution que si aucun gel, budget d'unité ou plafond de file ne s'y oppose. Un worker réclame l'exécution en attente, reçoit la spécification compilée et lance le harness. La sortie revient sous forme d'événements, et l'appelant obtient le résultat.",
+    "desc": "Une requête va de l'appelant, par REST, MCP ou A2A, jusqu'à l'admission puis la file. Un worker la prend à bail et lance le harness, et la sortie revient sous forme d'événements et d'une réponse.",
+    "groups": {
+     "controlPlane": "Plan de contrôle",
+     "worker": "Sur un nœud worker"
+    },
+    "boxes": {
+     "caller": {
+      "title": "Appelant",
+      "body": "Une personne, un SDK, un client MCP ou un agent A2A."
+     },
+     "surface": {
+      "title": "REST, MCP ou A2A",
+      "body": "Les trois passent par le même invocateur, qui vérifie Execute sur l'agent."
+     },
+     "admission": {
+      "title": "Admission de l'exécution",
+      "body": "Choisit un déploiement, puis vérifie les gels, les budgets d'unité et les plafonds de file. Une exécution refusée n'est jamais créée."
+     },
+     "queued": {
+      "title": "En file d'attente",
+      "body": "Attend un worker qui a le bon harness, le bon pool de nœuds et les bons libellés."
+     },
+     "lease": {
+      "title": "Bail",
+      "body": "Le worker fait du long polling, réclame l'exécution par compare-and-set et reçoit la spécification compilée."
+     },
+     "harness": {
+      "title": "Harness",
+      "body": "La CLI ou l'API du fournisseur, lancée avec les arguments, fichiers et serveurs MCP de la spécification."
+     },
+     "events": {
+      "title": "Événements",
+      "body": "Sortie analysée par lots : texte, appels d'outils, consommation et résultat."
+     },
+     "reply": {
+      "title": "Réponse",
+      "body": "Une invocation qui attend renvoie l'exécution. Les flux reçoivent l'événement final."
+     }
+    },
+    "arrows": {
+     "sends": "requête",
+     "admitted": "admise",
+     "leased": "prise à bail",
+     "starts": "lance",
+     "returns": "résultat"
+    }
+   },
+   "autonomy": {
+    "title": "Les briques de l'autonomie",
+    "summary": "Un gardien est un agent qui a une mission permanente, écrite sous forme de mandat. Garrison le réveille selon un calendrier, et chaque réveil est un cycle : une exécution ordinaire qui se termine quand le gardien rapporte ce qu'il a trouvé. En chemin, il peut retenir des choses pour les cycles suivants, déposer des rapports pour son responsable et escalader une question qu'il ne devrait pas trancher seul. La réponse le réveille à nouveau.",
+    "desc": "Un gardien détient un mandat dont le calendrier de réveil lance des cycles. Chaque cycle lance une exécution du gardien, qui écrit en mémoire, dépose des rapports et ouvre des escalades. Une escalade qui reçoit sa réponse réveille de nouveau le gardien.",
+    "boxes": {
+     "keeper": {
+      "title": "Gardien",
+      "body": "Un agent avec une mission permanente. L'API appelle cet enregistrement mandate."
+     },
+     "mandate": {
+      "title": "Mandat",
+      "body": "Des révisions publiées : l'objectif, à quoi ressemble un état sain, l'autonomie et la politique d'escalade."
+     },
+     "schedule": {
+      "title": "Calendrier de réveil",
+      "body": "Un intervalle minimal et maximal avec ralentissement progressif. Le leader réclame chaque réveil dû une seule fois."
+     },
+     "tick": {
+      "title": "Cycle",
+      "body": "Un réveil, avec sa source et un résultat : Calme, Intervenu, Demande attention ou Escaladé."
+     },
+     "run": {
+      "title": "Exécution du gardien",
+      "body": "Une exécution de type Keeper sur le déploiement du mandat. Elle se termine par le compte rendu du cycle."
+     },
+     "memory": {
+      "title": "Mémoire",
+      "body": "Les entrées marquées recall reviennent dans l'entrée du cycle suivant."
+     },
+     "report": {
+      "title": "Rapport",
+      "body": "Déposé vers le haut. Le cycle suivant du responsable le lit dans sa synthèse."
+     },
+     "escalation": {
+      "title": "Escalade",
+      "body": "Une question pour une personne, un rôle ou un autre agent."
+     }
+    },
+    "arrows": {
+     "holds": "détient",
+     "sets": "fixe",
+     "comesDue": "arrive à échéance",
+     "starts": "lance",
+     "writes": "écrit",
+     "files": "dépose",
+     "raises": "ouvre",
+     "answerWakes": "la réponse le réveille"
+    }
+   },
+   "teams": {
+    "title": "Équipes",
+    "summary": "Les agents s'écrivent par des boîtes aux lettres. Un message est du courrier, pas un appel : l'expéditeur continue, et le destinataire le lit à sa prochaine exécution, ou tout de suite si le message est urgent. Chaque envoi passe d'abord par les garde-fous anti-boucle, et un message refusé est conservé avec son motif, pour voir qui a essayé de joindre qui.",
+    "desc": "Un message franchit les garde-fous anti-boucle jusqu'à la boîte du destinataire, ou il est enregistré comme Rejeté. Le courrier normal attend la prochaine exécution du destinataire, le courrier urgent le réveille.",
+    "boxes": {
+     "sender": {
+      "title": "Expéditeur",
+      "body": "L'exécution d'un agent, ou une personne. Les agents n'écrivent que le long d'une ligne."
+     },
+     "guards": {
+      "title": "Garde-fous anti-boucle",
+      "body": "Dans l'ordre : destinataire gelé, aucune ligne, limite de sauts, budget du fil, débit de la ligne."
+     },
+     "mailbox": {
+      "title": "Boîte aux lettres",
+      "body": "Les messages en attente du destinataire, du plus ancien au plus récent."
+     },
+     "normal": {
+      "title": "Distribution normale",
+      "body": "Attend le prochain cycle du gardien, ou une exécution qui lit la boîte de réception."
+     },
+     "rejected": {
+      "title": "Rejeté",
+      "body": "Conservé avec son motif et jamais distribué."
+     },
+     "urgent": {
+      "title": "Réveil urgent",
+      "body": "Avance le prochain réveil du gardien, ou lance une exécution Message s'il n'y a pas de gardien."
+     },
+     "recipient": {
+      "title": "Exécution du destinataire",
+      "body": "Une exécution emporte tout ce qui est arrivé : dix messages coûtent un cycle."
+     }
+    },
+    "arrows": {
+     "sends": "envoie",
+     "passes": "passe",
+     "refused": "refusé",
+     "normal": "normale",
+     "urgent": "urgente",
+     "nextRun": "exécution suivante",
+     "wakes": "réveille aussitôt"
+    }
+   },
+   "organization": {
+    "title": "Une organisation",
+    "summary": "Une organisation donne une forme à un groupe d'agents : un arbre d'unités, chacune avec un responsable, des membres, des lignes transversales facultatives et des budgets. Le responsable de l'unité racine est le CEO, et au-dessus siège le comité, les personnes qui dirigent l'organisation. Les modifications vont dans un arbre de travail que rien ne lit. Publier une révision la met en service, et dès lors messages, rapports, mémoire, escalades, gels et budgets interrogent tous la même chaîne de commandement.",
+    "desc": "Le comité supervise l'unité racine, dont le responsable est le CEO. Les unités en dessous y sont rattachées par des lignes hiérarchiques, et les lignes transversales relient des unités entre elles. L'arbre de travail entre en service à la publication d'une révision, et la chaîne de commandement ne lit que la révision en service.",
+    "groups": {
+     "live": "Révision en service"
+    },
+    "boxes": {
+     "board": {
+      "title": "Comité",
+      "body": "Les personnes qui dirigent l'organisation, au-dessus du CEO."
+     },
+     "root": {
+      "title": "Unité racine",
+      "body": "Son responsable est le CEO. Son budget plafonne tout l'arbre."
+     },
+     "unitA": {
+      "title": "Unité",
+      "body": "Un responsable, jusqu'à 200 membres, un budget par jour et un par mois."
+     },
+     "unitB": {
+      "title": "Unité voisine",
+      "body": "Une ligne transversale relie tous les agents de deux unités, dans les deux sens."
+     },
+     "working": {
+      "title": "Arbre de travail",
+      "body": "Là où les personnes modifient les unités. Rien ne le lit à l'exécution."
+     },
+     "revision": {
+      "title": "Révision publiée",
+      "body": "Un instantané qui ne change jamais. Une annulation publie une copie d'une révision antérieure."
+     },
+     "chain": {
+      "title": "Chaîne de commandement",
+      "body": "Responsables, chaînes, sous-arbres et lignes, uniquement d'après les révisions en service."
+     }
+    },
+    "arrows": {
+     "oversees": "supervise",
+     "reportsA": "ligne hiérarchique",
+     "peer": "ligne transversale",
+     "publish": "publier",
+     "readBy": "lue par"
+    }
+   },
+   "selfRevision": {
+    "title": "Auto-révision",
+    "summary": "Un dirigeant est le responsable d'une unité qui peut proposer des changements aux unités en dessous. Il écrit un brouillon d'atelier ordinaire, et ExecutiveDraftValidator le soumet à des limites strictes que rien ne lève : rien sur lui-même, rien au-dessus ni en dehors de son sous-arbre, aucun secret, aucune hausse de budget et aucun accès de gestion. Un brouillon que les règles de changement écrites par des personnes couvrent entièrement s'applique aussitôt. Tout le reste attend une personne. Chaque application publie une révision de l'organisation et enregistre un brouillon d'annulation, si bien qu'une seule annulation la défait.",
+    "desc": "Un dirigeant écrit un brouillon. Les limites strictes le refusent ou le transmettent aux règles de changement, qu'une barrière d'évaluation peut retenir. Un brouillon couvert s'applique, le reste attend une personne qui voit les résultats des essais fantômes et des diffusions canari. Chaque application publie une révision de l'organisation avec un brouillon d'annulation, et une annulation la restaure.",
+    "boxes": {
+     "executive": {
+      "title": "Dirigeant",
+      "body": "Le responsable d'une unité dont le déploiement peut rédiger des changements sous son unité."
+     },
+     "draft": {
+      "title": "Brouillon",
+      "body": "Un brouillon d'atelier ordinaire. Les personnes le suivent comme une proposition."
+     },
+     "limits": {
+      "title": "Limites strictes",
+      "body": "Vérifiées au diff, à la demande et juste avant l'application. Aucune règle ni approbation ne les lève."
+     },
+     "refused": {
+      "title": "Refusé",
+      "body": "La demande échoue avec DraftInvalid, et rien ne change."
+     },
+     "eval": {
+      "title": "Barrière d'évaluation",
+      "body": "Le dirigeant lance un jeu d'évaluation sur son propre brouillon. Une règle avec barrière exige un score suffisant."
+     },
+     "rules": {
+      "title": "Règles de changement",
+      "body": "Écrites uniquement par des personnes. Chaque changement est classé puis rapproché d'une règle."
+     },
+     "person": {
+      "title": "Une personne décide",
+      "body": "Un changement qu'aucune règle ne couvre attend, comme tout brouillon."
+     },
+     "apply": {
+      "title": "Appliquer",
+      "body": "Au nom de la personne derrière l'exécution, ou de celle qui l'a autorisé."
+     },
+     "evidence": {
+      "title": "Essais fantômes et canaris",
+      "body": "Lancés par des personnes. Leurs résultats figurent sur la proposition, et un canari revient en arrière tout seul."
+     },
+     "rollback": {
+      "title": "Annulation",
+      "body": "Restaure une révision antérieure, puis applique les brouillons d'annulation, du plus récent au plus ancien."
+     },
+     "revision": {
+      "title": "Révision de l'organisation",
+      "body": "Une par application, qui nomme le brouillon."
+     },
+     "revert": {
+      "title": "Brouillon d'annulation",
+      "body": "Les enregistrements modifiés, tels qu'ils étaient avant."
+     }
+    },
+    "arrows": {
+     "writes": "écrit",
+     "checked": "vérifié",
+     "breaks": "enfreint une limite",
+     "passes": "passe",
+     "gate": "note",
+     "notCovered": "non couvert",
+     "covered": "entièrement couvert",
+     "allows": "autorise",
+     "evidence": "résultats",
+     "publishes": "publie",
+     "saves": "enregistre",
+     "restores": "restaure"
+    }
+   },
+   "brakes": {
+    "title": "Freins",
+    "summary": "Les freins ne comptent pas sur la coopération de l'agent. Les gels, l'arrêt d'urgence, les plafonds de dépense et les budgets d'unité sont vérifiés dans le plan de contrôle à l'admission d'une exécution et avant chaque réveil d'un gardien : une exécution refusée n'est donc jamais créée. Les jetons d'exécution n'ont jamais les permissions de gel, si bien qu'un agent ne peut pas lever un frein sur lui-même. Pour le travail déjà lancé, annulez tout dans une unité, et laissez le gardien du budget geler une unité qui dépasse.",
+    "desc": "Les gels, l'arrêt d'urgence, les plafonds de dépense et les budgets d'unité alimentent les vérifications à l'admission et avant les réveils, qui refusent les nouvelles exécutions et sautent des réveils. Pour le travail en cours, Tout annuler arrête le sous-arbre d'une unité, et le gardien du budget gèle une unité qui dépasse.",
+    "groups": {
+     "newWork": "Arrête le nouveau travail",
+     "inFlight": "Arrête le travail en cours"
+    },
+    "boxes": {
+     "freeze": {
+      "title": "Gel",
+      "body": "Arrête un agent, un déploiement, un gardien, une application, une unité ou une organisation jusqu'à ce qu'une personne le lève."
+     },
+     "killSwitch": {
+      "title": "Arrêt d'urgence",
+      "body": "Aucun gardien du locataire ne se réveille. Les invocations ordinaires continuent."
+     },
+     "spendCap": {
+      "title": "Plafond de dépense",
+      "body": "Le budget d'un gardien par cycle et par jour. Une journée épuisée le passe en CapReached."
+     },
+     "unitBudget": {
+      "title": "Budget d'unité",
+      "body": "Un plafond par jour ou par mois sur tout ce qu'exécute le sous-arbre d'une unité."
+     },
+     "checks": {
+      "title": "Vérifications à l'admission et au réveil",
+      "body": "Faites dans le plan de contrôle, jamais par l'agent. Un gel atteint chaque réplique par le backplane."
+     },
+     "refused": {
+      "title": "Exécution refusée",
+      "body": "409 Frozen ou BudgetExhausted. Rien n'est créé."
+     },
+     "skipped": {
+      "title": "Réveil sauté",
+      "body": "Enregistré comme un cycle ignoré avec son code, et le calendrier avance."
+     },
+     "cancelAll": {
+      "title": "Tout annuler",
+      "body": "Annule les exécutions et les cycles du sous-arbre d'une unité, retire ses escalades et fait expirer son courrier. Ne gèle rien."
+     },
+     "autoFreeze": {
+      "title": "Gel automatique",
+      "body": "Quand un sous-arbre dépense son budget plus la marge, le gardien gèle l'unité et annule ses exécutions."
+     }
+    },
+    "arrows": {
+     "refuses": "nouvelle exécution",
+     "skips": "réveil d'un gardien"
+    }
+   }
+  },
+  "glossary": {
+   "tenant": {
+    "term": "Locataire",
+    "def": "La frontière autour des agents, exécutions, utilisateurs et réglages d'un client. Une lecture d'un locataire à l'autre répond 404."
+   },
+   "agent": {
+    "term": "Agent IA",
+    "def": "Ce que l'on invoque. Sa configuration vit dans des révisions immuables."
+   },
+   "deployment": {
+    "term": "Déploiement",
+    "def": "Un agent relié à un profil de harness, un modèle, des prompts et un pool de nœuds. Un agent peut en avoir plusieurs, choisis selon leur poids."
+   },
+   "harnessProfile": {
+    "term": "Profil de harness",
+    "def": "Comment une CLI de harness ou une API de fournisseur tourne sans interface : arguments, transmission du prompt et analyseur de sortie. Le tableau de bord les range sous Connexions."
+   },
+   "nodePool": {
+    "term": "Pool de nœuds",
+    "def": "Un groupe de nœuds worker qu'un déploiement peut cibler, réservable à certains locataires."
+   },
+   "node": {
+    "term": "Nœud worker",
+    "def": "Un processus qui récupère des exécutions et lance des harnesses. Il ne touche jamais la base de données."
+   },
+   "run": {
+    "term": "Exécution",
+    "def": "Une exécution d'un agent. Les cycles de gardien, les réveils par message, les cas d'évaluation et les copies fantômes sont des exécutions de leur propre type."
+   },
+   "runToken": {
+    "term": "Jeton d'exécution",
+    "def": "L'identifiant que chaque exécution reçoit pour les outils MCP de Garrison. Il n'a jamais les permissions de gel."
+   },
+   "keeper": {
+    "term": "Gardien",
+    "def": "Un agent avec une mission permanente que Garrison réveille selon un calendrier. L'API l'appelle mandate."
+   },
+   "tick": {
+    "term": "Cycle",
+    "def": "Un réveil d'un gardien : une seule exécution qui se termine en rapportant un résultat et un résumé."
+   },
+   "message": {
+    "term": "Message",
+    "def": "Du courrier d'un agent à un autre, ou d'une personne. L'expéditeur n'attend pas de réponse."
+   },
+   "line": {
+    "term": "Ligne",
+    "def": "Ce qui permet à un agent d'écrire à un autre : une arête d'application, une ligne hiérarchique, une ligne transversale ou une réponse dans un fil."
+   },
+   "loopGuards": {
+    "term": "Garde-fous anti-boucle",
+    "def": "Les vérifications de chaque message : destinataire gelé, aucune ligne, limite de sauts, budget du fil et débit de la ligne."
+   },
+   "report": {
+    "term": "Rapport",
+    "def": "La façon dont un agent dit à ceux du dessus comment avance son travail. Un rapport déposé ne change jamais."
+   },
+   "memory": {
+    "term": "Mémoire",
+    "def": "Du texte qu'un agent garde d'une exécution à l'autre, dans une portée agent, application, unité organisationnelle ou organisation."
+   },
+   "escalation": {
+    "term": "Escalade",
+    "def": "Une question qu'une exécution pose quand elle ne devrait pas décider seule. Une personne, un rôle ou un autre agent y répond."
+   },
+   "organization": {
+    "term": "Organisation",
+    "def": "Un arbre d'unités qui donne une forme à un groupe d'agents. Rien n'y prend effet avant qu'une personne publie une révision."
+   },
+   "unit": {
+    "term": "Unité",
+    "def": "Un nœud de l'arbre : responsable, membres, lignes transversales et budgets."
+   },
+   "board": {
+    "term": "Comité",
+    "def": "Les personnes qui dirigent une organisation. Elles siègent au-dessus de son CEO."
+   },
+   "chain": {
+    "term": "Chaîne de commandement",
+    "def": "Qui dirige qui, lu uniquement dans les révisions publiées des organisations en service."
+   },
+   "executive": {
+    "term": "Dirigeant",
+    "def": "Le responsable d'une unité qui peut proposer des changements aux unités en dessous, dans des limites strictes."
+   },
+   "changeRule": {
+    "term": "Règle de changement",
+    "def": "Un oui permanent d'une personne pour une catégorie étroite de changements d'un dirigeant. Seules des personnes les écrivent."
+   },
+   "evalSet": {
+    "term": "Jeu d'évaluation",
+    "def": "Des entrées fixes avec des vérifications. Une exécution d'évaluation note une révision d'agent ou un déploiement avec elles."
+   },
+   "shadowTrial": {
+    "term": "Essai fantôme",
+    "def": "Copie un échantillon d'entrées réelles vers un déploiement candidat qui ne peut avoir aucun effet, et compare les réponses."
+   },
+   "canary": {
+    "term": "Diffusion canari",
+    "def": "Déplace le trafic vers un déploiement candidat par étapes et revient en arrière quand son taux d'erreur ou son score franchit un seuil."
+   },
+   "freeze": {
+    "term": "Gel",
+    "def": "Arrête les nouvelles exécutions d'une cible jusqu'à ce qu'une personne le lève."
+   },
+   "killSwitch": {
+    "term": "Arrêt d'urgence",
+    "def": "Un gel de l'autonomie sur tout le locataire. Aucun gardien ne se réveille, et les invocations ordinaires continuent."
+   },
+   "unitBudget": {
+    "term": "Budget d'unité",
+    "def": "Un plafond par jour ou par mois sur ce que le sous-arbre d'une unité peut dépenser."
+   }
+  }
+ },
+ "components": {
+  "explainer": {
+   "seeDiagram": "Voir le schéma"
+  }
+ }
+});

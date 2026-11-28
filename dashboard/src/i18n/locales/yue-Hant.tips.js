@@ -4929,3 +4929,31 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   }
  }
 });
+
+// LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "learn": "開學習頁面：七幅講解 Garrison 點樣配合嘅圖，每幅都有導覽，仲有詞彙表。",
+  "hubs": {
+   "learn": "七幅講解 Garrison 點樣配合嘅圖，由執行環境到制動，每幅都有導覽，仲有詞彙表。"
+  }
+ },
+ "learn": {
+  "openPage": "喺儀表板開{{page}}頁面。",
+  "openDoc": "喺新分頁開 GitHub 上面嘅 {{doc}}。",
+  "showList": "用巢狀清單顯示同樣嘅方格同箭咀，用螢幕閱讀器或者窄螢幕都易讀。",
+  "showDiagram": "返去畫出嚟嘅圖。",
+  "startTour": "開始{{tour}}導覽，帶你行一次 Garrison 呢部分用到嘅頁面。",
+  "toc": "跳去呢頁嘅{{title}}。",
+  "seeDiagram": "開學習頁面，去到講明呢頁喺 Garrison 入面位置嘅圖。"
+ }
+});

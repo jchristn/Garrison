@@ -365,8 +365,8 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 
 ### Phase LP4: Guided learning
 
-- [ ] LP4.1 Diagram kit: `components/learn/Diagram.jsx` with box, group, arrow, and label primitives that draw SVG from CSS tokens, mirror in right-to-left layout, wrap translated labels, and link a box to a route. Every diagram carries a text alternative (`<desc>` plus a visible "Show as list" toggle).  Accept: vitest for mirroring and wrapping at German length.
-- [ ] LP4.2 Seven diagrams drawn with the kit:
+- [x] LP4.1 Diagram kit: `components/learn/Diagram.jsx` with box, group, arrow, and label primitives that draw SVG from CSS tokens, mirror in right-to-left layout, wrap translated labels, and link a box to a route. Every diagram carries a text alternative (`<desc>` plus a visible "Show as list" toggle).  Accept: vitest for mirroring and wrapping at German length.  | claude 2026-11-27 components/learn (textWrap, diagramLayout, Diagram.jsx, diagramPalette); vitest src/tests/learn.test.jsx 13/13 (German wrapping, CJK breaks, RTL mirror, list toggle, list below 768px); committed with LP4.2
+- [x] LP4.2 Seven diagrams drawn with the kit:  | claude 2026-11-27 components/learn/diagrams.js; each box checked against the docs and the classes they name (RunService, FreezeService, MessageService, KeeperScheduler, ExecutiveDraftValidator, OrgBrakeService, OrgBudgetGuard); light and dark screenshots of the exports checked; strings in nine locales
   1. **The runtime:** tenant, harness profile, credential, node pool, node, agent, deployment, run.
   2. **A request's life:** caller, REST, MCP or A2A, run admission (freezes, budgets), lease, worker, harness, events, reply.
   3. **Autonomy building blocks:** mandate, keeper, wake schedule, tick, run, memory, report, escalation.

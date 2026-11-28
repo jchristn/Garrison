@@ -4929,3 +4929,31 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   }
  }
 });
+
+// LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "learn": "学ぶページを開きます。Garrison の全体像を示す 7 つの図、それぞれのツアー、用語集があります。",
+  "hubs": {
+   "learn": "ランタイムからブレーキまで、Garrison の全体像を示す 7 つの図と、それぞれのツアー、用語集。"
+  }
+ },
+ "learn": {
+  "openPage": "ダッシュボードで {{page}} ページを開きます。",
+  "openDoc": "GitHub の {{doc}} を新しいタブで開きます。",
+  "showList": "同じボックスと矢印を入れ子のリストで表示します。スクリーンリーダーや幅の狭い画面で読みやすくなります。",
+  "showDiagram": "描画された図に戻ります。",
+  "startTour": "{{tour}} ツアーを開始し、Garrison のこの部分が使うページを順に案内します。",
+  "toc": "このページの {{title}} に移動します。",
+  "seeDiagram": "学ぶページを開き、このページが Garrison のどこに位置するかを示す図を表示します。"
+ }
+});

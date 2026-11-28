@@ -4928,3 +4928,31 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+// LP4.1 to LP4.4: tooltips for the Learn page, its diagrams, and the sidebar entry.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "learn": "打开学习页面：七张说明 Garrison 如何配合的图，每张都有导览，另附术语表。",
+  "hubs": {
+   "learn": "七张说明 Garrison 如何配合的图，从运行时到制动，每张都有导览，另附术语表。"
+  }
+ },
+ "learn": {
+  "openPage": "在仪表板中打开{{page}}页面。",
+  "openDoc": "在新标签页中打开 GitHub 上的 {{doc}}。",
+  "showList": "以嵌套列表显示相同的方框和箭头，便于屏幕阅读器或窄屏阅读。",
+  "showDiagram": "回到绘制的图示。",
+  "startTour": "开始{{tour}}导览，带你走一遍 Garrison 这一部分用到的页面。",
+  "toc": "跳到本页的{{title}}。",
+  "seeDiagram": "打开学习页面，定位到说明此页面在 Garrison 中位置的图示。"
+ }
+});

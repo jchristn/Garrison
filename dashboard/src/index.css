@@ -2084,3 +2084,64 @@ tr.eval-result-failing td:first-child { box-shadow: inset 4px 0 0 var(--color-da
 @media (prefers-reduced-motion: reduce) {
   .trail-step-box, .trail-card, .trail-graph .react-flow__viewport { transition: none !important; animation: none !important; }
 }
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Concept diagrams and the Learn page (LP4.1 to LP4.3). The SVG diagrams take every color from the theme tokens, so
+   they follow light and dark. scripts/export-diagrams.mjs embeds the same rules with literal colors
+   (components/learn/diagramPalette.js); keep the two in step.
+   --------------------------------------------------------------------------------------------------------------- */
+.lg-svg { display: block; width: 100%; height: auto; margin: 0 auto; font-family: var(--font-family); --lg-stroke: color-mix(in srgb, var(--color-text-muted) 38%, var(--color-border)); }
+.lg-bg { fill: var(--color-surface); }
+.lg-group rect { fill: var(--color-surface-alt); stroke: var(--color-border); }
+.lg-group-label { font-size: 11.5px; font-weight: 600; fill: var(--color-text-muted); }
+.lg-box-bg { fill: var(--color-surface); stroke: var(--lg-stroke); stroke-width: 1; }
+.lg-box--core .lg-box-bg { fill: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); stroke: color-mix(in srgb, var(--color-primary) 55%, var(--color-border)); }
+.lg-box--actor .lg-box-bg { fill: color-mix(in srgb, var(--color-info) 9%, var(--color-surface)); stroke: color-mix(in srgb, var(--color-info) 55%, var(--color-border)); }
+.lg-box--check .lg-box-bg { fill: color-mix(in srgb, var(--color-warning) 9%, var(--color-surface)); stroke: color-mix(in srgb, var(--color-warning) 55%, var(--color-border)); }
+.lg-box--stop .lg-box-bg { fill: color-mix(in srgb, var(--color-danger) 9%, var(--color-surface)); stroke: color-mix(in srgb, var(--color-danger) 55%, var(--color-border)); }
+.lg-box-title { font-size: 13px; font-weight: 600; fill: var(--color-text); }
+.lg-box-body { font-size: 11.5px; fill: var(--color-text-secondary); }
+.lg-box-code { font-size: 10.5px; font-family: var(--font-mono); fill: var(--color-text-muted); }
+.lg-arrow path { fill: none; stroke: var(--color-text-muted); stroke-width: 1.4; }
+.lg-arrow--dashed path { stroke-dasharray: 5 4; }
+.lg-arrowhead { fill: var(--color-text-muted); stroke: none; }
+.lg-arrow-label rect { fill: var(--color-surface); stroke: var(--color-border); }
+.lg-arrow-label text { font-size: 11px; fill: var(--color-text-secondary); }
+.lg-link, .lg-doc { cursor: pointer; outline: none; }
+.lg-link:hover .lg-box-bg { stroke: var(--color-primary); stroke-width: 1.6; }
+.lg-link:focus-visible .lg-box-bg { stroke: var(--color-primary); stroke-width: 2.5; }
+.lg-doc-hit { fill: transparent; }
+.lg-doc-glyph path { fill: none; stroke: var(--color-text-muted); stroke-width: 1.3; stroke-linejoin: round; }
+.lg-doc:hover .lg-doc-glyph path, .lg-doc:focus-visible .lg-doc-glyph path { stroke: var(--color-primary); }
+.lg-doc:focus-visible .lg-doc-hit { stroke: var(--color-primary); stroke-width: 1.5; }
+@media (prefers-reduced-motion: no-preference) { .lg-box-bg { transition: stroke 120ms ease, stroke-width 120ms ease; } }
+
+.learn-page { max-width: 1240px; }
+.learn-toc { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--spacing-xs) var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.learn-toc-label { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-muted); }
+.learn-toc ol { display: flex; flex-wrap: wrap; gap: var(--spacing-xs) var(--spacing-md); list-style: none; font-size: var(--font-size-sm); }
+.learn-section { margin-top: var(--spacing-xl); scroll-margin-top: calc(var(--header-height) + var(--spacing-md)); }
+.learn-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.learn-section-title { display: flex; align-items: center; gap: var(--spacing-sm); font-size: var(--font-size-lg); font-weight: 600; }
+.learn-section-number { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); font-size: var(--font-size-xs); font-weight: 700; }
+.learn-section-summary { max-width: 80ch; margin: var(--spacing-sm) 0; color: var(--color-text-secondary); line-height: 1.55; }
+.learn-section .button-sm { display: inline-flex; align-items: center; gap: 0.35rem; }
+.learn-diagram { margin: 0; }
+.learn-diagram-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--spacing-xs); }
+.learn-diagram-frame { padding: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.learn-list { padding: var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); font-size: var(--font-size-sm); line-height: 1.55; overflow-wrap: anywhere; }
+.learn-list ul { padding-inline-start: 1.25rem; list-style: disc; }
+.learn-list ul ul { margin: 0.2rem 0 0.4rem; list-style: circle; }
+.learn-list li { margin: 0.15rem 0; }
+.learn-list-name, .learn-list-group { font-weight: 600; }
+.learn-list-body { color: var(--color-text-secondary); }
+.learn-list code { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-muted); }
+.learn-list-doc { font-size: var(--font-size-xs); }
+.learn-list-heading { margin: var(--spacing-md) 0 var(--spacing-xs); font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-muted); }
+.learn-glossary { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--spacing-sm); }
+.learn-glossary-row { padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.learn-glossary dt { font-weight: 600; font-size: var(--font-size-sm); }
+.learn-glossary dd { margin: 0.2rem 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.5; }
+.explainer-learn-link { display: inline-block; margin-top: 0.15rem; font-size: var(--font-size-sm); }
+a.sidebar-utility { text-decoration: none; }
+.sidebar-utility.active { background: var(--color-primary-soft); color: var(--color-primary); }

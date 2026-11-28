@@ -9028,3 +9028,535 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
   }
  }
 });
+
+// LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "learn": "Impara",
+  "hubs": {
+   "learn": {
+    "label": "Impara",
+    "tip": "Diagrammi, tour e un glossario che mostrano come si incastra Garrison"
+   }
+  },
+  "items": {
+   "learn": {
+    "label": "Impara",
+    "tip": "Diagrammi, tour e un glossario che mostrano come si incastra Garrison"
+   }
+  }
+ },
+ "learn": {
+  "title": "Impara",
+  "subtitle": "Come si incastrano i pezzi di Garrison, un diagramma alla volta. Ogni riquadro apre la sua pagina, e il libro nell'angolo apre la sua guida.",
+  "toc": "In questa pagina",
+  "startTourNamed": "Tour guidato: {{tour}}",
+  "showList": "Mostra come elenco",
+  "showDiagram": "Mostra come diagramma",
+  "openPage": "{{name}}. Apre {{page}}.",
+  "openDoc": "Approfondisci {{name}} in {{doc}}",
+  "glossaryTitle": "Glossario",
+  "glossaryIntro": "Sono le parole della documentazione. Dove la dashboard dice altro, la voce lo segnala.",
+  "list": {
+   "parts": "Parti",
+   "connections": "Collegamenti",
+   "connection": "{{from}} {{arrow}} {{to}}",
+   "connectionLabelled": "{{from}} {{arrow}} {{to}}: {{label}}",
+   "doc": "Guida: {{doc}}"
+  },
+  "tours": {
+   "firstLook": "Primo sguardo",
+   "runAnAgent": "Eseguire un agente",
+   "followARequest": "Seguire una richiesta",
+   "buildATeam": "Costruire una squadra",
+   "keepItSafe": "Mantenere il controllo",
+   "watchAnOrganization": "Osservare un'organizzazione"
+  },
+  "diagrams": {
+   "runtime": {
+    "title": "Il runtime",
+    "summary": "Un tenant contiene gli agenti e le distribuzioni che li eseguono. Una distribuzione lega un agente a un profilo harness, un modello, i suoi prompt e un pool di nodi. Ogni richiesta diventa un'esecuzione, e un nodo worker di quel pool la preleva e avvia l'harness. I worker non toccano mai il database: tutto ciò che serve arriva con il lease.",
+    "desc": "Un tenant contiene chiavi di accesso, agenti, profili harness, distribuzioni ed esecuzioni. Pool di nodi e nodi worker formano una flotta condivisa dai tenant.",
+    "groups": {
+     "tenant": "Tenant",
+     "fleet": "Flotta condivisa"
+    },
+    "boxes": {
+     "credential": {
+      "title": "Chiave di accesso",
+      "body": "Una chiave di proprietà di un utente. Chiamanti e nodi worker si autenticano con essa."
+     },
+     "agent": {
+      "title": "Agente",
+      "body": "Ciò che si invoca via REST, MCP o A2A. Conserva revisioni immutabili."
+     },
+     "harnessProfile": {
+      "title": "Profilo harness",
+      "body": "Come una CLI o API harness gira senza interfaccia. La dashboard la chiama connessione."
+     },
+     "deployment": {
+      "title": "Distribuzione",
+      "body": "Lega un agente a un profilo harness, un modello, i prompt e un pool di nodi."
+     },
+     "nodePool": {
+      "title": "Pool di nodi",
+      "body": "Un gruppo di nodi worker, riservabile a determinati tenant."
+     },
+     "run": {
+      "title": "Esecuzione",
+      "body": "Un'esecuzione di un agente su una distribuzione, con eventi e risultato."
+     },
+     "node": {
+      "title": "Nodo worker",
+      "body": "Preleva le esecuzioni che può servire e avvia l'harness per ciascuna."
+     }
+    },
+    "arrows": {
+     "invokes": "invoca",
+     "runsOn": "gira su",
+     "usedBy": "usato da",
+     "targets": "punta a",
+     "creates": "crea",
+     "groups": "raggruppa",
+     "leases": "prende in lease"
+    }
+   },
+   "request": {
+    "title": "La vita di una richiesta",
+    "summary": "Ogni modo di avviare un agente finisce nello stesso punto. REST, MCP e A2A condividono un invocatore, che sceglie una distribuzione e ammette l'esecuzione solo se nessun blocco, budget di unità o limite di coda si mette di mezzo. Un worker reclama l'esecuzione in coda, riceve la specifica compilata e avvia l'harness. L'output torna come eventi, e il chiamante riceve il risultato.",
+    "desc": "Una richiesta va dal chiamante, via REST, MCP o A2A, all'ammissione e alla coda. Un worker la prende in lease e avvia l'harness, e l'output torna come eventi e risposta.",
+    "groups": {
+     "controlPlane": "Piano di controllo",
+     "worker": "Su un nodo worker"
+    },
+    "boxes": {
+     "caller": {
+      "title": "Chiamante",
+      "body": "Una persona, un SDK, un client MCP o un agente A2A."
+     },
+     "surface": {
+      "title": "REST, MCP o A2A",
+      "body": "Tutti e tre usano lo stesso invocatore, che verifica Execute sull'agente."
+     },
+     "admission": {
+      "title": "Ammissione dell'esecuzione",
+      "body": "Sceglie una distribuzione, poi verifica blocchi, budget di unità e limiti di coda. Un'esecuzione rifiutata non viene mai creata."
+     },
+     "queued": {
+      "title": "In coda",
+      "body": "Aspetta un worker con l'harness, il pool di nodi e le etichette giusti."
+     },
+     "lease": {
+      "title": "Assegnazione",
+      "body": "Il worker fa long polling, reclama l'esecuzione con un compare-and-set e riceve la specifica compilata."
+     },
+     "harness": {
+      "title": "Harness",
+      "body": "La CLI o l'API del provider, avviata con argomenti, file e server MCP della specifica."
+     },
+     "events": {
+      "title": "Eventi",
+      "body": "Output analizzato a blocchi: testo, chiamate agli strumenti, consumo e risultato."
+     },
+     "reply": {
+      "title": "Risposta",
+      "body": "Un'invocazione in attesa restituisce l'esecuzione. Gli stream ricevono l'evento finale."
+     }
+    },
+    "arrows": {
+     "sends": "richiesta",
+     "admitted": "ammessa",
+     "leased": "assegnata",
+     "starts": "avvia",
+     "returns": "risultato"
+    }
+   },
+   "autonomy": {
+    "title": "I mattoni dell'autonomia",
+    "summary": "Un custode è un agente con un compito permanente, scritto come mandato. Garrison lo sveglia secondo una pianificazione, e ogni risveglio è un ciclo: un'esecuzione normale che termina quando il custode riferisce cosa ha trovato. Lungo la strada può ricordare cose per i cicli successivi, inviare rapporti al suo responsabile e sottoporre a escalation una domanda a cui non dovrebbe rispondere da solo. La risposta lo sveglia di nuovo.",
+    "desc": "Un custode ha un mandato la cui pianificazione dei risvegli avvia i cicli. Ogni ciclo avvia un'esecuzione del custode, che scrive in memoria, invia rapporti e apre escalation. Un'escalation con risposta sveglia di nuovo il custode.",
+    "boxes": {
+     "keeper": {
+      "title": "Custode",
+      "body": "Un agente con un compito permanente. L'API chiama il record mandate."
+     },
+     "mandate": {
+      "title": "Mandato",
+      "body": "Revisioni pubblicate: l'obiettivo, com'è uno stato sano, l'autonomia e la politica di escalation."
+     },
+     "schedule": {
+      "title": "Pianificazione dei risvegli",
+      "body": "Un intervallo minimo e massimo con rallentamento progressivo. Il leader reclama ogni risveglio dovuto una sola volta."
+     },
+     "tick": {
+      "title": "Ciclo",
+      "body": "Un risveglio, con la sua origine e un esito: Calmo, Intervenuto, Richiede attenzione o Escalato."
+     },
+     "run": {
+      "title": "Esecuzione del custode",
+      "body": "Un'esecuzione di tipo Keeper sulla distribuzione del mandato. Termina riferendo il ciclo."
+     },
+     "memory": {
+      "title": "Memoria",
+      "body": "Le voci con il tag recall tornano nell'input del ciclo successivo."
+     },
+     "report": {
+      "title": "Rapporto",
+      "body": "Inviato verso l'alto. Il ciclo successivo del responsabile lo legge nel suo riepilogo."
+     },
+     "escalation": {
+      "title": "Escalation",
+      "body": "Una domanda per una persona, un ruolo o un altro agente."
+     }
+    },
+    "arrows": {
+     "holds": "ha",
+     "sets": "imposta",
+     "comesDue": "scade",
+     "starts": "avvia",
+     "writes": "scrive",
+     "files": "invia",
+     "raises": "apre",
+     "answerWakes": "la risposta lo sveglia"
+    }
+   },
+   "teams": {
+    "title": "Squadre",
+    "summary": "Gli agenti si scrivono tramite caselle di posta. Un messaggio è posta, non una telefonata: il mittente va avanti, e il destinatario lo legge alla sua esecuzione successiva, o subito se il messaggio è urgente. Ogni invio passa prima dalle protezioni contro i cicli, e un messaggio rifiutato resta salvato con il motivo, così si vede chi ha cercato di raggiungere chi.",
+    "desc": "Un messaggio supera le protezioni contro i cicli fino alla casella del destinatario, oppure viene salvato come Rifiutato. La posta normale aspetta la prossima esecuzione del destinatario, quella urgente lo sveglia.",
+    "boxes": {
+     "sender": {
+      "title": "Mittente",
+      "body": "L'esecuzione di un agente, o una persona. Gli agenti scrivono solo lungo una linea."
+     },
+     "guards": {
+      "title": "Protezioni contro i cicli",
+      "body": "In ordine: destinatario congelato, nessuna linea, limite di passaggi, budget della conversazione, frequenza della linea."
+     },
+     "mailbox": {
+      "title": "Casella di posta",
+      "body": "I messaggi in coda del destinatario, dal più vecchio."
+     },
+     "normal": {
+      "title": "Consegna normale",
+      "body": "Aspetta il prossimo ciclo del custode, o un'esecuzione che legga la posta in arrivo."
+     },
+     "rejected": {
+      "title": "Rifiutato",
+      "body": "Salvato con il motivo e mai consegnato."
+     },
+     "urgent": {
+      "title": "Risveglio urgente",
+      "body": "Anticipa il prossimo risveglio del custode, o avvia un'esecuzione Message se non c'è un custode."
+     },
+     "recipient": {
+      "title": "Esecuzione del destinatario",
+      "body": "Un'esecuzione porta con sé tutto ciò che è arrivato: dieci messaggi costano un ciclo."
+     }
+    },
+    "arrows": {
+     "sends": "invia",
+     "passes": "passa",
+     "refused": "rifiutato",
+     "normal": "normale",
+     "urgent": "urgente",
+     "nextRun": "esecuzione successiva",
+     "wakes": "sveglia subito"
+    }
+   },
+   "organization": {
+    "title": "Un'organizzazione",
+    "summary": "Un'organizzazione dà forma a un gruppo di agenti: un albero di unità, ciascuna con un capo, dei membri, linee tra pari facoltative e budget. Il capo dell'unità radice è il CEO, e sopra c'è il consiglio, le persone che guidano l'organizzazione. Le modifiche vanno in un albero di lavoro che nessuno legge. Pubblicare una revisione la mette in vigore, e da lì in poi messaggi, rapporti, memoria, escalation, blocchi e budget interrogano la stessa catena di comando.",
+    "desc": "Il consiglio supervisiona l'unità radice, il cui capo è il CEO. Le unità sottostanti vi sono collegate da linee gerarchiche, e le linee tra pari uniscono unità in orizzontale. L'albero di lavoro entra in vigore quando si pubblica una revisione, e la catena di comando legge solo la revisione in vigore.",
+    "groups": {
+     "live": "Revisione in vigore"
+    },
+    "boxes": {
+     "board": {
+      "title": "Consiglio",
+      "body": "Le persone che guidano l'organizzazione, sopra il CEO."
+     },
+     "root": {
+      "title": "Unità radice",
+      "body": "Il suo capo è il CEO. Il suo budget limita l'intero albero."
+     },
+     "unitA": {
+      "title": "Unità",
+      "body": "Un capo, fino a 200 membri, un budget giornaliero e uno mensile."
+     },
+     "unitB": {
+      "title": "Unità pari",
+      "body": "Una linea tra pari unisce tutti gli agenti di due unità, in entrambe le direzioni."
+     },
+     "working": {
+      "title": "Albero di lavoro",
+      "body": "Dove le persone modificano le unità. Nessuno lo legge durante l'esecuzione."
+     },
+     "revision": {
+      "title": "Revisione pubblicata",
+      "body": "Un'istantanea che non cambia mai. Un ripristino pubblica una copia di una precedente."
+     },
+     "chain": {
+      "title": "Catena di comando",
+      "body": "Responsabili, catene, sottoalberi e linee, solo dalle revisioni in vigore."
+     }
+    },
+    "arrows": {
+     "oversees": "supervisiona",
+     "reportsA": "linea gerarchica",
+     "peer": "linea tra pari",
+     "publish": "pubblica",
+     "readBy": "letta da"
+    }
+   },
+   "selfRevision": {
+    "title": "Autorevisione",
+    "summary": "Un dirigente è il capo di un'unità che può proporre modifiche alle unità sottostanti. Scrive una normale bozza dello studio, e ExecutiveDraftValidator la sottopone a limiti rigidi che niente può togliere: niente su sé stesso, niente sopra o fuori dal suo sottoalbero, nessun segreto, nessun aumento di budget e nessun accesso di gestione. Una bozza che le regole di modifica scritte dalle persone coprono del tutto si applica subito. Tutto il resto aspetta una persona. Ogni applicazione pubblica una revisione dell'organizzazione e salva una bozza di annullamento, così un solo ripristino la annulla.",
+    "desc": "Un dirigente scrive una bozza. I limiti rigidi la rifiutano o la passano alle regole di modifica, che una soglia di valutazione può trattenere. Una bozza coperta si applica, il resto aspetta una persona che vede i risultati delle prove in ombra e dei rilasci canary. Ogni applicazione pubblica una revisione dell'organizzazione con una bozza di annullamento, e un ripristino la riporta indietro.",
+    "boxes": {
+     "executive": {
+      "title": "Dirigente",
+      "body": "Il capo di un'unità la cui distribuzione può redigere modifiche sotto la sua unità."
+     },
+     "draft": {
+      "title": "Bozza",
+      "body": "Una normale bozza dello studio. Le persone la seguono come proposta."
+     },
+     "limits": {
+      "title": "Limiti rigidi",
+      "body": "Verificati al diff, alla richiesta e subito prima dell'applicazione. Nessuna regola o approvazione li toglie."
+     },
+     "refused": {
+      "title": "Rifiutata",
+      "body": "La richiesta fallisce con DraftInvalid e non cambia nulla."
+     },
+     "eval": {
+      "title": "Soglia di valutazione",
+      "body": "Il dirigente esegue un set di valutazione sulla propria bozza. Una regola con soglia richiede un punteggio sufficiente."
+     },
+     "rules": {
+      "title": "Regole di modifica",
+      "body": "Scritte solo da persone. Ogni modifica viene classificata e confrontata con una regola."
+     },
+     "person": {
+      "title": "Decide una persona",
+      "body": "Una modifica che nessuna regola copre aspetta, come ogni bozza."
+     },
+     "apply": {
+      "title": "Applica",
+      "body": "Come la persona dietro l'esecuzione, o quella che l'ha consentita."
+     },
+     "evidence": {
+      "title": "Prove in ombra e canary",
+      "body": "Avviati da persone. I risultati compaiono sulla proposta, e un canary torna indietro da solo."
+     },
+     "rollback": {
+      "title": "Ripristino",
+      "body": "Riporta una revisione precedente, poi applica le bozze di annullamento, dalla più recente."
+     },
+     "revision": {
+      "title": "Revisione dell'organizzazione",
+      "body": "Una per applicazione, con il nome della bozza."
+     },
+     "revert": {
+      "title": "Bozza di annullamento",
+      "body": "I record modificati com'erano prima."
+     }
+    },
+    "arrows": {
+     "writes": "scrive",
+     "checked": "verificata",
+     "breaks": "viola un limite",
+     "passes": "supera",
+     "gate": "punteggio",
+     "notCovered": "non coperta",
+     "covered": "coperta del tutto",
+     "allows": "consente",
+     "evidence": "risultati",
+     "publishes": "pubblica",
+     "saves": "salva",
+     "restores": "ripristina"
+    }
+   },
+   "brakes": {
+    "title": "Freni",
+    "summary": "I freni non dipendono dalla collaborazione dell'agente. Blocchi, interruttore di emergenza, tetti di spesa e budget di unità vengono verificati nel piano di controllo quando un'esecuzione viene ammessa e prima di ogni risveglio di un custode, quindi un'esecuzione rifiutata non viene mai creata. I token di esecuzione non hanno mai i permessi di blocco, perciò un agente non può togliersi un freno da solo. Per il lavoro già in corso, annulla tutto in un'unità, e lascia che il guardiano del budget blocchi l'unità che sfora.",
+    "desc": "Blocchi, interruttore di emergenza, tetti di spesa e budget di unità alimentano le verifiche all'ammissione e prima dei risvegli, che rifiutano le nuove esecuzioni e saltano i risvegli. Per il lavoro in corso, Annulla tutto ferma il sottoalbero di un'unità, e il guardiano del budget blocca l'unità che sfora.",
+    "groups": {
+     "newWork": "Ferma il lavoro nuovo",
+     "inFlight": "Ferma il lavoro in corso"
+    },
+    "boxes": {
+     "freeze": {
+      "title": "Blocco",
+      "body": "Ferma un agente, una distribuzione, un custode, un'applicazione, un'unità o un'organizzazione finché una persona non lo toglie."
+     },
+     "killSwitch": {
+      "title": "Interruttore di emergenza",
+      "body": "Nessun custode del tenant si sveglia. Le invocazioni normali continuano a funzionare."
+     },
+     "spendCap": {
+      "title": "Tetto di spesa",
+      "body": "Il budget di un custode per ciclo e per giorno. Un giorno esaurito lo porta in CapReached."
+     },
+     "unitBudget": {
+      "title": "Budget di unità",
+      "body": "Un tetto giornaliero o mensile su tutto ciò che esegue il sottoalbero di un'unità."
+     },
+     "checks": {
+      "title": "Verifiche all'ammissione e al risveglio",
+      "body": "Fatte nel piano di controllo, mai dall'agente. Un blocco raggiunge ogni replica tramite il backplane."
+     },
+     "refused": {
+      "title": "Esecuzione rifiutata",
+      "body": "409 Frozen o BudgetExhausted. Non viene creato nulla."
+     },
+     "skipped": {
+      "title": "Risveglio saltato",
+      "body": "Registrato come ciclo saltato con il suo codice, e la pianificazione va avanti."
+     },
+     "cancelAll": {
+      "title": "Annulla tutto",
+      "body": "Annulla esecuzioni e cicli del sottoalbero di un'unità, ritira le sue escalation e fa scadere la sua posta. Non blocca nulla."
+     },
+     "autoFreeze": {
+      "title": "Blocco automatico",
+      "body": "Quando un sottoalbero spende il budget più il margine, il guardiano blocca l'unità e ne annulla le esecuzioni."
+     }
+    },
+    "arrows": {
+     "refuses": "nuova esecuzione",
+     "skips": "risveglio di un custode"
+    }
+   }
+  },
+  "glossary": {
+   "tenant": {
+    "term": "Tenant",
+    "def": "Il confine attorno ad agenti, esecuzioni, utenti e impostazioni di un cliente. Una lettura tra tenant diversi risponde 404."
+   },
+   "agent": {
+    "term": "Agente",
+    "def": "Qualcosa che si può invocare. La sua configurazione vive in revisioni immutabili."
+   },
+   "deployment": {
+    "term": "Distribuzione",
+    "def": "Un agente legato a un profilo harness, un modello, prompt e un pool di nodi. Un agente può averne diverse, scelte in base al peso."
+   },
+   "harnessProfile": {
+    "term": "Profilo harness",
+    "def": "Come una CLI harness o un'API del provider gira senza interfaccia: argomenti, consegna del prompt e parser dell'output. La dashboard li elenca in Connessioni."
+   },
+   "nodePool": {
+    "term": "Pool di nodi",
+    "def": "Un gruppo di nodi worker a cui una distribuzione può puntare, riservabile a determinati tenant."
+   },
+   "node": {
+    "term": "Nodo worker",
+    "def": "Un processo che preleva esecuzioni e avvia gli harness. Non tocca mai il database."
+   },
+   "run": {
+    "term": "Esecuzione",
+    "def": "Un'esecuzione di un agente. Cicli dei custodi, risvegli da messaggio, casi di valutazione e copie in ombra sono esecuzioni di un tipo proprio."
+   },
+   "runToken": {
+    "term": "Token di esecuzione",
+    "def": "La credenziale che ogni esecuzione riceve per gli strumenti MCP di Garrison. Non ha mai i permessi di blocco."
+   },
+   "keeper": {
+    "term": "Custode",
+    "def": "Un agente con un compito permanente che Garrison sveglia secondo una pianificazione. L'API lo chiama mandate."
+   },
+   "tick": {
+    "term": "Ciclo",
+    "def": "Un risveglio di un custode: una singola esecuzione che termina riferendo un esito e un riepilogo."
+   },
+   "message": {
+    "term": "Messaggio",
+    "def": "Posta da un agente a un altro, o da una persona. Il mittente non aspetta una risposta."
+   },
+   "line": {
+    "term": "Linea",
+    "def": "Ciò che permette a un agente di scrivere a un altro: un arco dell'applicazione, una linea gerarchica, una linea tra pari o una risposta in una conversazione."
+   },
+   "loopGuards": {
+    "term": "Protezioni contro i cicli",
+    "def": "Le verifiche su ogni messaggio: destinatario congelato, nessuna linea, limite di passaggi, budget della conversazione e frequenza della linea."
+   },
+   "report": {
+    "term": "Rapporto",
+    "def": "Il modo in cui un agente dice a chi sta sopra come va il suo lavoro. Un rapporto inviato non cambia mai."
+   },
+   "memory": {
+    "term": "Memoria",
+    "def": "Testo che un agente conserva tra un'esecuzione e l'altra, in un ambito agente, applicazione, unità organizzativa od organizzazione."
+   },
+   "escalation": {
+    "term": "Escalation",
+    "def": "Una domanda che un'esecuzione pone quando non dovrebbe decidere da sola. Risponde una persona, un ruolo o un altro agente."
+   },
+   "organization": {
+    "term": "Organizzazione",
+    "def": "Un albero di unità che dà forma a un gruppo di agenti. Niente ha effetto finché una persona non pubblica una revisione."
+   },
+   "unit": {
+    "term": "Unità",
+    "def": "Un nodo dell'albero: capo, membri, linee tra pari e budget."
+   },
+   "board": {
+    "term": "Consiglio",
+    "def": "Le persone che guidano un'organizzazione. Stanno sopra il suo CEO."
+   },
+   "chain": {
+    "term": "Catena di comando",
+    "def": "Chi guida chi, letto solo dalle revisioni pubblicate delle organizzazioni in vigore."
+   },
+   "executive": {
+    "term": "Dirigente",
+    "def": "Il capo di un'unità che può proporre modifiche alle unità sottostanti, entro limiti rigidi."
+   },
+   "changeRule": {
+    "term": "Regola di modifica",
+    "def": "Un sì permanente di una persona per una classe ristretta di modifiche di un dirigente. Le scrivono solo le persone."
+   },
+   "evalSet": {
+    "term": "Set di valutazione",
+    "def": "Input fissi con verifiche. Un'esecuzione di valutazione assegna con essi un punteggio a una revisione di agente o a una distribuzione."
+   },
+   "shadowTrial": {
+    "term": "Prova in ombra",
+    "def": "Copia un campione di input reali su una distribuzione candidata che non può causare effetti, e confronta le risposte."
+   },
+   "canary": {
+    "term": "Rilascio canary",
+    "def": "Sposta il traffico su una distribuzione candidata a passi e torna indietro quando tasso di errore o punteggio superano una soglia."
+   },
+   "freeze": {
+    "term": "Blocco",
+    "def": "Ferma le nuove esecuzioni di un obiettivo finché una persona non lo toglie."
+   },
+   "killSwitch": {
+    "term": "Interruttore di emergenza",
+    "def": "Un blocco dell'autonomia su tutto il tenant. Nessun custode si sveglia, e le invocazioni normali continuano."
+   },
+   "unitBudget": {
+    "term": "Budget di unità",
+    "def": "Un tetto giornaliero o mensile su quanto può spendere il sottoalbero di un'unità."
+   }
+  }
+ },
+ "components": {
+  "explainer": {
+   "seeDiagram": "Vedi il diagramma"
+  }
+ }
+});

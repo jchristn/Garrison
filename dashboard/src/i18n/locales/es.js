@@ -9032,3 +9032,535 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// LP4.1 to LP4.4: the Learn page, its seven concept diagrams, the glossary, and the Explainer link to them.
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "learn": "Aprender",
+  "hubs": {
+   "learn": {
+    "label": "Aprender",
+    "tip": "Diagramas, recorridos y un glosario que muestran cómo encaja Garrison"
+   }
+  },
+  "items": {
+   "learn": {
+    "label": "Aprender",
+    "tip": "Diagramas, recorridos y un glosario que muestran cómo encaja Garrison"
+   }
+  }
+ },
+ "learn": {
+  "title": "Aprender",
+  "subtitle": "Cómo encajan las piezas de Garrison, un diagrama cada vez. Cada recuadro abre su página, y el libro de su esquina abre su guía.",
+  "toc": "En esta página",
+  "startTourNamed": "Recorrido: {{tour}}",
+  "showList": "Ver como lista",
+  "showDiagram": "Ver como diagrama",
+  "openPage": "{{name}}. Abre {{page}}.",
+  "openDoc": "Más sobre {{name}} en {{doc}}",
+  "glossaryTitle": "Glosario",
+  "glossaryIntro": "Son las palabras que usa la documentación. Cuando el panel dice otra cosa, la entrada lo indica.",
+  "list": {
+   "parts": "Piezas",
+   "connections": "Conexiones",
+   "connection": "{{from}} {{arrow}} {{to}}",
+   "connectionLabelled": "{{from}} {{arrow}} {{to}}: {{label}}",
+   "doc": "Guía: {{doc}}"
+  },
+  "tours": {
+   "firstLook": "Primer vistazo",
+   "runAnAgent": "Ejecutar un agente",
+   "followARequest": "Seguir una solicitud",
+   "buildATeam": "Formar un equipo",
+   "keepItSafe": "Mantenerlo seguro",
+   "watchAnOrganization": "Vigilar una organización"
+  },
+  "diagrams": {
+   "runtime": {
+    "title": "El entorno de ejecución",
+    "summary": "Un inquilino contiene agentes y los despliegues que los ejecutan. Un despliegue une un agente con un perfil de harness, un modelo, sus prompts y un grupo de nodos. Cada solicitud se convierte en una ejecución, y un nodo de trabajo de ese grupo la recoge y arranca el harness. Los nodos de trabajo nunca tocan la base de datos: todo lo que necesitan llega con la concesión.",
+    "desc": "Un inquilino contiene claves de acceso, agentes, perfiles de harness, despliegues y ejecuciones. Los grupos de nodos y los nodos de trabajo forman una flota que comparten los inquilinos.",
+    "groups": {
+     "tenant": "Inquilino",
+     "fleet": "Flota compartida"
+    },
+    "boxes": {
+     "credential": {
+      "title": "Clave de acceso",
+      "body": "Una clave que pertenece a un usuario. Quienes llaman y los nodos de trabajo se identifican con ella."
+     },
+     "agent": {
+      "title": "Agente",
+      "body": "Lo que se invoca por REST, MCP o A2A. Guarda revisiones inmutables."
+     },
+     "harnessProfile": {
+      "title": "Perfil de harness",
+      "body": "Cómo se ejecuta sin interfaz una CLI o API de harness. El panel lo llama conexión."
+     },
+     "deployment": {
+      "title": "Despliegue",
+      "body": "Une un agente con un perfil de harness, un modelo, prompts y un grupo de nodos."
+     },
+     "nodePool": {
+      "title": "Grupo de nodos",
+      "body": "Un conjunto de nodos de trabajo, que puede reservarse para ciertos inquilinos."
+     },
+     "run": {
+      "title": "Ejecución",
+      "body": "Una ejecución de un agente en un despliegue, con sus eventos y su resultado."
+     },
+     "node": {
+      "title": "Nodo de trabajo",
+      "body": "Recoge las ejecuciones que puede atender y arranca el harness de cada una."
+     }
+    },
+    "arrows": {
+     "invokes": "invoca",
+     "runsOn": "se ejecuta en",
+     "usedBy": "lo usa",
+     "targets": "apunta a",
+     "creates": "crea",
+     "groups": "agrupa",
+     "leases": "toma en concesión"
+    }
+   },
+   "request": {
+    "title": "La vida de una solicitud",
+    "summary": "Todas las formas de iniciar un agente acaban en el mismo sitio. REST, MCP y A2A comparten un invocador, que elige un despliegue y solo admite la ejecución si ninguna congelación, presupuesto de unidad ni límite de cola se interpone. Un nodo de trabajo reclama la ejecución en cola, recibe la especificación compilada y arranca el harness. La salida vuelve como eventos, y quien llamó recibe el resultado.",
+    "desc": "Una solicitud va de quien llama, por REST, MCP o A2A, a la admisión de la ejecución y a la cola. Un nodo de trabajo la toma en concesión y arranca el harness, y la salida vuelve como eventos y una respuesta.",
+    "groups": {
+     "controlPlane": "Plano de control",
+     "worker": "En un nodo de trabajo"
+    },
+    "boxes": {
+     "caller": {
+      "title": "Quien llama",
+      "body": "Una persona, un SDK, un cliente MCP o un agente A2A."
+     },
+     "surface": {
+      "title": "REST, MCP o A2A",
+      "body": "Los tres usan el mismo invocador, que comprueba el permiso Execute sobre el agente."
+     },
+     "admission": {
+      "title": "Admisión de la ejecución",
+      "body": "Elige un despliegue y comprueba congelaciones, presupuestos de unidad y límites de cola. Una ejecución rechazada nunca se crea."
+     },
+     "queued": {
+      "title": "En cola",
+      "body": "Espera a un nodo de trabajo con el harness, el grupo de nodos y las etiquetas adecuados."
+     },
+     "lease": {
+      "title": "Concesión",
+      "body": "El nodo hace long polling, reclama la ejecución con compare-and-set y recibe la especificación compilada."
+     },
+     "harness": {
+      "title": "Harness",
+      "body": "La CLI o la API del proveedor, arrancada con los argumentos, archivos y servidores MCP de la especificación."
+     },
+     "events": {
+      "title": "Eventos",
+      "body": "Salida analizada por lotes: texto, llamadas a herramientas, consumo y el resultado."
+     },
+     "reply": {
+      "title": "Respuesta",
+      "body": "Una invocación que espera devuelve la ejecución. Los flujos reciben el evento final."
+     }
+    },
+    "arrows": {
+     "sends": "solicitud",
+     "admitted": "admitida",
+     "leased": "concedida",
+     "starts": "arranca",
+     "returns": "resultado"
+    }
+   },
+   "autonomy": {
+    "title": "Piezas de la autonomía",
+    "summary": "Un guardián es un agente con un trabajo permanente, escrito como un mandato. Garrison lo despierta según un horario, y cada despertar es un ciclo: una ejecución normal que termina con el guardián informando de lo que encontró. Por el camino puede recordar cosas para ciclos posteriores, presentar informes a su responsable y escalar una pregunta que no debería responder solo. La respuesta lo vuelve a despertar.",
+    "desc": "Un guardián tiene un mandato cuyo horario de despertar inicia ciclos. Cada ciclo inicia una ejecución del guardián, que escribe memoria, presenta informes y abre escalados. Un escalado respondido vuelve a despertar al guardián.",
+    "boxes": {
+     "keeper": {
+      "title": "Guardián",
+      "body": "Un agente con un trabajo permanente. La API llama al registro mandate."
+     },
+     "mandate": {
+      "title": "Mandato",
+      "body": "Revisiones publicadas: el objetivo, cómo se ve lo sano, la autonomía y la política de escalado."
+     },
+     "schedule": {
+      "title": "Horario de despertar",
+      "body": "Un intervalo mínimo y máximo con espera creciente. El líder reclama cada despertar pendiente una sola vez."
+     },
+     "tick": {
+      "title": "Ciclo",
+      "body": "Un despertar, con su origen y un resultado: Tranquilo, Actuó, Requiere atención o Escalado."
+     },
+     "run": {
+      "title": "Ejecución del guardián",
+      "body": "Una ejecución de tipo Keeper en el despliegue del mandato. Termina informando del ciclo."
+     },
+     "memory": {
+      "title": "Memoria",
+      "body": "Las entradas con la etiqueta recall vuelven en la entrada del siguiente ciclo."
+     },
+     "report": {
+      "title": "Informe",
+      "body": "Se presenta hacia arriba. El siguiente ciclo del responsable lo lee en su resumen."
+     },
+     "escalation": {
+      "title": "Escalado",
+      "body": "Una pregunta para una persona, un rol u otro agente."
+     }
+    },
+    "arrows": {
+     "holds": "tiene",
+     "sets": "fija",
+     "comesDue": "vence",
+     "starts": "inicia",
+     "writes": "escribe",
+     "files": "presenta",
+     "raises": "abre",
+     "answerWakes": "la respuesta lo despierta"
+    }
+   },
+   "teams": {
+    "title": "Equipos",
+    "summary": "Los agentes se escriben a través de buzones. Un mensaje es correo, no una llamada: quien lo envía sigue con lo suyo, y quien lo recibe lo lee en su siguiente ejecución, o enseguida si el mensaje es urgente. Cada envío pasa antes por las protecciones contra bucles, y un mensaje rechazado se guarda con su motivo, para que veas quién intentó contactar con quién.",
+    "desc": "Un mensaje pasa las protecciones contra bucles hasta el buzón del destinatario, o se guarda como Rechazado. El correo normal espera a la siguiente ejecución del destinatario, y el urgente lo despierta.",
+    "boxes": {
+     "sender": {
+      "title": "Remitente",
+      "body": "La ejecución de un agente, o una persona. Los agentes solo escriben a lo largo de una línea."
+     },
+     "guards": {
+      "title": "Protecciones contra bucles",
+      "body": "En orden: destinatario congelado, sin línea, límite de saltos, presupuesto del hilo, ritmo de la línea."
+     },
+     "mailbox": {
+      "title": "Buzón",
+      "body": "Los mensajes en cola del destinatario, del más antiguo al más reciente."
+     },
+     "normal": {
+      "title": "Entrega normal",
+      "body": "Espera al siguiente ciclo del guardián, o a una ejecución que lea la bandeja de entrada."
+     },
+     "rejected": {
+      "title": "Rechazado",
+      "body": "Se guarda con su motivo y nunca se entrega."
+     },
+     "urgent": {
+      "title": "Despertar urgente",
+      "body": "Adelanta el siguiente despertar del guardián, o inicia una ejecución Message si no hay guardián."
+     },
+     "recipient": {
+      "title": "Ejecución del destinatario",
+      "body": "Una ejecución lleva todo lo que llegó, así que diez mensajes cuestan un ciclo."
+     }
+    },
+    "arrows": {
+     "sends": "envía",
+     "passes": "pasa",
+     "refused": "rechazado",
+     "normal": "correo normal",
+     "urgent": "urgente",
+     "nextRun": "siguiente ejecución",
+     "wakes": "despierta ya"
+    }
+   },
+   "organization": {
+    "title": "Una organización",
+    "summary": "Una organización da forma a un grupo de agentes: un árbol de unidades, cada una con un líder, miembros, líneas entre pares opcionales y presupuestos. El líder de la unidad raíz es el CEO, y por encima está el consejo, las personas que dirigen la organización. Los cambios van a un árbol de trabajo que nada lee. Publicar una revisión la pone en vigor, y desde entonces mensajes, informes, memoria, escalados, congelaciones y presupuestos consultan la misma cadena de mando.",
+    "desc": "El consejo supervisa la unidad raíz, cuyo líder es el CEO. Las unidades de debajo dependen de ella por líneas jerárquicas, y las líneas entre pares unen unidades en horizontal. El árbol de trabajo entra en vigor al publicar una revisión, y la cadena de mando solo lee la revisión en vigor.",
+    "groups": {
+     "live": "Revisión en vigor"
+    },
+    "boxes": {
+     "board": {
+      "title": "Consejo",
+      "body": "Las personas que dirigen la organización, por encima del CEO."
+     },
+     "root": {
+      "title": "Unidad raíz",
+      "body": "Su líder es el CEO. Su presupuesto limita todo el árbol."
+     },
+     "unitA": {
+      "title": "Unidad",
+      "body": "Un líder, hasta 200 miembros y un presupuesto diario y otro mensual."
+     },
+     "unitB": {
+      "title": "Unidad par",
+      "body": "Una línea entre pares une a todos los agentes de dos unidades, en ambos sentidos."
+     },
+     "working": {
+      "title": "Árbol de trabajo",
+      "body": "Donde las personas editan unidades. Nada lo lee durante la ejecución."
+     },
+     "revision": {
+      "title": "Revisión publicada",
+      "body": "Una instantánea que nunca cambia. Una reversión publica una copia de otra anterior."
+     },
+     "chain": {
+      "title": "Cadena de mando",
+      "body": "Responsables, cadenas, subárboles y líneas, solo de revisiones en vigor."
+     }
+    },
+    "arrows": {
+     "oversees": "supervisa",
+     "reportsA": "línea jerárquica",
+     "peer": "línea entre pares",
+     "publish": "publicar",
+     "readBy": "la lee"
+    }
+   },
+   "selfRevision": {
+    "title": "Autorrevisión",
+    "summary": "Un directivo es el líder de una unidad que puede proponer cambios en las unidades que tiene debajo. Escribe un borrador normal del estudio, y ExecutiveDraftValidator lo somete a límites estrictos que nada puede levantar: nada sobre sí mismo, nada por encima ni fuera de su subárbol, nada de secretos, ninguna subida de presupuesto y ningún acceso de gestión. Un borrador que las reglas de cambio de las personas cubren por completo se aplica al momento. Todo lo demás espera a una persona. Cada aplicación publica una revisión de la organización y guarda un borrador de reversión, así que una sola reversión la deshace.",
+    "desc": "Un directivo escribe un borrador. Los límites estrictos lo rechazan o lo pasan a las reglas de cambio, que una barrera de evaluación puede frenar. Un borrador cubierto se aplica, y lo demás espera a una persona que ve las pruebas de las pruebas en sombra y los lanzamientos canario. Cada aplicación publica una revisión de la organización con un borrador de reversión, y una reversión la restaura.",
+    "boxes": {
+     "executive": {
+      "title": "Directivo",
+      "body": "El líder de una unidad cuyo despliegue puede redactar cambios por debajo de su unidad."
+     },
+     "draft": {
+      "title": "Borrador",
+      "body": "Un borrador normal del estudio. Las personas lo siguen como propuesta."
+     },
+     "limits": {
+      "title": "Límites estrictos",
+      "body": "Se comprueban en el diff, en la solicitud y justo antes de aplicar. Ninguna regla ni aprobación los levanta."
+     },
+     "refused": {
+      "title": "Rechazado",
+      "body": "La solicitud falla con DraftInvalid y nada cambia."
+     },
+     "eval": {
+      "title": "Barrera de evaluación",
+      "body": "El directivo ejecuta un conjunto de evaluación sobre su propio borrador. Una regla con barrera exige una puntuación aprobada."
+     },
+     "rules": {
+      "title": "Reglas de cambio",
+      "body": "Solo las escriben personas. Cada cambio se clasifica y se compara con una regla."
+     },
+     "person": {
+      "title": "Decide una persona",
+      "body": "Un cambio que ninguna regla cubre espera, como cualquier borrador."
+     },
+     "apply": {
+      "title": "Aplicar",
+      "body": "Como la persona detrás de la ejecución, o la que lo permitió."
+     },
+     "evidence": {
+      "title": "Pruebas en sombra y canarios",
+      "body": "Los inician personas. Sus resultados aparecen en la propuesta, y un canario se revierte solo."
+     },
+     "rollback": {
+      "title": "Reversión",
+      "body": "Restaura una revisión anterior y aplica los borradores de reversión, del más nuevo al más antiguo."
+     },
+     "revision": {
+      "title": "Revisión de la organización",
+      "body": "Una por aplicación, con el nombre del borrador."
+     },
+     "revert": {
+      "title": "Borrador de reversión",
+      "body": "Los registros cambiados tal como eran antes."
+     }
+    },
+    "arrows": {
+     "writes": "escribe",
+     "checked": "se comprueba",
+     "breaks": "incumple un límite",
+     "passes": "pasa",
+     "gate": "puntuación",
+     "notCovered": "sin cubrir",
+     "covered": "cubierto del todo",
+     "allows": "permite",
+     "evidence": "pruebas",
+     "publishes": "publica",
+     "saves": "guarda",
+     "restores": "restaura"
+    }
+   },
+   "brakes": {
+    "title": "Frenos",
+    "summary": "Los frenos no dependen de que el agente colabore. Congelaciones, el interruptor de emergencia, los topes de gasto y los presupuestos de unidad se comprueban en el plano de control al admitir una ejecución y antes de cada despertar de un guardián, así que una ejecución rechazada nunca se crea. Los tokens de ejecución nunca tienen los permisos de congelación, de modo que un agente no puede quitarse un freno. Para el trabajo que ya está en marcha, cancela todo en una unidad, y deja que el guardián de presupuesto congele la unidad que se pase.",
+    "desc": "Congelaciones, el interruptor de emergencia, los topes de gasto y los presupuestos de unidad alimentan las comprobaciones de admisión y de antes de despertar, que rechazan ejecuciones nuevas y omiten despertares. Para el trabajo en marcha, Cancelar todo detiene el subárbol de una unidad, y el guardián de presupuesto congela la unidad que se pasa.",
+    "groups": {
+     "newWork": "Detiene trabajo nuevo",
+     "inFlight": "Detiene trabajo en marcha"
+    },
+    "boxes": {
+     "freeze": {
+      "title": "Congelación",
+      "body": "Detiene un agente, despliegue, guardián, aplicación, unidad u organización hasta que una persona la levanta."
+     },
+     "killSwitch": {
+      "title": "Interruptor de emergencia",
+      "body": "Ningún guardián del inquilino se despierta. Las invocaciones normales siguen funcionando."
+     },
+     "spendCap": {
+      "title": "Tope de gasto",
+      "body": "El presupuesto de un guardián por ciclo y por día. Un día agotado lo pasa a CapReached."
+     },
+     "unitBudget": {
+      "title": "Presupuesto de unidad",
+      "body": "Un tope diario o mensual para todo lo que ejecuta el subárbol de una unidad."
+     },
+     "checks": {
+      "title": "Comprobaciones de admisión y despertar",
+      "body": "Las hace el plano de control, nunca el agente. Una congelación llega a todas las réplicas por el backplane."
+     },
+     "refused": {
+      "title": "Ejecución rechazada",
+      "body": "409 Frozen o BudgetExhausted. No se crea nada."
+     },
+     "skipped": {
+      "title": "Despertar omitido",
+      "body": "Queda como un ciclo omitido con su código, y el horario sigue adelante."
+     },
+     "cancelAll": {
+      "title": "Cancelar todo",
+      "body": "Cancela las ejecuciones y ciclos del subárbol de una unidad, retira sus escalados y hace caducar su correo. No congela nada."
+     },
+     "autoFreeze": {
+      "title": "Congelación automática",
+      "body": "Cuando un subárbol gasta su presupuesto más el margen, el guardián congela la unidad y cancela sus ejecuciones."
+     }
+    },
+    "arrows": {
+     "refuses": "ejecución nueva",
+     "skips": "despertar de guardián"
+    }
+   }
+  },
+  "glossary": {
+   "tenant": {
+    "term": "Inquilino",
+    "def": "El límite que rodea los agentes, ejecuciones, usuarios y ajustes de un cliente. Una lectura entre inquilinos responde 404."
+   },
+   "agent": {
+    "term": "Agente",
+    "def": "Algo que se puede invocar. Su configuración vive en revisiones inmutables."
+   },
+   "deployment": {
+    "term": "Despliegue",
+    "def": "Un agente unido a un perfil de harness, un modelo, prompts y un grupo de nodos. Un agente puede tener varios, elegidos por peso."
+   },
+   "harnessProfile": {
+    "term": "Perfil de harness",
+    "def": "Cómo se ejecuta sin interfaz una CLI de harness o una API de proveedor: argumentos, entrega del prompt y analizador de salida. El panel los muestra en Conexiones."
+   },
+   "nodePool": {
+    "term": "Grupo de nodos",
+    "def": "Un conjunto de nodos de trabajo al que puede apuntar un despliegue, que puede reservarse para ciertos inquilinos."
+   },
+   "node": {
+    "term": "Nodo de trabajo",
+    "def": "Un proceso que recoge ejecuciones y arranca harnesses. Nunca toca la base de datos."
+   },
+   "run": {
+    "term": "Ejecución",
+    "def": "Una ejecución de un agente. Los ciclos de guardián, los despertares por mensaje, los casos de evaluación y las copias en sombra son ejecuciones de su propio tipo."
+   },
+   "runToken": {
+    "term": "Token de ejecución",
+    "def": "La credencial que recibe cada ejecución para las herramientas MCP de Garrison. Nunca tiene los permisos de congelación."
+   },
+   "keeper": {
+    "term": "Guardián",
+    "def": "Un agente con un trabajo permanente al que Garrison despierta según un horario. La API lo llama mandate."
+   },
+   "tick": {
+    "term": "Ciclo",
+    "def": "Un despertar de un guardián: una única ejecución que termina informando de un resultado y un resumen."
+   },
+   "message": {
+    "term": "Mensaje",
+    "def": "Correo de un agente a otro, o de una persona. Quien lo envía no espera respuesta."
+   },
+   "line": {
+    "term": "Línea",
+    "def": "Lo que permite a un agente escribir a otro: una arista de aplicación, una línea jerárquica, una línea entre pares o una respuesta en un hilo."
+   },
+   "loopGuards": {
+    "term": "Protecciones contra bucles",
+    "def": "Las comprobaciones de cada mensaje: destinatario congelado, sin línea, límite de saltos, presupuesto del hilo y ritmo de la línea."
+   },
+   "report": {
+    "term": "Informe",
+    "def": "Cómo un agente cuenta a quienes están por encima cómo va su trabajo. Un informe presentado nunca cambia."
+   },
+   "memory": {
+    "term": "Memoria",
+    "def": "Texto que un agente conserva entre ejecuciones, en un ámbito de agente, aplicación, unidad organizativa u organización."
+   },
+   "escalation": {
+    "term": "Escalado",
+    "def": "Una pregunta que hace una ejecución cuando no debería decidir sola. La responde una persona, un rol u otro agente."
+   },
+   "organization": {
+    "term": "Organización",
+    "def": "Un árbol de unidades que da forma a un grupo de agentes. Nada de ella tiene efecto hasta que una persona publica una revisión."
+   },
+   "unit": {
+    "term": "Unidad",
+    "def": "Un nodo del árbol: líder, miembros, líneas entre pares y presupuestos."
+   },
+   "board": {
+    "term": "Consejo",
+    "def": "Las personas que dirigen una organización. Están por encima de su CEO."
+   },
+   "chain": {
+    "term": "Cadena de mando",
+    "def": "Quién dirige a quién, leído solo de las revisiones publicadas de organizaciones en vigor."
+   },
+   "executive": {
+    "term": "Directivo",
+    "def": "El líder de una unidad que puede proponer cambios en las unidades de debajo, dentro de límites estrictos."
+   },
+   "changeRule": {
+    "term": "Regla de cambio",
+    "def": "Un sí permanente de una persona para un tipo concreto de cambio de un directivo. Solo las escriben personas."
+   },
+   "evalSet": {
+    "term": "Conjunto de evaluación",
+    "def": "Entradas fijas con comprobaciones. Una ejecución de evaluación puntúa con ellas una revisión de agente o un despliegue."
+   },
+   "shadowTrial": {
+    "term": "Prueba en sombra",
+    "def": "Copia una muestra de entradas reales a un despliegue candidato que no puede causar ningún efecto, y compara las respuestas."
+   },
+   "canary": {
+    "term": "Lanzamiento canario",
+    "def": "Mueve tráfico a un despliegue candidato por pasos y se revierte cuando su tasa de error o su puntuación cruzan un límite."
+   },
+   "freeze": {
+    "term": "Congelación",
+    "def": "Detiene las ejecuciones nuevas de un objetivo hasta que una persona la levanta."
+   },
+   "killSwitch": {
+    "term": "Interruptor de emergencia",
+    "def": "Una congelación de la autonomía en todo el inquilino. Ningún guardián se despierta, y las invocaciones normales siguen funcionando."
+   },
+   "unitBudget": {
+    "term": "Presupuesto de unidad",
+    "def": "Un tope diario o mensual de lo que puede gastar el subárbol de una unidad."
+   }
+  }
+ },
+ "components": {
+  "explainer": {
+   "seeDiagram": "Ver el diagrama"
+  }
+ }
+});
