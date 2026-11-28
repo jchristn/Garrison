@@ -834,7 +834,7 @@ def t_organization_validate():
     try:
         org = client.organizations.create({"name": f"sdk-py-validate-{SUFFIX}", "mission": "Validate with the Python SDK."})
         empty = client.organizations.validate_organization(org["id"])
-        require(not empty["valid"] and any(p["code"] == "OneRoot" and p["severity"] == "Error" and p["message"] for p in empty["problems"]), f"an empty tree reports OneRoot: {empty}")
+        require(not empty["valid"] and any(p["code"] == "NoRootUnit" and p["severity"] == "Error" and p["message"] for p in empty["problems"]), f"an empty tree reports NoRootUnit: {empty}")
         root = client.organizations.create_unit(org["id"], {"name": "board", "leadAgentId": state["agent"], "leadTitle": "CEO"})
         client.organizations.create_unit(org["id"], {"name": "unled", "parentUnitId": root["id"]})
         filled = client.organizations.validate_organization(org["name"])

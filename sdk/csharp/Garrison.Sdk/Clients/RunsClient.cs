@@ -152,6 +152,9 @@ namespace Garrison.Sdk.Clients
                 query["conversationId"] = filter.ConversationId;
                 query["triggerId"] = filter.TriggerId;
                 query["mandateId"] = filter.MandateId;
+                query["kind"] = filter.Kind?.ToString();
+                query["search"] = filter.Search;
+                query["hasHops"] = filter.HasHops.HasValue ? (filter.HasHops.Value ? "true" : "false") : null;
                 query["fromUtc"] = QueryBuilder.Date(filter.FromUtc);
                 query["toUtc"] = QueryBuilder.Date(filter.ToUtc);
                 query["skip"] = filter.Skip.ToString();

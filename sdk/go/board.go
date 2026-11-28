@@ -64,6 +64,8 @@ type BoardUnitHealth struct {
 	OpenEscalations int     `json:"openEscalations"`
 	Frozen          bool    `json:"frozen"`
 	OverBudget      bool    `json:"overBudget"`
+	// NeedsAttention is true when the unit has open escalations or a spent budget, whatever its report says.
+	NeedsAttention bool `json:"needsAttention"`
 }
 
 // BoardDirectionRequest is direction for the CEO: Direction is required (1 to 4000 characters); ChangeNote is at most

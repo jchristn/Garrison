@@ -430,6 +430,7 @@ const (
 	OrganizationProblemBudgetInvalid           = "BudgetInvalid"
 	OrganizationProblemAgentInactive           = "AgentInactive"
 	OrganizationProblemMandateMismatch         = "MandateMismatch"
+	OrganizationProblemNoRootUnit              = "NoRootUnit"
 )
 
 // ValidateOrganization validates the working tree without publishing it. It writes nothing. Needs Read on Organization;

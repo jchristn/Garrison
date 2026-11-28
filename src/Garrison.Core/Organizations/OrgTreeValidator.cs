@@ -98,7 +98,8 @@ namespace Garrison.Core.Organizations
         /// <param name="units">Units of one organization.</param>
         /// <param name="requireRoot">True to require exactly one root (publishing); false allows an empty tree.</param>
         /// <exception cref="ArgumentNullException">Thrown when units is null.</exception>
-        /// <exception cref="ConflictException">Thrown with TooManyUnits, OneRoot, ParentNotFound, Cycle, UnitNameTaken,
+        /// <exception cref="ConflictException">Thrown with TooManyUnits, OneRoot (two roots), NoRootUnit (an empty tree or no
+        /// unit without a parent, when a root is required), ParentNotFound, Cycle, UnitNameTaken,
         /// LeadsTwoUnits, PositionTaken, TooManyMembers, PeerNotFound, TooManyPeerLines, BudgetPeriodTaken, BudgetInvalid, or
         /// BudgetExceedsParent.</exception>
         public void Validate(List<OrgUnit> units, bool requireRoot)
@@ -110,8 +111,8 @@ namespace Garrison.Core.Organizations
 
             List<OrgUnit> roots = units.Where(u => String.IsNullOrEmpty(u.ParentUnitId)).ToList();
             if (roots.Count > 1) throw new ConflictException("OneRoot", "An organization has one root unit; " + String.Join(" and ", roots.Select(r => r.Name)) + " have no parent.");
-            if (requireRoot && units.Count > 0 && roots.Count == 0) throw new ConflictException("OneRoot", "An organization needs one root unit without a parent.");
-            if (requireRoot && units.Count == 0) throw new ConflictException("OneRoot", "An organization needs at least its root unit.");
+            if (requireRoot && units.Count > 0 && roots.Count == 0) throw new ConflictException("NoRootUnit", "An organization needs one root unit without a parent.");
+            if (requireRoot && units.Count == 0) throw new ConflictException("NoRootUnit", "An organization needs at least its root unit. Add a unit without a parent.");
 
             HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (OrgUnit unit in units)
@@ -226,8 +227,8 @@ namespace Garrison.Core.Organizations
                     problems.Add(Problem(OrganizationValidationProblemCodeEnum.OneRoot, extra.Id, null, "An organization has one root unit; " + extra.Name + " has no parent besides " + roots[0].Name + ". Give it a parent unit."));
                 }
             }
-            if (requireRoot && units.Count > 0 && roots.Count == 0) problems.Add(Problem(OrganizationValidationProblemCodeEnum.OneRoot, null, null, "An organization needs one root unit without a parent."));
-            if (requireRoot && units.Count == 0) problems.Add(Problem(OrganizationValidationProblemCodeEnum.OneRoot, null, null, "An organization needs at least its root unit."));
+            if (requireRoot && units.Count > 0 && roots.Count == 0) problems.Add(Problem(OrganizationValidationProblemCodeEnum.NoRootUnit, null, null, "An organization needs one root unit without a parent."));
+            if (requireRoot && units.Count == 0) problems.Add(Problem(OrganizationValidationProblemCodeEnum.NoRootUnit, null, null, "An organization needs at least its root unit. Add a unit without a parent."));
 
             HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (OrgUnit unit in units)

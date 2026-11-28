@@ -55,7 +55,8 @@ Every edit to the working tree is checked against the whole tree, and so is ever
 
 | Code | Rule |
 |---|---|
-| `OneRoot` | Two units without a parent. A snapshot or publish also needs exactly one root, so an empty tree or a tree without a root is refused there |
+| `OneRoot` | Two units without a parent |
+| `NoRootUnit` | A snapshot or publish of an empty tree, or of a tree where every unit has a parent. Add the root unit first |
 | `ParentNotFound` | The parent is not a unit of this organization |
 | `Cycle` | A unit would sit below itself, or names itself as its parent |
 | `UnitNameTaken` | Two units share a name, ignoring case |
@@ -102,7 +103,7 @@ After every change the canvas runs the publish checks against the working tree w
 
 | Severity | Codes |
 |---|---|
-| Error | `AgentInTwoUnits`, `PeerLineToMissingUnit`, `BudgetOverParent`, `UnitDetachedFromRoot`, `OneRoot`, `Cycle`, `UnitNameTaken`, `TooManyUnits`, `TooManyMembers`, `TooManyPeerLines`, `BudgetPeriodTaken`, `BudgetInvalid`, `AgentInactive` |
+| Error | `AgentInTwoUnits`, `PeerLineToMissingUnit`, `BudgetOverParent`, `UnitDetachedFromRoot`, `OneRoot`, `NoRootUnit`, `Cycle`, `UnitNameTaken`, `TooManyUnits`, `TooManyMembers`, `TooManyPeerLines`, `BudgetPeriodTaken`, `BudgetInvalid`, `AgentInactive` |
 | Warning | `UnitWithoutLead`, `KeeperDeploymentMissing` (an attached keeper whose deployment is missing or inactive), `MandateMismatch` |
 
 Most errors cannot reach the working tree in the first place, because the unit routes refuse them at write time. They show up when something changes underneath the tree, such as an agent deactivated after it joined. A dashboard talking to an older server without the validate route runs the main checks itself and lists them the same way.

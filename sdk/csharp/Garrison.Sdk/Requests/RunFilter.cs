@@ -75,6 +75,23 @@ namespace Garrison.Sdk.Requests
         public string? MandateId { get; set; } = null;
 
         /// <summary>
+        /// Run kind filter, or null for every kind.
+        /// </summary>
+        public RunKindEnum? Kind { get; set; } = null;
+
+        /// <summary>
+        /// Text search, or null for none: runs whose agent name or caller name contains the text, ignoring case.
+        /// The server trims it and accepts at most 200 characters.
+        /// </summary>
+        public string? Search { get; set; } = null;
+
+        /// <summary>
+        /// Hop filter, or null for every run. True keeps runs that sent or received an agent message, started
+        /// another run or were started by one, or belong to a fan-out; false keeps the rest.
+        /// </summary>
+        public bool? HasHops { get; set; } = null;
+
+        /// <summary>
         /// Created at or after (UTC).
         /// </summary>
         public DateTime? FromUtc { get; set; } = null;

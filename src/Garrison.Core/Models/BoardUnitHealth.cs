@@ -48,5 +48,18 @@ namespace Garrison.Core.Models
         /// True when any budget of the unit is spent: a spend row with an amount and spent at or above it.
         /// </summary>
         public bool OverBudget { get; set; } = false;
+
+        /// <summary>
+        /// True when a person should look at the unit whatever its report says: it has open escalations or a spent
+        /// budget. Read only; derived from <see cref="OpenEscalations"/> and <see cref="OverBudget"/>. A unit with a
+        /// Healthy report can still need attention.
+        /// </summary>
+        public bool NeedsAttention
+        {
+            get
+            {
+                return OpenEscalations > 0 || OverBudget;
+            }
+        }
     }
 }

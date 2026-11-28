@@ -43,6 +43,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "child-waits", "Delegation waits: the node waiter cap, a parent's parallel waits, the queue depth, finished children, pruning, and waiting ancestors left out of a deployment's limit (" + provider + ")", ct => ChildWaitsAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "pipeline-cas", "Pipelines: definition children round-trip in order, tenant reads are isolated, stage claims, links, pipeline run transitions, and review decisions are compare-and-set, one review per stage execution, idempotent pipeline run creation (" + provider + ")", ct => PipelineCasAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
+            cases.Add(new TestCaseDescriptor(suiteId, "run-list-filters", "Run list filters: kind, a case-insensitive search on agent and caller name with LIKE wildcards taken literally, and hasHops for message, child, parent, and fan-out runs, all within the tenant (" + provider + ")", ct => RunListFiltersAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "children-roundtrip", "Harness profile child rows round-trip in order (" + provider + ")", ct => ChildrenRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "scalar-children-order", "Scalar child lists keep insertion order (" + provider + ")", ct => ScalarChildrenOrderAsync(provider, ct)));
@@ -401,6 +402,97 @@ namespace Test.Shared.Suites
                 filter.TenantId = "ten_b";
                 Assert.Equal(0, (await db.Runs.ListForAnalyticsAsync(filter, 10, token).ConfigureAwait(false)).Count, "Analytics rows for another tenant");
             }
+        }
+
+        private static async Task RunListFiltersAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                Run plain = await FilterRunAsync(db, "ten_f", "Alpha_Desk", "Ops Person", RunKindEnum.Invoke, null, null, token).ConfigureAwait(false);
+                Run parent = await FilterRunAsync(db, "ten_f", "planner", "admin@garrison", RunKindEnum.Invoke, null, null, token).ConfigureAwait(false);
+                Run child = await FilterRunAsync(db, "ten_f", "helper", null, RunKindEnum.Delegated, parent.Id, null, token).ConfigureAwait(false);
+                Run member = await FilterRunAsync(db, "ten_f", "worker", null, RunKindEnum.Invoke, null, "fan_filter", token).ConfigureAwait(false);
+                Run sender = await FilterRunAsync(db, "ten_f", "latency-keeper", "keeper", RunKindEnum.Keeper, null, null, token).ConfigureAwait(false);
+                Run woken = await FilterRunAsync(db, "ten_f", "dependency-keeper", "A message", RunKindEnum.Message, null, null, token).ConfigureAwait(false);
+                Run other = await FilterRunAsync(db, "ten_g", "Alpha_Desk", "Ops Person", RunKindEnum.Keeper, "run_elsewhere", null, token).ConfigureAwait(false);
+
+                AgentMessage message = new AgentMessage();
+                message.TenantId = "ten_f";
+                message.ThreadId = "amg_filterthread";
+                message.SenderAgentId = sender.AgentId;
+                message.SenderAgentName = sender.AgentName;
+                message.SenderRunId = sender.Id;
+                message.SenderPrincipalType = PrincipalTypeEnum.Run;
+                message.SenderPrincipalId = sender.Id;
+                message.RecipientAgentId = woken.AgentId;
+                message.RecipientAgentName = woken.AgentName;
+                message.Subject = "Hand-off";
+                message.Body = "Look at the dependency.";
+                message.Status = MessageStatusEnum.Delivered;
+                message.DeliveredRunId = woken.Id;
+                message.DeliveredUtc = DateTime.UtcNow;
+                await db.AgentMessages.CreateAsync(message, token).ConfigureAwait(false);
+
+                HashSet<string> keepers = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", Kind = RunKindEnum.Keeper }, token).ConfigureAwait(false);
+                Assert.True(keepers.SetEquals(new[] { sender.Id }), "Kind keeps only the tenant's keeper run");
+
+                HashSet<string> byAgent = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", Search = "  alpha_DESK " }, token).ConfigureAwait(false);
+                Assert.True(byAgent.SetEquals(new[] { plain.Id }), "Search matches the agent name ignoring case and trims");
+                HashSet<string> byCaller = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", Search = "OPS per" }, token).ConfigureAwait(false);
+                Assert.True(byCaller.SetEquals(new[] { plain.Id }), "Search matches the caller name");
+                HashSet<string> underscore = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", Search = "a_d" }, token).ConfigureAwait(false);
+                Assert.True(underscore.SetEquals(new[] { plain.Id }), "An underscore in the search is literal");
+                HashSet<string> percent = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", Search = "%" }, token).ConfigureAwait(false);
+                Assert.Equal(0, percent.Count, "A percent sign in the search is literal");
+                RunFilter blank = new RunFilter { TenantId = "ten_f", Search = "   " };
+                Assert.True(blank.Search == null, "A blank search is no search");
+                bool refused = false;
+                try
+                {
+                    RunFilter tooLong = new RunFilter { Search = new string('x', 201) };
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    refused = true;
+                }
+
+                Assert.True(refused, "A search longer than 200 characters is refused");
+
+                HashSet<string> hops = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", HasHops = true }, token).ConfigureAwait(false);
+                Assert.True(hops.SetEquals(new[] { parent.Id, child.Id, member.Id, sender.Id, woken.Id }), "hasHops keeps the parent, child, fan-out member, sender, and woken runs");
+                HashSet<string> noHops = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", HasHops = false }, token).ConfigureAwait(false);
+                Assert.True(noHops.SetEquals(new[] { plain.Id }), "hasHops false keeps the run that crossed nothing");
+
+                HashSet<string> combined = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_f", HasHops = true, Kind = RunKindEnum.Message, Search = "keeper" }, token).ConfigureAwait(false);
+                Assert.True(combined.SetEquals(new[] { woken.Id }), "Filters combine");
+                EnumerationResult<Run> page = await db.Runs.EnumerateAsync(new RunFilter { TenantId = "ten_f", HasHops = true, MaxResults = 2 }, token).ConfigureAwait(false);
+                Assert.Equal(5L, page.TotalRecords, "The total counts every hop run");
+                Assert.Equal(2, page.Objects.Count, "The page is bounded");
+                HashSet<string> elsewhere = await FilterIdsAsync(db, new RunFilter { TenantId = "ten_g", HasHops = true, Search = "alpha" }, token).ConfigureAwait(false);
+                Assert.True(elsewhere.SetEquals(new[] { other.Id }), "Filters stay in their tenant");
+            }
+        }
+
+        private static async Task<Run> FilterRunAsync(DatabaseDriverBase db, string tenantId, string agentName, string? callerName, RunKindEnum kind, string? parentRunId, string? fanOutGroupId, CancellationToken token)
+        {
+            Run run = new Run();
+            run.TenantId = tenantId;
+            run.AgentId = "agt_" + agentName.Replace("-", String.Empty).Replace("_", String.Empty).ToLowerInvariant();
+            run.AgentName = agentName;
+            run.DeploymentId = "dep_filter";
+            run.Kind = kind;
+            run.CallerName = callerName;
+            run.ParentRunId = parentRunId;
+            run.FanOutGroupId = fanOutGroupId;
+            run.Status = RunStatusEnum.Succeeded;
+            return await db.Runs.CreateAsync(run, token).ConfigureAwait(false);
+        }
+
+        private static async Task<HashSet<string>> FilterIdsAsync(DatabaseDriverBase db, RunFilter filter, CancellationToken token)
+        {
+            filter.MaxResults = 100;
+            EnumerationResult<Run> page = await db.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
+            return new HashSet<string>(page.Objects.Select(r => r.Id));
         }
 
         private static async Task TenantCrudAsync(DatabaseTypeEnum provider, CancellationToken token)

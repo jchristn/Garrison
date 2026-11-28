@@ -1184,7 +1184,7 @@ RUN_TRAIL_EDGE_KINDS = ("Started", "Spawned", "FannedOut", "Retried", "Sent", "W
 RUN_TRAIL_TRUNCATIONS = ("None", "NodeCap", "HopCap", "SpanCap")
 # Organization validation (Organizations.validate_organization).
 ORGANIZATION_VALIDATION_SEVERITIES = ("Error", "Warning")
-ORGANIZATION_VALIDATION_PROBLEM_CODES = ("UnitWithoutLead", "AgentInTwoUnits", "PeerLineToMissingUnit", "BudgetOverParent", "KeeperDeploymentMissing", "UnitDetachedFromRoot", "OneRoot", "Cycle", "UnitNameTaken", "TooManyUnits", "TooManyMembers", "TooManyPeerLines", "BudgetPeriodTaken", "BudgetInvalid", "AgentInactive", "MandateMismatch")
+ORGANIZATION_VALIDATION_PROBLEM_CODES = ("UnitWithoutLead", "AgentInTwoUnits", "PeerLineToMissingUnit", "BudgetOverParent", "KeeperDeploymentMissing", "UnitDetachedFromRoot", "OneRoot", "Cycle", "UnitNameTaken", "TooManyUnits", "TooManyMembers", "TooManyPeerLines", "BudgetPeriodTaken", "BudgetInvalid", "AgentInactive", "MandateMismatch", "NoRootUnit")
 USAGE_QUOTA_SCOPES = ("Tenant", "Agent", "Deployment", "Mandate", "OrgUnit")
 # Change rules: a ChangeRule class entry's "class", a limit's "class", and ChangeRuleMatchItem["classes"].
 CHANGE_CLASSES = ("PromptRetune", "WakeTuning", "MandateTextEdit", "AddWorker", "RemoveWorker", "ModelChange", "DeploymentWeight")
@@ -1736,7 +1736,8 @@ class BoardCeo(TypedDict, total=False):
 class BoardUnitHealth(TypedDict, total=False):
     """Board["unitHealth"] item, one per chart unit. health is one of REPORT_HEALTHS (Unknown when the unit has no
     report); frozen is True when an active freeze covers the unit or organization; overBudget is True when a spend row
-    for the unit has reached its budget."""
+    for the unit has reached its budget; needsAttention is True when openEscalations is above 0 or overBudget is True,
+    whatever the report says."""
     unitId: str
     unitName: str
     health: str
@@ -1745,6 +1746,7 @@ class BoardUnitHealth(TypedDict, total=False):
     openEscalations: int
     frozen: bool
     overBudget: bool
+    needsAttention: bool
 
 
 class Board(TypedDict, total=False):
@@ -3257,8 +3259,12 @@ class Runs:
              root_run_id: Optional[str] = None, outcome: Optional[str] = None, from_utc: Optional[datetime] = None,
              to_utc: Optional[datetime] = None, max_results: Optional[int] = None, skip: Optional[int] = None,
              ordering: Optional[str] = None, caller_id: Optional[str] = None, conversation_id: Optional[str] = None,
-             trigger_id: Optional[str] = None, mandate_id: Optional[str] = None) -> Dict[str, Any]:
+             trigger_id: Optional[str] = None, mandate_id: Optional[str] = None, kind: Optional[str] = None,
+             search: Optional[str] = None, has_hops: Optional[bool] = None) -> Dict[str, Any]:
+        """List runs. kind keeps one run kind; search matches the agent name or caller name, ignoring case; has_hops
+        True keeps runs that sent or received a message, started or were started by another run, or belong to a fan-out."""
         return self._t.request("GET", self._p(), {"triggerId": trigger_id, "mandateId": mandate_id,
+            "kind": kind, "search": search, "hasHops": has_hops,
             "status": status, "agentId": agent_id, "deploymentId": deployment_id, "harnessType": harness_type, "nodeId": node_id,
             "parentRunId": parent_run_id, "rootRunId": root_run_id, "outcome": outcome, "fromUtc": from_utc, "toUtc": to_utc,
             "maxResults": max_results, "skip": skip, "ordering": ordering, "callerId": caller_id,

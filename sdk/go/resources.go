@@ -368,6 +368,11 @@ func (r *RunsClient) List(ctx context.Context, f RunFilter) (*EnumerationResult[
 	set("conversationId", f.ConversationID)
 	set("triggerId", f.TriggerID)
 	set("mandateId", f.MandateID)
+	set("kind", f.Kind)
+	set("search", f.Search)
+	if f.HasHops != nil {
+		q.Set("hasHops", strconv.FormatBool(*f.HasHops))
+	}
 	if f.MaxResults > 0 {
 		q.Set("maxResults", strconv.Itoa(f.MaxResults))
 	}

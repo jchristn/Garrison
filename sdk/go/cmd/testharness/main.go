@@ -1942,12 +1942,12 @@ func main() {
 		}
 		oneRoot := false
 		for _, p := range empty.Problems {
-			if p.Code == garrison.OrganizationProblemOneRoot && p.Severity == garrison.OrganizationValidationError && p.Message != "" {
+			if p.Code == garrison.OrganizationProblemNoRootUnit && p.Severity == garrison.OrganizationValidationError && p.Message != "" {
 				oneRoot = true
 			}
 		}
 		if empty.Valid || !oneRoot {
-			return fmt.Errorf("an empty tree reports OneRoot: %+v", empty)
+			return fmt.Errorf("an empty tree reports NoRootUnit: %+v", empty)
 		}
 		root, err := client.Organizations.CreateUnit(ctx, org.ID, garrison.OrgUnit{Name: "board", LeadAgentID: str(agentID), LeadTitle: str("CEO")})
 		if err != nil {

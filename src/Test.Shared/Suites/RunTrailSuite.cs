@@ -66,6 +66,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "mcp", "garrison_get_run_trail is listed for a person and returns the trail as structured content; it is absent and refused for a run token (" + provider + ")", ct => McpAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "entry-surface", "Runs record how they came in: REST invoke Rest, MCP start Mcp, a manual trigger fire Trigger, and a person's urgent message Message; the trail's Caller node and leg-starting Run nodes carry it (" + provider + ")", ct => EntrySurfaceAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "shadow-link", "A shadow copy hangs off its live run with a Shadowed edge, from either end, with the live run's origin; ListShadowsOfAsync reads it only in its tenant (" + provider + ")", ct => ShadowLinkAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "run-list-filters", "GET /runs filters on kind, search (agent or caller name, ignoring case), and hasHops, which keeps the origin run that sent a message as well as the run it woke; bad values answer 400 (" + provider + ")", ct => RunListFiltersAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "org-validate", "POST /organizations/{id}/validate lists warnings and errors with codes and unit identifiers, writes nothing, and answers 404 across tenants (" + provider + ")", ct => OrgValidateAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Activity trail (" + provider + ")", cases));
             }
@@ -340,7 +341,19 @@ namespace Test.Shared.Suites
                 refused = true;
             }
             Assert.True(refused, "Validate refuses the same tree");
-            Assert.True(validator.Inspect(new List<OrgUnit>(), true).Single().Code == OrganizationValidationProblemCodeEnum.OneRoot, "An empty tree needs its root");
+            OrganizationValidationProblem noRoot = validator.Inspect(new List<OrgUnit>(), true).Single();
+            Assert.True(noRoot.Code == OrganizationValidationProblemCodeEnum.NoRootUnit && noRoot.UnitId == null, "An empty tree needs its root: NoRootUnit, naming no unit");
+            Assert.True(validator.Inspect(new List<OrgUnit>(), false).Count == 0, "An empty working tree is fine when no root is required");
+            string? emptyCode = null;
+            try
+            {
+                validator.Validate(new List<OrgUnit>(), true);
+            }
+            catch (Garrison.Core.Services.ConflictException e)
+            {
+                emptyCode = e.Code;
+            }
+            Assert.Equal("NoRootUnit", emptyCode, "Publishing an empty tree is refused with NoRootUnit");
 
             OrganizationValidationResult result = new OrganizationValidationResult();
             result.Problems.Add(new OrganizationValidationProblem { Code = OrganizationValidationProblemCodeEnum.UnitWithoutLead, Severity = OrganizationValidationSeverityEnum.Warning });
@@ -749,6 +762,10 @@ namespace Test.Shared.Suites
 
                 OrganizationService service = host.Server.Context.Get<OrganizationService>();
                 RequestContext admin = OrganizationSuite.Admin(host);
+                Organization blank = await service.CreateAsync(admin, host.TenantId, new Organization { Name = "trail-val-blank" }, token).ConfigureAwait(false);
+                OrganizationValidationResult none = await HttpTestHelpers.SendAsync<OrganizationValidationResult>(host.AdminClient, HttpMethod.Post, T(host) + "/organizations/" + blank.Id + "/validate", null, 200, token).ConfigureAwait(false);
+                Assert.True(!none.Valid && none.Problems.Count == 1 && none.Problems[0].Code == OrganizationValidationProblemCodeEnum.NoRootUnit && none.Problems[0].UnitId == null, "An empty organization validates to one NoRootUnit problem naming no unit: " + Serializer.Serialize(none));
+                KeeperSuite.Code(await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/organizations/" + blank.Id + "/revisions", null, token).ConfigureAwait(false), 409, "NoRootUnit", "Snapshotting an empty organization");
                 OrgUnit empty = await service.CreateUnitAsync(admin, f.Org, new OrgUnit { Name = "trail-val-empty", ParentUnitId = f.Root.Id }, token).ConfigureAwait(false);
                 Deployment deployment = await OrganizationSuite.DeploymentAsync(host, f.Stranger, token).ConfigureAwait(false);
                 Mandate mandate = await OrganizationSuite.MandateAsync(host, "trail-val-keeper", f.Stranger, deployment, "Watch the queue.", token).ConfigureAwait(false);
@@ -777,6 +794,34 @@ namespace Test.Shared.Suites
                 }
                 Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/ten_elsewhere/organizations/" + f.Org.Id + "/validate", null, token).ConfigureAwait(false)).StatusCode, "Another tenant's path does not reach the organization");
                 Assert.Equal(404, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/organizations/org_missing/validate", null, token).ConfigureAwait(false)).StatusCode, "A missing organization answers 404");
+            }
+        }
+
+        private static async Task RunListFiltersAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                Agent latency = await OrganizationSuite.AgentAsync(host, "Latency-Keeper", token).ConfigureAwait(false);
+                Agent dependency = await OrganizationSuite.AgentAsync(host, "dependency-keeper", token).ConfigureAwait(false);
+                Agent lone = await OrganizationSuite.AgentAsync(host, "lone-agent", token).ConfigureAwait(false);
+                Run origin = await RunAsync(host, latency, null, RunKindEnum.Keeper, RunStatusEnum.Succeeded, token).ConfigureAwait(false);
+                Run woken = await RunAsync(host, dependency, null, RunKindEnum.Message, RunStatusEnum.Succeeded, token).ConfigureAwait(false);
+                Run plain = await RunAsync(host, lone, null, RunKindEnum.Invoke, RunStatusEnum.Succeeded, token).ConfigureAwait(false);
+                await MessageAsync(host, latency, origin, dependency, woken, true, token).ConfigureAwait(false);
+
+                string runs = T(host) + "/runs";
+                EnumerationResult<Run> hops = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, runs + "?hasHops=true&maxResults=100", null, 200, token).ConfigureAwait(false);
+                Assert.True(hops.Objects.Select(r => r.Id).OrderBy(i => i).SequenceEqual(new[] { origin.Id, woken.Id }.OrderBy(i => i)), "hasHops=true lists the origin run and the run it woke");
+                EnumerationResult<Run> none = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, runs + "?hasHops=false&maxResults=100", null, 200, token).ConfigureAwait(false);
+                Assert.True(none.Objects.Any(r => r.Id == plain.Id) && !none.Objects.Any(r => r.Id == origin.Id || r.Id == woken.Id), "hasHops=false leaves them out");
+                EnumerationResult<Run> kind = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, runs + "?kind=message", null, 200, token).ConfigureAwait(false);
+                Assert.True(kind.Objects.Count == 1 && kind.Objects[0].Id == woken.Id, "kind keeps the Message run");
+                EnumerationResult<Run> search = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, runs + "?search=" + Uri.EscapeDataString("LATENCY-k"), null, 200, token).ConfigureAwait(false);
+                Assert.True(search.Objects.Count == 1 && search.Objects[0].Id == origin.Id, "search matches the agent name ignoring case");
+                EnumerationResult<Run> caller = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(host.AdminClient, HttpMethod.Get, runs + "?search=" + Uri.EscapeDataString("TRAIL@example") + "&maxResults=100", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(3L, caller.TotalRecords, "search matches the caller name");
+                Assert.Equal(400, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, runs + "?kind=Sideways", null, token).ConfigureAwait(false)).StatusCode, "An unknown kind answers 400");
+                Assert.Equal(400, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, runs + "?search=" + new string('x', 201), null, token).ConfigureAwait(false)).StatusCode, "A search over 200 characters answers 400");
             }
         }
 

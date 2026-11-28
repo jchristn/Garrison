@@ -1232,7 +1232,7 @@ namespace Garrison.Sdk.Test
                     {
                         organization = await client.Organizations.CreateAsync(new Organization { Name = "sdk-cs-validate-" + suffix, Mission = "Validate with the C# SDK." }, token).ConfigureAwait(false);
                         OrganizationValidationResult empty = await client.Organizations.ValidateOrganizationAsync(organization.Id, token).ConfigureAwait(false);
-                        Require(!empty.Valid && empty.Problems.Any(p => p.Code == OrganizationValidationProblemCodeEnum.OneRoot && p.Severity == OrganizationValidationSeverityEnum.Error && !String.IsNullOrEmpty(p.Message)), "an empty tree reports OneRoot");
+                        Require(!empty.Valid && empty.Problems.Any(p => p.Code == OrganizationValidationProblemCodeEnum.NoRootUnit && p.Severity == OrganizationValidationSeverityEnum.Error && !String.IsNullOrEmpty(p.Message)), "an empty tree reports NoRootUnit");
                         OrgUnit root = await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "board", LeadAgentId = agentId, LeadTitle = "CEO" }, token).ConfigureAwait(false);
                         await client.Organizations.CreateUnitAsync(organization.Id, new OrgUnit { Name = "unled", ParentUnitId = root.Id }, token).ConfigureAwait(false);
                         OrganizationValidationResult filled = await client.Organizations.ValidateOrganizationAsync(organization.Name, token).ConfigureAwait(false);

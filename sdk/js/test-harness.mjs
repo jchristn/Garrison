@@ -772,7 +772,7 @@ await check("organization validate", async () => {
   try {
     org = await client.organizations.create({ name: `sdk-js-validate-${suffix}`, mission: "Validate with the JavaScript SDK." });
     const empty = await client.organizations.validateOrganization(org.id);
-    require(!empty.valid && empty.problems.some((p) => p.code === "OneRoot" && p.severity === "Error" && p.message), `an empty tree reports OneRoot: ${JSON.stringify(empty)}`);
+    require(!empty.valid && empty.problems.some((p) => p.code === "NoRootUnit" && p.severity === "Error" && p.message), `an empty tree reports NoRootUnit: ${JSON.stringify(empty)}`);
     const root = await client.organizations.createUnit(org.id, { name: "board", leadAgentId: state.agent, leadTitle: "CEO" });
     await client.organizations.createUnit(org.id, { name: "unled", parentUnitId: root.id });
     const filled = await client.organizations.validateOrganization(org.name);

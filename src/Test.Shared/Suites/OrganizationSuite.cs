@@ -188,7 +188,7 @@ namespace Test.Shared.Suites
                 Assert.Equal("UnitHasChildren", await CodeAsync(() => service.DeleteUnitAsync(admin, org, ops, token)).ConfigureAwait(false), "A unit with children stays");
 
                 Organization empty = await service.CreateAsync(admin, host.TenantId, new Organization { Name = "val-empty" }, token).ConfigureAwait(false);
-                Assert.Equal("OneRoot", await CodeAsync(() => service.CreateRevisionAsync(admin, empty, null, token)).ConfigureAwait(false), "A revision needs a root");
+                Assert.Equal("NoRootUnit", await CodeAsync(() => service.CreateRevisionAsync(admin, empty, null, token)).ConfigureAwait(false), "A revision needs a root, and an empty tree has its own code");
             }
         }
 

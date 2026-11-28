@@ -78,7 +78,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, "/v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke", ResourceTypeEnum.Agent, OperationTypeEnum.Execute, InvokeAsync, "Invoke an agent", tag, typeof(InvokeRequest), typeof(Run), "agentId");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, TestDeploymentAsync, "Invoke a specific deployment with a test input", tag, typeof(InvokeRequest), typeof(Run), "deploymentId");
             routes.Scoped(HttpMethod.POST, baseRuns, ResourceTypeEnum.Run, OperationTypeEnum.Create, CreateAsync, "Create a run", tag, typeof(RunCreateRequest), typeof(Run));
-            routes.Scoped(HttpMethod.GET, baseRuns, ResourceTypeEnum.Run, OperationTypeEnum.Read, ListAsync, "List runs", tag, null, typeof(EnumerationResult<Run>));
+            routes.Scoped(HttpMethod.GET, baseRuns, ResourceTypeEnum.Run, OperationTypeEnum.Read, ListAsync, "List runs (query: status, agentId, kind, outcome, callerId, search, hasHops, fromUtc, toUtc, and more)", tag, null, typeof(EnumerationResult<Run>));
             routes.Scoped(HttpMethod.DELETE, baseRuns, ResourceTypeEnum.Run, OperationTypeEnum.Delete, DeleteManyAsync, "Delete finished runs matching a filter", tag, null, typeof(DeleteCountResponse));
             routes.Scoped(HttpMethod.GET, baseRuns + "/{id}", ResourceTypeEnum.Run, OperationTypeEnum.Read, ReadAsync, "Read a run", tag, null, typeof(Run));
             routes.Scoped(HttpMethod.GET, baseRuns + "/{id}/placement", ResourceTypeEnum.Run, OperationTypeEnum.Read, PlacementAsync, "Explain run placement without claiming or reserving capacity", tag, null, typeof(RunPlacementResponse));
@@ -177,6 +177,9 @@ namespace Garrison.Server.Routes
             filter.CallerId = RouteHelpers.Query(context, "callerId");
             filter.FromUtc = RouteHelpers.QueryDate(context, "fromUtc");
             filter.ToUtc = RouteHelpers.QueryDate(context, "toUtc");
+            filter.Kind = RouteHelpers.QueryEnum<RunKindEnum>(context, "kind");
+            filter.Search = RouteHelpers.Query(context, "search");
+            filter.HasHops = RouteHelpers.QueryBool(context, "hasHops");
             EnumerationQuery query = RouteHelpers.Enumeration(context);
             filter.Skip = query.Skip;
             filter.MaxResults = query.MaxResults;

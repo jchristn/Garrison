@@ -125,6 +125,9 @@ namespace Test.Shared.Suites
                 Assert.True(root.Health == ReportHealthEnum.Healthy && root.LastReportId == brief.Id && !root.Frozen && root.OpenEscalations == 0, "Root health from the brief: " + Serializer.Serialize(root));
                 Assert.True(ops.Health == ReportHealthEnum.Unhealthy && ops.LastReportId == bad.Id && ops.LastReportUtc.HasValue && ops.Frozen && ops.OpenEscalations == 1 && !ops.OverBudget, "Ops: unhealthy, frozen, one escalation: " + Serializer.Serialize(ops));
                 Assert.True(sales.Health == ReportHealthEnum.Unknown && sales.LastReportId == null && sales.OverBudget && !sales.Frozen, "Sales: no report, its budget spent: " + Serializer.Serialize(sales));
+                Assert.True(!root.NeedsAttention && ops.NeedsAttention && sales.NeedsAttention, "needsAttention: an open escalation or a spent budget, whatever the report says");
+                TestResponse raw = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, b + "/" + f.Org.Id + "/board", null, token).ConfigureAwait(false);
+                Assert.True(raw.StatusCode == 200 && raw.Body.Contains("\"needsAttention\":true", StringComparison.Ordinal) && raw.Body.Contains("\"needsAttention\":false", StringComparison.Ordinal), "The board route sends needsAttention on each unit row");
                 Assert.True(board.Escalations.Count == 1 && board.Escalations[0].Id == asked.Id, "Only the organization's open escalations: " + Serializer.Serialize(board.Escalations.Select(e => e.Id)));
                 Assert.True(board.Proposals.Count == 0, "No proposals wait");
                 Assert.True(board.Spend.Any(s => s.UnitId == f.Sales.Id && s.AmountUsd == 1 && s.SpentUsd >= 1.5), "Spend rows: " + Serializer.Serialize(board.Spend));

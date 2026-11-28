@@ -47,5 +47,10 @@ namespace Garrison.Sdk.Models
         /// True when any spend row for the unit has a budget and has spent at least that much.
         /// </summary>
         public bool OverBudget { get; set; } = false;
+
+        /// <summary>
+        /// True when the unit has open escalations or a spent budget, whatever its report says. The server derives it.
+        /// </summary>
+        public bool NeedsAttention { get; set; } = false;
     }
 }

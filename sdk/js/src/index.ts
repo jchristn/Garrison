@@ -1786,6 +1786,12 @@ export interface RunFilter {
   triggerId?: string;
   /** Only runs this keeper (mandate) started. */
   mandateId?: string;
+  /** Only runs of this kind (one of RUN_KINDS). */
+  kind?: string;
+  /** Runs whose agent name or caller name contains this text, ignoring case (at most 200 characters). */
+  search?: string;
+  /** True: runs that sent or received a message, started or were started by another run, or belong to a fan-out. False: the rest. */
+  hasHops?: boolean;
   maxResults?: number; skip?: number; ordering?: string;
 }
 
@@ -2769,8 +2775,8 @@ export interface OrgChart extends Json {
 /** Error is what publishing would refuse; Warning publishes but leaves the organization incomplete. */
 export type OrganizationValidationSeverity = "Error" | "Warning";
 export const ORGANIZATION_VALIDATION_SEVERITIES: readonly OrganizationValidationSeverity[] = ["Error", "Warning"] as const;
-export type OrganizationValidationProblemCode = "UnitWithoutLead" | "AgentInTwoUnits" | "PeerLineToMissingUnit" | "BudgetOverParent" | "KeeperDeploymentMissing" | "UnitDetachedFromRoot" | "OneRoot" | "Cycle" | "UnitNameTaken" | "TooManyUnits" | "TooManyMembers" | "TooManyPeerLines" | "BudgetPeriodTaken" | "BudgetInvalid" | "AgentInactive" | "MandateMismatch";
-export const ORGANIZATION_VALIDATION_PROBLEM_CODES: readonly OrganizationValidationProblemCode[] = ["UnitWithoutLead", "AgentInTwoUnits", "PeerLineToMissingUnit", "BudgetOverParent", "KeeperDeploymentMissing", "UnitDetachedFromRoot", "OneRoot", "Cycle", "UnitNameTaken", "TooManyUnits", "TooManyMembers", "TooManyPeerLines", "BudgetPeriodTaken", "BudgetInvalid", "AgentInactive", "MandateMismatch"] as const;
+export type OrganizationValidationProblemCode = "UnitWithoutLead" | "AgentInTwoUnits" | "PeerLineToMissingUnit" | "BudgetOverParent" | "KeeperDeploymentMissing" | "UnitDetachedFromRoot" | "OneRoot" | "Cycle" | "UnitNameTaken" | "TooManyUnits" | "TooManyMembers" | "TooManyPeerLines" | "BudgetPeriodTaken" | "BudgetInvalid" | "AgentInactive" | "MandateMismatch" | "NoRootUnit";
+export const ORGANIZATION_VALIDATION_PROBLEM_CODES: readonly OrganizationValidationProblemCode[] = ["UnitWithoutLead", "AgentInTwoUnits", "PeerLineToMissingUnit", "BudgetOverParent", "KeeperDeploymentMissing", "UnitDetachedFromRoot", "OneRoot", "Cycle", "UnitNameTaken", "TooManyUnits", "TooManyMembers", "TooManyPeerLines", "BudgetPeriodTaken", "BudgetInvalid", "AgentInactive", "MandateMismatch", "NoRootUnit"] as const;
 /** One problem in an organization's working tree. unitId, agentId, and mandateId name what it is about, or are null. */
 export interface OrganizationValidationProblem extends Json {
   code: OrganizationValidationProblemCode; severity: OrganizationValidationSeverity; unitId?: string | null; agentId?: string | null;
@@ -3134,6 +3140,8 @@ export interface BoardUnitHealth extends Json {
   frozen: boolean;
   /** A spend row for the unit has reached its budget. */
   overBudget: boolean;
+  /** A person should look at the unit whatever its report says: openEscalations above 0 or overBudget. */
+  needsAttention: boolean;
 }
 /**
  * The board view of an organization, computed on each read. escalations (pending, newest first), proposals (awaiting a

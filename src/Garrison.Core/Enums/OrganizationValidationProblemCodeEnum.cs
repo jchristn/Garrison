@@ -39,7 +39,7 @@ namespace Garrison.Core.Enums
         UnitDetachedFromRoot,
 
         /// <summary>
-        /// Error: the tree has no root unit, or more than one (OneRoot).
+        /// Error: the tree has more than one root unit (OneRoot). An empty tree or one with no root is NoRootUnit.
         /// </summary>
         OneRoot,
 
@@ -86,6 +86,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Error: a mandate held in a unit is missing or belongs to another agent (MandateMismatch).
         /// </summary>
-        MandateMismatch
+        MandateMismatch,
+
+        /// <summary>
+        /// Error: the tree has no root unit, because it is empty or every unit has a parent (NoRootUnit). The
+        /// problem names no unit.
+        /// </summary>
+        NoRootUnit
     }
 }

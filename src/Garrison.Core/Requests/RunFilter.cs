@@ -9,6 +9,8 @@ namespace Garrison.Core.Requests
     /// </summary>
     public class RunFilter
     {
+        #region Public-Members
+
         /// <summary>
         /// Tenant identifier; null enumerates across tenants (system administrators only).
         /// </summary>
@@ -80,6 +82,44 @@ namespace Garrison.Core.Requests
         public string? ShadowTrialId { get; set; } = null;
 
         /// <summary>
+        /// Run kind filter, or null for every kind.
+        /// </summary>
+        public RunKindEnum? Kind { get; set; } = null;
+
+        /// <summary>
+        /// Text search, or null for none. A run matches when its agent name or its caller name contains the text,
+        /// ignoring case. Leading and trailing white space is trimmed and an empty value means no search.
+        /// Default null; at most 200 characters.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the trimmed value is longer than 200 characters.</exception>
+        public string? Search
+        {
+            get
+            {
+                return _Search;
+            }
+            set
+            {
+                string? trimmed = value?.Trim();
+                if (String.IsNullOrEmpty(trimmed))
+                {
+                    _Search = null;
+                    return;
+                }
+
+                if (trimmed.Length > _SearchMaxLength) throw new ArgumentOutOfRangeException(nameof(Search), "The run search text can be at most " + _SearchMaxLength + " characters.");
+                _Search = trimmed;
+            }
+        }
+
+        /// <summary>
+        /// Hop filter, or null for every run. True keeps runs that are part of a request that crossed runs: a run that
+        /// sent or received an agent message, started another run or was started by one, or belongs to a fan-out.
+        /// False keeps the runs that did none of those.
+        /// </summary>
+        public bool? HasHops { get; set; } = null;
+
+        /// <summary>
         /// Outcome filter.
         /// </summary>
         public RunOutcomeEnum? Outcome { get; set; } = null;
@@ -118,5 +158,14 @@ namespace Garrison.Core.Requests
         /// Ordering.
         /// </summary>
         public EnumerationOrderEnum Ordering { get; set; } = EnumerationOrderEnum.CreatedDescending;
+
+        #endregion
+
+        #region Private-Members
+
+        private string? _Search = null;
+        private int _SearchMaxLength = 200;
+
+        #endregion
     }
 }

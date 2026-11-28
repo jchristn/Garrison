@@ -873,6 +873,13 @@ type RunFilter struct {
 	TriggerID string
 	// MandateID keeps only the runs that ticked this keeper mandate.
 	MandateID string
+	// Kind keeps only runs of this kind (Invoke, Tick, Message, and so on).
+	Kind string
+	// Search keeps runs whose agent name or caller name contains the text, ignoring case.
+	Search string
+	// HasHops, when set, keeps runs that sent or received a message, started or were started by another run, or
+	// belong to a fan-out (true), or the rest (false).
+	HasHops *bool
 }
 
 // ManifestApply is the result of applying manifests. Items is kept raw for forward compatibility; call

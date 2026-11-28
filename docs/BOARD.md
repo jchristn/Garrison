@@ -57,6 +57,7 @@ Each `unitHealth` row reads the unit's newest report and a few facts about it:
 | `openEscalations` | Open escalations raised in the unit |
 | `frozen` | True when an active freeze covers the unit or the whole organization |
 | `overBudget` | True when any of the unit's budgets has been spent in its current window |
+| `needsAttention` | True when the unit has open escalations or a spent budget, whatever its report says. The dashboard marks such a unit "Needs a person" |
 
 `Unknown` is the honest answer for a unit whose agents have not reported yet. It does not mean anything is wrong.
 

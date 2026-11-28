@@ -29,6 +29,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _ParametersTable;
         private readonly string _RequirementsTable;
         private readonly string _TemplateVersionsTable;
+        private readonly string _MessagesTable;
 
         #endregion
 
@@ -46,6 +47,7 @@ namespace Garrison.Core.Database.Ado
             _ParametersTable = driver.Table("run_parameters");
             _RequirementsTable = driver.Table("run_requirements");
             _TemplateVersionsTable = driver.Table("run_template_versions");
+            _MessagesTable = driver.Table("agent_messages");
         }
 
         #endregion
@@ -1000,6 +1002,9 @@ namespace Garrison.Core.Database.Ado
             if (!String.IsNullOrEmpty(filter.CallerId)) clauses.Add("callerid = @callerid");
             if (filter.FromUtc.HasValue) clauses.Add("createdutc >= @fromutc");
             if (filter.ToUtc.HasValue) clauses.Add("createdutc < @toutc");
+            if (filter.Kind.HasValue) clauses.Add("kind = @kind");
+            if (!String.IsNullOrEmpty(filter.Search)) clauses.Add("(LOWER(agentname) LIKE @search ESCAPE '\\' OR LOWER(callername) LIKE @search ESCAPE '\\')");
+            if (filter.HasHops.HasValue) clauses.Add(filter.HasHops.Value ? HopsClause() : "NOT " + HopsClause());
             string where = clauses.Count > 0 ? " WHERE " + String.Join(" AND ", clauses) : String.Empty;
 
             Action<DbCommand> bind = command =>
@@ -1022,6 +1027,8 @@ namespace Garrison.Core.Database.Ado
                 if (!String.IsNullOrEmpty(filter.CallerId)) AdoDatabaseDriver.Add(command, "callerid", filter.CallerId);
                 if (filter.FromUtc.HasValue) AdoDatabaseDriver.Add(command, "fromutc", filter.FromUtc.Value);
                 if (filter.ToUtc.HasValue) AdoDatabaseDriver.Add(command, "toutc", filter.ToUtc.Value);
+                if (filter.Kind.HasValue) AdoDatabaseDriver.Add(command, "kind", filter.Kind.Value.ToString());
+                if (!String.IsNullOrEmpty(filter.Search)) AdoDatabaseDriver.Add(command, "search", "%" + EscapeLike(filter.Search.ToLowerInvariant()) + "%");
             };
 
             EnumerationQuery query = new EnumerationQuery();
@@ -1029,10 +1036,10 @@ namespace Garrison.Core.Database.Ado
             query.MaxResults = filter.MaxResults;
             query.Ordering = filter.Ordering;
 
-            object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Table + where + ";", bind, token).ConfigureAwait(false);
+            object? countValue = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Table + " r" + where + ";", bind, token).ConfigureAwait(false);
             long total = countValue == null ? 0 : Convert.ToInt64(countValue);
             List<Run> runs = await _Driver.QueryAsync(
-                "SELECT * FROM " + _Table + where + AdoEnumerationSql.OrderBy(query.Ordering, false) + _Driver.Dialect.LimitOffsetClause() + ";",
+                "SELECT * FROM " + _Table + " r" + where + AdoEnumerationSql.OrderBy(query.Ordering, false) + _Driver.Dialect.LimitOffsetClause() + ";",
                 command =>
                 {
                     bind(command);
@@ -1456,6 +1463,19 @@ namespace Garrison.Core.Database.Ado
         #endregion
 
         #region Private-Methods
+
+        private string HopsClause()
+        {
+            return "(r.parentrunid IS NOT NULL OR r.fanoutgroupid IS NOT NULL"
+                + " OR EXISTS (SELECT 1 FROM " + _Table + " c WHERE c.tenantid = r.tenantid AND c.parentrunid = r.id)"
+                + " OR EXISTS (SELECT 1 FROM " + _MessagesTable + " ms WHERE ms.tenantid = r.tenantid AND ms.senderrunid = r.id)"
+                + " OR EXISTS (SELECT 1 FROM " + _MessagesTable + " md WHERE md.tenantid = r.tenantid AND md.deliveredrunid = r.id))";
+        }
+
+        private static string EscapeLike(string value)
+        {
+            return value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        }
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Run obj, CancellationToken token)
         {

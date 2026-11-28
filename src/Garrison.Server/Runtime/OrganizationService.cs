@@ -584,7 +584,7 @@ namespace Garrison.Server.Runtime
         /// <returns>The revision with its snapshot.</returns>
         /// <exception cref="ArgumentNullException">Thrown when ctx or organization is null.</exception>
         /// <exception cref="ValidationException">Thrown when the note is too long.</exception>
-        /// <exception cref="ConflictException">Thrown with a tree rule code (an empty tree or no root is OneRoot) or OrganizationRetired.</exception>
+        /// <exception cref="ConflictException">Thrown with a tree rule code (an empty tree or no root is NoRootUnit, two roots OneRoot) or OrganizationRetired.</exception>
         public async Task<OrgRevision> CreateRevisionAsync(RequestContext ctx, Organization organization, string? note, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));

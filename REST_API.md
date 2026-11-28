@@ -4190,7 +4190,7 @@ Add a unit to the working tree. The body is an `OrgUnit`; `parentUnitId`, `leadA
 
 #### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/revisions`
 
-Snapshot the working tree as a `Draft` revision, with an optional `OrgRevisionRequest` (`note`, at most 2000 characters). The snapshot pins the current revision of every mandate a lead or member names. The tree must have exactly one root (409 `OneRoot`).
+Snapshot the working tree as a `Draft` revision, with an optional `OrgRevisionRequest` (`note`, at most 2000 characters). The snapshot pins the current revision of every mandate a lead or member names. The tree must have exactly one root: an empty tree or one without a root answers 409 `NoRootUnit`, and two roots answer 409 `OneRoot`.
 
 #### `POST /v1.0/api/tenants/{tenantId}/organizations/{id}/revisions/{revId}/publish`
 
@@ -4242,7 +4242,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/organizations/ac
 
 | Code | Severity | Meaning |
 |---|---|---|
-| `OneRoot` | Error | The tree has no root unit, or more than one |
+| `OneRoot` | Error | The tree has more than one root unit; the problem names each extra root |
+| `NoRootUnit` | Error | The tree has no root unit: it is empty, or every unit has a parent. The problem names no unit |
 | `Cycle` | Error | A unit would sit below itself |
 | `UnitDetachedFromRoot` | Error | A unit's parent is not in this organization |
 | `UnitNameTaken` | Error | Two units have the same name |
@@ -5576,7 +5577,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 Trigger agent targets apply the same schema check to the rendered trigger input; a rejected input is recorded as a failed fire with `InputNotJson` or `InputSchemaViolation`. Pipeline stages validate the fully rendered handoff task during compilation, before the system prompt is added. Their stored input remains the original caller input. An invalid handoff fails the receiving run with outcome `CompileFailed` and an error message starting with the same schema code, rather than returning an invocation-time HTTP 400. Compile preview exposes the same error. See [pipeline handoffs](docs/PIPELINES.md#the-handoff-between-stages).
 
-**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `mandateId` (the tick runs of a keeper), `evalRunId` (the case and judge runs of one eval run), `shadowTrialId` (the shadow runs of one trial), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
+**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `mandateId` (the tick runs of a keeper), `evalRunId` (the case and judge runs of one eval run), `shadowTrialId` (the shadow runs of one trial), `outcome`, `callerId`, `kind` (one `RunKindEnum` value, such as `Invoke`, `Keeper`, or `Message`), `search` (runs whose agent name or caller name contains the text, ignoring case; at most 200 characters, longer is a 400), `hasHops` (`true` keeps runs that sent or received an agent message, started another run or were started by one, or belong to a fan-out, so a request that crossed agents shows its origin run too; `false` keeps the rest), `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
@@ -7713,6 +7714,7 @@ The board of an organization (AA10.2), computed on every request.
 | `openEscalations` | `int` | `Open` escalations raised by the unit's lead and members. |
 | `frozen` | `bool` | An active freeze covers the unit, an ancestor unit, or the organization. |
 | `overBudget` | `bool` | A spend row of the unit has `amountUsd` and `spentUsd` at or above it. |
+| `needsAttention` | `bool` | Read only: `openEscalations` is above 0 or `overBudget` is true. A unit with a `Healthy` report can still need attention. |
 
 #### `BoardDirectionRequest`
 
