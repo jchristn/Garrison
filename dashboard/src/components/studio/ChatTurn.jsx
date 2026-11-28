@@ -18,6 +18,7 @@ import { WAIT_ROTATE_MS, nextWaitPhrase, waitStage } from '../../utils/chatWait'
 import { stripDraftPrefix } from '../../utils/studio';
 import { findRecordRefs, linkifyRecords } from '../../utils/recordLinks';
 import { prettyJson } from '../../utils/streamPreview';
+import TurnActivity from '../TurnActivity';
 
 /** A run status pill. */
 export function TurnStatus({ status }) {
@@ -278,7 +279,7 @@ export default function ChatTurn({ run, live = null, architectName = '' }) {
               <div className="chat-thinking-text">{preview.thinking}</div>
             </details>
           )}
-          {waiting && <ChatWait status={run.status} since={run.createdUtc || run.queuedUtc} />}
+          {waiting && (run.status === 'Suspended' ? <TurnActivity status={run.status} segments={segments} lastEventAt={live?.lastEventAt || null} testId="studio-chat-activity" /> : <ChatWait status={run.status} since={run.createdUtc || run.queuedUtc} />)}
           {!waiting && (
             <div className="chat-answer" data-testid="studio-chat-answer">
               {showSegments &&
@@ -292,6 +293,7 @@ export default function ChatTurn({ run, live = null, architectName = '' }) {
               {(tail || (!showSegments && finalText)) && <LinkedMarkdown text={tail || finalText} />}
               {errorText && <LinkedMarkdown text={errorText} />}
               {!showSegments && !finalText && !errorText && <div className="text-muted">-</div>}
+              {showStream && <TurnActivity status={run.status} segments={segments} lastEventAt={live?.lastEventAt || null} startedAt={run.startedUtc ? new Date(run.startedUtc).getTime() : null} testId="studio-chat-activity" />}
             </div>
           )}
         </div>

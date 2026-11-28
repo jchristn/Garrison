@@ -9,6 +9,7 @@ import { tip } from './Tooltip';
 import { TERMINAL_RUN_STATUSES } from '../utils/constants';
 import { translateServerText } from '../utils/serverText';
 import { buildPreview } from '../utils/streamPreview';
+import TurnActivity from './TurnActivity';
 import { formatMs, formatRate } from '../utils/telemetry';
 import { enumTip } from '../utils/tips';
 import { useGrafana } from '../hooks/useServerInfo';
@@ -134,7 +135,8 @@ function StreamPreview({ run, events, clock, onShowResponse }) {
             <MarkdownView key={`text-${i}`} text={seg.text} testId="stream-text" className="stream-text" />
           )
         )}
-        {!preview.hasText && !terminal && (
+        {!terminal && preview.segments.length > 0 && <TurnActivity status={run?.status} segments={preview.segments} lastEventAt={clock.lastEventAt} startedAt={clock.startedAt} testId="stream-activity" />}
+        {!preview.hasText && !terminal && preview.segments.length === 0 && (
           <div className="stream-waiting text-muted" data-testid="stream-waiting">
             <span className="live-dot" aria-hidden="true" /> {codex ? t('views.invoke.stream.waitingCodex') : t('views.invoke.stream.waiting')}
           </div>

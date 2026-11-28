@@ -10049,3 +10049,24 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
 
 // The eval entry surface spelled out in German (LP1.12).
 de.trail.entrySurfaces.Eval = 'Evaluierung';
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "turnActivity": {
+   "worker": "Wartet auf einen Worker",
+   "approval": "Wartet auf eine Freigabe",
+   "tool": "{{tool}} läuft",
+   "working": "Arbeitet am nächsten Schritt",
+   "quiet": "Seit {{time}} keine neue Ausgabe. Der Lauf ist noch {{status}}."
+  }
+ }
+});

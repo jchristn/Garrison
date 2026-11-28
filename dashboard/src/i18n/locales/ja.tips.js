@@ -5127,3 +5127,23 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "まだどのワーカーもこの実行を引き受けていません。空きのあるワーカーが取ればすぐに始まります。",
+  "approval": "人の承認が必要なツール呼び出しの前で実行が止まっています。承認画面で許可または拒否してください。",
+  "tool": "ツール呼び出しを実行中です。カードに入力が表示され、戻ると出力も表示されます。",
+  "working": "前のステップが終わり、モデルが次に何をするか決めています。たいていこの後に出力が続きます。",
+  "quiet": "しばらく何も届いていませんが、実行は終わっていません。実行を開いて、イベントとワーカーを確認してください。",
+  "elapsed": "最後の出力またはツールイベントからの経過時間です。"
+ }
+});

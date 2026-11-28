@@ -5129,3 +5129,23 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "Nessun worker ha ancora preso questa esecuzione. Parte non appena uno con uno slot libero la prende.",
+  "approval": "L'esecuzione si è fermata prima di una chiamata a strumento che richiede una persona. Approvala o rifiutala in Approvazioni.",
+  "tool": "È in corso una chiamata a strumento. La sua scheda mostra l'input e, quando torna, l'output.",
+  "working": "L'ultimo passo è finito e il modello sta decidendo cosa fare dopo. Di solito segue altro output.",
+  "quiet": "Da un po' non arriva niente di nuovo, ma l'esecuzione non è finita. Apri l'esecuzione per controllarne gli eventi e il worker.",
+  "elapsed": "Tempo dall'ultimo output o evento di strumento."
+ }
+});

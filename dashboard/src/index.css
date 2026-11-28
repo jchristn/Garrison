@@ -2232,3 +2232,9 @@ a.sidebar-utility { text-decoration: none; }
 .wizard-next { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--spacing-xs); }
 @media (max-width: 480px) { .tour-picker-row { flex-direction: column; align-items: stretch; } }
 @media (prefers-reduced-motion: reduce) { .tour-card { scroll-behavior: auto; } }
+
+/* Turn activity: what a running turn is doing between pieces of output (chat and Invoke). */
+.turn-activity { display: flex; align-items: center; gap: 0.6rem; min-block-size: 1.5rem; margin-block-start: var(--spacing-sm); }
+.turn-activity-text { font-style: italic; color: var(--color-text-secondary); }
+.turn-activity-elapsed { font-size: var(--font-size-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.turn-activity-quiet .turn-activity-text { font-style: normal; color: var(--color-warning); }

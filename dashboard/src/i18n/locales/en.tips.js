@@ -5127,3 +5127,23 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "No worker has taken this run yet. It starts as soon as one with a free slot picks it up.",
+  "approval": "The run paused before a tool call that needs a person. Approve or deny it in Approvals.",
+  "tool": "A tool call is running. Its card shows the input, and the output once it returns.",
+  "working": "The last step finished and the model is deciding what to do next. More output usually follows.",
+  "quiet": "Nothing new has arrived for a while, but the run has not ended. Open the run to check its events and its worker.",
+  "elapsed": "Time since the last output or tool event."
+ }
+});

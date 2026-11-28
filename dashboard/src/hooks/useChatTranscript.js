@@ -76,7 +76,7 @@ export default function useChatTranscript({ apiClient, tenantId, conversationId,
       timer = null;
       if (!buffer.length || unmounted.current) return;
       events = [...events, ...buffer.splice(0)].sort((a, b) => a.sequence - b.sequence);
-      setLive((prev) => ({ ...prev, [runId]: { events, preview: buildPreview(events) } }));
+      setLive((prev) => ({ ...prev, [runId]: { events, preview: buildPreview(events), lastEventAt: Date.now() } }));
     };
     const controller = apiClient.streamRunEvents(
       tenantId,

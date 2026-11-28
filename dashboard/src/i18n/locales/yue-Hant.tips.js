@@ -5127,3 +5127,23 @@ tips.views.studio.discardPending = "確認後永久刪除呢個草稿，並取�
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "仲未有工作節點接呢個執行。有空位嘅節點一接就會開始。",
+  "approval": "執行停喺一個要人批准嘅工具呼叫之前。去批准頁面批准或者拒絕。",
+  "tool": "一個工具呼叫執行緊。佢張卡會顯示輸入，返嚟之後會顯示輸出。",
+  "working": "上一步做完，模型諗緊下一步做乜。通常之後仲有輸出。",
+  "quiet": "有一段時間冇新嘢，但執行未完。打開個執行睇下佢嘅事件同工作節點。",
+  "elapsed": "距離上一次輸出或者工具事件嘅時間。"
+ }
+});

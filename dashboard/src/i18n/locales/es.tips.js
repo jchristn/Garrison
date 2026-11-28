@@ -5129,3 +5129,23 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "Ningún nodo de trabajo ha tomado esta ejecución todavía. Empieza en cuanto uno con hueco libre la recoja.",
+  "approval": "La ejecución se detuvo antes de una llamada a herramienta que necesita a una persona. Apruébala o recházala en Aprobaciones.",
+  "tool": "Se está ejecutando una llamada a herramienta. Su tarjeta muestra la entrada y, cuando termine, la salida.",
+  "working": "El último paso terminó y el modelo está decidiendo qué hacer a continuación. Normalmente llega más salida.",
+  "quiet": "Hace un rato que no llega nada nuevo, pero la ejecución no ha terminado. Abre la ejecución para revisar sus eventos y su nodo de trabajo.",
+  "elapsed": "Tiempo desde la última salida o evento de herramienta."
+ }
+});

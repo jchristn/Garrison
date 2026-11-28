@@ -5127,3 +5127,23 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "Noch hat kein Worker diesen Lauf übernommen. Er startet, sobald einer mit freiem Platz ihn abholt.",
+  "approval": "Der Lauf hält vor einem Werkzeugaufruf, den eine Person freigeben muss. Gib ihn unter Freigaben frei oder lehne ihn ab.",
+  "tool": "Ein Werkzeugaufruf läuft. Seine Karte zeigt die Eingabe und, sobald er zurückkommt, die Ausgabe.",
+  "working": "Der letzte Schritt ist fertig, und das Modell entscheidet, was als Nächstes kommt. Meist folgt weitere Ausgabe.",
+  "quiet": "Seit einer Weile kam nichts Neues, aber der Lauf ist nicht beendet. Öffne den Lauf, um seine Ereignisse und seinen Worker zu prüfen.",
+  "elapsed": "Zeit seit der letzten Ausgabe oder dem letzten Werkzeugereignis."
+ }
+});

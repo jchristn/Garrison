@@ -5126,3 +5126,23 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "还没有工作节点接手这个运行。一旦有空闲槽位的节点接手，它就会开始。",
+  "approval": "运行在一个需要人批准的工具调用之前暂停了。请在审批中批准或拒绝。",
+  "tool": "一个工具调用正在运行。它的卡片显示输入，返回后还会显示输出。",
+  "working": "上一步已完成，模型正在决定下一步做什么。通常后面还会有输出。",
+  "quiet": "已经有一段时间没有新内容，但运行尚未结束。打开运行查看它的事件和工作节点。",
+  "elapsed": "距上一次输出或工具事件的时间。"
+ }
+});

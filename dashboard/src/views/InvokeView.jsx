@@ -26,7 +26,7 @@ import { jsonToText } from '../utils/jsonFields';
 /** How often (ms) streamed events are flushed to the screen, so a fast token stream re-renders smoothly without flicker. */
 const FLUSH_MS = 50;
 
-const EMPTY_CLOCK = { startedAt: null, firstOutputAt: null, lastOutputAt: null, finishedAt: null };
+const EMPTY_CLOCK = { startedAt: null, firstOutputAt: null, lastOutputAt: null, lastEventAt: null, finishedAt: null };
 
 /** Whether Invoke cancels its run when the page is left or a new run is sent (P3.15). Default on. */
 function savedStopOnLeave() {
@@ -266,7 +266,7 @@ export default function InvokeView() {
     if (!list.length) return;
     lastSeq.current = Math.max(lastSeq.current, ...list.map((e) => e.sequence));
     const now = Date.now();
-    if (list.some(isModelOutput)) setClock((c) => ({ ...c, firstOutputAt: c.firstOutputAt || now, lastOutputAt: now }));
+    setClock((c) => (list.some(isModelOutput) ? { ...c, firstOutputAt: c.firstOutputAt || now, lastOutputAt: now, lastEventAt: now } : { ...c, lastEventAt: now }));
     pendingEvents.current.push(...list);
     if (flushTimer.current) return;
     flushTimer.current = setTimeout(() => {

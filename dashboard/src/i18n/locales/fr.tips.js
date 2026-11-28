@@ -5129,3 +5129,23 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "turnActivity": {
+  "worker": "Aucun nœud de travail n'a encore pris cette exécution. Elle démarre dès qu'un nœud disposant d'une place libre la prend.",
+  "approval": "L'exécution s'est arrêtée avant un appel d'outil qui demande une personne. Approuvez-le ou refusez-le dans Approbations.",
+  "tool": "Un appel d'outil est en cours. Sa carte montre l'entrée, puis la sortie quand il revient.",
+  "working": "La dernière étape est terminée et le modèle décide de la suite. D'autres sorties suivent en général.",
+  "quiet": "Rien de nouveau depuis un moment, mais l'exécution n'est pas terminée. Ouvrez l'exécution pour vérifier ses événements et son nœud de travail.",
+  "elapsed": "Temps écoulé depuis la dernière sortie ou le dernier événement d'outil."
+ }
+});

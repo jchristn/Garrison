@@ -10014,3 +10014,24 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "components": {
+  "turnActivity": {
+   "worker": "正在等待工作節點",
+   "approval": "正在等待核准",
+   "tool": "正在執行 {{tool}}",
+   "working": "正在處理下一步",
+   "quiet": "已有 {{time}} 沒有新輸出。執行仍處於{{status}}狀態。"
+  }
+ }
+});

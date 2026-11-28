@@ -10060,3 +10060,24 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "components": {
+  "turnActivity": {
+   "worker": "En attente d'un nœud de travail",
+   "approval": "En attente d'une approbation",
+   "tool": "{{tool}} en cours",
+   "working": "Travaille sur l'étape suivante",
+   "quiet": "Aucune nouvelle sortie depuis {{time}}. L'exécution est toujours à l'état {{status}}."
+  }
+ }
+});
