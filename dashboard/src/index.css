@@ -843,18 +843,17 @@ button[aria-disabled="true"]:hover { filter: none; }
 .tab:hover { color: var(--color-text); }
 .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
 .tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-/* UT-16: a strip whose tabs do not fit shows a scroll button over each edge that hides tabs. */
+/* UT-16: a strip whose tabs do not fit shows a scroll button at each edge that hides tabs. UXP1-V009: the button has
+   its own space beside the strip (the strip's margin, not padding, makes room), so it never covers a label. */
 .tabs-frame { position: relative; min-width: 0; }
-.tabs-scroll { position: absolute; top: 0; bottom: 1px; z-index: 1; display: flex; align-items: center; justify-content: center; width: 2rem; padding: 0; border: none; color: var(--color-text-secondary); cursor: pointer; }
+.tabs-scroll { position: absolute; top: 0; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: center; width: 2rem; padding: 0; border: none; border-radius: 0; background: var(--color-background); box-shadow: inset 0 -1px 0 var(--color-border); color: var(--color-text-secondary); cursor: pointer; }
 .tabs-scroll:hover { color: var(--color-primary); }
 .tabs-scroll:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.tabs-scroll-start { inset-inline-start: 0; background: linear-gradient(to right, var(--color-background) 60%, transparent); }
-.tabs-scroll-end { inset-inline-end: 0; background: linear-gradient(to left, var(--color-background) 60%, transparent); }
-[dir='rtl'] .tabs-scroll-start { background: linear-gradient(to left, var(--color-background) 60%, transparent); }
-[dir='rtl'] .tabs-scroll-end { background: linear-gradient(to right, var(--color-background) 60%, transparent); }
+.tabs-scroll-start { inset-inline-start: 0; }
+.tabs-scroll-end { inset-inline-end: 0; }
 [dir='rtl'] .tabs-scroll svg { transform: scaleX(-1); }
-.tabs-frame.has-start > .tabs { padding-inline-start: 2rem; }
-.tabs-frame.has-end > .tabs { padding-inline-end: 2rem; }
+.tabs-frame.has-start > .tabs { margin-inline-start: 2rem; }
+.tabs-frame.has-end > .tabs { margin-inline-end: 2rem; }
 
 /* Tabbed hubs (config/navConfig.js): hub title, URL-synced tab strip, compact embedded view headers. */
 .hub-header { margin-bottom: var(--spacing-sm); }

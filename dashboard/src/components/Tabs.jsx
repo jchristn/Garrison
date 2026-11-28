@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DASHBOARD_BASE, PAGES, TAB_PARAM, findHub } from '../config/navConfig';
@@ -38,6 +38,17 @@ function useOverflow(listRef, signature) {
   return overflow;
 }
 
+/** Scrolls a tab strip (and only the strip) so the tab named `key` shows whole. Works left to right and right to left. */
+function revealTab(strip, key) {
+  const tab = strip.querySelector(`[data-tab-key="${key}"]`);
+  if (!tab || typeof tab.getBoundingClientRect !== 'function') return;
+  const s = strip.getBoundingClientRect();
+  const r = tab.getBoundingClientRect();
+  if (!s.width) return;
+  if (r.left < s.left) strip.scrollLeft -= s.left - r.left;
+  else if (r.right > s.right) strip.scrollLeft += Math.min(r.right - s.right, r.left - s.left);
+}
+
 /** Arrow, Home, and End key handling shared by both tab strips (roving tabindex). */
 function useTabKeys(keys, activeKey, select, listRef) {
   return useCallback(
@@ -64,7 +75,8 @@ function useTabKeys(keys, activeKey, select, listRef) {
 
 /**
  * One tab strip. When the tabs do not fit, the strip scrolls sideways and shows a scroll button at each end that has
- * hidden tabs, so tabs past the edge stay reachable by mouse (UT-16). The active tab is scrolled into view.
+ * hidden tabs, so tabs past the edge stay reachable by mouse (UT-16). The buttons sit beside the strip, not over it, so
+ * they never cover a label, and the active tab is scrolled wholly into view (UXP1-V009).
  */
 function TabStrip({ tabs, activeKey, onSelect, label, idPrefix, className = '' }) {
   const { t } = useTranslation();
@@ -73,10 +85,29 @@ function TabStrip({ tabs, activeKey, onSelect, label, idPrefix, className = '' }
   const onKeyDown = useTabKeys(keys, activeKey, onSelect, listRef);
   // Re-measured when the tabs or their labels change (a language switch changes their widths).
   const overflow = useOverflow(listRef, tabs.map((tab) => `${tab.id}:${typeof tab.label === 'string' ? tab.label : ''}`).join('|'));
-  useEffect(() => {
-    const el = listRef.current?.querySelector(`[data-tab-key="${activeKey}"]`);
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeKey]);
+  // Keep the selected tab wholly in view (UXP1-V009): on mount, when it changes, and when the strip's width changes (the
+  // scroll buttons appearing narrow it). Only the strip scrolls, never the page.
+  useLayoutEffect(() => {
+    const strip = listRef.current;
+    if (!strip) return undefined;
+    const reveal = () => revealTab(strip, activeKey);
+    reveal();
+    let width = strip.clientWidth;
+    let observer = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        if (strip.clientWidth === width) return;
+        width = strip.clientWidth;
+        reveal();
+      });
+      observer.observe(strip);
+    }
+    const frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(reveal) : null;
+    return () => {
+      if (observer) observer.disconnect();
+      if (frame !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame);
+    };
+  }, [activeKey, overflow.start, overflow.end]);
   const scroll = (forward) => {
     const el = listRef.current;
     if (!el) return;

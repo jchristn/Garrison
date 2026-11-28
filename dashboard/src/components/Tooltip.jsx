@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 // Shared, accessible tooltips (D-030).
 //
 // Any element with a `data-tip` attribute gets a tooltip. One TooltipLayer, mounted once at the app root,
-// listens for pointer hover and keyboard focus anywhere in the document, waits a short delay, and renders the
+// listens for pointer hover and keyboard focus anywhere in the document (UXP1-V015: focus counts only when the user
+// moved it with the keyboard, so a dialog's initial focus, autofocus, or a tour step never opens a tooltip), waits a short delay, and renders the
 // text in a portal on document.body so it is never clipped by a scrolling table or a modal. While the tooltip
 // belongs to an element, the element's aria-describedby points at it, so screen readers announce the text when
 // the element is focused. Escape hides it. Placement prefers above the element, flips below when there is no
@@ -18,6 +19,12 @@ const HOVER_DELAY_MS = 400;
 const FOCUS_DELAY_MS = 150;
 const GAP = 8;
 const MARGIN = 8;
+// Keys that move focus. A focus that follows one of them within this window is keyboard focus; any other focus (a
+// dialog opening, autofocus, a tour step, a click) is programmatic and opens no tooltip.
+const NAV_KEYS = new Set(['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'F6']);
+const KEY_FOCUS_WINDOW_MS = 600;
+// Containers a tooltip must not cover (a tour card): the tooltip of a control inside one sits above or below it.
+const AVOID_SELECTOR = '.tour-card, [data-tip-avoid]';
 
 /** Props that attach a tooltip to any element: `<button {...tip(text)}>`. Empty text adds nothing. */
 export function tip(text) {
@@ -54,6 +61,7 @@ export function TooltipLayer() {
   const timer = useRef(null);
   const current = useRef(null);
   const bubble = useRef(null);
+  const lastNavKey = useRef(0);
 
   useEffect(() => {
     const clear = () => {
@@ -100,18 +108,21 @@ export function TooltipLayer() {
     const onFocusIn = (e) => {
       const el = tipTarget(e.target);
       if (!el) return;
+      if (Date.now() - lastNavKey.current > KEY_FOCUS_WINDOW_MS) return;
       let visibleFocus = true;
       try {
         visibleFocus = e.target.matches(':focus-visible');
       } catch {
         visibleFocus = true;
       }
-      if (el !== current.current) show(el, visibleFocus ? FOCUS_DELAY_MS : HOVER_DELAY_MS);
+      if (!visibleFocus) return;
+      if (el !== current.current) show(el, FOCUS_DELAY_MS);
     };
     const onFocusOut = (e) => {
       if (current.current && (!e.relatedTarget || !current.current.contains(e.relatedTarget))) hide();
     };
     const onKey = (e) => {
+      if (NAV_KEYS.has(e.key)) lastNavKey.current = Date.now();
       if (e.key === 'Escape') hide();
     };
     const onScroll = () => {
@@ -156,6 +167,18 @@ export function TooltipLayer() {
       top = r.bottom + GAP;
     }
     top = Math.max(MARGIN, Math.min(top, window.innerHeight - b.height - MARGIN));
+    // Inside a container it must not cover, sit above the container, or below it when there is no room above.
+    const avoid = typeof el.closest === 'function' ? el.closest(AVOID_SELECTOR) : null;
+    if (avoid) {
+      const a = avoid.getBoundingClientRect();
+      if (a.top - b.height - GAP >= MARGIN) {
+        placement = 'top';
+        top = a.top - b.height - GAP;
+      } else if (a.bottom + b.height + GAP <= window.innerHeight - MARGIN) {
+        placement = 'bottom';
+        top = a.bottom + GAP;
+      }
+    }
     let left = r.left + r.width / 2 - b.width / 2;
     left = Math.max(MARGIN, Math.min(left, window.innerWidth - b.width - MARGIN));
     setPos((p) => (p.top === top && p.left === left && p.placement === placement ? p : { top, left, placement }));
