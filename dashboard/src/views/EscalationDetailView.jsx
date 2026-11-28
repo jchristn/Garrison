@@ -302,7 +302,6 @@ export default function EscalationDetailView({ recordId }) {
         </Detail>
         <Detail name="expiresUtc" t={t}>{when(e.expiresUtc)}</Detail>
         <Detail name="createdUtc" t={t}>{when(e.createdUtc)}</Detail>
-        <Detail name="leaseEpoch" t={t}>{e.leaseEpoch ?? '-'}</Detail>
       </div>
 
       {answering && (

@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { usePendingApprovals } from '../context/ApprovalsContext';
 import { useOpenEscalations } from '../context/EscalationsContext';
 import { formatNumber } from '../i18n/formatters';
-import { NAV_SECTIONS, DASHBOARD_BASE, hubIsActive } from '../config/navConfig';
+import { NAV_SECTIONS, DASHBOARD_BASE, hubIsActive, pathFor } from '../config/navConfig';
 import { allowed } from '../utils/principal';
 import { APP_VERSION } from '../utils/constants';
 import * as Icons from './Icons';
@@ -36,13 +36,22 @@ export default function Sidebar({ onNavigateMobile }) {
     onNavigateMobile?.();
   };
 
+  // UXP1-S012, UXP1-S027: a badge opens the list that holds what it counts. Approvals opens Stage reviews when only
+  // stage reviews wait, and the Autonomy badge opens Escalations instead of the hub's first tab (Keepers).
+  const badgeClick = (path) => (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    go(path);
+  };
+  const approvalsPath = !approvalsPending && reviewsPending > 0 ? pathFor('pipelineReviews') : pathFor('approvals');
+
   return (
     <aside className="dashboard-sidebar" data-tour="sidebar">
       <div className="sidebar-brand" data-testid="sidebar-brand" {...tip(t('tips.nav.brand'))}>
         <img src="/assets/logo.png" alt="" />
         <span className="sidebar-brand-text">
           <span className="sidebar-brand-name">{t('common.appName')}</span>
-          <span className="sidebar-brand-product">{t('common.productLine')}</span>
         </span>
       </div>
       <nav className="sidebar-nav" aria-label={t('nav.primary')}>
@@ -79,6 +88,8 @@ export default function Sidebar({ onNavigateMobile }) {
                         className="sidebar-badge"
                         role="img"
                         data-testid="approvals-badge"
+                        data-href={approvalsPath}
+                        onClick={badgeClick(approvalsPath)}
                         aria-label={t('nav.approvalsPending', { count: pending })}
                         {...tip(reviewsPending ? t('tips.nav.approvalsBadgeCombined', { count: pending, approvals: approvalsPending ?? 0, reviews: reviewsPending }) : t('tips.nav.approvalsBadge', { count: pending }))}
                       >
@@ -90,6 +101,8 @@ export default function Sidebar({ onNavigateMobile }) {
                         className="sidebar-badge"
                         role="img"
                         data-testid="escalations-badge"
+                        data-href={pathFor('escalations')}
+                        onClick={badgeClick(pathFor('escalations'))}
                         aria-label={t('nav.escalationsOpen', { count: openEscalations })}
                         {...tip(t('tips.nav.escalationsBadge', { count: openEscalations }))}
                       >

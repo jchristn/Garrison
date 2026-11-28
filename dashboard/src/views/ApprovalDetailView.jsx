@@ -209,7 +209,6 @@ export default function ApprovalDetailView({ recordId }) {
             '-'
           )}
         </Detail>
-        <Detail name="leaseEpoch" t={t}>{a.leaseEpoch ?? '-'}</Detail>
         <Detail name="requestedUtc" t={t}>{when(a.requestedUtc || a.createdUtc)}</Detail>
         <Detail name="expiresUtc" t={t}>{when(a.expiresUtc)}</Detail>
         <Detail name="decidedUtc" t={t}>{when(a.decidedUtc)}</Detail>

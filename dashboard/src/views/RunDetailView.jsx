@@ -599,10 +599,10 @@ export default function RunDetailView({ recordId }) {
             </span>
           </Detail>
         )}
-        {run.fileSpaceId && (
+        {/* UXP1-S023: the file space ID (cfs_...) stays in View JSON; the page keeps only the way to the files. */}
+        {run.fileSpaceId && run.conversationId && (
           <Detail label={t('views.runDetail.fileSpace')} tip={t('tips.views.runDetail.fileSpace')}>
             <span className="inline-meta" data-testid="run-file-space">
-              <CopyableId value={run.fileSpaceId} max={40} />
               {run.conversationId && (
                 <a
                   href={pathFor('conversations', run.conversationId, { tab: 'files' })}

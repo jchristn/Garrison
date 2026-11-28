@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import { FormField } from './FormFields';
-import CodeBlock from './CodeBlock';
+import { Badge } from './StatusBadge';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -12,13 +12,44 @@ import { ARCHITECT_AGENT_NAME, SAMPLE_MANIFEST, STORAGE_KEYS } from '../utils/co
 import SecretKindGuide from './SecretKindGuide';
 import { MULTILINE_SECRET_KINDS } from '../utils/secretGuides';
 import { architectBody, architectFormErrors, blankArchitectForm } from '../utils/architect';
-import { enumOptions } from '../utils/enums';
+import { enumLabel, enumOptions } from '../utils/enums';
+import { enumTip } from '../utils/tips';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { blankKeeper, keeperErrors, keeperToBody } from '../utils/keepers';
 import { useTours } from '../context/TourContext';
-import { writeUserFlag } from '../utils/tours';
+import { manifestKindLabel, writeUserFlag } from '../utils/tours';
 import { DASHBOARD_BASE } from '../config/navConfig';
+
+const RESULT_TONE = { Created: 'success', Updated: 'info', Unchanged: 'neutral', Failed: 'danger' };
+
+/**
+ * What the sample manifest apply did, in plain words (UXP1-S011): one line per resource with its dashboard kind, its
+ * name, and whether it was created, updated, or left unchanged. The raw apply response stays on the Manifests page.
+ */
+function AppliedSummary({ result, t }) {
+  const items = Array.isArray(result?.items) ? result.items : [];
+  if (!items.length) return null;
+  return (
+    <div className="wizard-applied" role="status" data-testid="wizard-applied">
+      <div className="form-section-title">{t('wizard.appliedTitle')}</div>
+      <ul className="plain-list">
+        {items.map((x, i) => (
+          <li key={`${x.kind}/${x.name}/${i}`} data-applied-item={`${x.kind}/${x.name}`}>
+            {x.result && (
+              <>
+                <Badge tone={RESULT_TONE[x.result] || 'neutral'} tip={enumTip(t, 'manifestApplyResult', x.result)}>
+                  {enumLabel(t, 'manifestApplyResult', x.result)}
+                </Badge>{' '}
+              </>
+            )}
+            {manifestKindLabel(t, x.kind)} <code>{x.name}</code>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 // The architect fields come with the studio chunk, loaded only when the Agent Studio step opens.
 const ArchitectFields = lazy(() => import('./studio/ArchitectFields'));
@@ -195,9 +226,12 @@ export default function SetupWizard() {
       headerMeta={t('wizard.stepOf', { step: step + 1, total: STEPS.length })}
       footer={
         <>
-          <button type="button" className="button-ghost" onClick={skipWizard} data-testid="wizard-skip" {...tip(t('tips.wizard.skip'))}>
-            {t('wizard.skip')}
-          </button>
+          {/* UXP1-S011: the last step has its own way out (Run it, or Learn and the tour), so Skip setup goes. */}
+          {current !== 'invoke' && (
+            <button type="button" className="button-ghost" onClick={skipWizard} data-testid="wizard-skip" {...tip(t('tips.wizard.skip'))}>
+              {t('wizard.skip')}
+            </button>
+          )}
           {step > 0 && (
             <button type="button" className="button-secondary" onClick={() => setStep((s) => s - 1)} disabled={busy} {...tip(t('tips.wizard.back'))}>
               {t('common.actions.back')}
@@ -340,7 +374,7 @@ export default function SetupWizard() {
       {current === 'invoke' && (
         <div className="wizard-body">
           <p>{t('wizard.invokeBody')}</p>
-          {result && <CodeBlock value={result} prettyJson />}
+          {result && <AppliedSummary result={result} t={t} />}
           <FormField id="wiz-message" field={{ name: 'message', type: 'textarea', label: t('views.invoke.message'), tip: t('tips.wizard.message') }} value={message} onChange={setMessage} />
           <div className="wizard-next" data-testid="wizard-next">
             <div className="form-section-title">{t('tours.wizard.nextTitle')}</div>

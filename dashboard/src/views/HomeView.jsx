@@ -94,11 +94,12 @@ export default function HomeView() {
     if (!apiClient) return;
     setReqLoading(true);
     apiClient
-      .getRequestHistorySummary(requestRangeToParams(reqRange))
+      // UXP1-S018: the selected tenant's requests. Without tenantId a system administrator sees every tenant's.
+      .getRequestHistorySummary({ ...requestRangeToParams(reqRange), tenantId })
       .then(setReqSummary)
       .catch(() => setReqSummary(null))
       .finally(() => setReqLoading(false));
-  }, [apiClient, reqRange]);
+  }, [apiClient, reqRange, tenantId]);
 
   useEffect(() => {
     loadOverview();
@@ -139,26 +140,33 @@ export default function HomeView() {
 
       {overview?.partial && <div className="warning-banner">{t('views.home.partial')}</div>}
       <BlockedRunsBanner count={Number(overview?.blockedRuns) || 0} />
-      <HomeLearnCard />
-      {noAgents && (
+      {/* UXP1-S011: one first-run card. A tenant with no agents of its own gets setup as the one primary action, with the
+          agent wizard and Learn beside it; the Learn card only shows once the tenant has agents. */}
+      {noAgents ? (
         <div className="callout" data-testid="setup-callout">
           <div>
             <strong>{t('views.home.getStartedTitle')}</strong>
             <p className="text-muted">{t('views.home.getStartedBody')}</p>
           </div>
-          <div className="flex gap-sm">
+          <div className="flex gap-sm flex-wrap">
+            <button type="button" className="button-ghost" onClick={() => navigate(pathFor('learn'))} data-testid="setup-callout-learn" {...tip(t('tips.tours.homeCardOpen'))}>
+              {t('tours.homeCard.open')}
+            </button>
             <button type="button" className="button-secondary" onClick={() => navigate(pathFor('agentWizard', 'new'))} data-testid="setup-callout-studio" {...tip(t('tips.views.home.openStudio'))}>
               {t('views.home.openStudio')}
             </button>
-            <button type="button" className="button-primary" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>
+            <button type="button" className="button-primary" onClick={() => setWizardOpen(true)} data-testid="setup-callout-run" {...tip(t('tips.nav.setup'))}>
               {t('views.home.runSetup')}
             </button>
           </div>
         </div>
+      ) : (
+        <HomeLearnCard />
       )}
 
       <div className="kpi-grid" data-tour="kpis">
-        <KpiCard label={t('views.home.kpis.agents')} tip={t('tips.views.home.kpis.agents')} value={val(kpis.agents)} onClick={() => navigate(pathFor('agents'))} testId="kpi-agents" />
+        {/* UXP1-S011: the built-in agent architect is not an agent of the tenant's own, so it does not count here. */}
+        <KpiCard label={t('views.home.kpis.agents')} tip={t('tips.views.home.kpis.agents')} value={val(onlyArchitect ? 0 : kpis.agents)} note={onlyArchitect ? t('views.home.kpis.architectOnly') : undefined} onClick={() => navigate(pathFor('agents'))} testId="kpi-agents" />
         <KpiCard label={t('views.home.kpis.deployments')} tip={t('tips.views.home.kpis.deployments')} value={val(kpis.deployments)} onClick={() => navigate(pathFor('deployments'))} testId="kpi-deployments" />
         <KpiCard label={t('views.home.kpis.activeRuns')} tip={t('tips.views.home.kpis.activeRuns')} value={val(kpis.active)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} tone="info" testId="kpi-active" />
         <KpiCard label={t('views.home.kpis.queued')} tip={t('tips.views.home.kpis.queued')} value={val(kpis.queued)} onClick={() => navigate(pathFor('queue'))} testId="kpi-queued" />

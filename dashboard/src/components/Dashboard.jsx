@@ -115,6 +115,11 @@ export default function Dashboard() {
 
   const escalations = useMemo(() => ({ open: openEscalations, refresh: refreshEscalations }), [openEscalations, refreshEscalations]);
 
+  // UXP1-S018: the WebSocket pushes counts for the tenant the token signed in to. When a system administrator has
+  // another tenant selected in the top bar, a push only triggers a re-read of the selected tenant's counts.
+  const liveCounts = useRef({});
+  liveCounts.current = { own: !principal?.tenantId || principal.tenantId === tenantId, refreshApprovals, refreshEscalations };
+
   const approvals = useMemo(
     () => ({ pending: combinedPending(pendingApprovals, pendingReviews), approvalsPending: pendingApprovals, reviewsPending: pendingReviews, refresh: refreshApprovals }),
     [pendingApprovals, pendingReviews, refreshApprovals]
@@ -158,11 +163,18 @@ export default function Dashboard() {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          const counts = liveCounts.current;
           if (message?.type === 'approvals.changed') {
-            if (typeof message.pending === 'number') setPendingApprovals(message.pending);
-            if (typeof message.reviewsPending === 'number' && reviewsReadable.current) setPendingReviews(message.reviewsPending);
+            if (!counts.own) counts.refreshApprovals?.();
+            else {
+              if (typeof message.pending === 'number') setPendingApprovals(message.pending);
+              if (typeof message.reviewsPending === 'number' && reviewsReadable.current) setPendingReviews(message.reviewsPending);
+            }
           }
-          if (typeof message?.type === 'string' && message.type.startsWith('escalation') && typeof message.open === 'number' && escalationsReadable.current) setOpenEscalations(message.open);
+          if (typeof message?.type === 'string' && message.type.startsWith('escalation') && escalationsReadable.current) {
+            if (!counts.own) counts.refreshEscalations?.();
+            else if (typeof message.open === 'number') setOpenEscalations(message.open);
+          }
           // A freeze applied or lifted, or the kill switch changed, elsewhere: banners, lists, and controls reload.
           if (message?.type === 'freeze.applied' || message?.type === 'freeze.lifted' || message?.type === 'killswitch.changed') notifyFreezesChanged();
         } catch {

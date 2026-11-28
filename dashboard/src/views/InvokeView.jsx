@@ -22,6 +22,7 @@ import SchemaInputForm from '../components/SchemaInputForm';
 import { parseSchema, buildFormModel, initialState, buildValue, stateFromValue, mapServerErrors } from '../utils/schemaForm';
 import { tip } from '../components/Tooltip';
 import { jsonToText } from '../utils/jsonFields';
+import { agentSelectLabel } from '../utils/agentLabel';
 
 /** How often (ms) streamed events are flushed to the screen, so a fast token stream re-renders smoothly without flicker. */
 const FLUSH_MS = 50;
@@ -41,7 +42,7 @@ function savedStopOnLeave() {
 export default function InvokeView() {
   const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
-  const { tenantId } = useApp();
+  const { tenantId, setWizardOpen } = useApp();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -50,6 +51,7 @@ export default function InvokeView() {
   const [deployments, setDeployments] = useState([]);
   const [deploymentsFor, setDeploymentsFor] = useState(null);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') || '');
+  const [runnableChecked, setRunnableChecked] = useState(false);
   const [deploymentId, setDeploymentId] = useState(searchParams.get('deploymentId') || '');
   // P12.1: a standalone run, the first turn of a new conversation, or the next turn of one (?conversationId= pre-fills it).
   const [conversationMode, setConversationMode] = useState(searchParams.get('conversationId') ? 'continue' : 'none');
@@ -92,10 +94,20 @@ export default function InvokeView() {
     if (!apiClient) return;
     apiClient
       .listAgents(tenantId, { pageNumber: 1, pageSize: 1000, activeOnly: true })
-      .then((r) => {
-        setAgents(r.items || []);
+      .then(async (r) => {
+        const items = r.items || [];
+        setAgents(items);
         setLoadError(null);
-        if (!agentId && r.items?.length) setAgentId(r.items[0].id);
+        if (agentId || !items.length) {
+          setRunnableChecked(true);
+          return;
+        }
+        // UXP1-S008: preselect the first agent that can run (an active deployment with weight above zero), or none.
+        const all = await apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }).catch(() => null);
+        const routable = new Set(((all && all.items) || []).filter((d) => d.active !== false && Number(d.weight) > 0).map((d) => d.agentId));
+        const first = all ? items.find((a) => routable.has(a.id)) : items[0];
+        if (first) setAgentId((current) => current || first.id);
+        setRunnableChecked(true);
       })
       .catch(setLoadError);
   }, [apiClient, tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -446,13 +458,22 @@ export default function InvokeView() {
             <div className="field">
               <label htmlFor="invoke-agent" {...tip(t('tips.views.invoke.agent'))}>{t('views.invoke.agent')}</label>
               <select id="invoke-agent" {...tip(t('tips.views.invoke.agent'))} value={agentId} onChange={(e) => { setAgentId(e.target.value); setDeploymentId(''); setParams({}); setConversationId(''); }}>
+                {!agentId && <option value="">{t('views.invoke.chooseAgent')}</option>}
                 {agents.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.displayName || a.name}
+                    {agentSelectLabel(a)}
                   </option>
                 ))}
               </select>
             </div>
+            {runnableChecked && !agentId && (
+              <div className="info-banner" role="status" data-testid="invoke-no-runnable">
+                <span>{t('views.invoke.noRunnable')}</span>{' '}
+                <button type="button" className="button-secondary button-sm" onClick={() => setWizardOpen?.(true)} data-testid="invoke-run-setup" {...tip(t('tips.nav.setup'))}>
+                  {t('views.home.runSetup')}
+                </button>
+              </div>
+            )}
             <div className="field">
               <label htmlFor="invoke-deployment" {...tip(t(continuing ? 'tips.views.invoke.conversation.deploymentPinned' : 'tips.views.invoke.deployment'))}>{t('views.invoke.deployment')}</label>
               <select id="invoke-deployment" {...tip(t(continuing ? 'tips.views.invoke.conversation.deploymentPinned' : 'tips.views.invoke.deployment'))} disabled={continuing} value={continuing ? '' : deploymentId} onChange={(e) => { setDeploymentId(e.target.value); setParams({}); }}>
