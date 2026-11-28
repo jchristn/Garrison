@@ -9869,19 +9869,19 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     },
     "kpis": {
      "title": "De un vistazo",
-     "body": "Estas tarjetas cuentan agentes, despliegues, ejecuciones y nodos. Haz clic en una para abrir la lista que hay detrás."
+     "body": "Lo que pasa ahora mismo: agentes, despliegues, ejecuciones activas o fallidas hoy y los nodos de trabajo listos para recibir trabajo. Haz clic en una tarjeta para abrir la lista que hay detrás."
     },
     "invoke": {
      "title": "Invocar",
-     "body": "Elige un agente, envíale un mensaje y mira cómo llega su transcripción."
+     "body": "La forma más rápida de probar un agente. Elige uno, envíale un mensaje y mira cómo llega su respuesta."
     },
     "autonomy": {
-     "title": "Autonomía",
-     "body": "Guardianes, mensajes, informes, memoria, escalados y congelaciones: todo para los agentes que trabajan por su cuenta."
+     "title": "Agentes que trabajan por su cuenta",
+     "body": "Dale a un agente una tarea permanente y trabajará sin que se lo pidan. Un guardián lo despierta según un horario y, entre una vez y otra, puede escribir a otros agentes, presentar informes, recordar lo que aprendió y escalarte una pregunta. Una congelación lo detiene todo al instante."
     },
     "organizations": {
      "title": "Organizaciones",
-     "body": "Unidades de agentes con responsables y presupuestos, el consejo desde el que las vigilas y las reglas de cambio con las que trabajan sus ejecutivos."
+     "body": "Organiza a los agentes en unidades como lo harías con un equipo: un responsable, miembros y un presupuesto. El consejo muestra cómo va cada unidad, y las reglas de cambio deciden qué cambios puede hacer el ejecutivo de una unidad sin preguntarte."
     },
     "help": {
      "title": "Ayuda",
@@ -9894,15 +9894,15 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    "steps": {
     "connections": {
      "title": "Conexiones",
-     "body": "Una conexión es un perfil de arnés: qué CLI o API se lanza y cómo. Se configura una vez y cualquier despliegue puede usarla."
+     "body": "Una conexión le dice a Garrison cómo arrancar el motor de un agente: qué CLI o API lanzar, como Claude Code o Codex, y con qué ajustes. Se configura una vez y cualquier despliegue puede usarla."
     },
     "agents": {
      "title": "Agentes",
-     "body": "Un agente es el nombre que usan quienes lo llaman, con cómo se expone y cómo son sus respuestas. Por sí solo no ejecuta nada."
+     "body": "Un agente es lo que los clientes piden por su nombre, por REST, MCP o A2A, y define cómo son sus respuestas. No ejecuta nada hasta que tiene un despliegue."
     },
     "deployments": {
      "title": "Despliegues",
-     "body": "Un despliegue hace ejecutable a un agente: una conexión, un modelo, prompts y límites. Si hay varios, las llamadas se reparten por peso."
+     "body": "Un despliegue es la parte que se ejecuta: una conexión, un modelo, prompts y límites para un agente. Con dos despliegues, las llamadas se reparten por peso, y así pruebas un modelo nuevo con parte del tráfico."
     },
     "invoke": {
      "title": "Invocar",
@@ -9981,7 +9981,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     },
     "spendCaps": {
      "title": "Topes de gasto",
-     "body": "Un guardián puede tener un presupuesto por ciclo y por día. Cuando se agota el del día, se detiene hasta el siguiente día UTC y pregunta a una persona."
+     "body": "Un guardián puede tener un presupuesto por ciclo y por día. Cuando se agota el del día, se detiene hasta el siguiente día UTC y te envía un escalado urgente."
     },
     "changeRules": {
      "title": "Reglas de cambio",
@@ -9998,15 +9998,15 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
    "steps": {
     "board": {
      "title": "El consejo",
-     "body": "El estado de cada unidad, sus escalados abiertos, frenos y último informe, en el organigrama y en una tabla."
+     "body": "Empieza aquí para ver cómo va una organización. Cada unidad muestra su estado según su último informe, sus escalados abiertos, los frenos que tenga y su último informe, en el organigrama y en una tabla."
     },
     "attention": {
      "title": "Requiere atención",
-     "body": "Escalados abiertos, informes con problemas y unidades en su tope de presupuesto, en un solo lugar."
+     "body": "Lo que necesita a una persona ahora: escalados abiertos, informes con problemas y unidades en su tope de presupuesto. Revisa esta lista primero."
     },
     "performance": {
      "title": "Rendimiento",
-     "body": "Ejecuciones, resultados, coste, latencia y escalados de cada unidad en el periodo que elijas."
+     "body": "Compara unidades en el periodo que elijas: ejecuciones, resultados, coste, latencia y escalados. La unidad que escala a menudo o cuesta más que las demás es la que hay que mirar."
     },
     "reports": {
      "title": "Informes",
@@ -10014,7 +10014,7 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
     },
     "escalations": {
      "title": "Escalados",
-     "body": "Preguntas que los agentes dirigieron a una persona, un rol u otro agente. Los abiertos van primero y los respondes desde aquí."
+     "body": "Preguntas que los agentes hicieron a una persona, un rol u otro agente. Las abiertas van primero. Responde una aquí y el agente que preguntó recibe tu respuesta."
     }
    }
   }

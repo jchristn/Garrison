@@ -9851,19 +9851,19 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     },
     "kpis": {
      "title": "Auf einen Blick",
-     "body": "Diese Karten zählen Agenten, Bereitstellungen, Läufe und Knoten. Klick auf eine Karte öffnet die Liste dahinter."
+     "body": "Was gerade los ist: Agenten, Bereitstellungen, heute aktive oder fehlgeschlagene Läufe und die Worker-Knoten, die Arbeit annehmen können. Klicke auf eine Karte, um die Liste dahinter zu öffnen."
     },
     "invoke": {
      "title": "Aufrufen",
-     "body": "Wähle einen Agenten, schick ihm eine Nachricht und sieh zu, wie sein Transkript hereinläuft."
+     "body": "Der schnellste Weg, einen Agenten auszuprobieren. Wähle einen aus, schick ihm eine Nachricht und sieh zu, wie die Antwort hereinläuft."
     },
     "autonomy": {
-     "title": "Autonomie",
-     "body": "Wächter, Nachrichten, Berichte, Gedächtnis, Eskalationen und Sperren: alles für Agenten, die selbstständig arbeiten."
+     "title": "Agenten, die selbstständig arbeiten",
+     "body": "Gib einem Agenten eine dauerhafte Aufgabe, und er arbeitet, ohne gefragt zu werden. Ein Wächter weckt ihn nach Zeitplan, und dazwischen kann er anderen Agenten schreiben, Berichte einreichen, sich Gelerntes merken und dir eine Frage eskalieren. Eine Sperre hält all das sofort an."
     },
     "organizations": {
      "title": "Organisationen",
-     "body": "Einheiten von Agenten mit Leitungen und Budgets, das Gremium, von dem aus du sie beobachtest, und die Änderungsregeln für ihre Führungskräfte."
+     "body": "Ordne Agenten in Einheiten wie in ein Team: eine Leitung, Mitglieder und ein Budget. Das Gremium zeigt, wie es jeder Einheit geht, und Änderungsregeln legen fest, welche Änderungen die Führungskraft einer Einheit ohne Rückfrage machen darf."
     },
     "help": {
      "title": "Hilfe",
@@ -9876,15 +9876,15 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    "steps": {
     "connections": {
      "title": "Verbindungen",
-     "body": "Eine Verbindung ist ein Harness-Profil: welche CLI oder API gestartet wird und wie. Einmal eingerichtet, kann jede Bereitstellung sie nutzen."
+     "body": "Eine Verbindung sagt Garrison, wie die Maschine hinter einem Agenten gestartet wird: welche CLI oder API, etwa Claude Code oder Codex, und mit welchen Einstellungen. Einmal eingerichtet, kann jede Bereitstellung sie nutzen."
     },
     "agents": {
      "title": "Agenten",
-     "body": "Ein Agent ist der Name, den Aufrufer verwenden, samt der Art, wie er bereitgestellt wird und wie seine Antworten aussehen. Allein führt er nichts aus."
+     "body": "Ein Agent ist das, was Aufrufer über REST, MCP oder A2A beim Namen anfragen, und er legt fest, wie seine Antworten aussehen. Er führt nichts aus, bis er eine Bereitstellung hat."
     },
     "deployments": {
      "title": "Bereitstellungen",
-     "body": "Eine Bereitstellung macht einen Agenten ausführbar: eine Verbindung, ein Modell, Prompts und Grenzen. Bei mehreren teilen sich die Aufrufe nach Gewicht auf."
+     "body": "Eine Bereitstellung ist der Teil, der läuft: eine Verbindung, ein Modell, Prompts und Grenzen für einen Agenten. Mit zwei Bereitstellungen teilen sich die Aufrufe nach Gewicht auf, so probierst du ein neues Modell an einem Teil des Verkehrs aus."
     },
     "invoke": {
      "title": "Aufrufen",
@@ -9963,7 +9963,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     },
     "spendCaps": {
      "title": "Ausgabengrenzen",
-     "body": "Ein Wächter kann ein Budget pro Zyklus und pro Tag haben. Ist das Tagesbudget aufgebraucht, pausiert er bis zum nächsten UTC-Tag und fragt eine Person."
+     "body": "Ein Wächter kann ein Budget pro Zyklus und pro Tag haben. Ist das Tagesbudget aufgebraucht, pausiert er bis zum nächsten UTC-Tag und schickt dir eine dringende Eskalation."
     },
     "changeRules": {
      "title": "Änderungsregeln",
@@ -9980,15 +9980,15 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
    "steps": {
     "board": {
      "title": "Das Gremium",
-     "body": "Zustand, offene Eskalationen, Bremsen und letzter Bericht jeder Einheit, im Organigramm und in einer Tabelle."
+     "body": "Hier siehst du, wie es einer Organisation geht. Jede Einheit zeigt ihren Zustand aus dem letzten Bericht, offene Eskalationen, aktive Bremsen und ihren letzten Bericht, im Diagramm und in einer Tabelle."
     },
     "attention": {
      "title": "Braucht Aufmerksamkeit",
-     "body": "Offene Eskalationen, ungesunde Berichte und Einheiten an einer Budgetgrenze, an einem Ort."
+     "body": "Was jetzt eine Person braucht: offene Eskalationen, ungesunde Berichte und Einheiten an einer Budgetgrenze. Arbeite diese Liste zuerst ab."
     },
     "performance": {
      "title": "Leistung",
-     "body": "Läufe, Ergebnisse, Kosten, Latenz und Eskalationen jeder Einheit im gewählten Zeitraum."
+     "body": "Vergleiche Einheiten über den gewählten Zeitraum: Läufe, Ergebnisse, Kosten, Latenz und Eskalationen. Eine Einheit, die oft eskaliert oder mehr kostet als die anderen, solltest du dir ansehen."
     },
     "reports": {
      "title": "Berichte",
@@ -9996,7 +9996,7 @@ de.explainers.secrets.p1 = "Ein Geheimnis ist ein verschlüsselter Wert wie ein 
     },
     "escalations": {
      "title": "Eskalationen",
-     "body": "Fragen, die Agenten an eine Person, eine Rolle oder einen anderen Agenten gerichtet haben. Offene stehen oben, und du beantwortest sie hier."
+     "body": "Fragen, die Agenten an eine Person, eine Rolle oder einen anderen Agenten gestellt haben. Offene stehen oben. Beantworte eine hier, und der fragende Agent bekommt deine Antwort."
     }
    }
   }

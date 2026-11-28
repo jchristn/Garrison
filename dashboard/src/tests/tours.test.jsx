@@ -313,7 +313,7 @@ describe('the tour engine (LP4.5)', () => {
     await click(q('[data-testid="tour-next"]'));
     await waitFor(() => q('[data-tour-step="organizations"]'));
     expect(Date.now() - started).toBeGreaterThanOrEqual(250);
-    expect(q('[data-testid="tour-note"]').textContent).toContain('Skipped Autonomy');
+    expect(q('[data-testid="tour-note"]').textContent).toContain('Skipped Agents that work on their own');
     // The next step clears the note.
     await click(q('[data-testid="tour-next"]'));
     await waitFor(() => q('[data-tour-step="help"]'));

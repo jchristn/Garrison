@@ -9865,19 +9865,19 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
     },
     "kpis": {
      "title": "A colpo d'occhio",
-     "body": "Queste schede contano agenti, distribuzioni, esecuzioni e nodi. Fai clic su una per aprire l'elenco dietro."
+     "body": "Cosa succede adesso: agenti, distribuzioni, esecuzioni attive o fallite oggi e i nodi worker pronti a ricevere lavoro. Fai clic su una scheda per aprire l'elenco corrispondente."
     },
     "invoke": {
      "title": "Invoca",
-     "body": "Scegli un agente, mandagli un messaggio e guarda arrivare la sua trascrizione."
+     "body": "Il modo più rapido per provare un agente. Scegline uno, mandagli un messaggio e guarda arrivare la risposta."
     },
     "autonomy": {
-     "title": "Autonomia",
-     "body": "Custodi, messaggi, rapporti, memoria, escalation e blocchi: tutto per gli agenti che lavorano da soli."
+     "title": "Agenti che lavorano da soli",
+     "body": "Dai a un agente un compito permanente e lavora senza che glielo si chieda. Un custode lo sveglia secondo un orario e, tra un risveglio e l'altro, può scrivere ad altri agenti, presentare rapporti, ricordare ciò che ha imparato e farti un'escalation. Un blocco ferma tutto all'istante."
     },
     "organizations": {
      "title": "Organizzazioni",
-     "body": "Unità di agenti con responsabili e budget, il consiglio da cui le osservi e le regole di modifica entro cui lavorano i loro dirigenti."
+     "body": "Organizza gli agenti in unità come faresti con una squadra: un responsabile, dei membri e un budget. Il consiglio mostra come va ogni unità, e le regole di modifica decidono quali cambiamenti il dirigente di un'unità può fare senza chiederti."
     },
     "help": {
      "title": "Aiuto",
@@ -9890,15 +9890,15 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
    "steps": {
     "connections": {
      "title": "Connessioni",
-     "body": "Una connessione è un profilo di harness: quale CLI o API avviare e come. La configuri una volta e ogni distribuzione può usarla."
+     "body": "Una connessione dice a Garrison come avviare il motore di un agente: quale CLI o API lanciare, ad esempio Claude Code o Codex, e con quali impostazioni. La configuri una volta e ogni distribuzione può usarla."
     },
     "agents": {
      "title": "Agenti",
-     "body": "Un agente è il nome che usa chi lo chiama, con il modo in cui è esposto e la forma delle sue risposte. Da solo non esegue niente."
+     "body": "Un agente è ciò che i chiamanti richiedono per nome, via REST, MCP o A2A, e definisce l'aspetto delle sue risposte. Non esegue nulla finché non ha una distribuzione."
     },
     "deployments": {
      "title": "Distribuzioni",
-     "body": "Una distribuzione rende eseguibile un agente: una connessione, un modello, prompt e limiti. Se ce ne sono più di una, le chiamate si dividono in base al peso."
+     "body": "Una distribuzione è la parte che viene eseguita: una connessione, un modello, i prompt e i limiti di un agente. Con due distribuzioni le chiamate si dividono in base al peso, ed è così che provi un nuovo modello su una parte del traffico."
     },
     "invoke": {
      "title": "Invoca",
@@ -9977,7 +9977,7 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
     },
     "spendCaps": {
      "title": "Tetti di spesa",
-     "body": "Un custode può avere un budget per ciclo e per giorno. Quando quello del giorno è finito, si ferma fino al giorno UTC successivo e chiede a una persona."
+     "body": "Un custode può avere un budget per ciclo e per giorno. Quando quello del giorno è finito, si ferma fino al giorno UTC successivo e ti manda un'escalation urgente."
     },
     "changeRules": {
      "title": "Regole di modifica",
@@ -9994,15 +9994,15 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
    "steps": {
     "board": {
      "title": "Il consiglio",
-     "body": "Lo stato di ogni unità, le escalation aperte, i freni e l'ultimo rapporto, sull'organigramma e in una tabella."
+     "body": "Parti da qui per vedere come va un'organizzazione. Ogni unità mostra il suo stato dall'ultimo rapporto, le escalation aperte, i freni attivi e il suo ultimo rapporto, nell'organigramma e in una tabella."
     },
     "attention": {
      "title": "Richiede attenzione",
-     "body": "Escalation aperte, rapporti non in salute e unità al tetto del budget, in un unico posto."
+     "body": "Ciò che richiede una persona adesso: escalation aperte, rapporti non in salute e unità al tetto del budget. Parti da questo elenco."
     },
     "performance": {
      "title": "Prestazioni",
-     "body": "Esecuzioni, esiti, costo, latenza ed escalation di ogni unità nell'intervallo che scegli."
+     "body": "Confronta le unità nel periodo che scegli: esecuzioni, esiti, costo, latenza ed escalation. L'unità che fa spesso escalation o costa più delle altre è quella da guardare."
     },
     "reports": {
      "title": "Rapporti",
@@ -10010,7 +10010,7 @@ it.explainers.secrets.p1 = "Un segreto è un valore cifrato, come una chiave API
     },
     "escalations": {
      "title": "Escalation",
-     "body": "Domande che gli agenti hanno rivolto a una persona, a un ruolo o a un altro agente. Quelle aperte vengono prima, e rispondi da qui."
+     "body": "Domande che gli agenti hanno posto a una persona, a un ruolo o a un altro agente. Quelle aperte vengono prima. Rispondi qui e l'agente che ha chiesto riceve la tua risposta."
     }
    }
   }

@@ -9865,19 +9865,19 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
     },
     "kpis": {
      "title": "En un coup d'œil",
-     "body": "Ces cartes comptent les agents, les déploiements, les exécutions et les nœuds. Cliquez sur une carte pour ouvrir la liste correspondante."
+     "body": "Ce qui se passe en ce moment : agents, déploiements, exécutions actives ou en échec aujourd'hui, et les nœuds de travail prêts à recevoir du travail. Cliquez sur une carte pour ouvrir la liste correspondante."
     },
     "invoke": {
      "title": "Invoquer",
-     "body": "Choisissez un agent, envoyez-lui un message et regardez sa transcription arriver."
+     "body": "Le moyen le plus rapide d'essayer un agent. Choisissez-en un, envoyez-lui un message et regardez sa réponse arriver."
     },
     "autonomy": {
-     "title": "Autonomie",
-     "body": "Gardiens, messages, rapports, mémoire, escalades et gels : tout ce qui concerne les agents qui travaillent seuls."
+     "title": "Des agents qui travaillent seuls",
+     "body": "Confiez une mission permanente à un agent et il travaille sans qu'on le lui demande. Un gardien le réveille selon un planning et, entre deux réveils, il peut écrire à d'autres agents, déposer des rapports, retenir ce qu'il a appris et vous escalader une question. Un gel arrête tout cela immédiatement."
     },
     "organizations": {
      "title": "Organisations",
-     "body": "Des unités d'agents avec leurs responsables et leurs budgets, le comité d'où vous les surveillez, et les règles de changement de leurs dirigeants."
+     "body": "Répartissez les agents en unités comme une équipe : un responsable, des membres et un budget. Le comité montre comment va chaque unité, et les règles de changement décident quels changements le dirigeant d'une unité peut faire sans vous demander."
     },
     "help": {
      "title": "Aide",
@@ -9890,15 +9890,15 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
    "steps": {
     "connections": {
      "title": "Connexions",
-     "body": "Une connexion est un profil de harnais : quelle CLI ou API lancer, et comment. Configurée une fois, tout déploiement peut l'utiliser."
+     "body": "Une connexion indique à Garrison comment démarrer le moteur d'un agent : quelle CLI ou API lancer, comme Claude Code ou Codex, et avec quels réglages. Configurée une fois, tout déploiement peut l'utiliser."
     },
     "agents": {
      "title": "Agents",
-     "body": "Un agent est le nom qu'utilisent les appelants, avec sa façon d'être exposé et la forme de ses réponses. Seul, il n'exécute rien."
+     "body": "Un agent est ce que les appelants demandent par son nom, via REST, MCP ou A2A, et il définit la forme de ses réponses. Il n'exécute rien tant qu'il n'a pas de déploiement."
     },
     "deployments": {
      "title": "Déploiements",
-     "body": "Un déploiement rend un agent exécutable : une connexion, un modèle, des prompts et des limites. S'il y en a plusieurs, les appels se répartissent selon leur poids."
+     "body": "Un déploiement est la partie qui s'exécute : une connexion, un modèle, des prompts et des limites pour un agent. Avec deux déploiements, les appels se répartissent selon leur poids, ce qui permet d'essayer un nouveau modèle sur une partie du trafic."
     },
     "invoke": {
      "title": "Invoquer",
@@ -9977,7 +9977,7 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
     },
     "spendCaps": {
      "title": "Plafonds de dépense",
-     "body": "Un gardien peut avoir un budget par cycle et par jour. Quand le budget du jour est épuisé, il s'arrête jusqu'au jour UTC suivant et demande à une personne."
+     "body": "Un gardien peut avoir un budget par cycle et par jour. Quand le budget du jour est épuisé, il s'arrête jusqu'au jour UTC suivant et vous envoie une escalade urgente."
     },
     "changeRules": {
      "title": "Règles de changement",
@@ -9994,15 +9994,15 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
    "steps": {
     "board": {
      "title": "Le comité",
-     "body": "La santé de chaque unité, ses escalades ouvertes, ses freins et son dernier rapport, sur l'organigramme et dans un tableau."
+     "body": "Commencez ici pour voir comment va une organisation. Chaque unité affiche son état d'après son dernier rapport, ses escalades ouvertes, les freins en place et son dernier rapport, sur l'organigramme et dans un tableau."
     },
     "attention": {
      "title": "Demande votre attention",
-     "body": "Escalades ouvertes, rapports en mauvaise santé et unités à leur plafond de budget, au même endroit."
+     "body": "Ce qui demande une personne maintenant : escalades ouvertes, rapports en mauvaise santé et unités à leur plafond de budget. Traitez cette liste en premier."
     },
     "performance": {
      "title": "Performances",
-     "body": "Exécutions, résultats, coût, latence et escalades de chaque unité, sur la période que vous choisissez."
+     "body": "Comparez les unités sur la période choisie : exécutions, résultats, coût, latence et escalades. Une unité qui escalade souvent ou coûte plus que les autres est celle à examiner."
     },
     "reports": {
      "title": "Rapports",
@@ -10010,7 +10010,7 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
     },
     "escalations": {
      "title": "Escalades",
-     "body": "Les questions que des agents ont posées à une personne, un rôle ou un autre agent. Les ouvertes viennent en premier, et vous y répondez d'ici."
+     "body": "Les questions que des agents ont posées à une personne, un rôle ou un autre agent. Les ouvertes viennent en premier. Répondez ici et l'agent qui a demandé reçoit votre réponse."
     }
    }
   }

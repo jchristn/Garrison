@@ -9839,19 +9839,19 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     },
     "kpis": {
      "title": "At a glance",
-     "body": "These cards count agents, deployments, runs, and nodes. Click a card to open the list behind it."
+     "body": "What is going on right now: agents, deployments, runs that are active or failed today, and the worker nodes ready for work. Click a card to open the list behind it."
     },
     "invoke": {
      "title": "Invoke",
-     "body": "Pick an agent, send it a message, and watch its transcript stream in."
+     "body": "The quickest way to try an agent. Pick one, send it a message, and watch its answer stream in."
     },
     "autonomy": {
-     "title": "Autonomy",
-     "body": "Keepers, messages, reports, memory, escalations, and freezes: everything for agents that work on their own."
+     "title": "Agents that work on their own",
+     "body": "Give an agent a standing job and it works without being asked. A keeper wakes it on a schedule, and between wakes it can message other agents, file reports, remember what it learned, and escalate a question to you. A freeze stops any of it at once."
     },
     "organizations": {
      "title": "Organizations",
-     "body": "Units of agents with leads and budgets, the board you watch them from, and the change rules their executives work under."
+     "body": "Staff agents into units the way you would a team: a lead, members, and a budget. The board shows how each unit is doing, and change rules decide which changes a unit's executive may make without asking you."
     },
     "help": {
      "title": "Help",
@@ -9864,15 +9864,15 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    "steps": {
     "connections": {
      "title": "Connections",
-     "body": "A connection is a harness profile: which CLI or API to launch, and how. Set one up once and every deployment can use it."
+     "body": "A connection tells Garrison how to start the engine behind an agent: which CLI or API to launch, such as Claude Code or Codex, and with what settings. Set it up once and every deployment can use it."
     },
     "agents": {
      "title": "Agents",
-     "body": "An agent is the name callers use, with how it is exposed and what its answers look like. On its own it runs nothing."
+     "body": "An agent is what callers ask for by name, over REST, MCP, or A2A, and it sets what its answers look like. It runs nothing until it has a deployment."
     },
     "deployments": {
      "title": "Deployments",
-     "body": "A deployment makes an agent runnable: a connection, a model, prompts, and limits. With more than one, calls split by weight."
+     "body": "A deployment is the part that runs: a connection, a model, prompts, and limits for one agent. Give an agent two deployments and calls split between them by weight, which is how you try a new model on part of the traffic."
     },
     "invoke": {
      "title": "Invoke",
@@ -9951,7 +9951,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     },
     "spendCaps": {
      "title": "Spend caps",
-     "body": "A keeper can have a budget per tick and per day. When the day's budget is spent, it stops until the next UTC day and asks a person."
+     "body": "A keeper can have a budget per tick and per day. When the day's budget is spent, the keeper stops until the next UTC day and sends you an urgent escalation."
     },
     "changeRules": {
      "title": "Change rules",
@@ -9968,15 +9968,15 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
    "steps": {
     "board": {
      "title": "The board",
-     "body": "Each unit's health, open escalations, brakes, and last report, on the chart and in a table."
+     "body": "Start here to see how an organization is doing. Each unit shows its health from its latest report, its open escalations, any brakes on it, and its last report, on the chart and in a table."
     },
     "attention": {
      "title": "Needs attention",
-     "body": "Open escalations, unhealthy reports, and units at a budget cap, in one place."
+     "body": "What needs a person now: open escalations, unhealthy reports, and units that hit a budget cap. Work through this list first."
     },
     "performance": {
      "title": "Performance",
-     "body": "Runs, outcomes, cost, latency, and escalations for each unit, over the window you choose."
+     "body": "Compare units over the window you choose: runs, outcomes, cost, latency, and escalations. A unit that escalates often or costs more than its peers is the one to look at."
     },
     "reports": {
      "title": "Reports",
@@ -9984,7 +9984,7 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
     },
     "escalations": {
      "title": "Escalations",
-     "body": "Questions agents raised for a person, a role, or another agent. Open ones come first, and you answer them from here."
+     "body": "Questions agents raised for a person, a role, or another agent. Open ones come first. Answer one here and the agent that asked gets your answer."
     }
    }
   }
