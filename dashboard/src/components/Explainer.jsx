@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link, useInRouterContext } from 'react-router-dom';
 import { InfoIcon, XIcon } from './Icons';
 import { tip } from './Tooltip';
 import { STORAGE_KEYS } from '../utils/constants';
+import { learnPathForTopic } from './learn/learnSections';
 
 const PARAGRAPHS = ['p1', 'p2', 'p3', 'p4'];
 
@@ -59,6 +61,7 @@ export default function Explainer({ topic, diagram = null }) {
         {PARAGRAPHS.filter((p) => i18n.exists(`explainers.${topic}.${p}`)).map((p) => (
           <p key={p}>{t(`explainers.${topic}.${p}`)}</p>
         ))}
+        <DiagramLink topic={topic} />
       </div>
       <div className="explainer-actions">
         <button type="button" className="icon-button" onClick={() => toggle(true)} aria-label={t('components.explainer.dismiss')} data-testid={`explainer-dismiss-${topic}`} {...tip(t('tips.explainer.dismiss'))}>
@@ -66,6 +69,28 @@ export default function Explainer({ topic, diagram = null }) {
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * LP4.3: "See the diagram", a link to the Learn page section that draws this topic. Only topics listed in
+ * EXPLAINER_SECTIONS (components/learn/learnSections.js) get one. Outside a router (some tests) it is a plain link.
+ */
+function DiagramLink({ topic }) {
+  const { t } = useTranslation();
+  const inRouter = useInRouterContext();
+  const to = learnPathForTopic(topic);
+  if (!to) return null;
+  const props = { className: 'explainer-learn-link', 'data-testid': `explainer-diagram-${topic}`, ...tip(t('tips.learn.seeDiagram')) };
+  const label = t('components.explainer.seeDiagram');
+  return inRouter ? (
+    <Link to={to} {...props}>
+      {label}
+    </Link>
+  ) : (
+    <a href={to} {...props}>
+      {label}
+    </a>
   );
 }
 

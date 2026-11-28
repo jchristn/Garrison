@@ -71,6 +71,7 @@ import CanaryReleasesView from '../CanaryReleasesView';
 import CanaryReleaseDetailView from '../CanaryReleaseDetailView';
 import FreezesView from '../FreezesView';
 import MemoryView from '../MemoryView';
+import LearnView from '../LearnView';
 
 /**
  * View components keyed by page id (see config/navConfig.js). Labels, ordering, hub membership,
@@ -132,7 +133,8 @@ export const PAGE_VIEWS = {
   roles: RolesView,
   assignments: AssignmentsView,
   settings: SettingsView,
-  serverInfo: ServerInfoView
+  serverInfo: ServerInfoView,
+  learn: LearnView
 };
 
 /** Detail views for `/dashboard/<slug>/<id>`, keyed by page id (pages marked `detail: true`). */

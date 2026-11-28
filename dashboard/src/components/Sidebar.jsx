@@ -111,6 +111,23 @@ export default function Sidebar({ onNavigateMobile }) {
           <Icons.HelpIcon size={16} />
           <span>{t('nav.tour')}</span>
         </button>
+        {/* LP4.3: the Learn page sits next to the guided tour. It is a link, since it navigates. */}
+        <a
+          href={`${DASHBOARD_BASE}/learn`}
+          className={`sidebar-utility ${pathname === `${DASHBOARD_BASE}/learn` ? 'active' : ''}`}
+          aria-current={pathname === `${DASHBOARD_BASE}/learn` ? 'page' : undefined}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+            e.preventDefault();
+            go(`${DASHBOARD_BASE}/learn`);
+          }}
+          data-nav="learn"
+          data-testid="sidebar-learn"
+          {...tip(t('tips.nav.learn'))}
+        >
+          <Icons.FileTextIcon size={16} />
+          <span>{t('nav.learn')}</span>
+        </a>
         <div className="sidebar-version">{t('nav.version', { version: APP_VERSION })}</div>
       </div>
     </aside>

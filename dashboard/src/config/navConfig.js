@@ -152,6 +152,8 @@ export const NAV_SECTIONS = [
       },
       // Import/export has its own workspace so its local tabs never nest beneath hub tabs.
       { key: 'manifests', slug: 'manifests', icon: 'FileCodeIcon', hidden: true, page: { id: 'manifests', slug: 'manifests' } },
+      // LP4.3: the Learn page (diagrams, tours, glossary), opened from the sidebar's utility group next to Guided tour.
+      { key: 'learn', slug: 'learn', icon: 'HelpIcon', hidden: true, page: { id: 'learn', slug: 'learn' } },
       {
         key: 'fleet',
         slug: 'fleet',
