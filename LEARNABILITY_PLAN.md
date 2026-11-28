@@ -76,13 +76,13 @@ The conflicts recorded in `AUTONOMOUS_AGENTS_PLAN.md` section 1.4 still hold. On
 | LP1 | Activity trail: server | LP0 | Done | 14 / 14 |
 | LP2 | Activity trail: dashboard | LP1.5 (API shape) | In progress (LP2.10 spec not run) | 9 / 10 |
 | LP3 | Organization designer | LP0 | In progress | 1 / 12 |
-| LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | In progress | 9 / 10 |
+| LP4 | Guided learning: diagrams, Learn page, tours | LP4.1 to LP4.4 none; LP4.5 onward LP2, LP3 | In progress | 10 / 11 |
 | LP5 | UX pass 1: design review of the whole dashboard | LP1 to LP4 | In progress | 0 / 5 |
 | LP6 | UX pass 2: simulated users on a fresh instance | LP5 | Not started | 0 / 5 |
 | LP7 | Release integration | LP6 | Not started | 0 / 5 |
 | LP8 | App appearance | LP0 (before LP6) | Not started | 0 / 6 |
 
-Total tasks: 69.
+Total tasks: 70.
 
 ```
 LP0 wiring
@@ -408,6 +408,7 @@ Required by `DASHBOARD_STYLE_AND_USABILITY.md` "Route Inventory". It covers new 
 - [x] LP4.8 First run. The setup wizard's last step offers the Learn page and the Run an agent tour. A new user who skips the wizard sees one dismissible Home card pointing to Learn, and the dismissal is saved per user.  Accept: vitest.  | claude 2026-11-27 fee908e9; SetupWizard last step, components/tours/HomeLearnCard.jsx; Skip wizard sets garrison_setup_skipped per user. vitest in tours.test.jsx
 - [x] LP4.9 i18n and tooltips for diagrams, the Learn page, and all tours in nine locales, with a right-to-left check of two diagrams.  Accept: missing-key and pseudo-locale checks pass.  | claude 2026-11-27 34b11942; tour strings and tips in nine locales, plus trail entry surface labels and the Shadowed and Delivered edges; the brakes diagram and glossary now say message wakes are refused too, brakes.svg re-exported; RTL mirroring covered by learn.test.jsx. vitest tours, learn, i18nKeys (with pseudo-locale), tooltips, runTrail, trailLayout, runTrailApi pass
 - [x] LP4.10 One e2e spec per tour in `dashboard/tests/e2e/tours/`, each asserting every step's target is visible. The annotation records which specs were run (targeted).  Accept: specs committed.  | claude 2026-11-27 dashboard/tests/e2e/tours/ (six specs and tourHelpers.js, steps read from config/tours.js; first-look adds 390px RTL and Escape, keep-it-safe adds the empty-tenant offer). Written, not run
+- [x] LP4.11 A seventh tour, Agents on their own (`agents-on-their-own`, from LP5.4 triage of UXP1-S009): a keeper, its wake schedule, its ticks, its revisions, then messages and threads, memory, and escalations, on the Autonomy hub tabs and the keeper page. It offers the gerbil example on a tenant without keepers, is the Autonomy "?" tour on every tab but Freezes, and is offered by the Learn autonomy section.  Accept: vitest; one e2e spec, written not run.  | claude 2026-11-28 7 steps checked against KEEPERS.md, MESSAGING.md, AGENT_MEMORY.md, ESCALATIONS.md; keeper-ticks and keeper-revisions targets on the keeper page; walked live at 1366 and 390 with no skipped step; tests/e2e/tours/agents-on-their-own.spec.js written, not run; strings in nine locales
 
 ### Phase LP8: App appearance (LP-016, LP-017)
 
