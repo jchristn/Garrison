@@ -35,6 +35,13 @@ import FrozenBanner from '../components/FrozenBanner';
 import useActiveFreezes from '../hooks/useActiveFreezes';
 import useCallerPermissions from '../hooks/useCallerPermissions';
 import { freezeOn } from '../utils/freezes';
+import StudioLink from '../components/studio/StudioLink';
+import UnitLink from '../components/UnitLink';
+import useOrgUnitIndex from '../hooks/useOrgUnitIndex';
+import { unitsOfAgent } from '../utils/organizations';
+
+/** The most keepers listed for one agent on its page (UXP1-S004); the Keepers link shows them all. */
+const AGENT_KEEPER_LIMIT = 25;
 
 /**
  * One agent end to end: identity, exposure, delegation, deployments with weights, environments, and revision pins,
@@ -58,7 +65,9 @@ export default function AgentDetailView({ recordId }) {
   const [numbers, setNumbers] = useState({});
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [keepers, setKeepers] = useState([]);
   const { addToast } = useToast();
+  const unitIndex = useOrgUnitIndex();
 
   const load = useCallback(() => {
     if (!apiClient) return;
@@ -80,6 +89,12 @@ export default function AgentDetailView({ recordId }) {
       .listAgentRevisions(tenantId, recordId)
       .then((r) => setNumbers(revisionNumbers(r.items || [])))
       .catch(() => setNumbers({}));
+    // The agent's keepers and units (UXP1-S004), so agent to keeper and agent to unit are links both ways.
+    if (typeof apiClient.listMandates === 'function')
+      apiClient
+        .listMandates(tenantId, { pageNumber: 1, pageSize: AGENT_KEEPER_LIMIT, agentId: recordId })
+        .then((r) => setKeepers((r.items || []).filter((m) => !m.agentId || m.agentId === recordId)))
+        .catch(() => setKeepers([]));
   }, [apiClient, tenantId, recordId]);
 
   // After a publish or discard only the agent (latest and draft revision IDs) and the revision numbers change.
@@ -189,6 +204,38 @@ export default function AgentDetailView({ recordId }) {
         <div className="detail-item">
           <div className="detail-item-label" {...tip(t('tips.resources.agents.inputMode'))}>{t('resources.agents.fields.inputMode')}</div>
           <div className="detail-item-value">{enumLabel(t, 'agentInputMode', agent.inputMode)}</div>
+        </div>
+        <div className="detail-item" data-testid="agent-keepers">
+          <div className="detail-item-label" {...tip(t('tips.links.agentKeepers'))}>{t('nav.items.keepers.label')}</div>
+          <div className="detail-item-value">
+            {keepers.length ? (
+              <span className="inline-meta">
+                {keepers.map((m) => (
+                  <StudioLink key={m.id} to={pathFor('keepers', m.id)} testId="agent-keeper-link" tipText={t('tips.links.openKeeper')}>
+                    {m.name || m.id}
+                  </StudioLink>
+                ))}
+              </span>
+            ) : (
+              '-'
+            )}
+          </div>
+        </div>
+        <div className="detail-item" data-testid="agent-units">
+          <div className="detail-item-label" {...tip(t('tips.links.agentUnits'))}>{t('links.units')}</div>
+          <div className="detail-item-value">
+            {unitsOfAgent(unitIndex, agent.id).length ? (
+              <ul className="plain-list">
+                {unitsOfAgent(unitIndex, agent.id).map((u) => (
+                  <li key={u.id}>
+                    <UnitLink unit={u} testId="agent-unit-link" /> <span className="text-muted">{t(u.role === 'Lead' ? 'components.orgDesigner.keepers.lead' : 'components.orgDesigner.keepers.member')}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              '-'
+            )}
+          </div>
         </div>
       </div>
       {deployments.filter((d) => d.active).length === 0 && <div className="warning-banner">{t('views.agentDetail.noActiveDeployment')}</div>}

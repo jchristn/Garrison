@@ -10683,3 +10683,28 @@ fr.explainers.secrets.p1 = "Un secret est une valeur chiffrée, comme une clé d
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "links": {
+  "units": "Unités organisationnelles",
+  "unit": "Unité organisationnelle",
+  "unitInOrganization": "{{unit}} dans {{organization}}",
+  "messageFrom": "Message de {{sender}}",
+  "shadowOf": "Copie fantôme de",
+  "comparedRuns": "Exécutions comparées",
+  "showShadowRuns": "Voir les exécutions fantômes"
+ },
+ "runtime": {
+  "emptyBody": "Une connexion indique à Garrison avec quel harness ou point de terminaison de modèle un agent s'exécute, avec son modèle, ses réglages et ses secrets. Ajoutez-en une, puis choisissez-la pour un architecte ou un déploiement."
+ }
+});

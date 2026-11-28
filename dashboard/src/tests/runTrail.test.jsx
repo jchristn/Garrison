@@ -562,3 +562,73 @@ describe('LP5.5 trail fixes', () => {
     expect(q('[data-run-hop]')).toBeNull();
   });
 });
+
+// UXP1-S004: related records link to each other, by name. The trail drawer links its agent and unit, and a run's
+// detail page links its agent, deployment, node, keeper, waking message, and the live run a shadow copy copies.
+describe('links between related records (UXP1-S004)', () => {
+  const organizations = {
+    listOrganizations: vi.fn(async () => ({ items: [{ id: 'org_sre', name: 'Reliability' }] })),
+    getOrganization: vi.fn(async () => ({ id: 'org_sre', name: 'Reliability', units: [{ id: 'unt_sre', name: 'Site reliability', leadAgentId: 'agt_lead', leadMandateId: 'mdt_watch', members: [] }] }))
+  };
+
+  it('links the agent and the unit of a trail step', async () => {
+    const apiClient = { ...organizations, getRun: vi.fn(async () => ({ id: 'run_a1', status: 'Succeeded', outcome: 'Succeeded' })) };
+    mount(<TrailStepDrawer trail={fixture} node={node('run_a1')} onClose={() => {}} />, { apiClient });
+    await flush();
+    await flush();
+    const agent = q('[data-testid="trail-drawer-agent-link"]');
+    expect(agent.getAttribute('href')).toBe('/dashboard/agents/agt_lead');
+    expect(agent.textContent).toBe('Incident lead');
+    const unit = q('[data-testid="trail-drawer-unit-link"]');
+    expect(unit.getAttribute('href')).toBe('/dashboard/organizations/org_sre?tab=design&unit=unt_sre');
+    expect(unit.textContent).toBe('Site reliability in Reliability');
+  });
+
+  it('keeps the unit name as text when no organization holds it', async () => {
+    const apiClient = { listOrganizations: vi.fn(async () => ({ items: [] })), getOrganization: vi.fn(), getRun: vi.fn(async () => ({ id: 'run_a1' })) };
+    mount(<TrailStepDrawer trail={fixture} node={node('run_a1')} onClose={() => {}} />, { apiClient });
+    await flush();
+    await flush();
+    expect(q('[data-testid="trail-drawer-unit-link"]')).toBeNull();
+    expect(q('[data-testid="trail-drawer"]').textContent).toContain('Site reliability');
+  });
+
+  it('links a keeper run to its keeper by name and a message wake to the thread', async () => {
+    const { default: RunDetailView } = await import('../views/RunDetailView');
+    const run = {
+      id: 'run_k1', agentId: 'agt_lead', agentName: 'Incident lead', deploymentId: 'dep_1', deploymentName: 'lead-prod', leaseNodeName: 'worker-1', status: 'Succeeded', outcome: 'Succeeded',
+      kind: 'Message', mandateId: 'mdt_watch', callerName: 'message:amg_2', shadowOfRunId: 'run_live', shadowTrialId: 'shd_1'
+    };
+    const apiClient = {
+      getServerInfo: vi.fn(async () => ({})),
+      getRun: vi.fn(async () => run),
+      listRunEvents: vi.fn(async () => ({ items: [], hasMore: false })),
+      listRunChildren: vi.fn(async () => ({ items: [] })),
+      listApprovals: vi.fn(async () => ({ items: [] })),
+      getDeployment: vi.fn(async () => ({ id: 'dep_1', name: 'lead-prod' })),
+      getAgent: vi.fn(async () => ({ id: 'agt_lead', name: 'Incident lead' })),
+      getMandate: vi.fn(async () => ({ id: 'mdt_watch', name: 'disk-watch' })),
+      getMessage: vi.fn(async () => ({ id: 'amg_2', threadId: 'amg_1', senderAgentId: 'agt_triage', senderAgentName: 'Triage' })),
+      getShadowTrial: vi.fn(async () => ({ id: 'shd_1', name: 'lead-candidate' }))
+    };
+    mount(<RunDetailView recordId="run_k1" />, { apiClient, path: '/dashboard/runs/run_k1' });
+    await flush();
+    await flush();
+    expect(q('[data-testid="run-agent-link"]').getAttribute('href')).toBe('/dashboard/agents/agt_lead');
+    expect(q('h1').textContent).toBe('Run of Incident lead');
+    expect(q('[data-testid="run-deployment-link"]').getAttribute('href')).toBe('/dashboard/agents?tab=deployments&search=lead-prod');
+    expect(q('[data-testid="run-node-link"]').getAttribute('href')).toBe('/dashboard/fleet?search=worker-1');
+    const keeper = q('[data-testid="run-keeper-link"]');
+    expect(keeper.getAttribute('href')).toBe('/dashboard/keepers/mdt_watch');
+    expect(keeper.textContent).toBe('disk-watch');
+    const caller = q('[data-testid="run-caller-message-link"]');
+    expect(caller.getAttribute('href')).toBe('/dashboard/message-threads/amg_1?message=amg_2');
+    expect(caller.textContent).toBe('Message from Triage');
+    expect(q('[data-testid="run-shadow-of-link"]').getAttribute('href')).toBe('/dashboard/runs/run_live');
+    expect(q('[data-testid="run-shadow-trial-link"]').textContent).toBe('lead-candidate');
+  });
+
+  it('lists the shadow runs of a trial on the Runs page', () => {
+    expect(runsConfig.urlFilters).toContain('shadowTrialId');
+  });
+});

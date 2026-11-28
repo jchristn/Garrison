@@ -82,6 +82,15 @@ export default function CanaryReleaseDetailView({ recordId }) {
   const label = (name) => t(`evals.canaryDetail.fields.${name}`);
   const tipOf = (name) => t(`tips.evals.canaryDetail.fields.${name}`);
   const deployment = (id) => (id ? names.deployments[id] || id : '-');
+  // The candidate and baseline link to Deployments filtered to them (UXP1-S004).
+  const deploymentLink = (id, weight, testId) =>
+    id ? (
+      <EvalLink to={pathFor('deployments', null, { search: deployment(id) })} tipText={t('tips.links.openDeployment')} testId={testId}>
+        {t('evals.canaryDetail.withWeight', { name: deployment(id), weight })}
+      </EvalLink>
+    ) : (
+      '-'
+    );
   const agent = names.agents[x.agentId] || x.agentId;
   const close = () => setModal(null);
 
@@ -136,10 +145,10 @@ export default function CanaryReleaseDetailView({ recordId }) {
           </EvalLink>
         </EvalDetail>
         <EvalDetail name="candidate" label={label('candidate')} tipText={tipOf('candidate')}>
-          {t('evals.canaryDetail.withWeight', { name: deployment(x.candidateDeploymentId), weight: x.candidateInitialWeight })}
+          {deploymentLink(x.candidateDeploymentId, x.candidateInitialWeight, 'canary-candidate-link')}
         </EvalDetail>
         <EvalDetail name="baseline" label={label('baseline')} tipText={tipOf('baseline')}>
-          {t('evals.canaryDetail.withWeight', { name: deployment(x.baselineDeploymentId), weight: x.baselineInitialWeight })}
+          {deploymentLink(x.baselineDeploymentId, x.baselineInitialWeight, 'canary-baseline-link')}
         </EvalDetail>
         <EvalDetail name="maxErrorRatePercent" label={label('maxErrorRatePercent')} tipText={tipOf('maxErrorRatePercent')}>
           {t('evals.percent', { value: x.maxErrorRatePercent })}

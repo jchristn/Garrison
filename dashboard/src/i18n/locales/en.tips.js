@@ -5444,3 +5444,34 @@ tips.views.studio.discardPending = "Permanently delete this draft after confirma
   "hasHops": "Longer request keeps runs that sent or received a message, started another run or were started by one, or belong to a fan-out, including the run the request began with. Single run keeps the rest."
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "Open this agent's page: its deployments, revisions, keepers, and recent runs.",
+  "openDeployment": "Open Deployments filtered to this deployment, where its weight, model, and connection are set.",
+  "openNode": "Open Nodes filtered to this worker node, with its status and capacity.",
+  "openKeeper": "Open this keeper's page: its schedule, budgets, ticks, and revisions.",
+  "openKeeperSummary": "{{summary}} Select to open the keeper's page.",
+  "openUnit": "Open this unit on its organization's Design tab, with the unit selected.",
+  "openThread": "Open the message thread whose delivery woke the agent for this run, with that message picked out.",
+  "shadowOf": "This is a shadow run: a candidate deployment replayed the input of a live run so the two outputs can be compared. A shadow run cannot act.",
+  "openShadowSource": "Open the live run this shadow run copies.",
+  "shadowTrial": "The shadow trial that started this shadow run.",
+  "openShadowTrial": "Open the shadow trial with its agreement counts.",
+  "agentKeepers": "The keepers that wake this agent on a schedule. Select one to open it.",
+  "agentUnits": "The organization units this agent leads or works in. Select one to open it in its organization.",
+  "keeperUnit": "The organization unit whose lead or member holds this keeper.",
+  "comparedRuns": "The shadow runs of this trial: the candidate's copies of the source's live runs. Each one links to the live run it copies.",
+  "openComparedRuns": "Open Runs filtered to this trial's shadow runs."
+ }
+});

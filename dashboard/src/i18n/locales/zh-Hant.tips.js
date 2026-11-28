@@ -5444,3 +5444,34 @@ tips.views.studio.discardPending = "確認後永久刪除此草稿，並取消�
   "hasHops": "較長的請求保留傳送或接收過訊息、啟動了另一個執行或由另一個執行啟動、或屬於扇出的執行，包括請求開始時的那個執行。單一執行保留其餘的。"
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "開啟此代理程式的頁面：其部署、修訂版、守護者與最近的執行。",
+  "openDeployment": "開啟已篩選為此部署的「部署」，在其中設定權重、模型與連線。",
+  "openNode": "開啟已篩選為此節點的「工作節點」，查看其狀態與容量。",
+  "openKeeper": "開啟此守護者的頁面：其排程、預算、巡檢與修訂版。",
+  "openKeeperSummary": "{{summary}} 選擇即可開啟守護者的頁面。",
+  "openUnit": "在所屬組織的「設計」分頁中開啟此單位，並選取該單位。",
+  "openThread": "開啟喚醒代理程式執行此項的訊息討論串，並標示該則訊息。",
+  "shadowOf": "這是影子執行：候選部署重播了一次真實執行的輸入，以便比較兩份輸出。影子執行不能執行任何動作。",
+  "openShadowSource": "開啟此影子執行所複製的真實執行。",
+  "shadowTrial": "啟動此影子執行的影子試驗。",
+  "openShadowTrial": "開啟影子試驗，查看其一致計數。",
+  "agentKeepers": "依排程喚醒此代理程式的守護者。選擇一個即可開啟。",
+  "agentUnits": "此代理程式領導或所屬的組織單位。選擇一個即可在其組織中開啟。",
+  "keeperUnit": "由負責人或成員持有此守護者的組織單位。",
+  "comparedRuns": "此試驗的影子執行：候選部署對來源真實執行的副本。每個都連結到其複製的真實執行。",
+  "openComparedRuns": "開啟已篩選為此試驗影子執行的「執行」。"
+ }
+});

@@ -44,6 +44,8 @@ import RunChildrenTree from '../components/RunChildrenTree';
 import { jsonToText } from '../utils/jsonFields';
 import RunTrailPanel from '../components/trail/RunTrailPanel';
 import { resultSegments } from '../utils/runResult';
+import StudioLink from '../components/studio/StudioLink';
+import { senderText, threadPath } from '../utils/messages';
 
 /** Run outcomes that are not failures: nothing happened yet, it succeeded, or someone cancelled it. */
 const NOT_FAILED_OUTCOMES = ['None', 'Succeeded', 'Cancelled'];
@@ -212,6 +214,38 @@ function TemplateVersionLinks({ versions, t, navigate, list = false }) {
   return <span className="template-version-links">{links}</span>;
 }
 
+/** The message ID a message-woken run names as its caller (`message:amg_...`), or null. */
+function callerMessageId(run) {
+  const name = run?.callerName || '';
+  return name.startsWith('message:') ? name.slice(8) : null;
+}
+
+/**
+ * Who started the run (UXP1-S004): a message wake links to the message's thread and names the sender, a keeper tick
+ * links to the keeper, anyone else is shown by name.
+ */
+function RunCallerValue({ run, t, message, keeperName }) {
+  const text = run.callerName || run.callerId;
+  const messageId = callerMessageId(run);
+  if (messageId) {
+    if (!message) return <span {...tip(t('tips.resources.runs.callerMessage', { id: messageId }))}>{t('resources.runs.callerMessage')}</span>;
+    const sender = senderText(message);
+    return (
+      <StudioLink to={threadPath(message)} testId="run-caller-message-link" tipText={t('tips.links.openThread')}>
+        {sender ? t('links.messageFrom', { sender }) : t('resources.runs.callerMessage')}
+      </StudioLink>
+    );
+  }
+  if (run.mandateId && (run.callerName || '').startsWith('keeper:')) {
+    return (
+      <StudioLink to={pathFor('keepers', run.mandateId)} testId="run-caller-keeper-link" tipText={t('tips.views.runDetail.openKeeper')}>
+        {keeperName || run.callerName.slice(7)}
+      </StudioLink>
+    );
+  }
+  return text;
+}
+
 /** Run detail: live transcript (SSE with polling fallback), outcome, result, stderr, children, cancel and retry. */
 export default function RunDetailView({ recordId }) {
   const { t, i18n } = useTranslation();
@@ -237,6 +271,7 @@ export default function RunDetailView({ recordId }) {
   const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [approvalsError, setApprovalsError] = useState(null);
   const [deciding, setDeciding] = useState(null);
+  const [related, setRelated] = useState({});
   const lastSeq = useRef(0);
   const grafana = useGrafana();
   const [telemetryOpen, setTelemetryOpen] = useState(readTelemetryOpen);
@@ -343,6 +378,31 @@ export default function RunDetailView({ recordId }) {
       .then((a) => setAgentState({ exists: true, name: a?.name }))
       .catch((e) => setAgentState({ exists: e?.status !== 404 }));
   }, [apiClient, tenantId, agentId]);
+  // Names of the keeper, the waking message, and the shadow trial (UXP1-S004): one read each, the ID when it fails.
+  const mandateId = run?.mandateId;
+  const messageId = callerMessageId(run);
+  const shadowTrialId = run?.shadowTrialId;
+  useEffect(() => {
+    if (!apiClient || !mandateId) return;
+    apiClient
+      .getMandate(tenantId, mandateId)
+      .then((m) => setRelated((prev) => ({ ...prev, keeperName: m?.name || null })))
+      .catch(() => {});
+  }, [apiClient, tenantId, mandateId]);
+  useEffect(() => {
+    if (!apiClient || !messageId) return;
+    apiClient
+      .getMessage(tenantId, messageId)
+      .then((m) => setRelated((prev) => ({ ...prev, message: m || null })))
+      .catch(() => {});
+  }, [apiClient, tenantId, messageId]);
+  useEffect(() => {
+    if (!apiClient || !shadowTrialId || typeof apiClient.getShadowTrial !== 'function') return;
+    apiClient
+      .getShadowTrial(tenantId, shadowTrialId)
+      .then((x) => setRelated((prev) => ({ ...prev, shadowTrialName: x?.name || null })))
+      .catch(() => {});
+  }, [apiClient, tenantId, shadowTrialId]);
   const agentMissing = agentState?.exists === false;
   // The server refuses to retry a run whose agent or deployment was deleted (409 AgentDeleted, DeploymentDeleted).
   const retryBlocked = agentMissing ? t('views.runDetail.agentDeleted', { agent: run?.agentName }) : deployment?.deleted ? t('views.runDetail.deploymentDeleted', { agent: run?.agentName }) : null;
@@ -410,12 +470,29 @@ export default function RunDetailView({ recordId }) {
   if (!run) return <LoadingState />;
   const tel = runTelemetry(run);
   const na = t('common.generic.notAvailable');
+  const deploymentName = run.deploymentName || deployment?.name || null;
+  // The header names the agent as a link (UXP1-S004); the sentence around the name comes from the catalog.
+  const titleText = t('views.runDetail.titleWithAgent', { agent: run.agentName });
+  const titleParts = t('views.runDetail.titleWithAgent', { agent: '\u0000' }).split('\u0000');
+  const title =
+    run.agentId && titleParts.length === 2 ? (
+      <>
+        {titleParts[0]}
+        <StudioLink to={pathFor('agents', run.agentId)} testId="run-agent-link" className="page-header-title-link" tipText={t('tips.links.openAgent')}>
+          {run.agentName || run.agentId}
+        </StudioLink>
+        {titleParts[1]}
+      </>
+    ) : (
+      titleText
+    );
 
   return (
     <div>
       <PageHeader
         tour="run-header"
-        title={t('views.runDetail.titleWithAgent', { agent: run.agentName })}
+        title={title}
+        documentTitle={titleText}
         subtitle={
           <span className="inline-meta">
             <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> <BlockedBadge run={run} t={t} /> <AwaitingApprovalBadge run={run} t={t} /> {live && <span className="pill pill-info" {...tip(t('tips.views.runDetail.live'))}>{t('topbar.live')}</span>}
@@ -489,9 +566,25 @@ export default function RunDetailView({ recordId }) {
         <Detail label={t('views.runDetail.effectPolicy')} tip={t('tips.views.runDetail.effectPolicy')}>
           <span data-testid="run-effect-policy" {...tip(enumTip(t, 'effectPolicy', run.effectPolicy || 'AtMostOnce'))}>{enumLabel(t, 'effectPolicy', run.effectPolicy || 'AtMostOnce')}</span>
         </Detail>
-        <Detail label={t('resources.runs.columns.leaseNodeName')} tip={t('tips.resources.runs.leaseNodeName')}>{run.leaseNodeName}</Detail>
+        <Detail label={t('resources.runs.columns.leaseNodeName')} tip={t('tips.resources.runs.leaseNodeName')}>
+          {run.leaseNodeName ? (
+            <StudioLink to={pathFor('nodes', null, { search: run.leaseNodeName })} testId="run-node-link" tipText={t('tips.links.openNode')}>
+              {run.leaseNodeName}
+            </StudioLink>
+          ) : null}
+        </Detail>
         <Detail label={t('views.runDetail.deployment')} tip={t('tips.views.runDetail.deployment')}>
-          {run.deploymentId ? <NamedId id={run.deploymentId} name={run.deploymentName || deployment?.name || (deployment?.deleted ? run.deploymentId : null)} deleted={!!deployment?.deleted} /> : '-'}
+          {run.deploymentId ? (
+            deploymentName && !deployment?.deleted ? (
+              <StudioLink to={pathFor('deployments', null, { search: deploymentName })} testId="run-deployment-link" tipText={t('tips.links.openDeployment')}>
+                {deploymentName}
+              </StudioLink>
+            ) : (
+              <NamedId id={run.deploymentId} name={deploymentName || (deployment?.deleted ? run.deploymentId : null)} deleted={!!deployment?.deleted} />
+            )
+          ) : (
+            '-'
+          )}
         </Detail>
         <Detail label={t('views.runDetail.templatesUsed')} tip={t('tips.views.runDetail.templatesUsed')}>
           {(run.templateVersions || []).length ? (
@@ -508,7 +601,9 @@ export default function RunDetailView({ recordId }) {
         <Detail label={t('resources.runs.columns.executionMs')} tip={t('tips.telemetry.executionMs')}>{formatMs(tel.executionMs, i18n.language, na)}</Detail>
         <Detail label={t('views.runDetail.tokensLabel')} tip={t('tips.views.runDetail.tokens')}>{t('views.runDetail.tokens', { input: formatNumber(run.inputTokens || 0), output: formatNumber(run.outputTokens || 0) })}</Detail>
         <Detail label={t('resources.runs.columns.costUsd')} tip={t('tips.telemetry.costUsd')}>{`${formatUsd(tel.costUsd, i18n.language, na)}${tel.costUsd !== null && run.costEstimated ? ` (${t('views.runDetail.estimated')})` : ''}`}</Detail>
-        <Detail label={t('views.runDetail.caller')} tip={t('tips.views.runDetail.caller')}>{run.callerName || run.callerId}</Detail>
+        <Detail label={t('views.runDetail.caller')} tip={t('tips.views.runDetail.caller')}>
+          <RunCallerValue run={run} t={t} message={related.message} keeperName={related.keeperName} />
+        </Detail>
         <Detail label={t('resources.runs.columns.depth')} tip={t('tips.resources.runs.depth')}>{run.depth ?? 0}</Detail>
         <Detail label={t('views.runDetail.parent')} tip={t('tips.views.runDetail.parent')}>
           {run.parentRunId ? (
@@ -648,8 +743,22 @@ export default function RunDetailView({ recordId }) {
                 navigate(pathFor('keepers', run.mandateId));
               }}
             >
-              <code>{run.mandateId}</code>
+              {related.keeperName || <code>{run.mandateId}</code>}
             </a>
+          </Detail>
+        )}
+        {run.shadowOfRunId && (
+          <Detail label={t('links.shadowOf')} tip={t('tips.links.shadowOf')}>
+            <StudioLink to={pathFor('runs', run.shadowOfRunId)} testId="run-shadow-of-link" tipText={t('tips.links.openShadowSource')}>
+              <code>{run.shadowOfRunId}</code>
+            </StudioLink>
+          </Detail>
+        )}
+        {run.shadowTrialId && (
+          <Detail label={t('resources.shadowTrials.view')} tip={t('tips.links.shadowTrial')}>
+            <StudioLink to={pathFor('shadowTrials', run.shadowTrialId)} testId="run-shadow-trial-link" tipText={t('tips.links.openShadowTrial')}>
+              {related.shadowTrialName || <code>{run.shadowTrialId}</code>}
+            </StudioLink>
           </Detail>
         )}
         <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>

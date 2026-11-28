@@ -15,13 +15,16 @@ import HubTourButton from './tours/HubTourButton';
  *
  * `back` is a link to the list a detail page belongs to; it sits above the title, never among the actions, so every
  * detail page has the same header: back link, then title and badges on the left, actions on the right (UXP1-V026).
+ *
+ * A title that is markup (a run's title with its agent as a link) passes the same words as `documentTitle` text.
  */
-export default function PageHeader({ title, subtitle, actions, tour, hubKey, back }) {
+export default function PageHeader({ title, documentTitle, subtitle, actions, tour, hubKey, back }) {
   const { t } = useTranslation();
   const { embedded } = useHub();
+  const docTitle = documentTitle || (typeof title === 'string' ? title : '');
   useEffect(() => {
-    if (title && !embedded) document.title = `${title} | ${t('common.productName')}`;
-  }, [title, t, embedded]);
+    if (docTitle && !embedded) document.title = `${docTitle} | ${t('common.productName')}`;
+  }, [docTitle, t, embedded]);
 
   if (embedded) {
     if (!subtitle && !actions) return null;

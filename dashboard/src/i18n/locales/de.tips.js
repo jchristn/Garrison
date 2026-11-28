@@ -5450,3 +5450,34 @@ tips.views.studio.discardPending = "Diesen Entwurf nach Bestätigung dauerhaft l
   "hasHops": "Längere Anfrage behält Läufe, die eine Nachricht gesendet oder empfangen haben, einen anderen Lauf gestartet haben oder von einem gestartet wurden oder zu einem Fan-out gehören, einschließlich des Laufs, mit dem die Anfrage begann. Einzelner Lauf behält den Rest."
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "Die Seite dieses Agenten öffnen: Bereitstellungen, Revisionen, Wächter und letzte Läufe.",
+  "openDeployment": "Bereitstellungen gefiltert auf diese Bereitstellung öffnen, wo Gewicht, Modell und Verbindung eingestellt werden.",
+  "openNode": "Worker-Knoten gefiltert auf diesen Knoten öffnen, mit Status und Kapazität.",
+  "openKeeper": "Die Seite dieses Wächters öffnen: Zeitplan, Budgets, Zyklen und Revisionen.",
+  "openKeeperSummary": "{{summary}} Auswählen, um die Seite des Wächters zu öffnen.",
+  "openUnit": "Diese Einheit im Tab Entwurf ihrer Organisation öffnen, mit der Einheit ausgewählt.",
+  "openThread": "Den Nachrichtenverlauf öffnen, dessen Zustellung den Agenten für diesen Lauf geweckt hat, mit dieser Nachricht hervorgehoben.",
+  "shadowOf": "Dies ist ein Schattenlauf: Eine Kandidaten-Bereitstellung hat die Eingabe eines echten Laufs wiederholt, damit sich beide Ausgaben vergleichen lassen. Ein Schattenlauf kann nicht handeln.",
+  "openShadowSource": "Den echten Lauf öffnen, den dieser Schattenlauf kopiert.",
+  "shadowTrial": "Der Schattentest, der diesen Schattenlauf gestartet hat.",
+  "openShadowTrial": "Den Schattentest mit seinen Übereinstimmungszahlen öffnen.",
+  "agentKeepers": "Die Wächter, die diesen Agenten nach Zeitplan wecken. Wählen Sie einen aus, um ihn zu öffnen.",
+  "agentUnits": "Die Organisationseinheiten, die dieser Agent leitet oder in denen er arbeitet. Wählen Sie eine aus, um sie in ihrer Organisation zu öffnen.",
+  "keeperUnit": "Die Organisationseinheit, deren Leitung oder Mitglied diesen Wächter hat.",
+  "comparedRuns": "Die Schattenläufe dieses Tests: die Kopien des Kandidaten von den echten Läufen der Quelle. Jeder verweist auf den echten Lauf, den er kopiert.",
+  "openComparedRuns": "Läufe gefiltert auf die Schattenläufe dieses Tests öffnen."
+ }
+});

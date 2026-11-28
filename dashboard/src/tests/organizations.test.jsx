@@ -522,3 +522,24 @@ describe('API routes', () => {
     ]);
   });
 });
+
+// UXP1-S004: keeper names on leads and members link to the keeper; a chart given unitHref links each unit's name.
+describe('OrgChartTree links (UXP1-S004)', () => {
+  const units = [
+    { id: 'u0', name: 'reliability', parentUnitId: null, leadAgentId: 'agt_lead', leadAgentName: 'reliability-lead', leadMandateId: 'mdt_lead', leadMandateName: 'reliability-watch', members: [{ agentId: 'agt_m', agentName: 'curator', mandateId: 'mdt_m', mandateName: 'memory-watch' }], peerLines: [], budgets: [] }
+  ];
+
+  it('links keeper tags and keeps the tour anchor on them', () => {
+    mount(<OrgChartTree units={units} t={t} lng="en" />);
+    const tags = qa('[data-tour="org-card-keeper"]');
+    expect(tags).toHaveLength(2);
+    expect(tags.map((tag) => tag.querySelector('a').getAttribute('href'))).toEqual(['/dashboard/keepers/mdt_lead', '/dashboard/keepers/mdt_m']);
+    expect(tags[0].textContent).toBe('reliability-watch');
+    expect(q('[data-testid="org-unit-link"]')).toBeNull();
+  });
+
+  it('links unit names when the chart is given unitHref', () => {
+    mount(<OrgChartTree units={units} t={t} lng="en" unitHref={(u) => `/dashboard/organizations/org_1?tab=design&unit=${u.id}`} />);
+    expect(q('[data-testid="org-unit-link"]').getAttribute('href')).toBe('/dashboard/organizations/org_1?tab=design&unit=u0');
+  });
+});

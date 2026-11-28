@@ -5,6 +5,8 @@ import { ReportHealthBadge } from './ReportBadges';
 import { SpendBar } from './OrganizationBadges';
 import { Badge } from './StatusBadge';
 import { PlusIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon } from './Icons';
+import StudioLink from './studio/StudioLink';
+import { pathFor } from '../config/navConfig';
 
 /** More units than this open with every unit below the first level collapsed (UXP1-V002). */
 export const TREE_COLLAPSE_ABOVE_UNITS = 12;
@@ -33,8 +35,23 @@ import { agentText, appText, childrenByParent, mandateText, spendOf } from '../u
  * report filed in the unit, spend bars for its budgets, and (when editable) Edit, Add unit below, and Remove. Peer
  * lines are named; pointing at one highlights the peer's card.
  */
+/**
+ * A keeper tag on a lead or member (UXP1-S004): the keeper's name as a link to its page. The tag keeps the
+ * org-card-keeper tour anchor; the tooltip is the keeper's summary when the chart carries one.
+ */
+function KeeperTag({ mandateId, name, summary, t }) {
+  return (
+    <span className="org-unit-mandate" data-tour="org-card-keeper">
+      <StudioLink to={pathFor('keepers', mandateId)} testId="org-unit-keeper-link" tipText={summary ? t('tips.links.openKeeperSummary', { summary }) : t('tips.links.openKeeper')}>
+        {name}
+      </StudioLink>
+    </span>
+  );
+}
+
 function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
-  const { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied, highlight, setHighlight, unitNames } = ctx;
+  const { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied, highlight, setHighlight, unitNames, unitHref } = ctx;
+  const unitLink = unitHref ? unitHref(unit) : null;
   const report = health?.[unit.id];
   const rows = spendOf(spend, unit.id);
   const lead = agentText(unit.leadAgentId, unit.leadAgentName, names);
@@ -56,7 +73,15 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
             {expanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
           </button>
         ) : null}
-        <h3 className="org-unit-name">{unit.name}</h3>
+        <h3 className="org-unit-name">
+          {unitLink ? (
+            <StudioLink to={unitLink} testId="org-unit-link" tipText={t('tips.links.openUnit')}>
+              {unit.name}
+            </StudioLink>
+          ) : (
+            unit.name
+          )}
+        </h3>
         {report?.health ? <ReportHealthBadge health={report.health} t={t} /> : null}
         {report?.attention?.needs ? (
           <span data-testid="org-unit-needs-person">
@@ -85,7 +110,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
               <>
                 <strong>{lead}</strong>
                 {unit.leadTitle ? <span className="text-muted">{` ${unit.leadTitle}`}</span> : null}
-                {leadMandate ? <span className="org-unit-mandate" data-tour="org-card-keeper" {...tip(unit.leadMandateSummary || t('tips.organizations.chart.mandate'))}>{leadMandate}</span> : null}
+                {leadMandate ? <KeeperTag mandateId={unit.leadMandateId} name={leadMandate} summary={unit.leadMandateSummary} t={t} /> : null}
               </>
             ) : (
               <span className="text-muted">{t('organizations.chart.noLead')}</span>
@@ -101,7 +126,7 @@ function UnitCard({ unit, ctx, childCount, expanded, onToggle }) {
                   <li key={m.agentId}>
                     <span>{agentText(m.agentId, m.agentName, names)}</span>
                     {m.title ? <span className="text-muted">{` ${m.title}`}</span> : null}
-                    {m.mandateId ? <span className="org-unit-mandate" data-tour="org-card-keeper" {...tip(m.mandateSummary || t('tips.organizations.chart.mandate'))}>{mandateText(m.mandateId, m.mandateName, names)}</span> : null}
+                    {m.mandateId ? <KeeperTag mandateId={m.mandateId} name={mandateText(m.mandateId, m.mandateName, names)} summary={m.mandateSummary} t={t} /> : null}
                   </li>
                 ))}
               </ul>
@@ -200,12 +225,14 @@ function Branch({ units, map, ctx, collapsed, toggle, depth, parentId }) {
  * spend: rows from GET /spend. health: { [unitId]: latest report }, where a board entry may carry `attention`
  * (utils/board unitAttention) to add Needs a person. onCancelAll(unit), when given, adds "Cancel everything in this unit"
  * to every card's menu (AA11.4); cancelAllDenied is the tooltip that disables it when the caller may not.
+ * unitHref(unit), when given, turns each unit's name into a link to that path (the board links to the unit's page).
+ * Keeper names on leads and members always link to the keeper (UXP1-S004).
  *
  * UXP1-V002: a chart of more than TREE_COLLAPSE_ABOVE_UNITS units opens collapsed below the first level, each level
  * lists TREE_PAGE_SIZE units before Show more, Expand all and Collapse sit above the tree, and the indent stops growing
  * after three levels.
  */
-export default function OrgChartTree({ units, t, lng, names = {}, spend = [], health = {}, editable = false, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied = '' }) {
+export default function OrgChartTree({ units, t, lng, names = {}, spend = [], health = {}, editable = false, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied = '', unitHref }) {
   const [collapsed, setCollapsed] = useState(() => defaultTreeCollapsed(units));
   const [shown, setShown] = useState({});
   const [highlight, setHighlight] = useState(null);
@@ -220,7 +247,7 @@ export default function OrgChartTree({ units, t, lng, names = {}, spend = [], he
       return next;
     });
   const showMore = (parent, count) => setShown((prev) => ({ ...prev, [parent]: count }));
-  const ctx = { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied, highlight, setHighlight, unitNames, shown, showMore };
+  const ctx = { t, lng, names, spend, health, editable, onEdit, onAdd, onRemove, onCancelAll, cancelAllDenied, highlight, setHighlight, unitNames, shown, showMore, unitHref };
   const nested = list.some((u) => (map.get(u.id) || []).length > 0);
   return (
     <div className="org-tree" data-testid="org-chart">

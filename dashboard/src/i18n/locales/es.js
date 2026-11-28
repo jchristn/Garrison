@@ -10687,3 +10687,28 @@ es.explainers.secrets.p1 = "Un secreto es un valor cifrado, como una clave de AP
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "links": {
+  "units": "Unidades organizativas",
+  "unit": "Unidad organizativa",
+  "unitInOrganization": "{{unit}} en {{organization}}",
+  "messageFrom": "Mensaje de {{sender}}",
+  "shadowOf": "Copia en sombra de",
+  "comparedRuns": "Ejecuciones comparadas",
+  "showShadowRuns": "Ver las ejecuciones en sombra"
+ },
+ "runtime": {
+  "emptyBody": "Una conexión indica a Garrison con qué harness o endpoint de modelo se ejecuta un agente, con su modelo, ajustes y secretos. Añade una y luego elígela para un arquitecto o un despliegue."
+ }
+});

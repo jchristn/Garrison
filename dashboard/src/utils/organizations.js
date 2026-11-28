@@ -7,6 +7,7 @@ import { enumLabel } from './enums';
 import { holds } from './apps';
 import { errorMessage } from './errors';
 import { stripCodePrefix } from './serverText';
+import { pathFor } from '../config/navConfig';
 
 /** 409 codes the organization routes answer with, each explained under organizations.errors.<code>. */
 export const ORG_ERROR_CODES = [
@@ -372,4 +373,49 @@ export function organizationFormErrors(form, t) {
   const margin = freezeMargin(form?.budgetFreezeMarginPercent);
   if (!Number.isInteger(margin) || margin < L.budgetFreezeMargin.min || margin > L.budgetFreezeMargin.max) errors.budgetFreezeMarginPercent = t('organizations.form.errors.margin', L.budgetFreezeMargin);
   return errors;
+}
+
+/**
+ * The page of one unit (UXP1-S004): its organization's Design tab with the unit selected, which is where a unit opens
+ * on its own. Without a unit ID it is the organization's page.
+ */
+export function unitPath(organizationId, unitId) {
+  if (!organizationId) return null;
+  return unitId ? pathFor('organizations', organizationId, { tab: 'design', unit: unitId }) : pathFor('organizations', organizationId);
+}
+
+/**
+ * Every unit of the working trees of the given organizations (GET /organizations/{id} bodies; nulls are skipped), each
+ * with organizationId and organizationName, for finding a unit, an agent's units, or a keeper's unit by ID.
+ */
+export function orgUnitIndex(organizations) {
+  const out = [];
+  for (const org of organizations || []) {
+    if (!org) continue;
+    for (const u of org.units || []) out.push({ ...u, organizationId: u.organizationId || org.id, organizationName: org.name });
+  }
+  return out;
+}
+
+/** The indexed unit with this ID, or null. */
+export function findIndexedUnit(index, unitId) {
+  if (!unitId) return null;
+  return (index || []).find((u) => u.id === unitId) || null;
+}
+
+/** The units an agent leads or is a member of, each with `role` Lead or Member. */
+export function unitsOfAgent(index, agentId) {
+  if (!agentId) return [];
+  const out = [];
+  for (const u of index || []) {
+    if (u.leadAgentId === agentId) out.push({ ...u, role: 'Lead' });
+    else if ((u.members || []).some((m) => m.agentId === agentId)) out.push({ ...u, role: 'Member' });
+  }
+  return out;
+}
+
+/** The units where a keeper (mandate) is attached to the lead or a member. */
+export function unitsOfMandate(index, mandateId) {
+  if (!mandateId) return [];
+  return (index || []).filter((u) => u.leadMandateId === mandateId || (u.members || []).some((m) => m.mandateId === mandateId));
 }

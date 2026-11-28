@@ -80,7 +80,15 @@ export default function ShadowTrialDetailView({ recordId }) {
   const when = (value) => (value ? <span {...tip(formatRelativeTime(value, lng))}>{formatDateTime(value, lng, { dateStyle: 'medium', timeStyle: 'short' })}</span> : '-');
   const label = (name) => t(`evals.shadowDetail.fields.${name}`);
   const tipOf = (name) => t(`tips.evals.shadowDetail.fields.${name}`);
-  const deployment = (id) => (id ? names[id] || id : '-');
+  // Deployments link to Deployments filtered to them (UXP1-S004).
+  const deployment = (id, testId) =>
+    id ? (
+      <EvalLink to={pathFor('deployments', null, { search: names[id] || id })} tipText={t('tips.links.openDeployment')} testId={testId}>
+        {names[id] || id}
+      </EvalLink>
+    ) : (
+      '-'
+    );
   const close = () => setModal(null);
   const comparison = x.comparisonEvalSetId ? 'set' : x.useJudge ? 'judge' : 'text';
 
@@ -129,10 +137,15 @@ export default function ShadowTrialDetailView({ recordId }) {
 
       <div className="panel detail-grid">
         <EvalDetail name="source" label={label('source')} tipText={tipOf('source')}>
-          {deployment(x.sourceDeploymentId)}
+          {deployment(x.sourceDeploymentId, 'shadow-source-link')}
         </EvalDetail>
         <EvalDetail name="candidate" label={label('candidate')} tipText={tipOf('candidate')}>
-          {deployment(x.candidateDeploymentId)}
+          {deployment(x.candidateDeploymentId, 'shadow-candidate-link')}
+        </EvalDetail>
+        <EvalDetail name="comparedRuns" label={t('links.comparedRuns')} tipText={t('tips.links.comparedRuns')}>
+          <EvalLink to={pathFor('runs', null, { shadowTrialId: x.id })} tipText={t('tips.links.openComparedRuns')} testId="shadow-compared-runs-link">
+            {t('links.showShadowRuns')}
+          </EvalLink>
         </EvalDetail>
         <EvalDetail name="samplePercent" label={label('samplePercent')} tipText={tipOf('samplePercent')}>
           {t('evals.percent', { value: x.samplePercent })}

@@ -5447,3 +5447,34 @@ tips.views.studio.discardPending = "Elimina definitivamente questa bozza dopo la
   "hasHops": "Richiesta più lunga tiene le esecuzioni che hanno inviato o ricevuto un messaggio, avviato un’altra esecuzione o sono state avviate da una, o appartengono a un fan-out, compresa l’esecuzione con cui è iniziata la richiesta. Esecuzione singola tiene il resto."
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "Apri la pagina di questo agente: distribuzioni, revisioni, custodi ed esecuzioni recenti.",
+  "openDeployment": "Apri Distribuzioni filtrata su questa distribuzione, dove si impostano peso, modello e connessione.",
+  "openNode": "Apri Nodi worker filtrata su questo nodo, con stato e capacità.",
+  "openKeeper": "Apri la pagina di questo custode: pianificazione, budget, cicli e revisioni.",
+  "openKeeperSummary": "{{summary}} Seleziona per aprire la pagina del custode.",
+  "openUnit": "Apri questa unità nella scheda Progettazione della sua organizzazione, con l'unità selezionata.",
+  "openThread": "Apri la conversazione di messaggi la cui consegna ha risvegliato l'agente per questa esecuzione, con quel messaggio evidenziato.",
+  "shadowOf": "Questa è un'esecuzione in ombra: una distribuzione candidata ha ripetuto l'input di un'esecuzione reale per confrontare i due output. Un'esecuzione in ombra non può agire.",
+  "openShadowSource": "Apri l'esecuzione reale che questa esecuzione in ombra copia.",
+  "shadowTrial": "La prova in ombra che ha avviato questa esecuzione in ombra.",
+  "openShadowTrial": "Apri la prova in ombra con i conteggi di concordanza.",
+  "agentKeepers": "I custodi che risvegliano questo agente secondo una pianificazione. Selezionane uno per aprirlo.",
+  "agentUnits": "Le unità organizzative che questo agente guida o in cui lavora. Selezionane una per aprirla nella sua organizzazione.",
+  "keeperUnit": "L'unità organizzativa il cui responsabile o membro ha questo custode.",
+  "comparedRuns": "Le esecuzioni in ombra di questa prova: le copie del candidato delle esecuzioni reali dell'origine. Ognuna rimanda all'esecuzione reale che copia.",
+  "openComparedRuns": "Apri Esecuzioni filtrata sulle esecuzioni in ombra di questa prova."
+ }
+});

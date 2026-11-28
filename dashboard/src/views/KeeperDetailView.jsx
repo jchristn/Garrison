@@ -35,6 +35,9 @@ import useCallerPermissions from '../hooks/useCallerPermissions';
 import usePageSizePref from '../hooks/usePageSizePref';
 import { deniedProps, permissionDenied } from '../utils/permissions';
 import { FREEZES_CHANGED_EVENT, freezeOn, freezesFor } from '../utils/freezes';
+import UnitLink from '../components/UnitLink';
+import useOrgUnitIndex from '../hooks/useOrgUnitIndex';
+import { unitsOfMandate } from '../utils/organizations';
 
 /** Rows per page of the ticks table until the operator picks another size (saved per table). */
 const TICK_PAGE_SIZE = 25;
@@ -150,6 +153,7 @@ export default function KeeperDetailView({ recordId }) {
   const [diffOf, setDiffOf] = useState(null);
   const [busy, setBusy] = useState(false);
   const unmounted = useRef(false);
+  const unitIndex = useOrgUnitIndex();
 
   useEffect(() => {
     unmounted.current = false;
@@ -384,7 +388,22 @@ export default function KeeperDetailView({ recordId }) {
           </PageLink>
         </Detail>
         <Detail label={t('resources.keepers.columns.deployment')} tip={t('tips.resources.keepers.deployment')}>
-          {names.deployment || m.deploymentId}
+          {names.deployment ? (
+            <PageLink to={pathFor('deployments', null, { search: names.deployment })} tipText={t('tips.links.openDeployment')} navigate={navigate} testId="keeper-deployment">
+              {names.deployment}
+            </PageLink>
+          ) : (
+            m.deploymentId
+          )}
+        </Detail>
+        <Detail label={t('links.unit')} tip={t('tips.links.keeperUnit')} testId="keeper-unit">
+          {unitsOfMandate(unitIndex, m.id).length ? (
+            <span className="inline-meta">
+              {unitsOfMandate(unitIndex, m.id).map((u) => (
+                <UnitLink key={u.id} unit={u} testId="keeper-unit-link" />
+              ))}
+            </span>
+          ) : null}
         </Detail>
         <Detail label={t('resources.keepers.columns.nextWakeUtc')} tip={t('tips.resources.keepers.nextWakeUtc')} testId="keeper-next-wake">
           {m.status === 'Active' && m.nextWakeUtc ? (

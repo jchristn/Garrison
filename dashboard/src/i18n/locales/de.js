@@ -10730,3 +10730,28 @@ de.trail.entrySurfaces.Eval = 'Evaluierung';
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "links": {
+  "units": "Organisationseinheiten",
+  "unit": "Organisationseinheit",
+  "unitInOrganization": "{{unit}} (Organisation {{organization}})",
+  "messageFrom": "Nachricht von {{sender}}",
+  "shadowOf": "Schattenkopie von",
+  "comparedRuns": "Verglichene Läufe",
+  "showShadowRuns": "Schattenläufe anzeigen"
+ },
+ "runtime": {
+  "emptyBody": "Eine Verbindung legt fest, mit welchem Harness oder Modell-Endpunkt ein Agent läuft, samt Modell, Einstellungen und Geheimnissen. Fügen Sie eine hinzu und wählen Sie sie dann für einen Architekten oder eine Bereitstellung."
+ }
+});

@@ -5447,3 +5447,34 @@ tips.views.studio.discardPending = "Elimina permanentemente este borrador tras c
   "hasHops": "Solicitud más larga conserva las ejecuciones que enviaron o recibieron un mensaje, iniciaron otra ejecución o fueron iniciadas por una, o pertenecen a un fan-out, incluida la ejecución con la que empezó la solicitud. Ejecución única conserva el resto."
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "Abre la página de este agente: sus despliegues, revisiones, guardianes y ejecuciones recientes.",
+  "openDeployment": "Abre Despliegues filtrado por este despliegue, donde se configuran su peso, modelo y conexión.",
+  "openNode": "Abre Nodos de trabajo filtrado por este nodo, con su estado y capacidad.",
+  "openKeeper": "Abre la página de este guardián: su calendario, presupuestos, ciclos y revisiones.",
+  "openKeeperSummary": "{{summary}} Selecciona para abrir la página del guardián.",
+  "openUnit": "Abre esta unidad en la pestaña Diseño de su organización, con la unidad seleccionada.",
+  "openThread": "Abre el hilo de mensajes cuya entrega despertó al agente para esta ejecución, con ese mensaje destacado.",
+  "shadowOf": "Es una ejecución en sombra: un despliegue candidato repitió la entrada de una ejecución real para comparar las dos salidas. Una ejecución en sombra no puede actuar.",
+  "openShadowSource": "Abre la ejecución real que copia esta ejecución en sombra.",
+  "shadowTrial": "La prueba en sombra que inició esta ejecución en sombra.",
+  "openShadowTrial": "Abre la prueba en sombra con sus recuentos de coincidencia.",
+  "agentKeepers": "Los guardianes que despiertan a este agente según un calendario. Selecciona uno para abrirlo.",
+  "agentUnits": "Las unidades organizativas que este agente dirige o en las que trabaja. Selecciona una para abrirla en su organización.",
+  "keeperUnit": "La unidad organizativa cuyo responsable o miembro tiene este guardián.",
+  "comparedRuns": "Las ejecuciones en sombra de esta prueba: las copias del candidato de las ejecuciones reales del origen. Cada una enlaza con la ejecución real que copia.",
+  "openComparedRuns": "Abre Ejecuciones filtrado por las ejecuciones en sombra de esta prueba."
+ }
+});

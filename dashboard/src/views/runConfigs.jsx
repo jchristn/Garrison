@@ -207,7 +207,7 @@ export const runsConfig = {
   // UXP1-S001: the search box matches the agent name and the caller name on the server, ignoring case.
   searchPlaceholder: (t) => t('resources.runs.searchPlaceholder'),
   searchTip: (t) => t('tips.resources.runs.search'),
-  urlFilters: ['status', 'agentId', 'outcome', 'kind', 'hasHops', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'rootRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId', 'callerId'],
+  urlFilters: ['status', 'agentId', 'outcome', 'kind', 'hasHops', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'rootRunId', 'conversationId', 'pipelineRunId', 'triggerId', 'mandateId', 'callerId', 'shadowTrialId'],
   // Agent names for the agent filter; an agent named in the URL stays selectable even before the names load.
   loadLookups: async ({ apiClient, tenantId }) => {
     const agents = await apiClient

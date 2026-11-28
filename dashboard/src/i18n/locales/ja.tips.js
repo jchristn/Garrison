@@ -5445,3 +5445,34 @@ tips.views.studio.discardPending = "確認後、この下書きを完全に削�
   "hasHops": "「複数の実行にまたがる依頼」は、メッセージを送受信した実行、別の実行を開始したか別の実行から開始された実行、ファンアウトに属する実行を残します。依頼が始まった実行も含みます。「単独の実行」はそれ以外を残します。"
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "このエージェントのページを開きます。デプロイメント、リビジョン、キーパー、最近の実行があります。",
+  "openDeployment": "このデプロイメントで絞り込んだ「デプロイメント」を開きます。重み、モデル、接続はそこで設定します。",
+  "openNode": "このノードで絞り込んだ「ワーカーノード」を開き、状態と容量を確認します。",
+  "openKeeper": "このキーパーのページを開きます。スケジュール、予算、ティック、リビジョンがあります。",
+  "openKeeperSummary": "{{summary}} 選択するとキーパーのページを開きます。",
+  "openUnit": "この組織単位を、所属する組織の「設計」タブで選択した状態で開きます。",
+  "openThread": "この実行のためにエージェントを起動したメッセージのスレッドを、そのメッセージを強調して開きます。",
+  "shadowOf": "これはシャドー実行です。候補のデプロイメントが本番の実行の入力を再実行し、2 つの出力を比較できるようにしたものです。シャドー実行は操作を行えません。",
+  "openShadowSource": "このシャドー実行のコピー元である本番の実行を開きます。",
+  "shadowTrial": "このシャドー実行を開始したシャドートライアルです。",
+  "openShadowTrial": "シャドートライアルを一致件数とともに開きます。",
+  "agentKeepers": "スケジュールに従ってこのエージェントを起動するキーパーです。選択すると開きます。",
+  "agentUnits": "このエージェントがリードする、または所属する組織単位です。選択すると組織内で開きます。",
+  "keeperUnit": "リードまたはメンバーとしてこのキーパーを持つ組織単位です。",
+  "comparedRuns": "このトライアルのシャドー実行です。ソースの本番実行を候補がコピーしたもので、それぞれコピー元の本番実行にリンクしています。",
+  "openComparedRuns": "このトライアルのシャドー実行で絞り込んだ「実行」を開きます。"
+ }
+});

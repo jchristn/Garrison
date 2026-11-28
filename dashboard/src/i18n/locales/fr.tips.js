@@ -5447,3 +5447,34 @@ tips.views.studio.discardPending = "Supprime définitivement ce brouillon après
   "hasHops": "Requête plus longue garde les exécutions qui ont envoyé ou reçu un message, lancé une autre exécution ou été lancées par une, ou qui appartiennent à un fan-out, y compris l’exécution par laquelle la requête a commencé. Exécution seule garde le reste."
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "Ouvrir la page de cet agent : ses déploiements, révisions, gardiens et exécutions récentes.",
+  "openDeployment": "Ouvrir Déploiements filtré sur ce déploiement, où se règlent son poids, son modèle et sa connexion.",
+  "openNode": "Ouvrir Nœuds worker filtré sur ce nœud, avec son état et sa capacité.",
+  "openKeeper": "Ouvrir la page de ce gardien : son planning, ses budgets, ses cycles et ses révisions.",
+  "openKeeperSummary": "{{summary}} Sélectionnez pour ouvrir la page du gardien.",
+  "openUnit": "Ouvrir cette unité dans l'onglet Conception de son organisation, avec l'unité sélectionnée.",
+  "openThread": "Ouvrir le fil de messages dont la remise a réveillé l'agent pour cette exécution, avec ce message mis en avant.",
+  "shadowOf": "Ceci est une exécution fantôme : un déploiement candidat a rejoué l'entrée d'une exécution réelle pour comparer les deux sorties. Une exécution fantôme ne peut pas agir.",
+  "openShadowSource": "Ouvrir l'exécution réelle que copie cette exécution fantôme.",
+  "shadowTrial": "L'essai fantôme qui a lancé cette exécution fantôme.",
+  "openShadowTrial": "Ouvrir l'essai fantôme avec ses nombres d'accords.",
+  "agentKeepers": "Les gardiens qui réveillent cet agent selon un planning. Sélectionnez-en un pour l'ouvrir.",
+  "agentUnits": "Les unités organisationnelles que cet agent dirige ou dans lesquelles il travaille. Sélectionnez-en une pour l'ouvrir dans son organisation.",
+  "keeperUnit": "L'unité organisationnelle dont le responsable ou un membre détient ce gardien.",
+  "comparedRuns": "Les exécutions fantômes de cet essai : les copies du candidat des exécutions réelles de la source. Chacune renvoie à l'exécution réelle qu'elle copie.",
+  "openComparedRuns": "Ouvrir Exécutions filtré sur les exécutions fantômes de cet essai."
+ }
+});

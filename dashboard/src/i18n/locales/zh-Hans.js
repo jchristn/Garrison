@@ -10637,3 +10637,28 @@ zhHans.explainers.secrets.p1 = "密钥是一个加密的值，例如 API 密钥�
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "links": {
+  "units": "组织单元",
+  "unit": "组织单元",
+  "unitInOrganization": "{{organization}} 的 {{unit}}",
+  "messageFrom": "来自 {{sender}} 的消息",
+  "shadowOf": "影子副本来源",
+  "comparedRuns": "已比较的运行",
+  "showShadowRuns": "查看影子运行"
+ },
+ "runtime": {
+  "emptyBody": "连接告诉 Garrison 用哪个 harness 或模型端点运行智能体，以及所用的模型、设置和密钥。先添加一个，再在架构师或部署中选择它。"
+ }
+});

@@ -10657,3 +10657,28 @@ en.tips.enums.auditEventType.SecretRevealed = "Someone with Admin on Secret read
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "links": {
+  "units": "Organization units",
+  "unit": "Organization unit",
+  "unitInOrganization": "{{unit}} in {{organization}}",
+  "messageFrom": "Message from {{sender}}",
+  "shadowOf": "Shadow copy of",
+  "comparedRuns": "Compared runs",
+  "showShadowRuns": "Show the shadow runs"
+ },
+ "runtime": {
+  "emptyBody": "A connection tells Garrison which harness or model endpoint runs an agent, with its model, settings, and secrets. Add one, then choose it for an architect or a deployment."
+ }
+});

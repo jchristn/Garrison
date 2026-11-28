@@ -21,7 +21,7 @@ const connections = {
   steps: undefined,
   // UXP1-S005: Connections gets the same explainer as its neighbours, which says the docs call it a harness profile.
   explainer: 'harnessProfiles',
-  labels: { title: 'runtime.title', subtitle: 'runtime.sharedHint', add: 'runtime.add', create: 'runtime.create', edit: 'runtime.edit', view: 'runtime.view', emptyTitle: 'runtime.emptyTitle', emptyBody: 'runtime.configureFirst' },
+  labels: { title: 'runtime.title', subtitle: 'runtime.sharedHint', add: 'runtime.add', create: 'runtime.create', edit: 'runtime.edit', view: 'runtime.view', emptyTitle: 'runtime.emptyTitle', emptyBody: 'runtime.emptyBody' },
   api: { ...harnessProfilesConfig.api, list: (client, tenant, params) => profilePage(client, tenant, params) },
   loadOptions: async ({ apiClient, tenantId }) => {
     const [profiles, secrets] = await Promise.all([listRuntimeProfiles(apiClient, tenantId), apiClient.listSecrets(tenantId, { pageSize: 1000, pageNumber: 1 })]);

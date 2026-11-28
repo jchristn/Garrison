@@ -10636,3 +10636,28 @@ ja.explainers.secrets.p1 = "シークレットは、API キーやトークンな
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "links": {
+  "units": "組織単位",
+  "unit": "組織単位",
+  "unitInOrganization": "{{organization}} の {{unit}}",
+  "messageFrom": "{{sender}} からのメッセージ",
+  "shadowOf": "シャドーコピー元",
+  "comparedRuns": "比較した実行",
+  "showShadowRuns": "シャドー実行を表示"
+ },
+ "runtime": {
+  "emptyBody": "接続は、エージェントをどのハーネスまたはモデルエンドポイントで実行するかを、モデル、設定、シークレットとともに Garrison に伝えます。接続を追加してから、アーキテクトまたはデプロイメントで選択します。"
+ }
+});

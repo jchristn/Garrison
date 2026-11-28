@@ -18,6 +18,9 @@ import { enumLabel } from '../utils/enums';
 import { enumTip } from '../utils/tips';
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/formatters';
 import { appPath, authorText, filedByText, periodText } from '../utils/reports';
+import UnitLink from '../components/UnitLink';
+import useOrgUnitIndex from '../hooks/useOrgUnitIndex';
+import { findIndexedUnit } from '../utils/organizations';
 
 function Detail({ name, t, span = false, children }) {
   return (
@@ -72,7 +75,18 @@ export default function ReportDetailView({ recordId }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [keeperName, setKeeperName] = useState(null);
   const lng = i18n.language;
+  // The unit and keeper by name (UXP1-S004); the ID stays when the lookup fails.
+  const unitIndex = useOrgUnitIndex(!!report?.orgUnitId);
+  const mandateId = report?.mandateId;
+  useEffect(() => {
+    if (!apiClient || !mandateId || typeof apiClient.getMandate !== 'function') return;
+    apiClient
+      .getMandate(tenantId, mandateId)
+      .then((m) => setKeeperName(m?.name || null))
+      .catch(() => setKeeperName(null));
+  }, [apiClient, tenantId, mandateId]);
 
   const load = useCallback(() => {
     if (!apiClient || !recordId) return;
@@ -173,7 +187,7 @@ export default function ReportDetailView({ recordId }) {
         <Detail name="mandateId" t={t}>
           {r.mandateId ? (
             <Link to={pathFor('keepers', r.mandateId)} tipText={t('tips.views.reportDetail.openKeeper')} testId="report-keeper-link">
-              <code>{r.mandateId}</code>
+              {keeperName || <code>{r.mandateId}</code>}
             </Link>
           ) : (
             '-'
@@ -189,7 +203,7 @@ export default function ReportDetailView({ recordId }) {
             '-'
           )}
         </Detail>
-        <Detail name="orgUnitId" t={t}>{r.orgUnitId ? <CopyableId value={r.orgUnitId} /> : '-'}</Detail>
+        <Detail name="orgUnitId" t={t}>{r.orgUnitId ? findIndexedUnit(unitIndex, r.orgUnitId) ? <UnitLink unit={findIndexedUnit(unitIndex, r.orgUnitId)} testId="report-unit-link" /> : <CopyableId value={r.orgUnitId} /> : '-'}</Detail>
       </div>
 
       <Section id="body" t={t} testId="report-body-panel">

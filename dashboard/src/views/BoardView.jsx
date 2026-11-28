@@ -34,7 +34,7 @@ import { holds } from '../utils/apps';
 import { enumLabel } from '../utils/enums';
 import { errorMessage, errorMessageWithDetail, fieldErrorMessages } from '../utils/errors';
 import { FREEZES_CHANGED_EVENT, freezeDenied } from '../utils/freezes';
-import { chartToUnits, orgDenied } from '../utils/organizations';
+import { chartToUnits, orgDenied, unitPath } from '../utils/organizations';
 import { cascadeDenied } from '../utils/performance';
 import { BOARD_LIMITS, attentionCount, capHits, directionBody, directionErrors, groupEscalations, healthMap, organizationFreeze, proposalPending, spendByUnit, unitAttention } from '../utils/board';
 
@@ -408,6 +408,15 @@ function Board({ organizationId }) {
   const caps = capHits(board);
   const proposals = (board.proposals || []).filter(proposalPending);
   const spendGroups = spendByUnit(board.spend);
+  // Unit names link to the unit on its organization's Design tab (UXP1-S004).
+  const unitName = (unitId, name, testId) =>
+    unitId && orgId ? (
+      <StudioLink to={unitPath(orgId, unitId)} testId={testId} tipText={t('tips.links.openUnit')}>
+        {name || unitId}
+      </StudioLink>
+    ) : (
+      name || unitId
+    );
   const freezes = (board.freezes || []).filter((f) => f.active !== false);
   const orgFreeze = organizationFreeze(board);
   const ceo = board.ceo || null;
@@ -473,7 +482,7 @@ function Board({ organizationId }) {
             <Empty text={t('board.chart.empty')} testId="board-chart-empty" />
           ) : (
             <>
-              <OrgChartTree units={units} t={t} lng={lng} spend={board.spend || []} health={healthMap(board)} onCancelAll={(unit) => setCascade(unit)} cancelAllDenied={cancelAllDenied} />
+              <OrgChartTree units={units} t={t} lng={lng} spend={board.spend || []} health={healthMap(board)} onCancelAll={(unit) => setCascade(unit)} cancelAllDenied={cancelAllDenied} unitHref={orgId ? (u) => unitPath(orgId, u.id) : undefined} />
               <LocalTableFrame
                 tableId="board-unit-health"
                 testId="board-unit-health"
@@ -482,7 +491,7 @@ function Board({ organizationId }) {
                 rowId={(h) => h.unitId}
                 rowProps={(h) => ({ 'data-unit-health': h.unitId })}
                 columns={[
-                  { key: 'unit', label: t('board.chart.columns.unit'), tip: t('tips.board.chart.columns.unit'), pinned: true, render: (h) => h.unitName },
+                  { key: 'unit', label: t('board.chart.columns.unit'), tip: t('tips.board.chart.columns.unit'), pinned: true, render: (h) => unitName(h.unitId, h.unitName, 'board-unit-link') },
                   {
                     key: 'health',
                     label: t('board.chart.columns.health'),
@@ -619,7 +628,7 @@ function Board({ organizationId }) {
                 <ul className="plain-list board-list" data-testid="board-cap-hits">
                   {caps.map((c) => (
                     <li key={c.unitId} data-cap-unit={c.unitId}>
-                      <strong>{c.unitName}</strong>
+                      <strong>{unitName(c.unitId, c.unitName, 'board-cap-unit-link')}</strong>
                       {c.rows.map((row) => (
                         <SpendBar key={`${row.unitId}-${row.period}`} row={{ ...row, exhausted: true }} t={t} lng={lng} />
                       ))}
@@ -690,7 +699,7 @@ function Board({ organizationId }) {
             <ul className="plain-list board-spend-chart" aria-label={t('board.spend.title')}>
               {spendGroups.map((g) => (
                 <li key={g.unitId} data-spend-unit={g.unitId}>
-                  <div className="board-spend-unit">{g.unitName}</div>
+                  <div className="board-spend-unit">{unitName(g.unitId, g.unitName, 'board-spend-unit-link')}</div>
                   {g.rows.map((row) => (
                     <SpendBar key={`${row.unitId}-${row.period}`} row={row} t={t} lng={lng} testId="board-spend-bar" />
                   ))}

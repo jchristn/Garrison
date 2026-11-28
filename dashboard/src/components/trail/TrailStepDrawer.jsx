@@ -15,6 +15,11 @@ import { jsonToText } from '../../utils/jsonFields';
 import { formatDateTime, formatNumber } from '../../i18n/formatters';
 import { formatMs, formatUsd } from '../../utils/telemetry';
 import { owningRunId } from '../../utils/trailLayout';
+import StudioLink from '../studio/StudioLink';
+import UnitLink from '../UnitLink';
+import useOrgUnitIndex from '../../hooks/useOrgUnitIndex';
+import { pathFor } from '../../config/navConfig';
+import { findIndexedUnit } from '../../utils/organizations';
 import { TrailState, entrySurfaceLabel, entrySurfaceTip, kindLabel, kindTip, stateTip, stepPath, stepTitle } from './trailParts';
 
 /**
@@ -180,6 +185,8 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
   const [state, setState] = useState({ loading: false, record: null, error: null });
   const nodeId = node?.id;
   const nodeKind = node?.kind;
+  // The unit's organization, so the unit name can link to it (UXP1-S004).
+  const unitIndex = useOrgUnitIndex(!!node?.unitId);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -249,14 +256,28 @@ export default function TrailStepDrawer({ trail, node, onClose }) {
             {(node.kind === 'Caller' || node.kind === 'Reply') && node.callerName ? (
               <Field label={t('trail.drawer.fields.caller')} tipText={t('tips.trail.drawer.fields.caller')}>{node.callerName}</Field>
             ) : (
-              (node.agentName || node.callerName) && <Field label={t('trail.drawer.fields.agent')} tipText={t('tips.trail.drawer.fields.agent')}>{node.agentName || node.callerName}</Field>
+              (node.agentName || node.callerName) && (
+                <Field label={t('trail.drawer.fields.agent')} tipText={t('tips.trail.drawer.fields.agent')}>
+                  {node.agentId ? (
+                    <StudioLink to={pathFor('agents', node.agentId)} testId="trail-drawer-agent-link" tipText={t('tips.links.openAgent')}>
+                      {node.agentName || node.agentId}
+                    </StudioLink>
+                  ) : (
+                    node.agentName || node.callerName
+                  )}
+                </Field>
+              )
             )}
             {node.entrySurface && (
               <Field label={t('trail.drawer.fields.entrySurface')} tipText={t('tips.trail.drawer.fields.entrySurface')}>
                 <span {...tip(entrySurfaceTip(t, node.entrySurface))}>{entrySurfaceLabel(t, node.entrySurface)}</span>
               </Field>
             )}
-            {node.unitName && <Field label={t('trail.drawer.fields.unit')} tipText={t('tips.trail.drawer.fields.unit')}>{node.unitName}</Field>}
+            {node.unitName && (
+              <Field label={t('trail.drawer.fields.unit')} tipText={t('tips.trail.drawer.fields.unit')}>
+                {findIndexedUnit(unitIndex, node.unitId) ? <UnitLink unit={{ ...findIndexedUnit(unitIndex, node.unitId), name: node.unitName }} testId="trail-drawer-unit-link" /> : node.unitName}
+              </Field>
+            )}
             {node.runKind && <Field label={t('trail.drawer.fields.runKind')} tipText={t('tips.trail.drawer.fields.runKind')}>{enumLabel(t, 'runKind', node.runKind)}</Field>}
             {node.toolName && <Field label={t('trail.drawer.fields.tool')} tipText={t('tips.trail.drawer.fields.tool')}><code>{node.toolName}</code></Field>}
             <Field label={t('trail.drawer.fields.started')} tipText={t('tips.trail.drawer.fields.started')}>{when(node.startedUtc)}</Field>

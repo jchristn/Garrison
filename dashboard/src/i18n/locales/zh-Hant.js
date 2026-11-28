@@ -10637,3 +10637,28 @@ zhHant.explainers.secrets.p1 = "密鑰是一個加密的值，例如 API 金鑰�
   }
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHant, {
+ "links": {
+  "units": "組織單位",
+  "unit": "組織單位",
+  "unitInOrganization": "{{organization}} 的 {{unit}}",
+  "messageFrom": "來自 {{sender}} 的訊息",
+  "shadowOf": "影子副本來源",
+  "comparedRuns": "已比較的執行",
+  "showShadowRuns": "查看影子執行"
+ },
+ "runtime": {
+  "emptyBody": "連線告訴 Garrison 要用哪個 harness 或模型端點執行代理程式，以及所用的模型、設定和密鑰。先新增一個，再於架構師或部署中選擇它。"
+ }
+});

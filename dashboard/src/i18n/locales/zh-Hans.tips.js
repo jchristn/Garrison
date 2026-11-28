@@ -5444,3 +5444,34 @@ tips.views.studio.discardPending = "确认后永久删除此草稿，并取消�
   "hasHops": "较长的请求保留发送或接收过消息、启动了另一个运行或由另一个运行启动、或属于扇出的运行，包括请求开始时的那个运行。单个运行保留其余的。"
  }
 });
+
+// LP5.5 (UX pass 1, closing): links between related records and the Connections empty state (UXP1-S004, UXP1-S007).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "links": {
+  "openAgent": "打开此智能体的页面：其部署、修订版、守护者和最近的运行。",
+  "openDeployment": "打开已筛选到此部署的“部署”，在那里设置其权重、模型和连接。",
+  "openNode": "打开已筛选到此节点的“工作节点”，查看其状态和容量。",
+  "openKeeper": "打开此守护者的页面：其计划、预算、巡检和修订版。",
+  "openKeeperSummary": "{{summary}} 选择即可打开守护者的页面。",
+  "openUnit": "在所属组织的“设计”标签页中打开此单元，并选中该单元。",
+  "openThread": "打开唤醒智能体执行此运行的消息会话，并突出显示该消息。",
+  "shadowOf": "这是影子运行：候选部署重放了一次真实运行的输入，以便比较两份输出。影子运行不能执行任何操作。",
+  "openShadowSource": "打开此影子运行所复制的真实运行。",
+  "shadowTrial": "启动此影子运行的影子试验。",
+  "openShadowTrial": "打开影子试验，查看其一致计数。",
+  "agentKeepers": "按计划唤醒此智能体的守护者。选择一个即可打开。",
+  "agentUnits": "此智能体领导或所在的组织单元。选择一个即可在其组织中打开。",
+  "keeperUnit": "由负责人或成员持有此守护者的组织单元。",
+  "comparedRuns": "此试验的影子运行：候选部署对来源真实运行的副本。每个都链接到其复制的真实运行。",
+  "openComparedRuns": "打开已筛选到此试验影子运行的“运行”。"
+ }
+});
